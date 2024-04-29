@@ -1,0 +1,1348 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Semantic Role Labeling with BERT-Based Transformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Transformers have made more progress in the past few years than NLP in the past
+    generation. Standard NLU approaches first learn syntactical and lexical features
+    to explain the structure of a sentence. The former NLP models would be trained
+    to understand a language’s basic syntax before running **Semantic Role Labeling**
+    (**SRL**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Shi* and *Lin* (2019) started their paper by asking if preliminary syntactic
+    and lexical training can be skipped. Can a BERT-based model perform SRL without
+    going through those classical training phases? The answer is yes!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Shi* and *Lin* (2019) suggested that SRL can be considered sequence labeling
+    and provide a standardized input format. Their BERT-based model produced surprisingly
+    good results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will use a pretrained BERT-based model provided by the Allen Institute
+    for AI based on the *Shi* and *Lin* (2019) paper. *Shi* and *Lin* took SRL to
+    the next level by dropping syntactic and lexical training. We will see how this
+    was achieved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin by defining SRL and the standardization of the sequence labeling
+    input formats. We will then get started with the resources provided by the Allen
+    Institute for AI. Next, we will run SRL tasks in a Google Colab notebook and use
+    online resources to understand the results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will challenge the BERT-based model by running SRL samples. The
+    first samples will show how SRL works. Then, we will run some more difficult samples.
+    We will progressively push the BERT-based model to the limits of SRL. Finding
+    the limits of a model is the best way to ensure that real-life implementations
+    of transformer models remain realistic and pragmatic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining semantic role labeling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Defining the standardization of the input format for SRL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main aspects of the BERT-based model’s architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How an encoder-only stack can manage a masked SRL input format
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: BERT-based model SRL attention process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Getting started with the resources provided by the Allen Institute for AI
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a notebook to run a pretrained BERT-based model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing sentence labeling on basic examples
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing SRL on difficult examples and explaining the results
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Taking the BERT-based model to the limit of SRL and explaining how this was
+    done
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Our first step will be to explore the SRL approach defined by *Shi* and *Lin*
+    (2019).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting started with SRL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: SRL is as difficult for humans as for machines. However, once again, transformers
+    have taken a step closer to our human baselines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will first define SRL and visualize an example. We will
+    then run a pretrained BERT-based model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin by defining the problematic task of SRL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining semantic role labeling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Shi* and *Lin* (2019) advanced and proved the idea that we can find who did
+    what, and where, without depending on lexical or syntactic features. This chapter
+    is based on *Peng Shi* and *Jimmy Lin*’s research at the *University of Waterloo*,
+    California. They showed how transformers learn language structures better with
+    attention layers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL labels the *semantic role* as the role a word or group of words plays in
+    a sentence and the relationship established with the predicate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A *semantic role* is the role a noun or noun phrase plays in relation to the
+    main verb in a sentence. For example, in the sentence `Marvin walked in the park`,
+    `Marvin` is the *agent* of the event occurring in the sentence. The *agent* is
+    the *doer* of the event. The main verb, or *governing verb*, is `walked`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The *predicate* describes something about the subject or agent. The predicate
+    could be anything that provides information on the features or actions of a subject.
+    In our approach, we will refer to the predicate as the main *verb*. For example,
+    in the sentence `Marvin walked in the park`, the predicate is `walked` in its
+    restricted form.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The words `in the park` *modify* the meaning of `walked` and are the *modifier*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The noun or noun phrases that revolve around the predicate are *arguments* or
+    *argument terms*. `Marvin`, for example, is an *argument* of the *predicate* `walked`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that SRL does not require a syntax tree or a lexical analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s visualize the SRL of our example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing SRL
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This chapter will be using the Allen Institute’s visual and code resources (see
+    the *References* section for more information). The Allen Institute for AI has
+    excellent interactive online tools, such as the one we’ve used to represent SRL
+    visually throughout this chapter. You can access these tools at [https://demo.allennlp.org/](https://demo.allennlp.org/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Allen Institute for AI advocates *AI for the common good*. We will make
+    good use of this approach. All of the figures in this chapter were created with
+    the AllenNLP tools.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Allen Institute provides transformer models that continuously evolve. Therefore,
+    the examples in this chapter might produce different results when you run them.
+    The best way to get the most out of this chapter is to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Read and understand the concepts explained beyond merely running a program
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Take the time to understand the examples provided
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Then run your own experiments with sentences of your choice with the tool used
+    in this chapter: [https://demo.allennlp.org/semantic-role-labeling](https://demo.allennlp.org/semantic-role-labeling).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now visualize our SRL example. *Figure 10.1* is an SRL representation
+    of `Marvin walked in the park`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing graphical user interface  Description automatically
+    generated](img/B17948_10_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.1: The SRL representation of a sentence'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can observe the following labels in *Figure 10.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Verb**: The predicate of the sentence'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Argument**: An argument of the sentence named **ARG0**'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Modifier**: A modifier of the sentence. In this case, a location. It could
+    have been an adverb, an adjective, or anything that modifies the predicate’s meaning'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The text output is interesting as well, which contains shorter versions of
+    the labels of the visual representation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have defined SRL and gone through an example. It is time to look at the BERT-based
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a pretrained BERT-based model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section will begin by describing the architecture of the BERT-based model
+    used in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then we will define the method used to experiment with SRL samples with a BERT
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin by looking at the architecture of the BERT-based model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The architecture of the BERT-based model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: AllenNLP’s BERT-based model is a 12-layer encoder-only BERT model. The AllenNLP
+    team implemented the BERT model described in *Shi* and *Lin* (2019) with an additional
+    linear classification layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more on the description of a BERT model, take a few minutes, if necessary,
+    to go back to *Chapter 3*, *Fine-Tuning BERT Models*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The BERT-based model takes full advantage of bidirectional attention with a
+    simple approach and architecture. The core potential of transformers resides in
+    the attention layers. We have seen transformer models with both encoder and decoder
+    stacks. We have seen other transformers with encoder layers only or decoder layers
+    only. The main advantage of transformers remains in the near-human approach of
+    attention layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The input format of the predicate identification format defined by *Shi* and
+    *Lin* (2019) shows how far transformers have come to understand a language in
+    a standardized fashion:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training process has been standardized:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`[CLS]` indicates that this is a classification exercise'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`[SEP]` is the first separator, indicating the end of the sentence'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`[SEP]` is followed by the predicate identification designed by the authors'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`[SEP]` is the second separator, which indicates the end of the predicate identifier'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This format alone is enough to train a BERT model to identify and label the
+    semantic roles in a sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s set up the environment to run SRL samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the BERT SRL environment
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will be using a Google Colab notebook, the AllenNLP visual text representations
+    of SRL available at [https://demo.allennlp.org/](https://demo.allennlp.org/) under
+    the *Semantic Role Labeling* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will apply the following method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will open `SRL.ipynb`, install `AllenNLP`, and run each sample
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will display the raw output of the SRL run
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will visualize the output using AllenNLP’s online visualization tools
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will display the output using AllenNLP’s online text visualization tools
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This chapter is self-contained. You can read through it or run the samples as
+    described.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The SRL model output may differ when AllenNLP changes the transformer model
+    used. This is because AllenNLP models and transformers, in general, are continuously
+    trained and updated. Also, the datasets used for training might change. Finally,
+    these are not rule-based algorithms that produce the same result each time. The
+    outputs might change from one run to another, as described and shown in the screenshots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now run some SRL experiments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL experiments with the BERT-based model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will run our SRL experiments using the method described in the *Setting up
+    the BERT SRL environment* section of this chapter. We will begin with basic samples
+    with various sentence structures. We will then challenge the BERT-based model
+    with some more difficult samples to explore the system’s capacity and limits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open `SRL.ipynb` and run the installation cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we import the tagging module and a trained BERT predictor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also add two functions to display the JSON object SRL BERT returns. The
+    first one displays the verb of the predicate and the description:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The second one displays the full response, including the tags:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At the time of this publication, the BERT model was specifically trained for
+    semantic role labeling use. The name of the model is SRL BERT. SRL BERT was trained
+    using the OntoNotes 5.0 dataset: [https://catalog.ldc.upenn.edu/LDC2013T19](https://catalog.ldc.upenn.edu/LDC2013T19).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This dataset contains sentences and annotations. The dataset was designed to
+    identify predicates (a part of a sentence containing a verb) in a sentence and
+    identify the words that provide more information on the verbs. Each verb comes
+    with its “arguments” that tell us more about it. A “frame” contains the arguments
+    of a verb.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL BERT is thus a specialized model trained to perform a specific task, and
+    as such, it is not a foundation model like OpenAI GPT-3 as we saw in *Chapter
+    7*, *The Rise of Suprahuman Transformers with GPT-3 Engines*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL BERT will focus on semantic role labeling with acceptable accuracy as long
+    as the sentence contains a predicate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready to warm up with some basic samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basic samples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Basic samples seem intuitively simple but can be tricky to analyze. Compound
+    sentences, adjectives, adverbs, and modals are difficult to identify, even for
+    non-expert humans.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin with an easy sample for the transformer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 1
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The first sample is long but relatively easy for the transformer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Did Bob really think he could prepare a meal for 50 people in only a few hours?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run the *Sample 1* cell in `SRL.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'BERT SRL identified the four predicates; the verb for each one labeled the
+    result as shown in this excerpt using the `head(prediction)` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can view the full response by running the `full(prediction)` cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we use the description of the arguments of the dataset based on the structure
+    of the PropBank (Proposition Bank), the verb `think`, for example, in this excerpt
+    can be interpreted as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`V` identifies the verb `think`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ARG0` identifies the agent; thus, `Bob` is the agent or “pro-agent”'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ARGM-ADV` considers `really` as an adverb (`ADV`), with `ARGM` meaning that
+    the adverb provides an adjunct (not necessary) thus not numbered'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If we run the sample in the AllenNLP online interface, we obtain a visual representation
+    of the SRL task of one frame per verb. The first verb is `Did`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B17948_10_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.2: Identifying the verb “Did”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second verb identified is `think`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, application  Description automatically generated](img/B17948_10_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.3: Identifying the verb “think”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we take a close look at this representation, we can detect some interesting
+    properties of the SRL BERT that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Detected the verb `think`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Avoided the `prepare` trap that could have been interpreted as the main verb.
+    Instead, `prepare` remained part of the argument of `think`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Detected an adverb and labeled it
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The third verb is `could`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, application  Description automatically generated](img/B17948_10_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.4: Identifying the verb “could” and the argument'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer then moved to the verb `prepare`, labeled it, and analyzed
+    its context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated with medium
+    confidence](img/B17948_10_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.5: Identifying the verb “prepare”, the arguments, and the modifiers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, the simple BERT-based transformer model detected a lot of information
+    on the grammatical structure of the sentence and found:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The verb `prepare` and isolated it
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The noun `he` and labeled it as an argument and did the same for `a meal for
+    50 people`, which is a “proto-patient,” which involves a modification by other
+    participants
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That `in only a few hours` is a temporal modifier (**ARGM-TMP**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That `could` was a modal modifier that indicates the modality of a verb, such
+    as the likelihood of an event
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will now analyze another relatively long sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 2
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following sentence seems easy but contains several verbs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Mrs. and Mr. Tomaso went to Europe for vacation and visited Paris and first
+    went to visit the Eiffel Tower.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Will this confusing sentence make the transformer hesitate? Let’s see by running
+    the *Sample 2* cell of the `SRL.ipynb` notebook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The excerpt of the output proves that the transformer correctly identified
+    the verbs in the sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Running the sample on AllenNLP online identified four predicates, thus generating
+    four frames.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first frame is for `went`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.6: Identifying the verb “went,” the arguments, and the modifier'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can interpret the arguments of the verb `went`. `Mrs. and Mr. Tomaso` are
+    the agents. The transformer found that the main modifier of the verb was the purpose
+    of the trip: `to Europe`. The result would not be surprising if we did not know
+    that *Shi* and *Lin* (2019) had only built a simple BERT model to obtain this
+    high-quality grammatical analysis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also notice that `went` was correctly associated with `Europe`. The
+    transformer correctly identified the verb `visited` as being related to `Paris`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.7: Identifying the verb “visited” and the arguments'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transformer could have associated the verb `visited` directly with the `Eiffel
+    Tower`. But it didn’t. It stood its ground and made the right decision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next task we asked the transformer to do was identify the context of the
+    second use of the verb `went`. Again, it did not fall into the trap of merging
+    all of the arguments related to the verb `went`, used twice in the sentence. Again,
+    it correctly split the sequence and produced an excellent result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Une image contenant texte  Description générée automatiquement](img/B17948_10_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.8: Identifying the verb “went,” the argument, and the modifiers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The verb `went` was used twice, but the transformer did not fall into the trap.
+    It even found that `first` was a temporal modifier of the verb `went`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the verb `visit` was used a second time, and SRL BERT correctly interpreted
+    its use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Une image contenant texte  Description générée automatiquement](img/B17948_10_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.9: Identifying the verb “visit” and the arguments'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s run a sentence that is a bit more confusing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 3
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Sample 3* will make things more difficult for our transformer model. The following
+    sample contains variations of the verb `drink` four times:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`John wanted to drink tea, Mary likes to drink coffee but Karim drank some
+    cool water and Faiza would like to drink tomato juice.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s run *Sample 3* in the `SRL.ipynb` notebook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The transformer found its way around, as shown in the following excerpt of
+    the output that contains the verbs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: We obtain several visual representations when we run the sentence on the AllenNLP
+    online interface. We will examine two of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first one is perfect. It identifies the verb `wanted` and makes the correct
+    associations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.10: Identifying the verb “wanted” and the arguments'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When it identified the verb `drank`, it correctly excluded `Faiza` and only
+    produced `some cool water` as the argument.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.11: Identifying the verb “drank” and the arguments'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ve found that the BERT-based transformer produces relatively good results
+    up to now on basic samples. So let’s try some more difficult ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Difficult samples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This section will run samples that contain problems that the BERT-based transformer
+    will first solve. Finally, we will end with an intractable sample.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start with a complex sample that the BERT-based transformer can analyze.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 4
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Sample 4* takes us into more tricky SRL territory. The sample separates `Alice`
+    from the verb `liked`, creating a long-term dependency that has to jump over `whose
+    husband went jogging every Sunday.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The sentence is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Alice, whose husband went jogging every Sunday, liked to go to a dancing class
+    in the meantime.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A human can isolate `Alice` and find the predicate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Alice liked to go to a dancing class in the meantime.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Can the BERT model find the predicate like us?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s find out by first running the code in `SRL.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output identified the verbs for each predicate and labeled each frame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s focus on the part we are interested in and see if the model found the
+    predicate. It did! It found the verb `liked` as shown in this excerpt of the output,
+    although the verb `like` is separated from `Alice` by another predicate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Verb: liked [ARG0: Alice , whose husband went jogging every Sunday]`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s now look at the visual representation of the model’s analysis after running
+    the sample on AllenNLP’s online UI. The transformer first finds Alice’s husband:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Une image contenant texte  Description générée automatiquement](img/B17948_10_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.12: The predicate “went” has been identified'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer explains that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The predicate or verb is `went`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`whose husband` is the argument'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`jogging` is another argument related to `went`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`every Sunday` is a temporal modifier represented in the raw output as `[ARGM-TMP:
+    every Sunday]`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The transformer then found what Alice’s husband was *doing*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Une image contenant texte  Description générée automatiquement](img/B17948_10_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.13: SRL detection of the verb “jogging”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that the verb `jogging` was identified and was related to `whose
+    husband` with the temporal modifier `every Sunday`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer doesn’t stop there. It now detects what Alice liked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.14: Identifying the verb “liked”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer also detects and analyzes the verb `go` correctly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.15: Detecting the verb “go,” its arguments, and modifier'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that the temporal modifier `in the meantime` was also identified.
+    It is quite a performance considering the simple *sequence* + *verb* input SRL
+    BERT was trained with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the transformer identifies the last verb, `dancing`, as being related
+    to `class`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Une image contenant texte  Description générée automatiquement](img/B17948_10_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.16: Relating the argument “class” to the verb “dancing”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The results produced by *Sample 4* are quite convincing! Let’s try to find the
+    limit of the transformer model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 5
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Sample 5* does not repeat a verb several times. However, *Sample 5* contains
+    a word with multiple functions and meanings. It goes beyond polysemy since the
+    word `round` can have different meanings and grammatical functions. The word `round`
+    can be a noun, an adjective, an adverb, a transitive verb, or an intransitive
+    verb.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a transitive or intransitive verb, `round` can attain perfection or completion.
+    In this sense, `round` can be used with `off`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following sentence uses `round` in the past tense:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`The bright sun, the blue sky, the warm sand, the palm trees, everything round
+    off.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The verb `round` in this predicate is used in a sense of “to bring to perfection.”
+    Of course, the most accessible grammatical form would have been “rounded.” but
+    let’s see what happens with our sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s run *Sample 5* in `SRL.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows no verbs. The transformer did not identify the predicate.
+    In fact, it found no verbs at all even when we run the `full(prediction)` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, the online version seems to interpret the sentence better because
+    it found the verb:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.17: Detecting the verb “round” and “everything” as the argument'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we like our SRL transformer, we will be kind to it. *We will show it
+    what to do with a verb form that is more frequently used*. Let’s change the sentence
+    from the past tense to the present tense by adding an `s` to `round`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`The bright sun, the blue sky, the warm sand, the palm trees, everything` `rounds`
+    `off.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s give `SRL.ipynb` another try with the present tense:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The raw output shows that the predicate was found, as shown in the following
+    output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we run the sentence on AllenNLP, we obtain the visual explanation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.18: Detecting the word “rounds” as a verb'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our BERT-based transformer did well because the word `round` can be found as
+    `rounds` in its present tense form.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The BERT model initially failed to produce the result we expected. But with
+    a little help from its friends, all ended well for this sample.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can see that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Outputs may vary with the evolution of the versions of a model we have implemented
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An Industry 4.0 pragmatic mindset requires more cognitive efforts to *show*
+    a transformer what to do
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s try another sentence that’s difficult to label.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample 6
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Sample 6* takes a word we often think is just a noun. However, more words
+    than we suspect can be both nouns and verbs. For example, *to ice* is a verb used
+    in hockey to shoot a puck all the way across the rink and beyond the goal line
+    of an opponent. A puck is the disk used in hockey.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A hockey coach can start the day by telling a team to train icing pucks. We
+    then can obtain the *imperative* sentence when the coach yells:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Now, ice pucks guys!`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `guys` can mean persons regardless of their sex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s run the *Sample 6* cell to see what happens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The transformer fails to find the verb: `"verbs": []`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Game over! We can see that transformers have made tremendous progress, but there
+    is still a lot of room for developers to improve the models. Humans are still
+    in the game to *show* transformers what to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The online interface confuses `pucks` with a verb:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_10_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.19: The model incorrectly labels “pucks” as the verb'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This problem may be solved with another model, but you will reach another limit.
+    Even GPT-3 has limits you will have to cope with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you implement transformers for a customized application with specialized
+    jargon or technical vocabulary, you will reach intractable limits at some point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These limits will require your expertise to make a project a success. Therefore,
+    you will have to create specialized dictionaries to succeed in a project. This
+    is good news for developers! You will develop new cross-disciplinary and cognitive
+    skills that your team will appreciate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Try some examples or samples of your own to see what SRL can do with the approach’s
+    limits. Then explore how to develop preprocessing functions to show the transformer
+    what to do for your customized applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we leave, let’s question the motivation of SRL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questioning the scope of SRL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We are alone when faced with a real-life project. We have a job to do, and the
+    only people to satisfy are those who asked for that project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Pragmatism must come first. Technical ideology after.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the 2020s, former AI ideology and new ideology coexist. By the end of the
+    decade, there will be only one winner merging some of the former into the latter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This section questions the productivity of SRL and also its motivation through
+    two aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The limit of predicate analysis
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questioning the use of the term “semantic”
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The limit of predicate analysis
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: SRL relies on predicates. SRL BERT only works as long as you provide a verb.
+    But millions of sentences do not contain verbs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you provide SRL BERT in the **Semantic Role Labeling** section in the AllenNLP
+    demo interface ([https://demo.allennlp.org/](https://demo.allennlp.org/)) with
+    an assertion alone, it works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But what happens if your assertion is an answer to a question:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Person 1: `What would you like to drink, please?`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Person 2: `A cup of coffee, please.`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'When we enter Person 2’s answer, SRL BERT finds nothing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application, chat or text message  Description
+    automatically generated](img/B17948_10_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.20: No frame obtained'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output is `0` total frames. SRL was unable to analyze this sentence because
+    it contains an *ellipsis*. The predicate is implicit, not explicit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The definition of an ellipsis is the act of leaving one or several words out
+    of a sentence that is not necessary for it to be understood.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hundreds of millions of sentences containing an ellipsis are spoken and written
+    each day.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Yet SRL BERT yields *0 Total Frames* for all of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following answers (`A`) to questions (`Q`) beginning with `what`, `where`,
+    and `how` yield *0 Total Frames*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: What would you like to have for breakfast?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: Pancakes with hot chocolate.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(The model deduces: `pancakes`=proper noun, `with`=preposition, `hot`= adjective,
+    and `chocolate`=common noun.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: Where do you want to go?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: London, please.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(The model deduces: `London`=proper noun and `please`=adverb.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: How did you get to work today?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: Subway.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(The model deduces: `subway`=proper noun.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could find millions more examples that SRL BERT fails to understand because
+    the sentences do not contain predicates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could apply this to questions in the middle of dialogue as well and still
+    obtain no frames (outputs) from SRL BERT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Context: The middle of a conversation during which person 2 did not want coffee:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: So, tea?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: No thanks.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: Ok, hot chocolate?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: Nope.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Q: A glass of water?`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`A: Yup!`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We just saw a conversation with no frames, no semantic labeling. Nothing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can finish with some movie, concert, or exhibition reviews on social media
+    that produce 0 frames:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Best movie ever!`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Worst concert in my life!`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Excellent exhibition!`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This section showed the limits of SRL. Let’s now redefine SRL and show how to
+    implement it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Redefining SRL
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: SRL BERT presupposes that sentences contain predicates, which is a false assumption
+    in many cases. Analyzing a sentence cannot be based on a predicate analysis alone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A predicate contains a verb. The predicate tells us more about the subject.
+    The following predicate contains a verb and additional information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ate...quickly` tells us more about the way the dog ate. However, a verb alone
+    can be a predicate, as in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Dogs eat.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem here resides in the fact that “verbs” and “predicates” are part
+    of syntax and grammar analysis, not semantics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding how words fit together from a grammatical, functional point of
+    view is restrictive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Take this sentence that means absolutely nothing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'SRL BERT perfectly performs “semantic” analysis on a sentence that means nothing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing timeline  Description automatically generated](img/B17948_10_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.21: Analyzing a meaningless sentence'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can draw some conclusions from these examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL predicate analysis only works when there is a verb in the sentence
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SRL predicate analysis cannot identify an ellipsis
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Predicates and verbs are part of the structure of a language, of grammatical
+    analysis
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Predicate analysis identifies structures but not the meaning of a sentence
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Grammatical analysis goes far beyond predicate analysis as the necessary center
+    of a sentence
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Semantics focuses on the meaning of a phrase or sentence. Semantics focuses
+    on context and the way words relate to each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Grammatical analysis includes syntax, inflection, and the functions of words
+    in a phrase or sentence. The term semantic role labeling is misleading; it should
+    be named “predicate role labeling.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: We perfectly understand sentences without predicates and beyond sequence structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sentiment analysis can decode the meaning of a sentence and give us an output
+    without predicate analysis. Sentiment analysis algorithms perfectly understand
+    that “Best movie ever” is positive regardless of the presence of a predicate or
+    not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using SRL alone to analyze language is restrictive. Using SRL in an AI pipeline
+    or other AI tools can be very productive to add more intelligence to natural language
+    understanding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: My recommendation is to use SRL with other AI tools, as we will see in *Chapter
+    13*, *Analyzing Fake News with Transformers*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now conclude our exploration of the scope and limits of SRL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we explored SRL. SRL tasks are difficult for both humans and
+    machines. Transformer models have shown that human baselines can be reached for
+    many NLP topics to a certain extent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We found that a simple BERT-based transformer can perform predicate sense disambiguation.
+    We ran a simple transformer that could identify the meaning of a verb (predicate)
+    without lexical or syntactic labeling. *Shi* and *Lin* (2019) used a standard
+    *sentence* + *verb* input format to train their BERT-based transformer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We found that a transformer trained with a stripped-down *sentence* + *predicate*
+    input could solve simple and complex problems. The limits were reached when we
+    used relatively rare verb forms. However, these limits are not final. If difficult
+    problems are added to the training dataset, the research team could improve the
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also discovered that AI for the good of humanity exists. The *Allen Institute
+    for AI* has made many free AI resources available. In addition, the research team
+    has added visual representations to the raw output of NLP models to help users
+    understand AI. We saw that explaining AI is as essential as running programs.
+    The visual and text representations provided a clear view of the potential of
+    the BERT-based model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we explored the scope and limits of SRL to optimize how we will use
+    this method with other AI tools.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformers will continue to improve the standardization of NLP through their
+    distributed architecture and input formats.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next chapter, *Chapter 11*, *Let Your Data Do the Talking: Story, Questions,
+    and Answers*, we will challenge transformers on tasks usually only humans perform
+    well. We will explore the potential of transformers when faced with **Named Entity
+    Recognition** (**NER**) and question-answering tasks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Semantic Role Labeling** (**SRL**) is a text generation task. (True/False)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A predicate is a noun. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A verb is a predicate. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Arguments can describe who and what is doing something. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A modifier can be an adverb. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A modifier can be a location. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A BERT-based model contains encoder and decoder stacks. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A BERT-based SRL model has standard input formats. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Transformers can solve any SRL task. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Peng Shi* and *Jimmy Lin*, 2019, *Simple BERT Models for Relation Extraction
+    and Semantic Role Labeling*: [https://arxiv.org/abs/1904.05255](https://arxiv.org/abs/1904.05255)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The Allen Institute for AI: [https://allennlp.org/](https://allennlp.org/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The Allen Institute for AI semantic role labeling resources: [https://demo.allennlp.org/semantic-role-labeling](https://demo.allennlp.org/semantic-role-labeling)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5134042288713321484.png)'
+  prefs: []
+  type: TYPE_IMG

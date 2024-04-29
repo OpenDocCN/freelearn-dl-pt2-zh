@@ -1,0 +1,1445 @@
+- en: '11'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let Your Data Do the Talking: Story, Questions, and Answers'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Reading comprehension requires many skills. When we read a text, we notice the
+    keywords and the main events and create mental representations of the content.
+    We can then answer questions using our knowledge of the content and our representations.
+    We also examine each question to avoid traps and making mistakes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: No matter how powerful they have become, transformers cannot answer open questions
+    easily. An open environment means that somebody can ask any question on any topic,
+    and a transformer would answer correctly. That is difficult but possible to some
+    extent with GPT-3, as we will see in this chapter. However, transformers often
+    use general domain training datasets in a closed question-and-answer environment.
+    For example, critical answers in medical care and law interpretation will often
+    require additional NLP functionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, transformers cannot answer any question correctly regardless of whether
+    the training environment is closed with preprocessed question-answer sequences.
+    A transformer model can sometimes make wrong predictions if a sequence contains
+    more than one subject and compound propositions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will focus on methods to build a question generator that finds
+    unambiguous content in a text with the help of other NLP tasks. The question generator
+    will show some of the ideas applied to implement question-answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin by showing how difficult it is to ask random questions and expect
+    the transformer to respond well every time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will help a `DistilBERT` model answer questions by introducing **Named Entity
+    Recognition** (**NER**) functions that suggest reasonable questions. In addition,
+    we will lay the ground for a question generator for transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will add an ELECTRA model that was pretrained as a discriminator to our question-answering
+    toolbox.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will continue by adding **Semantic Role Labeling** (**SRL**) functions to
+    the blueprint of the text generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, the *Next steps* section will provide additional ideas to build a reliable
+    question-answering solution, including implementing the `Haystack` framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will go straight to the GPT-3 Davinci engine interface online to
+    explore question-answering tasks in an open environment. Again, no development,
+    no training, and no preparation are required!
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of the chapter, you will see how to build your own multi-task NLP
+    helpers or use Cloud AI for question-answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The limits of random question-answering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using NER to create meaningful questions based on entity identification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Beginning to design the blueprint of a question generator for transformers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing the questions found with NER
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing an ELECTRA encoder pretrained as a discriminator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing the ELECTRA model with standard questions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using SRL to create meaningful questions based on predicate identification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Project management guidelines to implement question-answering transformers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Analyzing how to create a question generated using SRL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the output of NER and SRL to define the blueprint of a question generator
+    for transformers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring Haystack’s question-answering framework with RoBERTa
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using GPT-3’s interface requires no development or preparation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s begin by going through the methodology we will apply to analyze the generation
+    of questions for question-answering tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Methodology
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Question-answering is mainly presented as an NLP exercise involving a transformer
+    and a dataset containing the ready-to-ask questions and answering those questions.
+    The transformer is trained to answer the questions asked in this closed environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in more complex situations, reliable transformer model implementations
+    require customized methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformers and methods
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A perfect and efficient universal transformer model for question-answering or
+    any other NLP task does not exist. The best model for a project is the one that
+    produces the best outputs for a specific dataset and task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The method outperforms models* in many cases. For example, a suitable method
+    with an average model often will produce more efficient results than a flawed
+    method with an excellent model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will run `DistilBERT`, `ELECTRA`, and `RoBERTa` models.
+    Some produce better *performances* than others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, *performance* does not guarantee a result in a critical domain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, in a space rocket and spacecraft production project, asking an
+    NLP bot a question means obtaining one exact answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose the user needs to ask a question on a hundred-page report on the status
+    of a regeneratively cooled nozzle and combustion chamber of a rocket. The question
+    could be specific, such as `Is the cooling status reliable or not?` That is the
+    bottom-line information the user wants from the NLP bot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To cut a long story short, letting the NLP bot, transformer model or not, make
+    a literal statistical answer with no quality and cognitive control is too risky
+    and would not happen. A trustworthy NLP bot would be connected to a knowledge
+    base containing data and rules to run a rule-based expert system in the background
+    to check the NLP bot’s answer. The NLP transformer model bot would produce a smooth,
+    reliable natural language answer, possibly with a human voice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A universal transformer *model* and *method* that will fit all needs does not
+    exist. Each project requires specific functions and a customized approach and
+    will vary tremendously depending on the users’ expectations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will focus on the general constraints of question-answering beyond
+    a specific transformer model choice. This chapter is not a question-answering
+    project guide but an introduction to how transformers can be used for question-answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will focus on using question-answering in an open environment where the
+    questions were not prepared beforehand. Transformer models require help from other
+    NLP tasks and classical programs. We will explore some methods to give an idea
+    of how to combine tasks to reach the goal of a project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Method 0* explores a trial and error approach of asking questions randomly.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Method 1* introduces NER to help prepare the question-answering tasks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Method 2* tries to help the default transformer with an ELECTRA transformer
+    model. It also introduces SRL to help the transformer prepare questions.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The introduction to these three methods shows that a single question-answering
+    method will not work for high-profile corporate projects. Adding NER and SRL will
+    improve the linguistic intelligence of a transformer agent solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, in one of my first AI NLP projects implementing question-answering
+    for a defense project in a tactical situation for an aerospace corporation, I
+    combined different NLP methods to ensure that the answer provided was 100% reliable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can design a multi-method solution for each project you implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start with the trial and error approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Method 0: Trial and error'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Question-answering seems very easy. Is that true? Let’s find out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open `QA.ipynb`, the Google Colab notebook we will be using in this chapter.
+    We will run the notebook cell by cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run the first cell to install Hugging Face’s transformers, the framework we
+    will be implementing in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note: Hugging Face transformers continually evolve, updating libraries and
+    modules to adapt to the market. If the default version doesn’t work, you might
+    have to pin one with `!pip install transformers==[version that runs with the other
+    functions in the notebook]`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now import Hugging Face’s pipeline, which contains many ready-to-use
+    transformer resources. They provide high-level abstraction functions for the Hugging
+    Face library resources to perform a wide range of tasks. We can access those NLP
+    tasks through a simple API. The program was created on Google Colab. It recommended
+    to run it on Google Colab VM using a free Gmail account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `pipeline` is imported with one line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once that is done, we have one-line options to instantiate transformer models
+    and tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Perform an NLP task with the default `model` and default `tokenizer`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Perform an NLP task using a custom `model`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Perform NLP tasks using a custom `model` and a custom `tokenizer`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s begin with the default model and tokenizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, all we have to do is provide a text that we will then use to submit questions
+    to the transformer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The sequence is deceptively simple, and all we need to do is plug one line
+    of code into the API to ask a question and obtain an answer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is a perfect answer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have just implemented a question-answering transformer NLP task in a few
+    lines of code! You could now download a ready-to-use dataset that contains texts,
+    questions, and answers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In fact, the chapter could end right here, and you would be all set for question-answering
+    tasks. However, things are never simple in real-life implementations. Suppose
+    we have to implement a question-answering transformer model for users to ask questions
+    on many documents stored in the database. We have two significant constraints:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first need to run the transformer through a set of key documents and create
+    questions that show that the system works
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We must show how we can guarantee that the transformer answers the questions
+    correctly
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Several questions immediately arise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Who is going to find the questions to ask to test the system?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Even if an expert agrees to do the job, what will happen if many of the questions
+    produce erroneous results?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Will we keep training the model if the results are not satisfactory?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What happens if some of the questions cannot be answered, no matter which model
+    we use or train?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What if this works on a limited sample but the process takes too long and cannot
+    be scaled up because it costs too much?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If we just try questions that come to us with an expert’s help and see which
+    ones work and which ones don’t, it could take forever. Trial and error is not
+    the solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter aims to provide some methods and tools that will reduce the cost
+    of implementing a question-answering transformer model. *Finding good questions
+    for question-answering is quite a challenge when implementing new datasets for
+    a customer*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can think of a transformer as a LEGO^® set of building blocks we can assemble
+    as we see fit using encoder-only or decoder-only stacks. We can use a set of small,
+    large, or **extra-large** (**XL**) transformer models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also think of the NLP tasks we have explored in this book as a LEGO^®
+    set of solutions in a project we must implement. We can assemble two or more NLP
+    tasks to reach our goals, just like any other software implementation. We can
+    go from a trial and error search for questions to a methodical approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will continue to run `QA.ipynb` cell by cell to explore the methods described
+    in each section.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will also use the `AllenNLP` NER interface to obtain a visual representation
+    of the NER and SRL results. You can enter the sentence in the interface by going
+    to [https://demo.allennlp.org/reading-comprehension](https://demo.allennlp.org/reading-comprehension),
+    then select **Named Entity Recognition** or **Semantic Role Labeling,** and enter
+    the sequence. In this chapter, we will take the `AllenNLP` model used into account.
+    We just want to obtain visual representations.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s start by trying to find the right XL transformer model questions for question-answering
+    with a NER-first method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Method 1: NER first'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This section will use NER to help us find ideas for good questions. Transformer
+    models are continuously trained and updated. Also, the datasets used for training
+    might change. Finally, these are not rule-based algorithms that produce the same
+    result each time. The outputs might change from one run to another. NER can detect
+    people, locations, organizations, and other entities in a sequence. We will first
+    run a NER task that will give us some of the main parts of the paragraph we can
+    focus on to ask questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using NER to find questions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will continue to run `QA.ipynb` cell by cell. The program now initializes
+    the pipeline with the NER task to perform with the default model and tokenizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will continue to use the deceptively simple sequence we ran in the *Method
+    0: Trial and error* section of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We run the `nlp_ner` cell in `QA.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output generates the result of the NLP tasks. The scores were rounded up
+    to two decimal places to fit the width of the page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The documentation of Hugging Face describes the labels used. In our case, the
+    main ones are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`I-PER`, the name of a person'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-ORG`, the name of an organization'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-LOC`, the name of a location'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The result is correct. Note that `Barstow` was split into three tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s run the same sequence on `AllenNLP` in the **Named Entity Recognition**
+    section ([https://demo.allennlp.org/named-entity-recognition](https://demo.allennlp.org/named-entity-recognition))
+    to obtain a visual representation of our sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B17948_11_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.1: NER'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that NER has highlighted the key entities we will use to create questions
+    for question-answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s ask our transformer two types of questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions related to locations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions related to persons
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s begin with location questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Location entity questions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`QA.ipynb` produced nearly `20` entities. The location entities are particularly
+    interesting:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Applying heuristics
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'We can apply heuristics, a method, to create questions with the output `QA.ipynb`
+    generated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Merge the locations back into their original form with a parser
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Apply a template to the locations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It is beyond the scope of this book to write classical code for a project.
+    We could write a function that would do the work for us, as shown in this pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The NER output would become:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`I-LOC`, `Pioneer Boulevard`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-LOC`, `Los Angeles`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-LOC`, `LA`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-LOC`, `Barstow`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`I-LOC`, `Las Vegas`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We could then generate questions automatically with two templates. For example,
+    we could apply a random function. We could write a function that would do the
+    job for us, as shown in the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We would obtain five questions automatically. For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We know that some of these questions cannot be directly answered with the sequence
+    we created. But we can also manage that automatically. Suppose the questions were
+    created automatically with our method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enter a sequence
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run NER
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create the questions automatically
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let’s suppose the questions were created automatically and let’s run them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that only `Question 1` was answered correctly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output displays the `score`, the `start` and `end` position of the answer,
+    and the `answer` itself. The `score` of `Question 2` is `0.98` in this run, although
+    it wrongly states that `Los Angeles` in `Pioneer Boulevard`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What do we do now?
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s time to control transformers with project management to add quality and
+    decision-making functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project management
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'We will examine four examples, among many others, of how to manage the transformer
+    and the hard-coded functions that manage it automatically. We will classify these
+    four project management examples into four project levels: easy, intermediate,
+    difficult, and very difficult. Project management is not in the scope of this
+    book, so we will briefly go through these four categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**An easy project** could be a website for an elementary school. A teacher
+    might be delighted by what we have seen. The text could be displayed on an HTML
+    page. The five answers to the questions we obtained automatically could be merged
+    with some development into five assertions in a fixed format: `I-LOC is in I-LOC`
+    (for example, `Barstow is in California`). We then add `(True, False)` under each
+    assertion. All the teacher would have to do would be to have an administrator
+    interface that allows the teacher to click on the right answers to finalize a
+    multiple-choice questionnaire!'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**An intermediate project** could be to encapsulate the transformer’s automatic
+    questions and answers in a program that uses an API to check the answers and correct
+    them automatically. The user would see nothing. The process is seamless. The wrong
+    answers the transformer made would be stored for further analysis.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**A difficult project** would be implementing an intermediate project in a
+    chatbot with follow-up questions. For example, the transformer correctly places
+    `Pioneer Boulevard` in `Los Angeles`. A chatbot user might ask a natural follow-up
+    question such as `near where in LA?`. This requires more development.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**A very difficult project** would be a research project that would train the
+    transformer to recognize `I-LOC` entities over millions of records in datasets
+    and output results of real-time streaming of map software APIs.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The good news is that we can also find a way to use what we find.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bad news is that implemented transformers or any AI in real-life projects
+    require powerful machines and a tremendous amount of teamwork between project
+    managers, **Subject Matter Experts** (**SMEs**), developers, and end users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now try person entity questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Person entity questions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s start with an easy question for the transformer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The answer is correct. It states who in the sequence was singing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will now ask the transformer a question that requires some thinking because
+    it is not clearly stated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It is impossible to answer that question without taking the sentence apart.
+    The transformer makes a big mistake:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The transformer is honest enough to display a `score` of only `0.35`. This `score`
+    might vary from one calculation to another or from one transformer model to another.
+    We can see that the transformer faced a semantic labeling problem. Let’s try to
+    do better with person entity questions applying an SRL-first method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Method 2: SRL first'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The transformer could not find who was driving to go to `Las Vegas` and thought
+    it was from `Nat King Cole` instead of `Jo` and `Maria`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What went wrong? Can we see what the transformers think and obtain an explanation?
+    To find out, let’s go back to semantic role modeling. If necessary, take a few
+    minutes to review *Chapter 10*, *Semantic Role Labeling with BERT-Based Transformers*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s run the same sequence on `AllenNLP` in the **Semantic Role Labeling**
+    section, [https://demo.allennlp.org/semantic-role-labeling](https://demo.allennlp.org/semantic-role-labeling),
+    to obtain a visual representation of the verb `drove` in our sequence by running
+    the SRL BERT model we used in the previous chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application  Description automatically generated](img/B17948_11_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.2: SRL run on the text'
+  prefs: []
+  type: TYPE_NORMAL
+- en: SRL BERT found 19 frames. In this section, we focus on `drove`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note: The results may vary from one run to another or when AllenNLP updates
+    the model versions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see the problem. The argument of the verb `drove` is `Jo and Maria`.
+    It seems that the inference could be made.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Keep in mind that transformer models keep evolving. The output might vary; however,
+    the concepts remain the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Is that true? Let’s ask the question in `QA.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is correct:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Could we find a way to ask the question to obtain the right answer? We will
+    try by paraphrasing the question:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We obtain a somewhat better result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The transformer now understands that `Nat King Cole` was `singing` and that
+    `Jo and Maria` were doing something in the meantime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We still need to go further and find a way to ask better questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s try another model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Question-answering with ELECTRA
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before switching models, we need to know which one we are using:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output first shows that the model is a DistilBERT model trained on question-answering:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model has `6` layers and `768` features, as shown in layer `6` (the layers
+    are numbered from `0` to `n`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will now try the `ELECTRA` transformer model. *Clark* et al. (2020) designed
+    a transformer model that improved the **Masked Language Modeling** (**MLM**) pretraining
+    method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Chapter 3*, *Fine-Tuning BERT Models*, in the *Masked language modeling*
+    subsection, we saw that the BERT model inserts random masked tokens with `[MASK]`
+    during the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Clark* et al. (2020) introduced plausible alternatives with a generator network
+    rather than simply using random tokens. BERT models are trained to predict the
+    identities of the (masked) corrupted tokens. *Clark* et al. (2020) trained an
+    ELECTRA model as a discriminator to predict whether the masked token was a generated
+    token or not. *Figure 11.3* shows how ELECTRA is trained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B17948_11_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.3: ELECTRA is trained as a discriminator'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 11.3* shows that the original sequence is masked before going through
+    the generator. The generator inserts *acceptable* tokens and not random tokens.
+    The ELECTRA transformer model is trained to predict whether a token comes from
+    the original sequence or has been replaced.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The architecture of an ELECTRA transformer model and most of its hyperparameters
+    are the same as BERT transformer models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now want to see if we can obtain a better result. The next cell to run in
+    `QA.ipynb` is the question-answering cell with an `ELECTRA-small-generator`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is not what we expect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output might change from one run or transformer model to another; however,
+    the idea remains the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output also sends training messages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: You might not like these warning messages and might conclude that this is a
+    bad model. But always explore every avenue that is offered to you. ELECTRA might
+    require more training, of course. But *experiment* as much as possible to find
+    new ideas! Then you can decide to train a model further or move on to another
+    one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We must now think of the next steps to take.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project management constraints
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have not obtained the results we expected with the default DistilBERT and
+    ELECTRA transformer models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three main options among other solutions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train DistilBERT and ELECTRA or other models with additional datasets. Training
+    datasets is a costly process in real-life projects. The training could last months
+    if new datasets need to be implemented and hyperparameters changed. The hardware
+    cost needs to be taken into account as well. Furthermore, if the result is unsatisfactory,
+    a project manager might shut the project down.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can also try ready-to-use transformers, although they might not fit your
+    needs, such as the Hugging Face model: [https://huggingface.co/transformers/usage.html#extractive-question-answering](https://huggingface.co/transformers/usage.html#extractive-question-answering).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Find a way to obtain better results by using additional NLP tasks to help the
+    question-answering model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this chapter, we will focus on finding additional NLP tasks to help the default
+    DistilBERT model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s use SRL to extract the predicates and their arguments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using SRL to find questions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: AllenNLP uses the BERT-based model we implemented in the `SRL.ipynb` notebook
+    in *Chapter 10*, *Semantic Role Labeling with BERT-Based Transformers*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s rerun the sequence on AllenNLP in the **Semantic Role Labeling** section,
+    [https://demo.allennlp.org/semantic-role-labeling](https://demo.allennlp.org/semantic-role-labeling),
+    to obtain a visual representation of the predicates in the sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will enter the sequence we have been working on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: The BERT-based model found several predicates. Our goal is to find the properties
+    of SRL outputs that could automatically generate questions based on the verbs
+    in a sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will first list the predicate candidates produced by the BERT model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we had to write a program, we could start by introducing a verb counter,
+    as shown in the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the counter exceeds the number of acceptable occurrences (`max_count`), the
+    verb will be excluded in this experiment. Without further development, it will
+    be too difficult to disambiguate multiple semantic roles of the verb’s arguments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s take `made`, which is the past tense of `make`, out of the list as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our list is now limited to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we continued to write a function to filter the verbs, we could look for
+    verbs with lengthy arguments. The verb `began` has a very long argument:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated with medium
+    confidence](img/B17948_11_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.4: SRL applied to the verb “began”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The argument of `began` is so long it doesn’t fit in the screenshot. The text
+    version shows how difficult it would be to interpret the argument of `began`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We could add a function to filter verbs that contain arguments that exceed
+    a maximum length:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If the length of one verb’s arguments exceeds a maximum length (`max_length`),
+    the verb will be excluded in this experiment. For the moment, let’s just take
+    `began` out of the list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our list is now limited to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We could add more exclusion rules depending on the project we are working on.
+    We can also call the `maxlength` function again with a very restrictive `max_length`
+    value to extract potentially interesting candidates for our automatic question
+    generator. The verb candidates with the shortest arguments could be transformed
+    into questions. The verb `slow` fits the three rules we set: it appears only once
+    in the sequence, the arguments are not too long, and it contains some of the shortest
+    arguments in the sequence. The AllenNLP visual representation confirms our choice:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated with medium
+    confidence](img/B17948_11_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.5: SRL applied to the verb “slow”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The text output can be easily parsed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: This result and the following outputs may vary with the ever-evolving transformer
+    models, but the idea remains the same. The verb `slow` is identified and this
+    is the key aspect of this SRL output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could automatically generate the `what` template. We will not generate a
+    `who` template because none of the arguments were labeled `I-PER` (person). We
+    could write a function that manages these two possibilities, as shown in the following
+    pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This function would require more work to deal with verb forms and modifiers.
+    However, in this experiment, we will just apply the function and generate the
+    following question:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s run the default `pipeline` with the following cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The result is satisfactory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default model, in this case, `DistilBERT`, correctly answered the question.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our automatic question generator can do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run NER automatically
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Parse the results with classical code
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generate entity-only questions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Run SRL automatically
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Filter the results with rules
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generate SRL-only questions using the NER results to determine which template
+    to use
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This solution is by no means complete. More work needs to be done and probably
+    requires additional NLP tasks and code. However, it gives an idea of the hard
+    work implementing AI, in any form, requires.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s try our approach with the next filter verb: `playing`. The visual representation
+    shows that the arguments are `WBGO` and `some cool jazz`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, application  Description automatically generated](img/B17948_11_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.6: SRL applied to the verb “playing”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The text version is easy to parse:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This result and the following outputs may vary with the ever-evolving transformer
+    models, but the idea remains the same: identifying the verb and its arguments.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we ran the `whowhat` function, it would show that there is no `I-PER` in
+    the arguments. The template chosen will be the `what` template, and the following
+    question could be generated automatically:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s run the default pipeline with this question in the following cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is also satisfactory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`singing` is a good candidate, and the `whowhat` function would find the `I-PER`
+    template and automatically generate the following question:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have already successfully tested this question in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next verb is `drove`, which we have already tagged as a problem. The transformer
+    cannot solve this problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The verb `go` is a good candidate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application  Description automatically generated](img/B17948_11_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.7: SRL applied to the verb “go”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It would take additional development to produce a template with the correct
+    verb form. Let’s suppose the work was done and ask the model the following question:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is the wrong argument:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that the presence of `Nat King Cole` and `Jo` and `Maria` in the
+    same sequence in a complex sequence creates disambiguation problems for transformer
+    models and any NLP model. More project management and research would be required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next steps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There is no easy way to implement question-answering or shortcuts. We began
+    to implement methods that could generate questions automatically. Automatic question
+    generation is a critical aspect of NLP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More transformer models need to be pretrained with multi-task datasets containing
+    NER, SRL, and question-answering problems to solve. Project managers also need
+    to learn how to combine several NLP tasks to help solve a specific task, such
+    as question-answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Coreference resolution, [https://demo.allennlp.org/coreference-resolution](https://demo.allennlp.org/coreference-resolution),
+    could have helped our model identify the main subjects in the sequence we worked
+    on. This result produced with `AllenNLP` shows an interesting analysis:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application  Description automatically generated](img/B17948_11_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.8: Coreference resolution of a sequence'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could continue to develop our program by adding the output of coreference
+    resolution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: We could add coreference resolution as a pretraining task or add it as a post-processing
+    task in the question generator. In any case, question generators that simulate
+    human behavior can considerably enhance the performance of question-answering
+    tasks. We will include more customized additional NLP tasks in the pretraining
+    process of question-answering models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, we can decide to use new strategies to pretrain the models we ran
+    in this chapter, such as DistilBERT and ELECTRA, and then let users ask the questions
+    they wish. I recommend both approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Work on question generators for question-answering tasks. These questions can
+    be used for educational purposes, train transformers, or even provide ideas for
+    real-time users.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Work on pretraining transformer models by including specific NLP tasks, which
+    will improve their question-answering performance. Use the question generator
+    to train it further.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring Haystack with a RoBERTa model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`Haystack` is a question-answering framework with interesting functionality.
+    It is worth exploring to see if it might fit your needs for a given project.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will run question-answering on the sentence we experimented
+    with using other models and methods in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open `Haystack_QA_Pipeline.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first cell installs the modules necessary to run `Haystack`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The notebook uses a RoBERTa model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can go back to *Chapter 4*, *Pretraining a RoBERTa Model from Scratch*,
+    for a general description of a RoBERTa model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The remaining cells of the notebook will answer questions on the text we have
+    been exploring in detail in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can compare the answers obtained with the previous sections’ outputs and
+    decide which transformer model you would like to implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring Q&A with a GTP-3 engine
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section will try to avoid training, fine-tuning, loading a program on a
+    server, or even using a dataset. Instead, a user can simply connect to their OpenAI
+    account and use the interactive educational interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A GPT-3 engine online educational interface will provide sufficiently good
+    answers by providing *E* (explanation) and *T* (text) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*E* = Answer questions from this text'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*T* = `The traffic began to slow down on Pioneer Boulevard in…/… have a nice
+    dinner and go see a show.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are some questions asked and answers obtained in the form of question-answer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Who is going to Las Vegas?`: `Jo and Maria`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Who was singing?`: `Nat King Cole`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`What kind of music was playing?`: `jazz`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`What was the plan for the evening?`: `to have a nice dinner and go see a show`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That’s it! That’s all you need to do to run a wide range of educational NLP
+    tasks online with an interactive interface even without an API with GPT-3 engines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can change *S* (showing GPT-3 what is expected) and *E* and create endless
+    interactions. The next generation of NLP is born! An Industry 4.0 developer, consultant,
+    or project manager will need to acquire a new set of skills: cognitive approaches,
+    linguistics, psychology, and other cross-disciplinary dimensions. If necessary,
+    you can take your time and go back to *Chapter 7*, *The Rise of Suprahuman Transformers
+    with GPT-3 Engines*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have explored some critical aspects of the use of question-answering with
+    transformers. Let’s sum up the work we have done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we found that question-answering isn’t as easy as it seems.
+    Implementing a transformer model only takes a few minutes. However, getting it
+    to work can take a few hours or several months!
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first asked the default transformer in the Hugging Face pipeline to answer
+    some simple questions. `DistilBERT`, the default transformer, answered the simple
+    questions quite well. However, we chose easy questions. In real life, users ask
+    all kinds of questions. The transformer can get confused and produce erroneous
+    output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then decided to continue to ask random questions and get random answers,
+    or we could begin to design the blueprint of a question generator, which is a
+    more productive solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We started by using NER to find useful content. We designed a function that
+    could automatically create questions based on NER output. The quality was promising
+    but required more work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We tried an ELECTRA model that did not produce the results we expected. We stopped
+    for a few minutes to decide if we would spend costly resources to train transformer
+    models or design a question generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We added SRL to the blueprint of the question generator and tested the questions
+    it could produce. We also added NER to the analysis and generated several meaningful
+    questions. The `Haystack` framework was also introduced to discover other ways
+    of addressing question-answering with RoBERTa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we ran an example using a GPT-3 engine directly in the OpenAI educational
+    interactive interface without an API. Cloud AI platforms are increasing in power
+    and accessibility.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our experiments led to one conclusion: multi-task transformers will provide
+    better performance on complex NLP tasks than a transformer trained on a specific
+    task. Implementing transformers requires well-prepared multi-task training, heuristics
+    in classical code, and a question generator. The question generator can be used
+    to train the model further by using the questions as training input data or as
+    a standalone solution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, *Detecting Customer Emotions to Make Predictions*, we will
+    explore how to implement sentiment analysis on social media feedback.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A trained transformer model can answer any question. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Question-answering requires no further research. It is perfect as it is. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Named Entity Recognition** (**NER**) can provide useful information when
+    looking for meaningful questions. (True/False)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Semantic Role Labeling** (**SRL**) is useless when preparing questions. (True/False)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A question generator is an excellent way to produce questions. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Implementing question answering requires careful project management. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: ELECTRA models have the same architecture as GPT-2\. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: ELECTRA models have the same architecture as BERT but are trained as discriminators.
+    (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NER can recognize a location and label it as `I-LOC`. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NER can recognize a person and label that person as `I-PER`. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*The Allen Institute* for AI: [https://allennlp.org/](https://allennlp.org/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*The Allen Institute* for reading comprehension resources: [https://demo.allennlp.org/reading-comprehension](https://demo.allennlp.org/reading-comprehension)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Kevin Clark*, *Minh-Thang Luong*, *Quoc V. Le*, *Christopher D. Manning*,
+    2020, *ELECTRA: Pretraining Text Encoders as Discriminators Rather Than Generators*:
+    [https://arxiv.org/abs/2003.10555](https://arxiv.org/abs/2003.10555)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Hugging Face pipelines: [https://huggingface.co/transformers/main_classes/pipelines.html](https://huggingface.co/transformers/main_classes/pipelines.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'GitHub Haystack framework repository: [https://github.com/deepset-ai/haystack/](https://github.com/deepset-ai/haystack/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5134042288713321484.png)'
+  prefs: []
+  type: TYPE_IMG

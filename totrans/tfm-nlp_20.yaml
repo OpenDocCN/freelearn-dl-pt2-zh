@@ -1,0 +1,489 @@
+- en: Appendix IV — Custom Text Completion with GPT-2
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This appendix, relating to *Chapter 7*, *The Rise of Suprahuman Transformers
+    with GPT-3 Engines*, describes how to customize text completion with a GPT-2 model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This appendix shows how to build a GPT-2 model, train it, and interact with
+    custom text in 12 steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open `Training_OpenAI_GPT_2.ipynb`, which is in the GitHub repository of this
+    appendix. You will notice that the notebook is also divided into the same 12 steps
+    and cells as this appendix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the notebook cell by cell. The process is tedious, but *the result produced
+    by the cloned OpenAI GPT-2 repository is gratifying*. We are not using the GPT-3
+    API or a Hugging Face wrapper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are getting our hands dirty to see how the model is built and trained. You
+    will see some deprecation messages, but we need to get inside the model, not the
+    wrappers or the API. However, the effort is worthwhile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin by activating the GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a GPT-2 language model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will train a GPT-2 model on a custom dataset that we will
+    encode. We will then interact with our customized model. We will be using the
+    same `kant.txt` dataset as in *Chapter 4*, *Pretraining a RoBERTa Model from Scratch*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will open the notebook and run it cell by cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 1: Prerequisites'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The files referred to in this section are available in the `AppendixIV` directory
+    of this book’s GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Activate the GPU in the Google Colab’s notebook runtime menu if you are running
+    it on Google Colab, as explained in *Step 1: Activating the GPU* in *Appendix
+    III*, *Generic Text Completion with GPT-2*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Upload the following Python files to Google Colaboratory with the built-in
+    file manager: `train.py`, `load_dataset.py`, `encode.py`, `accumulate.py`, `memory_saving_gradients.py`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'These files originally come from *N Shepperd’s* GitHub repository: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2).
+    However, you can download these files from the `AppendixIV\``gpt-2-train_files`
+    directory in this book’s GitHub repository.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The *N Shepperd’s* GitHub repository provides the necessary files to train our
+    GPT-2 model. We will not clone *N Shepperd’s* repository. Instead, we will be
+    cloning OpenAI’s repository and adding the five training files we need from *N
+    Shepperd’s* repository.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Upload `dset.txt` to Google Colaboratory with the built-in file manager. The
+    dataset is named `dset.txt` so that you can replace its content without modifying
+    the program with your customized inputs after reading this appendix.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This dataset is in the `gpt-2-train_files` directory in the GitHub repository
+    of this appendix. It is the `kant.txt` dataset used in *Chapter 4*, *Pretraining
+    a RoBERTa Model from Scratch*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will now go through the initial steps of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Steps 2 to 6: Initial steps of the training process'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This subsection will only briefly go through *Steps 2 to 6* since we described
+    them in detail in *Appendix III*, *Generic Text Completion with GPT-2*. We will
+    then copy the dataset and the model to the project directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program now clones OpenAI’s GPT-2 repository and not *N Shepperd’s* repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have already uploaded the files we need to train the GPT-2 model from *N
+    Shepperd’s* directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program now installs the requirements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This notebook requires `toposort`, which is a topological sort algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Do not restart the notebook after installing the requirements. Instead, wait
+    until you have checked the TensorFlow version to restart the VM only once during
+    your session. After that, restart it if necessary. It is tedious but worthwhile
+    to get inside the code beyond just wrappers and APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now check the TensorFlow version to make sure we are running version `tf
+    1.x`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Whether the `tf 1.x` version is displayed or not, rerun the cell to make sure,
+    restart the VM, and rerun this cell. That way, you are sure you are running the
+    VM with `tf 1.x`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program now downloads the 117M parameter GPT-2 model we will train with
+    our dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will copy the dataset and the 117M parameter GPT-2 model into the `src`
+    directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The goal is to group all the resources we need to train the model in the `src`
+    project directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now go through the N Shepperd training files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 7: The N Shepperd training files'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The training files we will use come from *N Shepperd* ‘s GitHub repository.
+    We uploaded them in *Step 1: Prerequisites* of this appendix. We will now copy
+    them into our project directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The training files are now ready to be activated. Let’s now explore them, starting
+    with `encode.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 8: Encoding the dataset'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The dataset must be encoded before training it. You can double-click on `encode.py`
+    to display the file in Google Colaboratory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`encode.py` loads `dset.txt` by calling the `load_dataset` function that is
+    in `load_dataset.py`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`encode.py` also loads OpenAI’s encoding program, `encode.py`, to encode the
+    dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The encoded dataset is saved in a `NumPy` array and stored in `out.npz`. Now,
+    `npz` is a `NumPy` zip archive of the array generated by the encoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The dataset is loaded, encoded, and saved in `out.npz` when we run the cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our GPT-2 117M model is ready to be trained.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 9: Training a GPT-2 model'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now train the GPT-2 117M model on our dataset. We send the name of
+    our encoded dataset to the program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When you run the cell, it will train until you stop it. The trained model is
+    saved after 1,000 steps. When the training exceeds 1,000 steps, stop it. The saved
+    model checkpoints are in `/content/gpt-2/src/checkpoint/run1`. You can check the
+    list of these files in the *Step 10A: Copying Training Files* cell of the notebook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can stop the training by double-clicking on the run button of the cell.
+    The training will end, and the trained parameters will be saved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can also stop training the model after 1,000 steps with *Ctrl* + *M*. The
+    program will stop and save the trained parameters. It will convert the code into
+    text (you will have to copy it back into a code cell) and display the following
+    message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_Appendix_IV_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure IV.1: Saving a trained GPT-2 model automatically'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The program manages the optimizer and gradients with the `/content/gpt-2/src/memory_saving_gradients.py`
+    and `/content/gpt-2/src/accumulate.py` programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`train.py` contains a complete list of parameters that can be tweaked to modify
+    the training process. Run the notebook without changing them first. Then, if you
+    wish, you can experiment with the training parameters and see if you can obtain
+    better results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The GPT-3 model generates samples that you can read during its training. At
+    one point during my GPT-2 training run, the system generated a sample I found
+    enlightening:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: A representation of the world is what we humans create and what AI learns. Interesting!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s continue our experiment by creating a directory for our training model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 10: Creating a training model directory'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section will create a temporary directory for our model, store the information
+    we need, and rename it to replace the directory of the GPT-2 117M model we downloaded.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by creating a temporary directory named `tgmodel`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then copy the checkpoint files that contain the trained parameters we saved
+    when we trained our model in the *Step 9: Training the model* subsection of this
+    section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our `tgmodel` directory now contains the trained parameters of our GPT-2 model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We described these files’ content in *Step 5: Downloading the 345M parameter
+    GPT-2 model* in *Appendix III*, *Generic Text Completion with GPT-2*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now retrieve the hyperparameters and vocabulary files from the GPT-2
+    117M model we downloaded:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our `tgmodel` directory now contains our complete customized GPT-2 117M model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our last step is to rename the original GPT-2 model we downloaded and set the
+    name of our model to `117M`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our trained model is now the one the cloned OpenAI GPT-2 repository will run.
+    Let’s interact with our model!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 11: Generating unconditional samples'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will interact with a GPT-2 117M model trained on our dataset.
+    We will first generate an unconditional sample that requires no input on our part.
+    Then we will enter a context paragraph to obtain a conditional text completion
+    response from our trained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s first run an unconditional sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: You will not be prompted to enter context sentences since this is an unconditional
+    sample generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To stop the cell, double-click on the run button of the cell or press *Ctrl*
+    + *M*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The result is random but makes sense from a grammatical perspective. From a
+    semantic point of view, the result is not so interesting because we provided no
+    context. But still, the process is remarkable. It invents posts, writes a title,
+    dates it, invents organizations and addresses, produces a topic, and even imagines
+    web links!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first few lines are rather incredible:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The result of an unconditional random text generator is interesting but not
+    convincing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 12: Interactive context and completion examples'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will now run a conditional sample. The context we enter will condition the
+    model to think as we want it to, to complete the text by generating tailor-made
+    paragraphs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run the cell and explore the magic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If necessary, take a few minutes to go back through the parameters in *Step
+    9, Interacting with GPT-2* of *Appendix III*, *Generic Text Completion with GPT-2*.
+    The program prompts us to enter the context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_Appendix_IV_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure IV.2: Context input for text completion'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s enter the same paragraph written by Emmanuel Kant as we did in *Step
+    9: Interacting with GPT-2* in *Appendix III*, *Generic Text Completion with GPT-2*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Press *Enter* to generate text as we did previously. Again, the outputs might
+    change from one run to another, though it is structured and logical, making transformers
+    attractive. This time, the result is not random and is impressive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at the first few lines the GPT-2 model produced:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: To stop the cell, double-click on the run button of the cell or enter *Ctrl*
+    + *M*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Wow! I doubt anybody can see the difference between the text completion produced
+    by our trained GPT-2 model and humans. It might also generate different outputs
+    at each run. This could be the output, for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: I think our model could outperform many humans in this abstract exercise in
+    philosophy, reason, and logic!
+  prefs: []
+  type: TYPE_NORMAL
+- en: The limit is that the text will vary from one run to another. So, although it
+    seems excellent, it will not fit every single need we have in everyday life.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can draw some conclusions from our experiment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A well-trained transformer model can produce text completion that is at a human
+    level.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A GPT-2 model can almost reach human level in text generation on complex and
+    abstract reasoning.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Text context is an efficient way of conditioning a model by demonstrating what
+    is expected.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Text completion is text generation based on text conditioning if context sentences
+    are provided.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Although the text is at human level, it does not mean that it will fit every
+    need we have. It is locally interesting but not globally effective at this point.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can try to enter conditioning text context examples to experiment with text
+    completion. You can also train our model on your own data. Just replace the content
+    of the `dset.txt` file with yours and see what happens!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bear in mind that our trained GPT-2 model will react like a human. If you enter
+    a short, incomplete, uninteresting, or tricky context, you will obtain puzzled
+    or bad results. This is because GPT-2 expects the best out of us, as in real life!
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'OpenAI GPT-2 GitHub Repository: [https://github.com/openai/gpt-2](https://github.com/openai/gpt-2)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*N Shepperd’s* GitHub Repository: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5134042288713321484.png)'
+  prefs: []
+  type: TYPE_IMG

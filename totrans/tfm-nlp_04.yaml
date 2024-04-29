@@ -1,0 +1,1198 @@
+- en: '4'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Pretraining a RoBERTa Model from Scratch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will build a RoBERTa model from scratch. The model will
+    use the bricks of the transformer construction kit we need for BERT models. Also,
+    no pretrained tokenizers or models will be used. The RoBERTa model will be built
+    following the fifteen-step process described in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use the knowledge of transformers acquired in the previous chapters
+    to build a model that can perform language modeling on masked tokens step by step.
+    In *Chapter 2*, *Getting Started with the Architecture of the Transformer Model*,
+    we went through the building blocks of the original Transformer. In *Chapter 3*,
+    *Fine-Tuning BERT Models*, we fine-tuned a pretrained BERT model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will focus on building a pretrained transformer model from scratch
+    using a Jupyter notebook based on Hugging Face’s seamless modules. The model is
+    named KantaiBERT.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT first loads a compilation of Immanuel Kant’s books created for this
+    chapter. You will see how the data was obtained. You will also see how to create
+    your own datasets for this notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT trains its own tokenizer from scratch. It will build its merge and
+    vocabulary files, which will be used during the pretraining process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT then processes the dataset, initializes a trainer, and trains the
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, KantaiBERT uses the trained model to perform an experimental downstream
+    language modeling task and fills a mask using Immanuel Kant’s logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of the chapter, you will know how to build a transformer model from
+    scratch. You will have enough knowledge of transformers to face the Industry 4.0
+    challenge of using powerful pretrained transformers such as GPT-3 engines that
+    require more than development skills to implement them. This chapter prepares
+    you for *Chapter 7*, *The Rise of Suprahuman Transformers with GPT-3 Engines*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: RoBERTa- and DistilBERT-like models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to train a tokenizer from scratch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Byte-level byte-pair encoding
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Saving the trained tokenizer to files
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Recreating the tokenizer for the pretraining process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Initializing a RoBERTa model from scratch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the configuration of the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the 80 million parameters of the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building the dataset for the trainer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Initializing the trainer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pretraining the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Saving the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Applying the model to the downstream tasks of **Masked Language Modeling** (**MLM**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Our first step will be to describe the transformer model that we are going to
+    build.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a tokenizer and pretraining a transformer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will train a transformer model named KantaiBERT using the
+    building blocks provided by Hugging Face for BERT-like models. We covered the
+    theory of the building blocks of the model we will be using in *Chapter 3*, *Fine-Tuning
+    BERT Models*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will describe KantaiBERT, building on the knowledge we acquired in previous
+    chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT is a **Robustly Optimized BERT Pretraining Approach** (**RoBERTa**)-like
+    model based on the architecture of BERT.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The initial BERT models brought innovative features to the initial transformer
+    models, as we saw in *Chapter 3*. RoBERTa increases the performance of transformers
+    for downstream tasks by improving the mechanics of the pretraining process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, it does not use `WordPiece` tokenization but goes down to byte-level
+    **Byte-Pair Encoding** (**BPE**). This method paved the way for a wide variety
+    of BERT and BERT-like models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, KantaiBERT, like BERT, will be trained using **Masked Language
+    Modeling** (**MLM**). MLM is a language modeling technique that masks a word in
+    a sequence. The transformer model must train to predict the masked word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT will be trained as a small model with 6 layers, 12 heads, and 84,095,008
+    parameters. It might seem that 84 million parameters is a lot. However, the parameters
+    are spread over 12 heads, which makes it a relatively small model. A small model
+    will make the pretraining experience smooth so that each step can be viewed in
+    real time without waiting for hours to see a result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT is a DistilBERT-like model because it has the same architecture of
+    6 layers and 12 heads. DistilBERT is a distilled version of BERT. DistilBERT,
+    as the name suggests, contains fewer parameters than a RoBERTa model. As such,
+    it runs much faster, but the results are slightly less accurate than with a RoBERTa
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know that large models achieve excellent performance. But what if you want
+    to run a model on a smartphone? Miniaturization has been the key to technological
+    evolution. Transformers will sometimes have to follow the same path during implementation.
+    The Hugging Face approach using a distilled version of BERT is thus a good step
+    forward. Distillation using fewer parameters or other such methods in the future
+    is a clever way of taking the best of pretraining and making it efficient for
+    the needs of many downstream tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to show all the possible architectures, including running a
+    small model on a smartphone. However, the future of transformers will also be
+    ready-to-use APIs, as we will see in *Chapter 7*, *The Rise of Suprahuman Transformers
+    with GPT-3 Engines*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT will implement a byte-level byte-pair encoding tokenizer like the
+    one used by GPT-2\. The special tokens will be the ones used by RoBERTa. BERT
+    models most often use a WordPiece tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are no token type IDs to indicate which part of a segment a token is a
+    part of. The segments will be separated with the separation token `</s>`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: KantaiBERT will use a custom dataset, train a tokenizer, train the transformer
+    model, save it, and run it with an MLM example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get going and build a transformer from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building KantaiBERT from scratch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will build KantaiBERT in 15 steps from scratch and run it on an MLM example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open Google Colaboratory (you need a Gmail account). Then upload `KantaiBERT.ipynb`,
+    which is on GitHub in this chapter’s directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The titles of the 15 steps of this section are similar to the titles of the
+    notebook cells, which makes them easy to follow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start by loading the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 1: Loading the dataset'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Ready-to-use datasets provide an objective way to train and compare transformers.
+    In *Chapter 5*, *Downstream NLP Tasks with Transformers*, we will explore several
+    datasets. However, this chapter aims to understand the training process of a transformer
+    with notebook cells that can be run in real time without waiting for hours to
+    obtain a result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I chose to use the works of Immanuel Kant (1724-1804), the German philosopher
+    who was the epitome of the *Age of Enlightenment*. The idea is to introduce human-like
+    logic and pretrained reasoning for downstream reasoning tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project Gutenberg, [https://www.gutenberg.org](https://www.gutenberg.org), offers
+    a wide range of free eBooks that can be downloaded in text format. You can use
+    other books if you want to create customized datasets of your own based on books.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I compiled the following three books by Immanuel Kant into a text file named
+    `kant.txt`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The Critique of Pure Reason*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*The Critique of Practical Reason*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Fundamental Principles of the Metaphysic of Morals*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`kant.txt` provides a small training dataset to train the transformer model
+    of this chapter. The result obtained remains experimental. For a real-life project,
+    I would add the complete works of Immanuel Kant, Rene Descartes, Pascal, and Leibnitz,
+    for example.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The text file contains the raw text of the books:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The dataset is downloaded automatically from GitHub in the first cell of the
+    `KantaiBERT.ipynb` notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can also load `kant.txt`, which is in the directory of this chapter on
+    GitHub, using Colab’s file manager. In this case, `curl` is used to retrieve it
+    from GitHub:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can see it appear in the Colab file manager pane once you have loaded or
+    downloaded it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_04_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.1: Colab file manager'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that Google Colab deletes the files when you restart the VM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The dataset is defined and loaded.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do not run the subsequent cells without `kant.txt`. Training data is a prerequisite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, the program will install the Hugging Face transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 2: Installing Hugging Face transformers'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will need to install Hugging Face transformers and tokenizers, but we will
+    not need TensorFlow in this instance of the Google Colab VM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output displays the versions installed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Transformer versions are evolving at quite a speed. The version you run may
+    differ and be displayed differently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The program will now begin by training a tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 3: Training a tokenizer'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, the program does not use a pretrained tokenizer. For example,
+    a pretrained GPT-2 tokenizer could be used. However, the training process in this
+    chapter includes training a tokenizer from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hugging Face’s `ByteLevelBPETokenizer()` will be trained using `kant.txt`.
+    A BPE tokenizer will break a string or word down into substrings or subwords.
+    There are two main advantages to this, among many others:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The tokenizer can break words into minimal components. Then it will merge these
+    small components into statistically interesting ones. For example, “`smaller"
+    and smallest`" can become “`small`,” “`er`,” and “`est`.” The tokenizer can go
+    further. We could get “`sm`" and “`all`,” for example. In any case, the words
+    are broken down into subword tokens and smaller units of subword parts such as
+    “`sm`" and “`all`" instead of simply “`small`.”
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The chunks of strings classified as unknown, `unk_token`, using `WordPiece`
+    level encoding, will practically disappear.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In this model, we will be training the tokenizer with the following parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`files=paths` is the path to the dataset'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`vocab_size=52_000` is the size of our tokenizer’s model length'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`min_frequency=2` is the minimum frequency threshold'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`special_tokens=[]` is a list of special tokens'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In this case, the list of special tokens is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`<s>`: a start token'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`<pad>`: a padding token'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`</s>`: an end token'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`<unk>`: an unknown token'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`<mask>`: the mask token for language modeling'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The tokenizer will be trained to generate merged substring tokens and analyze
+    their frequency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s take these two words in the middle of a sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first step will be to tokenize the string:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The string is now tokenized into tokens with `Ġ` (whitespace) information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to replace them with their indices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| ‘Ġthe’ | ‘Ġtoken’ | ‘izer’ |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 150 | 5430 | 4712 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 4.1: Indices for the three tokens'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program runs the tokenizer as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The tokenizer outputs the time taken to train:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The tokenizer is trained and ready to be saved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 4: Saving the files to disk'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The tokenizer will generate two files when trained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`merges.txt`, which contains the merged tokenized substrings'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`vocab.json`, which contains the indices of the tokenized substrings'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The program first creates the `KantaiBERT` directory and then saves the two
+    files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The program output shows that the two files have been saved:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The two files should appear in the file manager pane:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_04_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.2: Colab file manager'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The files in this example are small. You can double-click on them to view their
+    contents. `merges.txt` contains the tokenized substrings as planned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`vocab.json` contains the indices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The trained tokenized dataset files are ready to be processed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 5: Loading the trained tokenizer files'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We could have loaded pretrained tokenizer files. However, we trained our own
+    tokenizer and now are ready to load the files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The tokenizer can encode a sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`"The Critique of Pure Reason"` will become:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also ask to see the number of tokens in this sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output will show that there are 6 tokens in the sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The tokenizer now processes the tokens to fit the BERT model variant used in
+    this notebook. The post-processor will add a start and end token; for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s encode a post-processed sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that we now have 8 tokens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we want to see what was added, we can ask the tokenizer to encode the post-processed
+    sequence by running the following cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that the start and end tokens have been added, which brings
+    the number of tokens to 8, including start and end tokens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: The data for the training model is now ready to be trained. We will now check
+    the system information of the machine we are running the notebook on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 6: Checking resource constraints: GPU and CUDA'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: KantaiBERT runs at optimal speed with a **Graphics Processing Unit** (**GPU**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will first run a command to see if an NVIDIA GPU card is present:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output displays the information and version on the card:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_04_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.3: Information on the NVIDIA card'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output may vary with each Google Colab VM configuration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now check to make sure `PyTorch` sees CUDA:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The result should be `True`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Compute Unified Device Architecture** (**CUDA**) was developed by NVIDIA
+    to use the parallel computing power of its GPUs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more on NVIDIA GPUs and CUDA, see *Appendix II*, *Hardware Constraints for
+    Transformer Models*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready to define the configuration of the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 7: Defining the configuration of the model'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will be pretraining a RoBERTa-type transformer model using the same number
+    of layers and heads as a DistilBERT transformer. The model will have a vocabulary
+    size set to 52,000, 12 attention heads, and 6 layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will explore the configuration in more detail in *Step 9: Initializing a
+    model from scratch*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s first recreate the tokenizer in our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 8: Reloading the tokenizer in transformers'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We are now ready to load our trained tokenizer, which is our pretrained tokenizer
+    in `RobertaTokenizer.from_pretained()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have loaded our trained tokenizer, let’s initialize a RoBERTa model
+    from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 9: Initializing a model from scratch'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will initialize a model from scratch and examine the size
+    of the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program first imports a RoBERTa masked model for language modeling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model is initialized with the configuration defined in *Step 7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we print the model, we can see that it is a BERT model with 6 layers and
+    12 heads:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The building blocks of the encoder of the original Transformer model are present
+    with different dimensions, as shown in this excerpt of the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Take some time to go through the details of the output of the configuration
+    before continuing. You will get to know the model from the inside.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The LEGO^®-type building blocks of transformers make it fun to analyze. For
+    example, you will note that dropout regularization is present throughout the sublayers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s explore the parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the parameters
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The model is small and contains 84,095,008 parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can check its size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows the approximate number of parameters, which might vary from
+    one transformer version to another:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s now look into the parameters. We first store the parameters in `LP` and
+    calculate the length of the list of parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that there are approximately `108` matrices and vectors, which
+    might vary from one transformer model to another:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let’s display the `108` matrices and vectors in the tensors that contain
+    them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output displays all the parameters as shown in the following excerpt of
+    the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: Take a few minutes to peek inside the parameters to understand how transformers
+    are built.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The number of parameters is calculated by taking all parameters in the model
+    and adding them up; for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vocabulary (52,000) x dimensions (768)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The size of the vectors is `1 x 768`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The many other dimensions found
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You will note that *d*[model] = 768\. There are 12 heads in the model. The dimension
+    of *d*[k] for each head will thus be ![](img/B17948_04_001.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This shows, once again, the optimized LEGO^® concept of the building blocks
+    of a transformer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now see how the number of parameters of a model is calculated and how
+    the figure 84,095,008 is reached.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we hover over **LP** in the notebook, we will see some of the shapes of
+    the torch tensors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_04_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.4: LP'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the numbers might vary depending on the version of the transformers
+    module you use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will take this further and count the number of parameters of each tensor.
+    First, the program initializes a parameter counter named `np` (number of parameters)
+    and goes through the `lp` (`108`) number of elements in the list of parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The parameters are matrices and vectors of different sizes; for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 768 x 768
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 768 x 1
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '768'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can see that some parameters are two-dimensional, and some are one-dimensional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An easy way to see if a parameter `p` in the list `LP[p]` has two dimensions
+    or not is by doing the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the parameter has two dimensions, its second dimension will be `L2>0` and
+    `PL2=True (2 dimensions=True)`. If the parameter has only one dimension, its second
+    dimension will be `L2=1` and `PL2=False (2 dimensions=False)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`L1` is the size of the first dimension of the parameter. `L3` is the size
+    of the parameters defined by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now add the parameters up at each step of the loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will obtain the sum of the parameters, but we also want to see exactly how
+    the number of parameters of a transformer model is calculated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that if a parameter only has one dimension, `PL2=False`, then we only display
+    the first dimension.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output is the list of how the number of parameters was calculated for all
+    the tensors in the model, as shown in the following excerpt:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The total number of parameters of the RoBERTa model is displayed at the end
+    of the list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: The number of parameters might vary with the version of the libraries used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now know precisely what the number of parameters represents in a transformer
+    model. Take a few minutes to go back and look at the output of the configuration,
+    the content of the parameters, and the size of the parameters. At this point,
+    you will have a precise mental representation of the building blocks of the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The program now builds the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 10: Building the dataset'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The program will now load the dataset line by line to generate samples for
+    batch training with `block_size=128` limiting the length of an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that Hugging Face has invested a considerable amount of resources
+    in optimizing the time it takes to process data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: The wall time, the actual time the processors were active, is optimized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The program will now define a data collator to create an object for backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 11: Defining a data collator'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We need to run a data collator before initializing the trainer. A data collator
+    will take samples from the dataset and collate them into batches. The results
+    are dictionary-like objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are preparing a batched sample process for MLM by setting `mlm=True`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also set the number of masked tokens to train `mlm_probability=0.15`. This
+    will determine the percentage of tokens masked during the pretraining process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now initialize `data_collator` with our tokenizer, MLM activated, and the
+    proportion of masked tokens set to `0.15`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are now ready to initialize the trainer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 12: Initializing the trainer'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The previous steps have prepared the information required to initialize the
+    trainer. The dataset has been tokenized and loaded. Our model is built. The data
+    collator has been created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The program can now initialize the trainer. For educational purposes, the program
+    trains the model quickly. The number of epochs is limited to one. The GPU comes
+    in handy since we can share the batches and multi-process the training tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model is now ready for training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 13: Pretraining the model'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Everything is ready. The trainer is launched with one line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output displays the training process in real time, showing `loss`, `learning
+    rate`, `epoch`, and the steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model has been trained. It’s time to save our work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 14: Saving the final model (+tokenizer + config) to disk'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now save the model and configuration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Click on **Refresh** in the file manager, and the files should appear:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17948_04_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.5: Colab file manager'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`config.json`, `pytorh_model.bin`, and `training_args.bin` should now appear
+    in the file manager.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`merges.txt` and `vocab.json` contain the pretrained tokenization of the dataset.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have built a model from scratch. Let’s import the pipeline to perform a language
+    modeling task with our pretrained model and tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step 15: Language modeling with FillMaskPipeline'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now import a language modeling `fill-mask` task. We will use our trained
+    model and trained tokenizer to perform MLM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now ask our model to think like Immanuel Kant:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output will likely change after each run because we are pretraining the
+    model from scratch with a limited amount of data. However, the output obtained
+    in this run is interesting because it introduces conceptual language modeling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: The predictions might vary each run and each time Hugging Face updates its models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the following output comes out often:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: The goal here was to see how to train a transformer model. We can see that interesting
+    human-like predictions can be made.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These results are experimental and subject to variations during the training
+    process. They will change each time we train the model again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model would require much more data from other *Age of Enlightenment* thinkers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*However, the goal of this model is to show that we can create datasets to
+    train a transformer for a specific type of complex language modeling task*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thanks to transformers, we are only at the beginning of a new era of AI!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next steps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have trained a transformer from scratch. Take some time to imagine what
+    you could do in your personal or corporate environment. You could create a dataset
+    for a specific task and train it from scratch. Use your areas of interest or company
+    projects to experiment with the fascinating world of transformer construction
+    kits!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have made a model you like, you can share it with the Hugging Face
+    community. Your model will appear on the Hugging Face models page: [https://huggingface.co/models](https://huggingface.co/models)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can upload your model in a few steps using the instructions described on
+    this page: [https://huggingface.co/transformers/model_sharing.html](https://huggingface.co/transformers/model_sharing.html)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also download models the Hugging Face community has shared to get new
+    ideas for your personal and professional projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we built `KantaiBERT`, a RoBERTa-like model transformer, from
+    scratch using the building blocks provided by Hugging Face.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first started by loading a customized dataset on a specific topic related
+    to the works of Immanuel Kant. You can load an existing dataset or create your
+    own, depending on your goals. We saw that using a customized dataset provides
+    insights into the way a transformer model thinks. However, this experimental approach
+    has its limits. It would take a much larger dataset to train a model beyond educational
+    purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The KantaiBERT project was used to train a tokenizer on the `kant.txt` dataset.
+    The trained `merges.txt` and `vocab.json` files were saved. A tokenizer was recreated
+    with our pretrained files. KantaiBERT built the customized dataset and defined
+    a data collator to process the training batches for backpropagation. The trainer
+    was initialized, and we explored the parameters of the RoBERTa model in detail.
+    The model was trained and saved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, the saved model was loaded for a downstream language modeling task.
+    The goal was to fill the mask using Immanuel Kant’s logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The door is now wide open for you to experiment on existing or customized datasets
+    to see what results you get. You can share your model with the Hugging Face community.
+    Transformers are data-driven. You can use this to your advantage to discover new
+    ways of using transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You are now ready to learn how to run ready-to-use transformer engines with
+    APIs that require no pretraining or fine-tuning. *Chapter 7*, *The Rise of Suprahuman
+    Transformers with GPT-3 Engines*, will take you into the future of AI. And with
+    the knowledge of this chapter and the past chapters, you will be ready!
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, *Downstream NLP Tasks with Transformers*, we will continue
+    our preparation to implement transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: RoBERTa uses a byte-level byte-pair encoding tokenizer. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A trained Hugging Face tokenizer produces `merges.txt` and `vocab.json`. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: RoBERTa does not use token-type IDs. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: DistilBERT has 6 layers and 12 heads. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A transformer model with 80 million parameters is enormous. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We cannot train a tokenizer. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A BERT-like model has 6 decoder layers. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Masked Language Modeling** (**MLM**) predicts a word contained in a mask
+    token in a sentence. (True/False)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A BERT-like model has no self-attention sublayers. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Data collators are helpful for backpropagation. (True/False)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Yinhan Liu*, *Myle Ott*, *Naman Goyal*, *Jingfei Du*, *Mandar Joshi*, *Danqi
+    Chen*, *Omer Levy*, *Mike Lewis*, *Luke Zettlemoyer*, and *Veselin Stoyano*, 2019,
+    *RoBERTa: A Robustly Optimized BERT Pretraining Approach*: [https://arxiv.org/abs/1907.11692](https://arxiv.org/abs/1907.11692)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Hugging Face Tokenizer documentation: [https://huggingface.co/transformers/main_classes/tokenizer.html?highlight=tokenizer](https://huggingface.co/transformers/main_classes/tokenizer.html?highlight=tokenizer)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The Hugging Face reference notebook: [https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/01_how_to_train.ipynb](https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/01_how_to_train.ipynb)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The Hugging Face reference blog: [https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/01_how_to_train.ipynb](https://colab.research.google.com/github/huggingface/blog/blob/master/notebooks/01_how_to_train.ipynb)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'More on BERT: [https://huggingface.co/transformers/model_doc/bert.html](https://huggingface.co/transformers/model_doc/bert.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'More DistilBERT: [https://arxiv.org/pdf/1910.01108.pdf](https://arxiv.org/pdf/1910.01108.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'More on RoBERTa: [https://huggingface.co/transformers/model_doc/roberta.html](https://huggingface.co/transformers/model_doc/roberta.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Even more on DistilBERT: [https://huggingface.co/transformers/model_doc/distilbert.html](https://huggingface.co/transformers/model_doc/distilbert.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5134042288713321484.png)'
+  prefs: []
+  type: TYPE_IMG
