@@ -1,81 +1,121 @@
 - en: '*Chapter 4*:Autoregressive and Other Language Models'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第四章*：自回归模型与其他语言模型'
 - en: We looked at details of `text2tex`t applications, such as summarization, paraphrasing,
     and MT.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们研究了`text2tex`t应用的细节，例如总结，释义和机器翻译。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Working with AR language models
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用AR模型工作
 - en: Working with **Sequence-to-Sequence** (**Seq2Seq**) models
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用**序列到序列**（**Seq2Seq**）模型工作
 - en: AR language model training
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AR语言模型训练
 - en: NLG using AR models
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用AR模型进行自然语言生成
 - en: Summarization and MT fine-tuning using `simpletransformers`
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用`simpletransformers`进行总结和机器翻译微调
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The following libraries/packages are required to successfully complete this
     chapter:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 为成功完成本章，需要以下库/软件包：
 - en: Anaconda
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Anaconda
 - en: '`transformers 4.0.0`'
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`transformers 4.0.0`'
 - en: '`pytorch 1.0.2`'
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`pytorch 1.0.2`'
 - en: '`tensorflow 2.4.0`'
+  id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`tensorflow 2.4.0`'
 - en: '`datasets 1.4.1`'
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`datasets 1.4.1`'
 - en: '`tokenizers`'
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`tokenizers`'
 - en: '`simpletransformers 0.61`'
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`simpletransformers 0.61`'
 - en: 'All notebooks with coding exercises will be available at the following GitHub
     link: [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04).'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有具有编码练习的笔记本将在以下GitHub链接上提供：[https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04)。
 - en: 'Check out the following link to see the Code in Action: [https://bit.ly/3yjn55X](https://bit.ly/3yjn55X)'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 点击以下链接查看代码运行的实例：[https://bit.ly/3yjn55X](https://bit.ly/3yjn55X)
 - en: Working with AR language models
+  id: totrans-19
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用AR模型工作
 - en: The Transformer architecture was originally intended to be effective for Seq2Seq
     tasks such as MT or summarization, but it has since been used in diverse NLP problems
     ranging from token classification to coreference resolution. Subsequent works
@@ -84,8 +124,10 @@
     phase are absent from the data during the fine-tuning phase, leading to a pre-training-fine-tuning
     discrepancy. Secondly, the BERT model arguably assumes that the masked tokens
     are independent of each other.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 变压器架构最初旨在对诸如机器翻译或总结之类的Seq2Seq任务有效，但随后它已被用于各种NLP问题，从标记分类到指代消解。随后的作品开始分别并更有创意地使用架构的左部分和右部分。在预训练阶段使用的目标，也被称为`[MASK]`符号，在微调阶段的数据中不存在，导致预训练和微调之间存在不一致。其次，BERT模型可以说假定遮盖的标记是彼此独立的。
 - en: On the other hand, AR models keep away from such assumptions regarding independence
     and do not naturally suffer from the pre-train-fine-tuning discrepancy because
     they rely on the objective predicting the next token conditioned on the previous
@@ -94,34 +136,47 @@
     right of the current word in a forward direction (or to the left of the current
     word in a backward direction), which is called **unidirectionality**. They are
     also called **Causal Language Models** (**CLMs**) due to their unidirectionality.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，AR模型避免了关于独立性的假设，并且不会受到预训练和微调不一致引起的困扰，因为它们依赖于对先前标记的下一个标记的预测而不对其进行遮盖。它们仅利用具有遮盖自我注意力的解码器部分的变压器。它们阻止模型向当前词的右侧（或向当前词的左侧）的字词进行前向方向（或后向方向）的访问，这称为**单向性**。它们也称为**因果语言模型**（**CLMs**），因为它们是单向的。
 - en: 'The difference between AE and AR models is simply depicted here:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: AE和AR模型之间的区别在这里简单地描述了：
 - en: '![Figure 4.1 – AE versus AR language model ](img/B17123_04_001.jpg)'
+  id: totrans-23
   prefs: []
   type: TYPE_IMG
+  zh: '![图4.1 - AE与AR语言模型](img/B17123_04_001.jpg)'
 - en: Figure 4.1 – AE versus AR language model
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 图4.1 - AE与AR语言模型
 - en: GPT and its two successors (GPT-2, GPT-3), **Transformer-XL**, and **XLNet**
     are among the popular AR models in the literature. Even though XLNet is based
     on autoregression, it somehow managed to make use of both contextual sides of
     the word in a bidirectional fashion, with the help of the permutation-based language
     objective. Now, we start introducing them and show how to train the models with
     a variety of experiments. Let's look at GPTs first.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: GPT及其两个后继者（GPT-2，GPT-3），**Transformer-XL**和**XLNet**是文献中流行的AR模型之一。尽管XLNet基于自回归，但它以某种方式成功地以双向方式利用了单词的上下文，借助基于排列的语言目标。现在，我们开始介绍它们，并展示如何训练这些模型以进行各种实验。让我们先看一下GPT。
 - en: Introduction and training models with GPT
+  id: totrans-26
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 介绍以及使用GPT训练模型
 - en: AR models are made up of multiple transformer blocks. Each block contains a
     masked multi-head self-attention layer along with a pointwise feed-forward layer.
     The activation in the final transformer block is fed into a softmax function that
     produces the word-probability distributions over an entire vocabulary of words
     to predict the next word.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
 - en: In the original GPT paper *Improving Language Understanding by Generative Pre-Training*
@@ -139,6 +194,7 @@
     small amount of task-specific data, which is called **supervised fine-tuning**.
     This two-stage scheme is widely used in other transformer models, where unsupervised
     pre-training is followed by supervised fine-tuning.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
 - en: To keep the GPT architecture as generic as possible, only the inputs are transformed
@@ -149,6 +205,7 @@
     illustrates the transformer architecture and training objectives used in the original
     GPT work. The right part shows how to transform input for fine-tuning on several
     tasks.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
 - en: To put it simply, for a single-sequence task such as text classification, the
@@ -160,17 +217,22 @@
     transformation helps the pre-trained model to know which part is premise or hypothesis
     in the case of textual entailment. Thanks to input transformation, we do not have
     to make substantial changes in the architecture across the tasks.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
 - en: 'You can see a representation of input transformation here:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
 - en: '![ Figure 4.2 – Input transformation (inspired from the paper) ](img/B17123_04_002.jpg)'
+  id: totrans-32
   prefs: []
   type: TYPE_IMG
 - en: Figure 4.2 – Input transformation (inspired from the paper)
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 图4.2 - 输入转换（灵感来自论文）
 - en: The GPT and its two successors mostly focused on seeking a particular architectural
     design where the fine-tuning phase was not required. It is based on the idea that
     a model can be very skilled in the sense that it can learn much of the information
@@ -180,12 +242,16 @@
     case, zero-shot learning aims to disable the fine-tuning phase. The underlying
     idea is that the model can learn much information about the language during pre-training.
     This is especially true for all transformer-based models.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: GPT及其两个后继模型主要关注寻找特定的架构设计，其中不需要进行微调阶段。基于这个想法，一个模型可以非常熟练，也就是说，它在预训练阶段可以学习到关于语言的大部分信息，微调阶段所需的工作很少。因此，大多数任务的微调过程可以在三个时期内完成，并且对于大部分任务，相对较小的示例即可。极端情况下，零样本学习旨在禁用微调阶段。其基本思想是，模型可以在预训练阶段学习到关于语言的大量信息。对于所有基于Transformer的模型来说尤其如此。
 - en: Successors of the original GPTs
+  id: totrans-35
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 原始GPT的后继模型
 - en: GPT-2 (see the paper *Language Models are Unsupervised Multitask Learners* (2019)),
     a successor to the original GPT-1, is a larger model trained on much more training
     data, called WebText, than the original one. It achieved state-of-the-art results
@@ -203,8 +269,11 @@
     other studies as well. Such a shift to **Multi-Task Learning** (**MTL**) makes
     it possible to perform many different tasks for the same input. But how do the
     models determine which task to perform? They do this through zero-shot task transfer.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: GPT-2（参见论文*语言模型是无监督多任务学习者*（2019））是原始GPT-1的后继者，它是在比原始模型更多的训练数据WebText上训练的一个更大的模型。它在没有进行微调的零样本设置中，在八个任务中的七个任务上取得了最新的结果，但在一些任务中成功有限。在测量长程依赖性的较小数据集上取得了可比较的结果。GPT-2的作者认为语言模型不一定需要明确的监督来学习一个任务。相反，当它们在一个巨大而多样的网页数据集上进行训练时，它们可以学习这些任务。GPT-2被认为是一个通用系统，用*P(output|input,
+    task-i)*替换了原始GPT中的学习目标*P(output|input)*，其中模型在相同输入情况下，根据特定任务来生成不同的输出，也就是说，GPT-2通过训练相同的无监督模型学习了多个任务。一个单独的预训练模型通过学习目标便能学习到不同的能力。我们在其他研究中也看到了类似的多任务和元任务设置。这种转变到**多任务学习**（**MTL**）使得可以对同一个输入进行多种不同的任务。但是这些模型是如何确定执行哪个任务呢？他们通过零样本任务转移来实现。
 - en: Compared to the original GPT, GPT-2 has no task-specific fine-tuning and is
     able to work in a zero-shot-task-transfer setting, where all the downstream tasks
     are part of predicting conditional probabilities. The task is somehow formulated
@@ -214,8 +283,10 @@
     is arranged so that an English sentence is followed by a Turkish sentence, with
     a delimiter from which the model understands that the task is an English-to-Turkish
     translation.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 与原始GPT相比，GPT-2没有具体任务的微调，并且能够在零样本任务转移的设置中工作，在这个设置中，所有下游任务都是预测条件概率的一部分。任务在输入中以某种方式组织，模型应该理解下游任务的性质，并相应地提供答案。例如，对于英文到土耳其语的MT任务，它不仅取决于输入，还取决于任务。输入被排列成英文句子后跟随土耳其句子，有一个分隔符，模型可以从中了解到任务是英文到土耳其语的翻译。
 - en: The OpenAI team trained the GPT-3 model (see the paper *Language models are
     few-shot learners* (2020)) with 175 billion parameters, which is 100 times bigger
     than GPT-2\. The architecture of GPT-2 and GPT-3 is similar, with the main differences
@@ -226,12 +297,16 @@
     showed that the model performance increased as the parameter size and the number
     of examples increased for many tasks, including translation, **Question Answering**
     (**QA**), and masked-token tasks.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenAI团队使用了1750亿个参数训练了GPT-3模型（参见论文*语言模型是几次学习者*（2020）），比GPT-2大100倍。GPT-2和GPT-3的架构类似，主要区别通常在于模型大小和数据集数量/质量。由于数据集中的大量数据和所训练的大量参数，它在零次学习、一次学习和少次学习（*K=32*）设置下在许多下游任务上取得了更好的结果，而无需进行任何基于梯度的微调。团队表明，对于许多任务，包括翻译、**问答**（**QA**）和掩码标记任务，随着参数大小和示例数量的增加，模型性能也提高了。
 - en: Transformer-XL
+  id: totrans-39
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Transformer-XL
 - en: Transformer models suffer from the fixed-length context due to a lack of recurrence
     in the initial design and context fragmentation, although they are capable of
     learning long-term dependency. Most of the transformers break the documents into
@@ -243,8 +318,10 @@
     half of its successor, hence the language models can miss the necessary contextual
     information when predicting the next token. This problem is referred to as *context
     fragmentation* problem by the studies.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于在最初的设计和上下文分段中缺乏循环，变压器模型受固定长度上下文的困扰，尽管它们能够学习长期依赖关系。大多数变压器将文档分成一系列固定长度（主要为512）的段，其中跨段的任何信息流均不可能。因此，语言模型无法捕捉超出这个固定长度限制之外的长期依赖性。此外，分段过程不考虑句子边界。一个段可能荒谬地由一个句子的后半部分和它的后继者的前半部分组成，因此在预测下一个标记时，语言模型可能会缺少必要的上下文信息。这一问题被研究称为*上下文分段*问题。
 - en: 'To address and overcome these issues, the Transformer-XL authors (see the paper
     *Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context* (2019))
     proposed a new transformer architecture, including a segment-level recurrence
@@ -254,12 +331,16 @@
     two consecutive segments, leading to spanning the several segments to a certain
     degree. The largest possible dependency length that the model can attend is limited
     by the number of layers and segment lengths.'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解决和克服这些问题，变压器-XL作者（参见论文*变压器-XL：超越固定长度上下文的专注语言模型*（2019））提出了一种新的变压器架构，包括一个段级别的循环机制和一种新的位置编码方案。这种方法启发了许多后续模型。它不仅限于两个连续的段，因为有效的上下文可以延伸到两个段之外。循环机制在每两个连续段之间起作用，导致对若干段的跨度到一定程度。模型可以处理的最大可能依赖长度受层数和段长度的限制。
 - en: XLNet
+  id: totrans-42
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: XLNet
 - en: '**Masked Language Modeling** (**MLM**) dominated the pre-training phase of
     transformer-based architectures. However, it has faced criticism in the past since
     the masked tokens are present in the pre-training phase but are absent during
@@ -276,43 +357,60 @@
     permutation, and it further tries to predict them conditioned on the remaining
     tokens and the natural positions of the target. It makes it possible to use an
     AR model in a bidirectional fashion.'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: '**屏蔽语言建模**（**MLM**）主导了基于变压器的体系结构的预训练阶段。然而，它在过去面临过批评，因为在预训练阶段存在屏蔽标记，但在微调阶段不存在，这导致了预训练和微调之间的差异。由于这种缺失，模型可能无法利用在预训练阶段学到的所有信息。
+    XLNet（参见论文*XLNet: Generalized Autoregressive Pretraining for Language Understanding*（2019））用**置换语言建模**（**PLM**）取代了MLM，这是输入标记的随机排列，以克服这一瓶颈。排列语言建模使每个标记位置利用来自所有位置的上下文信息，从而捕捉到双向上下文。客观函数只是对因子化顺序进行排列，并定义标记预测的顺序，但不改变序列的自然位置。简而言之，模型在置换后选择一些标记作为目标，然后在其余标记和目标的自然位置的条件下进一步尝试预测它们。这使得可以双向使用AR模型。'
 - en: 'XLNet takes advantage of both AE and AR models. It is, indeed, a generalized
     AR model; however, it can attend the tokens from both left and right contexts,
     thanks to permutation-based language modeling. Besides its objective function,
     XLNet is made up of two important mechanisms: it integrates the segment-level
     recurrence mechanism of Transformer-XL into its framework, and it includes the
     careful design of the two-stream attention mechanism for target-aware representations.'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: XLNet利用了AE和AR模型的优势。它确实是一个广义的AR模型，然而，由于基于排列的语言建模，它可以关注来自左右上下文的标记。除了其客观函数，XLNet由两个重要机制组成：它将Transformer-XL的段级循环机制集成到其框架中，并包括了针对目标感知表示的两流注意力机制的慎重设计。
 - en: Let's discuss the models, using both parts of the Transformers in the next section.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们在接下来的部分讨论这些模型，使用变压器的两部分。
 - en: Working with Seq2Seq models
+  id: totrans-46
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 与Seq2Seq模型一起工作
 - en: 'The left encoder and the right decoder part of the transformer are connected
     with cross-attention, which helps each decoder layer attend over the final encoder
     layer. This naturally pushes models toward producing output that closely ties
     to the original input. A Seq2Seq model, which is the original transformer, achieves
     this by using the following scheme:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 变压器的左编码器和右解码器部分通过交叉注意力相连，这有助于每个解码器层关注最终编码器层。这自然地促使模型产生与原始输入紧密相关的输出。原始变压器——Seq2Seq模型通过以下方案实现了这一点：
 - en: '*Input tokens-> embeddings-> encoder-> decoder-> output tokens*'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: '*输入标记-> 嵌入-> 编码器-> 解码器-> 输出标记*'
 - en: Seq2Seq models keep the encoder and decoder part of the transformer. T5, **Bidirectional
     and Auto-Regressive Transformer** (**BART**), and **Pre-training with Extracted
     Gap-sentences for Abstractive Summarization Sequence-to-Sequence models** (**PEGASUS**)
     are among the popular Seq2Seq models.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: Seq2Seq模型保留了变压器的编码器和解码器部分。T5，**双向和自回归变压器**（**BART**）和**用于抽象摘要序列到序列模型的提取间隙句子进行预训练**（**PEGASUS**）是流行的Seq2Seq模型之一。
 - en: T5
+  id: totrans-50
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: T5
 - en: Most NLP architectures, ranging from Word2Vec to transformers learn embeddings
     and other parameters by predicting the masked words using context (neighbor) words.
     We treat NLP problems as word prediction problems. Some studies cast almost all
@@ -323,19 +421,27 @@
     problem where both input and output are a list of tokens because the text-to-text
     framework has been found to be beneficial in applying the same model to diverse
     NLP tasks from QA to text summarization.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数NLP架构，从Word2Vec到变压器，通过预测使用上下文（相邻）词语的掩码词来学习嵌入和其他参数。我们将NLP问题视为词预测问题。一些研究将几乎所有NLP问题都视为问答或令牌分类。同样，T5（参见2019年的论文*探索统一文本到文本变压器的迁移学习极限*）提出了一个统一框架，通过将它们转换为文本到文本问题来解决许多任务。T5的潜在理念是将所有NLP任务都转换为文本到文本（Seq2Seq）问题，其中输入和输出都是标记列表，因为已发现文本到文本框架有益于将相同模型应用于从问答到文本摘要等不同的NLP任务中。
 - en: 'The following diagram, which is inspired from the original paper, shows how
     T5 solves four different NLP problems—MT, linguistic acceptability, semantic similarity,
     and summarization—within a unified framework:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 下图，受原始论文启发，展示了T5如何在一个统一框架内解决四种不同的NLP问题—MT，语言可接受性，语义相似性和摘要：
 - en: '![Figure 4.3 – Diagram of the T5 framework ](img/B17123_04_003.jpg)'
+  id: totrans-53
   prefs: []
   type: TYPE_IMG
+  zh: '![图4.3 – T5框架图](img/B17123_04_003.jpg)'
 - en: Figure 4.3 – Diagram of the T5 framework
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 图4.3 – T5框架图
 - en: 'The T5 model roughly follows the original encoder-decoder transformer model.
     The modifications are done in the layer normalization and position embeddings
     scheme. Instead of using sinusoidal positional embedding or learned embedding,
@@ -350,12 +456,18 @@
     `"translate English to German: That is good."` input is going to produce `"das
     is gut."`. Likewise, any input with a `"summarize:"` prefix will be summarized
     by the model.'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 'T5模型大致遵循原始编码器-解码器变压器模型。修改是在层归一化和位置嵌入方案中进行的。T5使用相对位置嵌入，而不是使用正弦位置嵌入或学习嵌入，这在变压器架构中变得越来越普遍。T5是一个单一模型，可以处理各种任务，例如语言生成。更重要的是，它将任务转换为文本格式。该模型接受由任务前缀和附加的输入组成的文本。我们将标记的文本数据集转换为`{''inputs'':
+    ''....'', ''targets'': ...''}`格式，其中我们将目的作为前缀插入输入。然后，我们用标记数据训练模型，使其学会做什么以及如何做。如前图所示，在英语-德语翻译任务中，输入`"translate
+    English to German: That is good."`会产生`"das is gut."`。同样，任何带有`"summarize:"`前缀的输入都将由该模型汇总。'
 - en: Introducing BART
+  id: totrans-56
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 介绍BART
 - en: 'As with XLNet, the BART model (see the paper *BART: Denoising Sequence-to-Sequence
     Pre-training for Natural Language Generation, Translation, and Comprehension*
     (2019)) takes advantage of the schemes of AE and AR models. It uses standard Seq2Seq
@@ -363,38 +475,52 @@
     using a variety of noising approaches that corrupt documents. The major contribution
     of the study to the field is that it allows us to apply several types of creative
     corruption schemes, as shown in the following diagram:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 与XLNet一样，BART模型（参见2019年的论文*BART：用于自然语言生成、翻译和理解的去噪序列到序列预训练*）利用了AE和AR模型的方案。它使用标准Seq2Seq变压器架构，稍作修改。BART是一个使用各种破坏性方法来破坏文档的预训练模型。该研究对该领域的主要贡献在于它允许我们应用多种类型的创造性破坏方案，如下图所示：
 - en: '![Figure 4.4 – Diagram inspired by the original BART paper ](img/B17123_04_004.jpg)'
+  id: totrans-58
   prefs: []
   type: TYPE_IMG
+  zh: '![图4.4 – 受原始BART论文启发的图 ](img/B17123_04_004.jpg)'
 - en: Figure 4.4 – Diagram inspired by the original BART paper
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 图4.4 – 受原始BART论文启发的图
 - en: 'We will look at each scheme in detail, as follows:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将详细查看每个方案，如下所示：
 - en: '`[MASK]` symbol, the same as with the BERT model.'
+  id: totrans-61
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`[MASK]` 符号，与BERT模型相同。'
 - en: '**Token Deletion**: Tokens are randomly removed from the documents. The model
     is forced to determine which positions are removed.'
+  id: totrans-62
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`[MASK]` token. There is also `[MASK]` token insertion.'
+  id: totrans-63
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Sentence Permutation**: The sentences in the input are segmented and shuffled
     in random order.'
+  id: totrans-64
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Document Rotation**: The document is rotated so that it begins with a randomly
     selected token, **C** in the case in the preceding diagram. The objective is to
     find the start position of a document.'
+  id: totrans-65
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -411,6 +537,7 @@
     representation, where NER identifies entities such as person and organization
     in a text and POS associates each token with their lexical categories, such as
     noun, adjective, and so on.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
 - en: 'For sequence generation, the decoder block of the BART model, which is an AR
@@ -425,209 +552,276 @@
     new encoder to map foreign words into an input that BART can denoise to the target
     language. The new encoder can use a separate vocabulary, including foreign language,
     from the original BART model.'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
 - en: 'In the HuggingFace platform, we can access the original pre-trained BART model
     with the following line of code:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE0]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'When we call the standard `summarization` pipeline of the `transformers` library,
     as shown in the following line of code, a distilled pre-trained BART model is
     loaded. This call implicitly loads the `"sshleifer/distilbart-cnn-12-6"` model
     and the corresponding tokenizers, as follows:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE1]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The following code explicitly loads the same model and the corresponding tokenizer.
     The code example takes a text to be summarized and outputs the results:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE2]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: In the next section, we get our hands dirty and learn how to train such models.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
 - en: AR language model training
+  id: totrans-75
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: In this section, you will learn how it is possible to train your own AR language
     models. We will start with GPT-2 and get a deeper look inside its different functions
     for training, using the `transformers` library.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
 - en: You can find any specific corpus to train your own GPT-2, but for this example,
     we used *Emma* by Jane Austen, which is a romantic novel. Training on a much bigger
     corpus is highly recommended to have a more general language generation.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
 - en: 'Before we start, it''s good to note that we used TensorFlow''s native training
     functionality to show that all Hugging Face models can be directly trained on
     TensorFlow or PyTorch if you wish to. Follow these steps:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
 - en: 'You can download the *Emma* novel raw text by using the following command:'
+  id: totrans-79
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE3]'
+  id: totrans-80
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The first step is to train the `BytePairEncoding` tokenizer for GPT-2 on a
     corpus that you intend to train your GPT-2 on. The following code will import
     the `BPE` tokenizer from the `tokenizers` library:'
+  id: totrans-81
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE4]'
+  id: totrans-82
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'As you see, in this example, we intend to train a more advanced tokenizer by
     adding more functionality, such as the `Lowercase` normalization. To make a `tokenizer`
     object, you can use the following code:'
+  id: totrans-83
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE5]'
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: The first line makes a tokenizer from the `BPE` tokenizer class. For the normalization
     part, `Lowercase` has been added, and the `pre_tokenizer` attribute is set to
     be as `ByteLevel` to ensure we have bytes as our input. The `decoder` attribute
     must be also set to `ByteLevelDecoder` to be able to decode correctly.
+  id: totrans-85
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Next, the tokenizer will be trained using a `50000` maximum vocabulary size
     and an initial alphabet from `ByteLevel`, as follows:'
+  id: totrans-86
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE6]'
+  id: totrans-87
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'It is also necessary to add special tokens to be considered. To save the tokenizer,
     you are required to create a directory, as follows:'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE7]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'You can save the tokenizer by running the following command:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE8]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Now that the tokenizer is saved, it''s time to preprocess the corpus and make
     it ready for GPT-2 training using the saved tokenizer, but first, important imports
     must not be forgotten. The code to do the imports is illustrated in the following
     snippet:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE9]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'And the tokenizer can be loaded by using `GPT2TokenizerFast`, as follows:'
+  id: totrans-94
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE10]'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'It is also essential to add special tokens with their marks, like this:'
+  id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE11]'
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'You can also double-check to see if everything is correct or not by running
     the following code:'
+  id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE12]'
+  id: totrans-99
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: This code will output the `2` for the current tokenizer.
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'You can also test it for a sentence by executing the following code:'
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE13]'
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: For this output, `0` is the beginning of the sentence, `265`, `157`, and `56`
     are related to the sentence itself, and the EOS is marked as `2`, which is `</s>`.
+  id: totrans-103
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'These settings must be used when creating a configuration object. The following
     code will create a `config` object and the TensorFlow version of the GPT-2 model:'
+  id: totrans-104
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE14]'
+  id: totrans-105
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'On running the `config` object, you can see the configuration in dictionary
     format, as follows:'
+  id: totrans-106
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE15]'
+  id: totrans-107
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: As you can see, other settings are not touched, and the interesting part is
     that `vocab_size` is set to `11750`. The reason behind this is that we set the
     maximum vocabulary size to be `50000`, but the corpus had less, and its `11750`.
+  id: totrans-108
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如您所见，其他设置未被触及，有趣的部分是`vocab_size`被设置为`11750`。背后的原因是我们将最大词汇量设置为`50000`，但语料库较少，只有`11750`。
 - en: 'Now, you can get your corpus ready for pre-training, as follows:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，您可以准备好为预训练做好语料库的准备，如下所示：
 - en: '[PRE16]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The content will now include all raw text from the raw file, but it is required
     to remove `''\n''` from each line and drop lines with fewer than `10` characters,
     as follows:'
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，内容将包括原始文件中的所有原始文本，但需要删除每一行的`'\n'`并删除少于`10`个字符的行，如下所示：
 - en: '[PRE17]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Dropping short lines will ensure that the model is trained on long sequences,
     to be able to generate longer sequences. At the end of the preceding snippet,
     `content_p` has the concatenated raw file with `eos_token` added to the end. But
@@ -635,198 +829,271 @@
     by adding `</s>` to each line, which will help the model to recognize when the
     sentence ends. However, we intend to make it work for much longer sequences without
     encountering EOS. The code is illustrated in the following snippet:'
+  id: totrans-113
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 删除短行将确保模型在长序列上进行训练，以生成更长的序列。在前述代码段的末尾，`content_p`具有经连接的原始文件，并在末尾添加了`eos_token`。但您也可以采取不同的策略—例如，您可以通过在每一行后添加`</s>`来将每一行分开，这将帮助模型识别句子何时结束。但我们的目的是使其能够更长的序列而无需遇到EOS。代码见如下片段：
 - en: '[PRE18]'
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: The GPT tokenizer from the preceding code snippet will tokenize the whole text
     and make it one whole, long sequence of token IDs.
+  id: totrans-115
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 前述代码片段中的GPT标记生成器将对整个文本进行标记化，使其成为一个整体的长令牌ID序列。
 - en: 'Now, it''s time to make the samples for training, as follows:'
+  id: totrans-116
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，是时候为训练制作样本了，如下所示：
 - en: '[PRE19]'
+  id: totrans-117
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'The preceding code makes `examples` a size of `100` for each one starting from
     a given part of text and ending at `100` tokens later:'
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前述代码使`examples`从给定文本的特定部分开始，每个大小为`100`，并在`100`个令牌后结束：
 - en: '[PRE20]'
+  id: totrans-119
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: In `train_data`, there will be a sequence of size `99` from start to the 99th
     token, and the labels will have a token sequence from `1` to `100`.
+  id: totrans-120
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在`train_data`中，将会有一系列从头到第99个令牌的大小为`99`的序列，标签将具有从`1`到`100`的令牌序列。
 - en: 'For faster training, it is required to make the data in the form of a TensorFlow
     dataset, as follows:'
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了加快训练速度，需要将数据制作成TensorFlow数据集的形式，如下所示：
 - en: '[PRE21]'
+  id: totrans-122
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: '`buffer` is the buffer size used for shuffling data, and `batch_size` is the
     batch size for training. `drop_remainder` is used to drop the remainder if it
     is less than `16`.'
+  id: totrans-123
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`buffer`是用于对数据进行洗牌的缓冲区大小，`batch_size`是训练的批量大小。`drop_remainder`用于丢弃余数，如果余数小于`16`，则丢弃。'
 - en: 'Now, you can specify your `optimizer`, `loss`, and `metrics` properties, as
     follows:'
+  id: totrans-124
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，您可以指定您的`optimizer`，`loss`和`metrics`属性，如下所示：
 - en: '[PRE22]'
+  id: totrans-125
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'And the model is compiled and ready to be trained with the number of epochs
     you wish, as follows:'
+  id: totrans-126
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 你希望，该模型已经编译并准备好进行训练的周期数量，如下所示：
 - en: '[PRE23]'
+  id: totrans-127
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'You will see an output that looks something like this:'
+  id: totrans-128
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 您将看到类似于这样的输出：
 - en: '![Figure 4.5 – GPT-2 training using TensorFlow/Keras ](img/B17123_04_005.jpg)'
+  id: totrans-129
   prefs: []
   type: TYPE_IMG
+  zh: '![图4.5 – 使用TensorFlow/Keras进行GPT-2训练 ](img/B17123_04_005.jpg)'
 - en: Figure 4.5 – GPT-2 training using TensorFlow/Keras
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 图4.5 – 使用TensorFlow/Keras进行GPT-2训练
 - en: We will now look at NLG using AR models. Now that you have saved the model,
     it will be used for generating sentences in the next section.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将看看如何使用AR模型进行NLG。现在你已经保存了模型，它将用于在下一节中生成句子。
 - en: Up until this point, you have learned how it is possible to train your own model
     for NLG. In the next section, we describe how to utilize NLG models for language
     generation.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，你已经学会了如何训练自己的NLG模型。在下一节中，我们描述如何利用NLG模型进行语言生成。
 - en: NLG using AR models
+  id: totrans-133
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用AR模型进行NLG
 - en: 'In the previous section, you have learned how it is possible to train an AR
     model on your own corpus. As a result, you have trained the GPT-2 version of your
     own. But the missing answer to the question *How can I use it?* remains. To answer
     that, let''s proceed as follows:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一节中，你已经学会了如何在自己的语料库上训练AR模型。结果，你已经训练了自己的GPT-2版本。但对于问题“我该如何使用它？”的缺失答案仍然存在。为了回答这个问题，让我们继续如下进行：
 - en: 'Let''s start generating sentences from the model you have just trained, as
     follows:'
+  id: totrans-135
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们从您刚刚训练的模型开始生成句子，如下所示：
 - en: '[PRE24]'
+  id: totrans-136
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: The `generate` function that is defined in the preceding code snippet takes
     a `start` string and generates sequences following that string. You can change
     parameters such as `max_length` to be set to a smaller sequence size or `num_return_sequences`
     to have different generations.
+  id: totrans-137
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Let''s just try it with an empty string, as follows:'
+  id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE25]'
+  id: totrans-139
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'We get the following output:'
+  id: totrans-140
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![Figure 4.6 – GPT-2 text-generation example ](img/B17123_04_006.jpg)'
+  id: totrans-141
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: Figure 4.6 – GPT-2 text-generation example
+  id: totrans-142
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: As you can see from the preceding output, a long text is generated, even if
     the semantics of the text is not very pleasing, but the syntax is almost correct
     in many cases.
+  id: totrans-143
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Now, let''s try different starts, with `max_length` set to a lower value such
     as `30`, as follows:'
+  id: totrans-144
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE26]'
+  id: totrans-145
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: As you recall `weston` is one of the characters from the novel.
+  id: totrans-146
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'To save the model, you can use the following code to make it reusable for publishing
     or different applications:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE27]'
+  id: totrans-148
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'To make sure your model is saved correctly, you can try loading it, as follows:'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE28]'
+  id: totrans-150
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Two files are saved—a `config` file and a `model.h5` file, which is for the
     TensorFlow version. We can see both of these files in the following screenshot:'
+  id: totrans-151
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![Figure 4.7 – Language model save_pretrained output ](img/B17123_04_007.jpg)'
+  id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: Figure 4.7 – Language model save_pretrained output
+  id: totrans-153
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Hugging Face also has a standard for filenames that must be used—these standard
     filenames are available by using the following import:'
+  id: totrans-154
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE29]'
+  id: totrans-155
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: However, when using the `save_pretrained` function, it is not required to put
     the filenames—just the directory will suffice.
+  id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
@@ -836,22 +1103,28 @@
     be done manually. The first thing is to save the tokenizer in the proper format
     to be used by `AutoTokenizer`. You can do this by using `save_pretrained`, as
     follows:'
+  id: totrans-157
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE30]'
+  id: totrans-158
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'This is the output:'
+  id: totrans-159
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![Figure 4.8 – Tokenizer save_pretrained output ](img/B17123_04_008.jpg)'
+  id: totrans-160
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: Figure 4.8 – Tokenizer save_pretrained output
+  id: totrans-161
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
@@ -859,24 +1132,31 @@
     must be manually changed to be usable. First, you should rename it as `config.json`,
     and secondly, you should add a property in `model_type` property is `gpt2`, as
     follows:'
+  id: totrans-162
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE31]'
+  id: totrans-163
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Now, everything is ready, and you can simply use these two lines of code to
     load `model` and `tokenizer`:'
+  id: totrans-164
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE32]'
+  id: totrans-165
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: However, do not forget to set `from_tf` to `True` because your model is saved
     in TensorFlow format.
+  id: totrans-166
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
@@ -884,9 +1164,11 @@
     model using `tensorflow` and `transformers`. You also learned how it is possible
     to save a pre-trained model and prepare it to be used as an auto model. In the
     next section, you will learn the basics of using other models.
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
 - en: Summarization and MT fine-tuning using simpletransformers
+  id: totrans-168
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -895,152 +1177,197 @@
     because there are sometimes impediments such as low computational power. In this
     section, you will look at how to fine-tune language models on your own datasets
     for specific tasks of MT and summarization. Follow these next steps:'
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
 - en: 'To start, you need to install the `simpletransformers` library, as follows:'
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE33]'
+  id: totrans-171
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: The next step is to download the dataset that contains your parallel corpus.
     This parallel corpus can be of any type of Seq2Seq task. For this example, we
     are going to use the MT example, but you can use any other dataset for other tasks
     such as paraphrasing, summarization, or even for converting text to **Structured
     Query Language** (**SQL**).
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: You can download the dataset from [https://www.kaggle.com/seymasa/turkish-to-english-translation-dataset/version/1](https://www.kaggle.com/seymasa/turkish-to-english-translation-dataset/version/1).
+  id: totrans-173
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'After you have downloaded and unpacked the data, it is necessary to add `EN`
     and `TR` for column headers, for easier use. You can load the dataset using `pandas`,
     as follows:'
+  id: totrans-174
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE34]'
+  id: totrans-175
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'It is required to add T5-specific commands to the dataset to make it understand
     the command it is dealing with. You can do this with the following code:'
+  id: totrans-176
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE35]'
+  id: totrans-177
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Afterward, you can reform the DataFrame, like this:'
+  id: totrans-178
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE36]'
+  id: totrans-179
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'The result is shown in the following screenshot:'
+  id: totrans-180
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![Figure 4.9 – English-Turkish MT parallel corpus ](img/B17123_04_009.jpg)'
+  id: totrans-181
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: Figure 4.9 – English-Turkish MT parallel corpus
+  id: totrans-182
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Next, run the following code to import the required classes:'
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE37]'
+  id: totrans-184
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Defining arguments for training is accomplished using the following code:'
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE38]'
+  id: totrans-186
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'At the end, you can load any model you wish to fine-tune. Here''s the one we''ve
     chosen:'
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE39]'
+  id: totrans-188
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: Don't forget to set `use_cuda` to `False` if you do not have enough **Compute
     Unified Device Architecture** (**CUDA**) memory for mT5.
+  id: totrans-189
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'Splitting the `train` and `eval` DataFrames can be done using the following
     code:'
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE40]'
+  id: totrans-191
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'The last step is to use the following code to start training:'
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE41]'
+  id: totrans-193
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'The result of the training will be shown, as follows:'
+  id: totrans-194
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![Figure 4.10 – mT5 model evaluation results ](img/B17123_04_010.jpg)'
+  id: totrans-195
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: Figure 4.10 – mT5 model evaluation results
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: This indicates evaluation and training loss.
+  id: totrans-197
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: 'You can simply load and use the model with the following code:'
+  id: totrans-198
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE42]'
+  id: totrans-199
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: The `model_predict` function can be used now for the translation from English
     to Turkish.
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: The Simple Transformers library (`simpletransformers`) makes training many models,
     from sequence labeling to Seq2Seq models, very easy and usable.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
 - en: Well done! We have learned how to train our own AR models and have come to the
     end of this chapter.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-203
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1052,22 +1379,27 @@
     corpus and generated text using it. We learned how to save it and use it with
     `AutoModel`. We also had a deeper look into how BPE can be trained and used, using
     the `tokenizers` library.
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
 - en: In the next chapter, we will see how to fine-tune models for text classification.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
 - en: References
+  id: totrans-206
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'Here are a few references that you can use to expand on what we learned in
     this chapter:'
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
 - en: '*Radford, A.*, *Wu, J.*, *Child, R.*, *Luan, D.*, *Amodei, D.* and *Sutskever,
     I.* (*2019*). *Language Models are Unsupervised Multitask Learners*. *OpenAI blog*,
     *1(8)*, *9*.'
+  id: totrans-208
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -1075,30 +1407,35 @@
     O.* and *Zettlemoyer, L.* (*2019*). *BART: Denoising Sequence-to-Sequence Pre-training
     for Natural Language Generation, Translation, and Comprehension*. *arXiv preprint
     arXiv:1910.13461*.'
+  id: totrans-209
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '*Xue, L.*, *Constant, N.*, *Roberts, A.*, *Kale, M.*, *Al-Rfou, R*., *Siddhant,
     A.* and *Raffel, C.* (*2020*). *mT5: A massively multilingual pre-trained text-to-text
     transformer*. *arXiv preprint arXiv:2010.11934*.'
+  id: totrans-210
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '*Raffel, C.* , *Shazeer, N.* , *Roberts, A.* , *Lee, K.* , *Narang, S.* , *Matena,
     M*. and *Liu, P. J.* (*2019*). *Exploring the Limits of Transfer Learning with
     a Unified Text-to-Text Transformer*. *arXiv preprint arXiv:1910.10683*.'
+  id: totrans-211
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '*Yang, Z.*, *Dai, Z.*, *Yang, Y.*, *Carbonell, J.*, *Salakhutdinov, R.* and
     *Le, Q. V.* (*2019*). *XLNet: Generalized Autoregressive Pretraining for Language
     Understanding*. *arXiv preprint arXiv:1906.08237*.'
+  id: totrans-212
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '*Dai, Z.*, *Yang, Z.*, *Yang, Y.*, *Carbonell, J*., *Le, Q. V.* and *Salakhutdinov,
     R.* (*2019*). *Transformer-xl: Attentive Language Models Beyond a Fixed-Length
     Context*. *arXiv preprint arXiv:1901.02860*.'
+  id: totrans-213
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
