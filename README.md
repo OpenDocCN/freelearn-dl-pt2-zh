@@ -3,60 +3,56 @@
     
     README.md
     
-        {name}：文档中文名
+        FreeLearning 深度学习译文集（二）：文档中文名
         {nameEn}：文档英文名
         {urlEn}：文档原始链接
-        {domain}：域名前缀
-        {adminName}：负责人名称
-        {adminUn}：负责人 Github 用户名
-        {adminQq}：负责人 QQ
-        {repo}：ApacheCN 的 Github 仓库名称
-        {dockerName}：DockerHub 仓库名称
-        {pypiName}：PYPI 包名称
-        {npmName}：NPM 包名称
+        fldl2：域名前缀
+        飞龙：负责人名称
+        wizardforcel：负责人 Github 用户名
+        562826179：负责人 QQ
+        freelearn-dl-pt2-zh：ApacheCN 的 Github 仓库名称
+        freelearn-dl-pt2-zh：DockerHub 仓库名称
+        freelearn-dl-pt2-zh：PYPI 包名称
+        freelearn-dl-pt2-zh：NPM 包名称
     
     CNAME
     
-        {domain}：域名前缀
+        fldl2：域名前缀
 
     index.html
     
-        {name}：文档中文名
-        {color}：显示颜色
-        {repo}：ApacheCN 的 Github 仓库名称
+        FreeLearning 深度学习译文集（二）：文档中文名
+        #ff6f00：显示颜色
+        freelearn-dl-pt2-zh：ApacheCN 的 Github 仓库名称
 
     asset/docsify-flygon-footer.js
     
-        {repo}：ApacheCN 的 Github 仓库名称
+        freelearn-dl-pt2-zh：ApacheCN 的 Github 仓库名称
 -->
 
-# {name}
+# FreeLearning 深度学习译文集（二）
 
-> 原文：[{nameEn}]({urlEn})
-> 
 > 协议：[CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
-> 
-> 阶段：机翻（1）
 > 
 > 敢于公开博弈，敢于激化矛盾，敢于同归于尽！
 
-* [在线阅读](https://{domain}.flygon.net)
+* [在线阅读](https://fldl2.flygon.net)
 
 ## 下载
 
 ### Docker
 
 ```
-docker pull apachecn0/{dockerName}
-docker run -tid -p <port>:80 apachecn0/{dockerName}
+docker pull apachecn0/freelearn-dl-pt2-zh
+docker run -tid -p <port>:80 apachecn0/freelearn-dl-pt2-zh
 # 访问 http://localhost:{port} 查看文档
 ```
 
 ### NPM
 
 ```
-npm install -g {npmName}
-{npmName} <port>
+npm install -g freelearn-dl-pt2-zh
+freelearn-dl-pt2-zh <port>
 # 访问 http://localhost:{port} 查看文档
 ```
 
