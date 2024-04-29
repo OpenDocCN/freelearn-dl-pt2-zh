@@ -1,324 +1,470 @@
 - en: Appendix IV — Custom Text Completion with GPT-2
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 附录IV — 使用GPT-2进行自定义文本完成
 - en: This appendix, relating to *Chapter 7*, *The Rise of Suprahuman Transformers
     with GPT-3 Engines*, describes how to customize text completion with a GPT-2 model.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个与*第7章*相关的附录，*GPT-3引擎崛起的超人类变形车*，描述了如何使用GPT-2模型定制文本完成。
 - en: This appendix shows how to build a GPT-2 model, train it, and interact with
     custom text in 12 steps.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本附录展示了如何构建、训练GPT-2模型，并在12个步骤中与自定义文本进行交互。
 - en: Open `Training_OpenAI_GPT_2.ipynb`, which is in the GitHub repository of this
     appendix. You will notice that the notebook is also divided into the same 12 steps
     and cells as this appendix.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 打开本附录的GitHub仓库中的`Training_OpenAI_GPT_2.ipynb`。您会注意到笔记本也被分成了与本附录相同的12个步骤和单元格。
 - en: Run the notebook cell by cell. The process is tedious, but *the result produced
     by the cloned OpenAI GPT-2 repository is gratifying*. We are not using the GPT-3
     API or a Hugging Face wrapper.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 逐步运行笔记本中的每个单元格。这个过程是单调乏味的，但*克隆OpenAI GPT-2仓库产生的结果是令人满意的*。我们不会使用GPT-3 API或Hugging
+    Face包装器。
 - en: We are getting our hands dirty to see how the model is built and trained. You
     will see some deprecation messages, but we need to get inside the model, not the
     wrappers or the API. However, the effort is worthwhile.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们会忙于了解模型是如何构建和训练的。您会看到一些弃用消息，但我们需要进入模型内部，而不是包装器或API。然而，这个努力是值得的。
 - en: Let’s begin by activating the GPU.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们开始激活GPU。
 - en: Training a GPT-2 language model
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 训练GPT-2语言模型
 - en: In this section, we will train a GPT-2 model on a custom dataset that we will
     encode. We will then interact with our customized model. We will be using the
     same `kant.txt` dataset as in *Chapter 4*, *Pretraining a RoBERTa Model from Scratch*.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将在一个自定义数据集上训练一个GPT-2模型，然后与我们定制的模型进行交互。我们将使用与*第4章*中相同的`kant.txt`数据集，*从头开始预训练RoBERTa模型*。
 - en: We will open the notebook and run it cell by cell.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将逐步打开笔记本并运行每个单元格。
 - en: 'Step 1: Prerequisites'
+  id: totrans-10
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 步骤1：先决条件
 - en: 'The files referred to in this section are available in the `AppendixIV` directory
     of this book’s GitHub repository:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中提到的文件可以在本书的GitHub仓库的`AppendixIV`目录中找到：
 - en: 'Activate the GPU in the Google Colab’s notebook runtime menu if you are running
     it on Google Colab, as explained in *Step 1: Activating the GPU* in *Appendix
     III*, *Generic Text Completion with GPT-2*.'
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果您在Google Colab上运行它，请在Google Colab的笔记本运行时菜单中启用GPU，就像*附录III*中 *第1步：激活GPU*中所解释的那样。
 - en: 'Upload the following Python files to Google Colaboratory with the built-in
     file manager: `train.py`, `load_dataset.py`, `encode.py`, `accumulate.py`, `memory_saving_gradients.py`.'
+  id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用内置文件管理器将以下Python文件上传到Google Colaboratory：`train.py`、`load_dataset.py`、`encode.py`、`accumulate.py`、`memory_saving_gradients.py`。
 - en: 'These files originally come from *N Shepperd’s* GitHub repository: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2).
     However, you can download these files from the `AppendixIV\``gpt-2-train_files`
     directory in this book’s GitHub repository.'
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 这些文件最初来自*N Shepperd*的GitHub仓库：[https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2)。但是，您可以从本书的GitHub仓库的`AppendixIV\``gpt-2-train_files`目录中下载这些文件。
 - en: The *N Shepperd’s* GitHub repository provides the necessary files to train our
     GPT-2 model. We will not clone *N Shepperd’s* repository. Instead, we will be
     cloning OpenAI’s repository and adding the five training files we need from *N
     Shepperd’s* repository.
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*N Shepperd*的GitHub仓库提供了训练我们的GPT-2模型所需的文件。我们不会克隆*N Shepperd*的仓库，而是将从*N Shepperd*的仓库中获取的五个训练文件添加到OpenAI的仓库中。'
 - en: Upload `dset.txt` to Google Colaboratory with the built-in file manager. The
     dataset is named `dset.txt` so that you can replace its content without modifying
     the program with your customized inputs after reading this appendix.
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 用内置文件管理器将`dset.txt`上传到Google Colaboratory。数据集被命名为`dset.txt`，这样在阅读本附录后，您可以用自定义输入替换其内容而无需修改程序。
 - en: This dataset is in the `gpt-2-train_files` directory in the GitHub repository
     of this appendix. It is the `kant.txt` dataset used in *Chapter 4*, *Pretraining
     a RoBERTa Model from Scratch*.
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 这个数据集位于本附录的GitHub仓库中的`gpt-2-train_files`目录中。这是*第4章*中使用的`kant.txt`数据集，*从头开始预训练RoBERTa模型*。
 - en: We will now go through the initial steps of the training process.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在将逐步进行训练过程的初始步骤。
 - en: 'Steps 2 to 6: Initial steps of the training process'
+  id: totrans-19
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 第2至第6步：训练过程的初始步骤
 - en: This subsection will only briefly go through *Steps 2 to 6* since we described
     them in detail in *Appendix III*, *Generic Text Completion with GPT-2*. We will
     then copy the dataset and the model to the project directory.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 本小节将仅简要介绍*步骤2到6*，因为我们在*附录III*，*使用GPT-2进行通用文本补全*中对其进行了详细描述。然后我们将把数据集和模型复制到项目目录中。
 - en: 'The program now clones OpenAI’s GPT-2 repository and not *N Shepperd’s* repository:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 该程序现在克隆OpenAI的GPT-2仓库，而不是*N Shepperd*的仓库：
 - en: '[PRE0]'
+  id: totrans-22
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: We have already uploaded the files we need to train the GPT-2 model from *N
     Shepperd’s* directory.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经从*N Shepperd*的目录中上传了训练GPT-2模型所需的文件。
 - en: 'The program now installs the requirements:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序现在安装所需软件：
 - en: '[PRE1]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'This notebook requires `toposort`, which is a topological sort algorithm:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 该笔记本需要`toposort`，这是一种拓扑排序算法：
 - en: '[PRE2]'
+  id: totrans-27
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Do not restart the notebook after installing the requirements. Instead, wait
     until you have checked the TensorFlow version to restart the VM only once during
     your session. After that, restart it if necessary. It is tedious but worthwhile
     to get inside the code beyond just wrappers and APIs.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 安装完所需软件后，请不要重新启动笔记本。相反，请等待直到您检查了TensorFlow版本，在您的会话期间只重新启动虚拟机一次。之后，如果有必要，则重新启动。深入了解代码而不仅仅是包装和API是繁琐但值得的。
 - en: 'We now check the TensorFlow version to make sure we are running version `tf
     1.x`:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们检查TensorFlow版本，以确保我们正在运行`tf 1.x`版本：
 - en: '[PRE3]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Whether the `tf 1.x` version is displayed or not, rerun the cell to make sure,
     restart the VM, and rerun this cell. That way, you are sure you are running the
     VM with `tf 1.x`.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 无论显示了`tf 1.x`版还是没有，请重新运行该单元格以确保，重新启动虚拟机，并重新运行该单元格。这样，您可以确保您正在运行带有`tf 1.x`的虚拟机。
 - en: 'The program now downloads the 117M parameter GPT-2 model we will train with
     our dataset:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 该程序现在会下载我们将与我们的数据集训练的117M参数的GPT-2模型：
 - en: '[PRE4]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'We will copy the dataset and the 117M parameter GPT-2 model into the `src`
     directory:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将复制数据集和117M参数的GPT-2模型到`src`目录中：
 - en: '[PRE5]'
+  id: totrans-35
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: The goal is to group all the resources we need to train the model in the `src`
     project directory.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标是将我们训练模型所需的所有资源分组到`src`项目目录中。
 - en: We will now go through the N Shepperd training files.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将浏览N Shepperd的训练文件。
 - en: 'Step 7: The N Shepperd training files'
+  id: totrans-38
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 第7步：N Shepperd训练文件
 - en: 'The training files we will use come from *N Shepperd* ‘s GitHub repository.
     We uploaded them in *Step 1: Prerequisites* of this appendix. We will now copy
     them into our project directory:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将使用的训练文件来自*N Shepperd*的GitHub仓库。我们在本附录的*第1步：先决条件*中上传了它们。现在我们将把它们复制到我们的项目目录中：
 - en: '[PRE6]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The training files are now ready to be activated. Let’s now explore them, starting
     with `encode.py`.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在训练文件已经准备好激活。让我们开始探索它们，首先是`encode.py`。
 - en: 'Step 8: Encoding the dataset'
+  id: totrans-42
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 第8步：对数据集进行编码
 - en: The dataset must be encoded before training it. You can double-click on `encode.py`
     to display the file in Google Colaboratory.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练之前，数据集必须被编码。您可以双击`encode.py`在Google Colaboratory中查看文件。
 - en: '`encode.py` loads `dset.txt` by calling the `load_dataset` function that is
     in `load_dataset.py`:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: '`encode.py`通过调用`load_dataset.py`中的`load_dataset`函数加载`dset.txt`：'
 - en: '[PRE7]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: '`encode.py` also loads OpenAI’s encoding program, `encode.py`, to encode the
     dataset:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '`encode.py`还加载OpenAI的编码程序`encode.py`来对数据集进行编码：'
 - en: '[PRE8]'
+  id: totrans-47
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'The encoded dataset is saved in a `NumPy` array and stored in `out.npz`. Now,
     `npz` is a `NumPy` zip archive of the array generated by the encoder:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 编码的数据集以`NumPy`数组的形式保存，并存储在`out.npz`中。现在，`npz`是由编码器生成的数组的`NumPy`压缩存档：
 - en: '[PRE9]'
+  id: totrans-49
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'The dataset is loaded, encoded, and saved in `out.npz` when we run the cell:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们运行该单元格时，数据集将被加载、编码并保存在`out.npz`中：
 - en: '[PRE10]'
+  id: totrans-51
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: Our GPT-2 117M model is ready to be trained.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的GPT-2 117M模型已经准备好进行训练。
 - en: 'Step 9: Training a GPT-2 model'
+  id: totrans-53
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 第9步：训练GPT-2模型
 - en: 'We will now train the GPT-2 117M model on our dataset. We send the name of
     our encoded dataset to the program:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将对我们的数据集训练GPT-2 117M模型。我们将数据集的编码名称发送给程序：
 - en: '[PRE11]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'When you run the cell, it will train until you stop it. The trained model is
     saved after 1,000 steps. When the training exceeds 1,000 steps, stop it. The saved
     model checkpoints are in `/content/gpt-2/src/checkpoint/run1`. You can check the
     list of these files in the *Step 10A: Copying Training Files* cell of the notebook.'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 当您运行该单元格时，它将一直训练，直到您停止它。训练在1,000步后保存模型。当训练超过1,000步时，请停止它。保存的模型检查点位于`/content/gpt-2/src/checkpoint/run1`中。您可以在笔记本的*第10A步：复制训练文件*单元格中检查这些文件的列表。
 - en: You can stop the training by double-clicking on the run button of the cell.
     The training will end, and the trained parameters will be saved.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过双击单元格的运行按钮来停止训练。训练将结束，并且训练参数将被保存。
 - en: 'You can also stop training the model after 1,000 steps with *Ctrl* + *M*. The
     program will stop and save the trained parameters. It will convert the code into
     text (you will have to copy it back into a code cell) and display the following
     message:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/B17948_Appendix_IV_01.png)'
+  id: totrans-59
   prefs: []
   type: TYPE_IMG
 - en: 'Figure IV.1: Saving a trained GPT-2 model automatically'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
 - en: The program manages the optimizer and gradients with the `/content/gpt-2/src/memory_saving_gradients.py`
     and `/content/gpt-2/src/accumulate.py` programs.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
 - en: '`train.py` contains a complete list of parameters that can be tweaked to modify
     the training process. Run the notebook without changing them first. Then, if you
     wish, you can experiment with the training parameters and see if you can obtain
     better results.'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
 - en: 'The GPT-3 model generates samples that you can read during its training. At
     one point during my GPT-2 training run, the system generated a sample I found
     enlightening:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE12]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: A representation of the world is what we humans create and what AI learns. Interesting!
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
 - en: Let’s continue our experiment by creating a directory for our training model.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
 - en: 'Step 10: Creating a training model directory'
+  id: totrans-67
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: This section will create a temporary directory for our model, store the information
     we need, and rename it to replace the directory of the GPT-2 117M model we downloaded.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
 - en: 'We start by creating a temporary directory named `tgmodel`:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE13]'
+  id: totrans-70
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'We then copy the checkpoint files that contain the trained parameters we saved
     when we trained our model in the *Step 9: Training the model* subsection of this
     section:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE14]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Our `tgmodel` directory now contains the trained parameters of our GPT-2 model.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
 - en: 'We described these files’ content in *Step 5: Downloading the 345M parameter
     GPT-2 model* in *Appendix III*, *Generic Text Completion with GPT-2*.'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
 - en: 'We will now retrieve the hyperparameters and vocabulary files from the GPT-2
     117M model we downloaded:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE15]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: Our `tgmodel` directory now contains our complete customized GPT-2 117M model.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
 - en: 'Our last step is to rename the original GPT-2 model we downloaded and set the
     name of our model to `117M`:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE16]'
+  id: totrans-79
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: Our trained model is now the one the cloned OpenAI GPT-2 repository will run.
     Let’s interact with our model!
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
 - en: 'Step 11: Generating unconditional samples'
+  id: totrans-81
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -326,20 +472,26 @@
     We will first generate an unconditional sample that requires no input on our part.
     Then we will enter a context paragraph to obtain a conditional text completion
     response from our trained model.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s first run an unconditional sample:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE17]'
+  id: totrans-84
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: You will not be prompted to enter context sentences since this is an unconditional
     sample generator.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
 - en: To stop the cell, double-click on the run button of the cell or press *Ctrl*
     + *M*.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
 - en: The result is random but makes sense from a grammatical perspective. From a
@@ -347,143 +499,193 @@
     context. But still, the process is remarkable. It invents posts, writes a title,
     dates it, invents organizations and addresses, produces a topic, and even imagines
     web links!
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
 - en: 'The first few lines are rather incredible:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE18]'
+  id: totrans-89
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: The result of an unconditional random text generator is interesting but not
     convincing.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
 - en: 'Step 12: Interactive context and completion examples'
+  id: totrans-91
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: We will now run a conditional sample. The context we enter will condition the
     model to think as we want it to, to complete the text by generating tailor-made
     paragraphs.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
 - en: 'Run the cell and explore the magic:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE19]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'If necessary, take a few minutes to go back through the parameters in *Step
     9, Interacting with GPT-2* of *Appendix III*, *Generic Text Completion with GPT-2*.
     The program prompts us to enter the context:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/B17948_Appendix_IV_02.png)'
+  id: totrans-96
   prefs: []
   type: TYPE_IMG
 - en: 'Figure IV.2: Context input for text completion'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s enter the same paragraph written by Emmanuel Kant as we did in *Step
     9: Interacting with GPT-2* in *Appendix III*, *Generic Text Completion with GPT-2*.'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE20]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: Press *Enter* to generate text as we did previously. Again, the outputs might
     change from one run to another, though it is structured and logical, making transformers
     attractive. This time, the result is not random and is impressive.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s look at the first few lines the GPT-2 model produced:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE21]'
+  id: totrans-102
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: To stop the cell, double-click on the run button of the cell or enter *Ctrl*
     + *M*.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
 - en: 'Wow! I doubt anybody can see the difference between the text completion produced
     by our trained GPT-2 model and humans. It might also generate different outputs
     at each run. This could be the output, for example:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE22]'
+  id: totrans-105
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: I think our model could outperform many humans in this abstract exercise in
     philosophy, reason, and logic!
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
 - en: The limit is that the text will vary from one run to another. So, although it
     seems excellent, it will not fit every single need we have in everyday life.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
 - en: 'We can draw some conclusions from our experiment:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
 - en: A well-trained transformer model can produce text completion that is at a human
     level.
+  id: totrans-109
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: A GPT-2 model can almost reach human level in text generation on complex and
     abstract reasoning.
+  id: totrans-110
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Text context is an efficient way of conditioning a model by demonstrating what
     is expected.
+  id: totrans-111
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Text completion is text generation based on text conditioning if context sentences
     are provided.
+  id: totrans-112
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Although the text is at human level, it does not mean that it will fit every
     need we have. It is locally interesting but not globally effective at this point.
+  id: totrans-113
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: You can try to enter conditioning text context examples to experiment with text
     completion. You can also train our model on your own data. Just replace the content
     of the `dset.txt` file with yours and see what happens!
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
 - en: Bear in mind that our trained GPT-2 model will react like a human. If you enter
     a short, incomplete, uninteresting, or tricky context, you will obtain puzzled
     or bad results. This is because GPT-2 expects the best out of us, as in real life!
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 请记住，我们训练的 GPT-2 模型会像人类一样做出反应。如果你输入一个简短的、不完整的、不引人注意的或者棘手的上下文，你将会得到困惑或者糟糕的结果。这是因为
+    GPT-2 期望我们做到最好，就像在现实生活中一样！
 - en: References
+  id: totrans-116
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 参考资料
 - en: 'OpenAI GPT-2 GitHub Repository: [https://github.com/openai/gpt-2](https://github.com/openai/gpt-2)'
+  id: totrans-117
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 'OpenAI GPT-2 GitHub 仓库: [https://github.com/openai/gpt-2](https://github.com/openai/gpt-2)'
 - en: '*N Shepperd’s* GitHub Repository: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2)'
+  id: totrans-118
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*N Shepperd* 的 GitHub 仓库: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2)'
 - en: Join our book’s Discord space
+  id: totrans-119
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加入我们书籍的 Discord 空间
 - en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
     the authors:'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入书籍的 Discord 工作空间，与作者进行每月的 *问我任何问题* 会议：
 - en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
 - en: '![](img/QR_Code5134042288713321484.png)'
+  id: totrans-122
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code5134042288713321484.png)'
