@@ -989,6 +989,8 @@
   id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们训练好了VAE网络，我们就需要使用抽样来产生随机潜在向量（*z*）并运行解码器来生成新图像。虽然我们可以将其作为 Python 运行时类的正常函数运行，但我们将使用`@tf.function`注释装饰这个函数，这样它就可以在
+    TensorFlow 图形运行时执行（就像任何 tf 函数一样，比如 `reduce_sum` 和 `multiply`），如果可用的话可以使用GPU和TPU等设备。我们从一个随机正态分布中抽取一个值，对于指定数量的样本，然后应用解码器来生成新图像：
 - en: '[PRE9]'
   id: totrans-132
   prefs: []
@@ -1000,6 +1002,7 @@
   id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，回想一下，“重新参数化技巧”是用来使我们能够反向传播 *z* 的值，并减少 *z* 的似然的方差。我们需要实现这个变换，它的给定形式如下：
 - en: '[PRE10]'
   id: totrans-134
   prefs: []
@@ -1009,10 +1012,12 @@
   id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 在原始论文《Autoencoding Variational Bayes》中，给出了：
 - en: '![](img/B16176_05_034.png)'
   id: totrans-136
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_034.png)'
 - en: where *i* is a data point in *x* and l is a sample from the random distribution,
     here, a normal. In our code, we multiply by 0.5 because we are computing the **log
     variance** (or standard deviation squared), and *log*(*s^2*) = *log*(*s*)*2*,
@@ -1021,11 +1026,13 @@
   id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 其中*i*是*x*中的一个数据点，l是从随机分布中抽样的一个样本，这里是一个正常分布。在我们的代码中，我们乘以0.5，因为我们在计算**log variance**（或标准差的平方），*log*(*s^2*)=*log*(*s*)*2*，所以0.5取消了2，给我们留下了*exp*(*log*(*s*))=*s*，正如我们在公式中需要的那样。
 - en: 'We''ll also include a class property (with the `@property` decorator) so we
     can access the array of normalizing transforms if we implement IAF:'
   id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: '我们还将包括一个类属性（使用`@property`装饰器），这样我们就可以访问归一化变换的数组，如果我们实现了 IAF:'
 - en: '[PRE11]'
   id: totrans-139
   prefs: []
@@ -1037,6 +1044,7 @@
   id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将需要一些额外的函数来实际运行我们的 VAE 算法。第一个计算lognormal概率密度函数（**pdf**），用于计算变分下限或ELBO：
 - en: '[PRE12]'
   id: totrans-141
   prefs: []
@@ -1049,6 +1057,7 @@
   id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们需要利用这个函数作为在训练 VAE 的过程中每个小批量梯度下降传递的一部分来计算损失。和样本方法一样，我们将使用`@tf.function`注释装饰这个函数，以便它在图形运行时执行：
 - en: '[PRE13]'
   id: totrans-143
   prefs: []
@@ -1062,11 +1071,14 @@
   id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来解开这里发生的一些事情。首先，我们可以看到我们在输入上调用编码器网络（在我们的情况下是扁平图像的小批量），生成所需的均值、`logvariance`，以及如果我们在网络中使用
+    IAF，我们将在归一化流变换的每一步传递的辅助输入`h`。
 - en: We apply the "reparameterization trick" on the inputs in order to generate the
     latent vector `z`, and apply a lognormal pdf to get the *logq*(*z*|*x*).
   id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们对输入应用“重新参数化技巧”，以生成潜在向量 `z`，并应用对得到的* logq*(*z*|*x*)的lognormal pdf。
 - en: If we are using IAF, we need to iteratively transform `z` using each network,
     and pass in the `h` (accessory input) from the decoder at each step. Then we apply
     the loss from this transform to the initial loss we computed, as per the algorithm
@@ -1074,10 +1086,13 @@
   id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们使用 IAF，我们需要通过每个网络迭代地变换`z`，并在每一步从解码器传入`h`（辅助输入）。然后我们将这个变换的损失应用到我们计算的初始损失上，就像在
+    IAF 论文中给出的算法中一样：^(14)
 - en: '![](img/B16176_05_036.png)![](img/B16176_05_037.png)![](img/B16176_05_038.png)![](img/B16176_05_039.png)![](img/B16176_05_040.png)![](img/B16176_05_041.png)'
   id: totrans-147
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_036.png)![](img/B16176_05_037.png)![](img/B16176_05_038.png)![](img/B16176_05_039.png)![](img/B16176_05_040.png)![](img/B16176_05_041.png)'
 - en: Once we have the transformed or untransformed *z*, we decode it using the decoder
     network to get the reconstructed data, *x*, from which we calculate a cross-entropy
     loss. We sum these over the minibatch and take the lognormal pdf of *z* evaluated
@@ -1086,18 +1101,22 @@
   id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们有了转换或未转换的*z*，我们使用解码器网络解码它，得到重构数据*x*，然后我们计算交叉熵损失。我们对小批量求和，并计算在标准正态分布（先验）处评估的*z*的对数正态pdf，然后计算期望的下界。
 - en: 'Recall that the expression for the variational lower bound, or ELBO, is:'
   id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 请记住，变分下界或ELBO的表达式是：
 - en: '![](img/B16176_05_035.png)'
   id: totrans-150
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_035.png)'
 - en: 'So, our minibatch estimator is a sample of this value:'
   id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们的小批量估计器是这个值的样本：
 - en: 'Now that we have these ingredients, we can run the stochastic gradient descent
     using the `GradientTape` API, just as we did for the DBN in *Chapter 4*, *Teaching
     Networks to Generate Digits* passing in an optimizer, model, and minibatch of data
@@ -1105,6 +1124,7 @@
   id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了这些要素，我们可以使用`GradientTape` API运行随机梯度下降，就像我们在*第四章*，*教授网络生成数字*中为DBN所做的那样，传入一个优化器、模型和数据的小批量(*x*)：
 - en: '[PRE14]'
   id: totrans-153
   prefs: []
@@ -1115,6 +1135,7 @@
   id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 要运行训练，首先我们需要指定一个使用我们构建的类的模型。如果我们不想使用IAF，我们可以这样做：
 - en: '[PRE15]'
   id: totrans-155
   prefs: []
@@ -1124,6 +1145,7 @@
   id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们想要使用IAF变换，我们需要包含一些额外的参数：
 - en: '[PRE16]'
   id: totrans-157
   prefs: []
@@ -1138,6 +1160,7 @@
   id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建好模型后，我们需要指定一定数量的epochs，一个优化器（在这个例子中，是Adam，正如我们在*第三章*，*深度神经网络的构建基块*中描述的那样）。我们将数据分成32个元素的小批量，并在每个小批量后应用梯度更新，更新的次数为我们指定的epochs数。定期输出ELBO的估计值以验证我们的模型是否在改善：
 - en: '[PRE17]'
   id: totrans-159
   prefs: []
@@ -1148,10 +1171,12 @@
   id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过查看更新来验证模型是否在改善，这些更新应该显示ELBO正在增加：
 - en: '![](img/B16176_05_11.png)'
   id: totrans-161
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_11.png)'
 - en: 'To examine the output of the model, we can first look at the reconstruction
     error; does the encoding of the input image by the network approximately capture
     the dominant patterns in the input image, allowing it to be reconstructed from
@@ -1160,6 +1185,7 @@
   id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 要检查模型的输出，我们可以首先查看重构误差；网络对输入图像的编码是否大致捕捉到了输入图像中的主要模式，从而使其能够从其向量*z*的编码中重构出来？我们可以将原始图像与通过编码器传递图像、应用IAF，然后解码得到的重构进行比较：
 - en: '[PRE18]'
   id: totrans-163
   prefs: []
@@ -1172,14 +1198,17 @@
   id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于前几个CIFAR-10图像，我们得到以下输出，显示我们已经捕捉到了图像的总体模式（尽管它是模糊的，这是VAE的一个普遍缺点，我们将在将来章节中讨论的**生成对抗网络（GANs）**中解决）：
 - en: '![](img/B16176_05_12.png)![](img/B16176_05_13.png)'
   id: totrans-165
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_12.png)![](img/B16176_05_13.png)'
 - en: 'Figure 5.10: The output for the CIFAR-10 images'
   id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.10：CIFAR-10图像的输出
 - en: 'What if we wanted to create entirely new images? Here we can use the "sample"
     function we defined previously in *Creating the network from TensorFlow 2* to
     create batches of new images from randomly generated *z* vectors, rather than
@@ -1187,6 +1216,7 @@
   id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们想要创建全新的图像怎么办？在这里，我们可以使用我们之前在*从TensorFlow 2创建网络*中定义的“sample”函数，从随机生成的*z*向量而不是CIFAR图像的编码产品中创建新图像的批次：
 - en: '[PRE19]'
   id: totrans-168
   prefs: []
@@ -1197,18 +1227,22 @@
   id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 此代码将生成类似于以下内容的输出，显示了从随机数向量生成的一组图像：
 - en: '![](img/B16176_05_14.png)'
   id: totrans-170
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_14.png)'
 - en: '![](img/B16176_05_15.png)'
   id: totrans-171
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B16176_05_15.png)'
 - en: 'Figure 5.11: Images generated from vectors of random numbers'
   id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.11：从随机数向量生成的图像
 - en: 'These are, admittedly, a bit blurry, but you can appreciate that they show
     structure and look comparable to some of the "reconstructed" CIFAR-10 images you
     saw previously. Part of the challenge here, as we''ll discuss more in subsequent
