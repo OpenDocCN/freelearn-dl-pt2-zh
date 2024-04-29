@@ -3,6 +3,7 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第五章*：文本分类的语言模型微调'
 - en: In this chapter, we will learn how to configure a pre-trained model for text
     classification and how to fine-tune it to any text classification downstream task,
     such as sentiment analysis or multi-class classification. We will also discuss
@@ -13,6 +14,8 @@
   id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将学习如何配置预训练模型进行文本分类，并如何对其进行微调以适应任何文本分类的下游任务，例如情感分析或多类分类。我们还将讨论如何处理句对和回归问题，涵盖一个实现。我们将使用
+    GLUE 等知名数据集，以及我们自己的定制数据集。然后，我们将利用 Trainer 类，该类处理了训练和微调过程的复杂性。
 - en: First, we will learn how to fine-tune single-sentence binary sentiment classification
     with the Trainer class. Then, we will train for sentiment classification with
     native PyTorch without the Trainer class. In multi-class classification, more
@@ -22,83 +25,101 @@
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将学习如何使用 Trainer 类进行单句二元情感分类微调。然后，我们将使用原生 PyTorch 进行情感分类的训练，而不使用 Trainer
+    类。在多类分类中，将考虑超过两个类别。我们将有七个类别分类微调任务要执行。最后，我们将训练一个文本回归模型，以预测具有句子对的数值。
 - en: 'The following topics will be covered in this chapter:'
   id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Introduction to text classification
   id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 文本分类简介
 - en: Fine-tuning the BERT model for single-sentence binary classification
   id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对单句二元分类微调 BERT 模型
 - en: Training a classification model with native PyTorch
   id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用原生 PyTorch 训练分类模型
 - en: Fine-tuning BERT for multi-class classification with custom datasets
   id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用自定义数据集对 BERT 进行多类分类微调
 - en: Fine-tuning BERT for sentence-pair regression
   id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对句对回归进行 BERT 的微调
 - en: Utilizing `run_glue.py` to fine-tune the models
   id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 利用 `run_glue.py` 对模型进行微调
 - en: Technical requirements
   id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'We will be using Jupyter Notebook to run our coding exercises. You will need
     Python 3.6+ for this. Ensure that the following packages are installed:'
   id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将使用 Jupyter Notebook 运行我们的编程练习。您需要 Python 3.6+。确保已安装以下软件包：
 - en: '`sklearn`'
   id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`sklearn`'
 - en: Transformers 4.0+
   id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Transformers 4.0+
 - en: '`datasets`'
   id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`datasets`'
 - en: 'All the notebooks for the coding exercises in this chapter will be available
     at the following GitHub link: [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH05](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH05).'
   id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有本章编程练习的笔记本将在以下 GitHub 链接上提供：[https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH05](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH05)。
 - en: 'Check out the following link to see the Code in Action video:'
   id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 查看以下链接以观看代码演示视频：
 - en: '[https://bit.ly/3y5Fe6R](https://bit.ly/3y5Fe6R)'
   id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://bit.ly/3y5Fe6R](https://bit.ly/3y5Fe6R)'
 - en: Introduction to text classification
   id: totrans-18
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 文本分类简介
 - en: Text classification (also known as text categorization) is a way of mapping
     a document (sentence, Twitter post, book chapter, email content, and so on) to
     a category out of a predefined list (classes). In the case of two classes that
@@ -114,6 +135,8 @@
   id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 文本分类（也称为文本分类）是将文档（句子、Twitter 帖子、书籍章节、电子邮件内容等）映射到预定义列表（类别）中的一种方式。在具有正负标签的两类情况下，我们称之为**二元分类**
+    - 更具体地说，是**情感分析**。对于多于两个类别的情况，我们称之为**多类分类**，其中类别是相互排斥的，或者称之为**多标签分类**，其中类别不是相互排斥的，这意味着一个文档可以获得多个标签。例如，一篇新闻文章的内容可能同时涉及体育和政治。除了这种分类之外，我们可能希望对文档进行范围为[-1,1]的评分或在[1-5]范围内对其进行排名。我们可以用回归模型解决这种问题，其中输出的类型是数值而不是分类。
 - en: 'Luckily, the transformer architecture allows us to efficiently solve these
     problems. For sentence-pair tasks such as document similarity or textual entailment,
     the input is not a single sentence, but rather two sentences, as illustrated in
@@ -567,6 +590,7 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用原生 PyTorch 训练分类模型
 - en: 'The `Trainer` class is very powerful, and we have the HuggingFace team to thank
     for providing such a useful tool. However, in this section, we will fine-tune
     the pre-trained model from scratch to see what happens under the hood. Let''s
@@ -574,12 +598,14 @@
   id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: '`Trainer`类非常强大，我们要感谢 HuggingFace 团队提供了这样一个有用的工具。然而，在本节中，我们将从头开始微调预训练模型，以了解其内部运行原理。让我们开始吧：'
 - en: 'First, let''s load the model for fine-tuning. We will select `DistilBERT` here
     since it is a small, fast, and cheap version of BERT:'
   id: totrans-83
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，让我们加载用于微调的模型。我们将在这里选择`DistilBERT`，因为它是 BERT 的一个小型、快速和廉价版本：
 - en: '[PRE19]'
   id: totrans-84
   prefs:
@@ -591,6 +617,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要对任何模型进行微调，我们需要将其设置为训练模式，如下所示：
 - en: '[PRE20]'
   id: totrans-86
   prefs:
@@ -602,6 +629,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们必须加载分词器：
 - en: '[PRE21]'
   id: totrans-88
   prefs:
@@ -619,6 +647,9 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 由于`Trainer`类已经为我们组织好了整个过程，我们在之前的 IMDb 情感分类练习中没有处理优化和其他训练设置。现在，我们需要自己实例化优化器。在这里，我们必须选择`AdamW`，它是
+    Adam 算法的一个实现，但修复了权重衰减。最近的研究表明，`AdamW`产生的训练损失和验证损失比使用 Adam 训练的模型更好。因此，在许多 transformer
+    训练过程中，它是一个广泛使用的优化器：
 - en: '[PRE22]'
   id: totrans-90
   prefs:
@@ -645,6 +676,8 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 要从头开始设计微调过程，我们必须了解如何实现单步前向传播和反向传播。我们可以通过 transformer 层传递一个批次并获得输出，该输出由分词器生成的`input_ids`和`attention_mask`组成，并使用真实标签计算损失。正如我们所看到的，输出包含`loss`和`logits`两部分。现在，`loss.backward()`通过使用输入和标签评估模型来计算张量的梯度。`optimizer.step()`执行单个优化步骤并使用计算的梯度更新权重，这称为反向传播。当我们很快将所有这些行放入一个循环中时，我们还将添加`optimizer.zero_grad()`，它清除所有参数的梯度。在循环开始时调用这一点非常重要；否则，我们可能会积累多个步骤的梯度。输出的第二个张量是**logits**。在深度学习的上下文中，logits（logistic
+    units 的缩写）是神经架构的最后一层，由实数作为预测值组成。在分类的情况下，logits 需要通过 softmax 函数转换为概率。否则，它们只是用于回归的标准化值。
 - en: 'If we want to manually calculate the loss, we must not pass the labels to the
     model. Due to this, the model only yields the logits and does not calculate the
     loss. In the following example, we are computing the cross-entropy loss manually:'
@@ -652,6 +685,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果我们想要手动计算损失，我们就不能将标签传递给模型。由于这个原因，模型只产生 logits，而不计算损失。在下面的示例中，我们正在手动计算交叉熵损失：
 - en: '[PRE23]'
   id: totrans-93
   prefs:
@@ -806,6 +840,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，在Python笔记本中运行以下代码以获取数据：
 - en: '[PRE31]'
   id: totrans-114
   prefs:
@@ -817,6 +852,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从加载数据开始：
 - en: '[PRE32]'
   id: totrans-116
   prefs:
@@ -831,6 +867,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们用`id2label`和`label2id`组织ID和标签，以使模型弄清楚哪个ID指代哪个标签。我们还将`NUM_LABELS`的数量传递给模型，以指定BERT模型顶部薄分类头层的大小：
 - en: '[PRE33]'
   id: totrans-118
   prefs:
@@ -842,21 +879,25 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![](img/B17123_05_005.jpg)'
   id: totrans-120
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![](img/B17123_05_005.jpg)'
 - en: Figure 5.5 – Text classification dataset – TTC 4900
   id: totrans-121
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图5.5 – 文本分类数据集 – TTC 4900
 - en: 'Let''s count and plot the number of classes using a pandas object:'
   id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们使用pandas对象计算并绘制类别数量：
 - en: '[PRE34]'
   id: totrans-123
   prefs:
@@ -868,16 +909,19 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如下图所示，数据集的类别已经被相当分配：
 - en: '![](img/B17123_05_006.jpg)'
   id: totrans-125
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![](img/B17123_05_006.jpg)'
 - en: Figure 5.6 – The class distribution
   id: totrans-126
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图5.6 – 类别分布
 - en: 'The following execution instantiates a sequence classification model with the
     number of labels (`7`), label ID mappings, and a Turkish BERT model (`dbmdz/bert-base-turkish-uncased`),
     namely BERTurk. To check this, execute the following:'
@@ -885,6 +929,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下执行实例化一个序列分类模型，带有标签数量（`7`）、标签ID映射和一个土耳其BERT模型（`dbmdz/bert-base-turkish-uncased`），即BERTurk。要检查这一点，请执行以下操作：
 - en: '[PRE35]'
   id: totrans-128
   prefs:
@@ -897,6 +942,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 输出将是模型的摘要，太长了，无法在此处显示。相反，让我们通过以下代码关注最后一层：
 - en: '[PRE36]'
   id: totrans-130
   prefs:
@@ -909,6 +955,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 你可能已经注意到我们没有选择`DistilBert`，因为没有预先训练好的*uncased* `DistilBert`适用于土耳其语：
 - en: '[PRE37]'
   id: totrans-132
   prefs:
@@ -921,6 +968,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，让我们准备训练（%50）、验证（%25）和测试（%25）数据集，如下所示：
 - en: '[PRE38]'
   id: totrans-134
   prefs:
@@ -934,6 +982,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下代码将三个数据集的句子进行标记化，并将它们的标记转换为整数（`input_ids`），然后将它们输入BERT模型：
 - en: '[PRE39]'
   id: totrans-136
   prefs:
@@ -948,6 +997,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经实现了`MyDataset`类（请参阅第14页）。该类继承自抽象的`Dataset`类，通过重写`__getitem__`和`__len__()`方法来使用任何数据加载器返回数据集的项目和大小，分别预期返回：
 - en: '[PRE40]'
   id: totrans-138
   prefs:
@@ -961,6 +1011,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 由于我们有一个相对较小的数据集，我们将保持批处理大小为`16`。请注意，`TrainingArguments`的其他参数几乎与之前的情感分析实验相同：
 - en: '[PRE41]'
   id: totrans-140
   prefs:
@@ -975,6 +1026,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 情感分析和文本分类是相同评估指标的对象；即宏平均的宏平均F1、精度和召回率。因此，我们不会重新定义`compute_metric()`函数。以下是实例化`Trainer`对象的代码：
 - en: '[PRE42]'
   id: totrans-142
   prefs:
@@ -986,6 +1038,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，让我们开始训练过程：
 - en: '[PRE43]'
   id: totrans-144
   prefs:
@@ -997,16 +1050,19 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![](img/B17123_05_007.jpg)'
   id: totrans-146
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![](img/B17123_05_007.jpg)'
 - en: Figure 5.7 – The output of the Trainer class for text classification
   id: totrans-147
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图5.7 – 文本分类的Trainer类的输出
 - en: 'To check the trained model, we must evaluate the fine-tuned model on three
     dataset splits, as follows. Our best model is fine-tuned at step 300 with a loss
     of 0.28012:'
@@ -1014,6 +1070,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要检查训练好的模型，我们必须在三个数据集拆分上评估微调的模型，如下所示。我们的最佳模型是在步骤300微调的，损失为0.28012：
 - en: '[PRE44]'
   id: totrans-149
   prefs:
@@ -1025,18 +1082,21 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![Figure 5.8 – The text classification model''s performance on the train/validation/test
     dataset ](img/B17123_05_008.jpg)'
   id: totrans-151
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图5.8 – 文本分类模型在训练/验证/测试数据集上的性能 ](img/B17123_05_008.jpg)'
 - en: Figure 5.8 – The text classification model's performance on the train/validation/test
     dataset
   id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图5.8 – 文本分类模型在训练/验证/测试数据集上的性能
 - en: The classification accuracy is around 92.6, while the F1 macro-average is around
     92.5\. In the literature, many approaches have been tested on this Turkish benchmark
     dataset. They mostly followed TF-IDF and linear classifier, word2vec embeddings,
@@ -1204,21 +1264,25 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 训练数据如下所示：
 - en: '![Figure 5.9 – STS-B training dataset ](img/B17123_05_009.jpg)'
   id: totrans-177
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 5.9 – STS-B 训练数据集 ](img/B17123_05_009.jpg)'
 - en: Figure 5.9 – STS-B training dataset
   id: totrans-178
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 5.9 – STS-B 训练数据集
 - en: 'Run the following code to check the shape of the three sets:'
   id: totrans-179
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行以下代码以检查三个集合的形状：
 - en: '[PRE54]'
   id: totrans-180
   prefs:
@@ -1230,6 +1294,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行以下代码对数据集进行分词：
 - en: '[PRE55]'
   id: totrans-182
   prefs:
@@ -1242,6 +1307,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 分词器使用 `[SEP]` 分隔符合并两个句子，并为句对生成单个 `input_ids` 和一个 `attention_mask`，如下所示：
 - en: '[PRE56]'
   id: totrans-184
   prefs:
@@ -1253,11 +1319,13 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![Figure 5.10 – Encoded training dataset ](img/B17123_05_010.jpg)'
   id: totrans-186
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 5.10 – 编码训练数据集 ](img/B17123_05_010.jpg)'
 - en: '[PRE57]'
   id: totrans-187
   prefs:
@@ -1275,6 +1343,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当前回归任务与以前的分类任务之间的另一个重要区别是 `compute_metrics` 的设计。在这里，我们的评估指标将基于**皮尔逊相关系数**和**斯皮尔曼秩相关**，遵循文献中提供的通用做法。我们还提供了**均方误差**（**MSE**）、**均方根误差**（**RMSE**）和**平均绝对误差**（**MAE**）等常用的度量标准，特别是对于回归模型：
 - en: '[PRE58]'
   id: totrans-189
   prefs:
@@ -1286,6 +1355,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，让我们实例化 `Trainer` 对象：
 - en: '[PRE59]'
   id: totrans-191
   prefs:
@@ -1297,6 +1367,7 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 运行训练，像这样：
 - en: '[PRE60]'
   id: totrans-193
   prefs:
@@ -1308,22 +1379,26 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![Figure 5.11 – Training result for text regression ](img/B17123_05_011.jpg)'
   id: totrans-195
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 5.11 – 文本回归的训练结果 ](img/B17123_05_011.jpg)'
 - en: Figure 5.11 – Training result for text regression
   id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 5.11 – 文本回归的训练结果
 - en: 'The best validation loss that''s computed is `0.544973` at step `450`. Let''s
     evaluate the best checkpoint model at that step, as follows:'
   id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算的最佳验证损失为 `0.544973`，在步骤 `450`。让我们在该步骤评估最佳检查点模型，如下所示：
 - en: '[PRE61]'
   id: totrans-198
   prefs:
@@ -1335,17 +1410,20 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![Figure 5.12 – Regression performance on the training/validation/test dataset
     ](img/B17123_05_012.jpg)'
   id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 5.12 – 训练/验证/测试数据集上的回归性能 ](img/B17123_05_012.jpg)'
 - en: Figure 5.12 – Regression performance on the training/validation/test dataset
   id: totrans-201
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 5.12 – 训练/验证/测试数据集上的回归性能
 - en: The Pearson and Spearman correlation scores are around 87.54 and 87.28 on the
     test dataset, respectively. We did not get a SoTA result, but we did get a comparable
     result for the STS-B task based on the GLUE Benchmark leaderboard. Please check
@@ -1354,12 +1432,15 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在测试数据集上，皮尔逊和斯皮尔曼相关分数分别约为 87.54 和 87.28。我们没有得到 SoTA 结果，但基于 GLUE Benchmark 排行榜，我们得到了一个可比较的
+    STS-B 任务结果。请查看排行榜！
 - en: 'We are now ready to run the model for inference. Let''s take the following
     two sentences, which share the same meaning, and pass them to the model:'
   id: totrans-203
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们准备好进行推断模型了。让我们来看以下两个意思相同的句子，并将它们传递给模型：
 - en: '[PRE62]'
   id: totrans-204
   prefs:
@@ -1372,6 +1453,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下代码使用了负面句对，这意味着句子在语义上是不同的：
 - en: '[PRE63]'
   id: totrans-206
   prefs:
@@ -1383,6 +1465,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们将保存模型，如下所示：
 - en: '[PRE64]'
   id: totrans-208
   prefs:
@@ -1395,11 +1478,13 @@
   id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 干得好！我们可以祝贺自己，因为我们成功完成了三项任务：情感分析、多类别分类和句对回归。
 - en: Utilizing run_glue.py to fine-tune the models
   id: totrans-210
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 利用 run_glue.py 对模型进行微调
 - en: So far, we have designed a fine-tuning architecture from scratch using both
     native PyTorch and the `Trainer` class. The HuggingFace community also provides
     another powerful script called `run_glue.py` for GLUE benchmark and GLUE-like
@@ -1410,6 +1495,9 @@
   id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们目前已经使用原生 PyTorch 和 `Trainer` 类从头设计了一个微调架构。HuggingFace 社区还提供了另一个强大的脚本，称为 `run_glue.py`，用于
+    GLUE 基准测试和 GLUE 类似的分类下游任务。这个脚本可以为我们处理和组织整个训练/验证过程。如果你想进行快速原型设计，应该使用这个脚本。它可以微调
+    HuggingFace hub 上的任何预训练模型。我们也可以用任何格式的自己的数据来提供给它。
 - en: 'Please go to the following link to access the script and to learn more: [https://github.com/huggingface/transformers/tree/master/examples](https://github.com/huggingface/transformers/tree/master/examples).'
   id: totrans-212
   prefs: []
