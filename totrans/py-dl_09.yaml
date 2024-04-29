@@ -1,0 +1,1663 @@
+- en: Chapter 9. Anomaly Detection
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 第9章。异常检测
+- en: In [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature Learning*,
+    we saw the mechanisms of feature learning and in particular the use of auto-encoders
+    as an unsupervised pre-training step for supervised learning tasks.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在[第4章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f "第4章。无监督特征学习")中，我们看到了特征学习的机制，特别是自动编码器作为监督学习任务的无监督预训练步骤的使用。
+- en: In this chapter, we are going to apply similar concepts, but for a different
+    use case, anomaly detection.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将应用类似的概念，但用于不同的用例，即异常检测。
+- en: One of the determinants for a good anomaly detector is finding smart data representations
+    that can easily evince deviations from the normal distribution. Deep auto-encoders
+    work very well in learning high-level abstractions and non-linear relationships
+    of the underlying data. We will show how deep learning is a great fit for anomaly
+    detection.
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 出色的异常检测器之一是找到智能数据表示，可以轻易表现出与正态分布的偏差。深度自动编码器在学习基础数据的高级抽象和非线性关系方面表现非常好。我们将展示深度学习如何非常适合异常检测。
+- en: In this chapter, we will start by explaining the differences and communalities
+    of concepts between outlier detection and anomaly detection. The reader will be
+    guided through an imaginary fraud case study followed by examples showing the
+    danger of having anomalies in real-world applications and the importance of automated
+    and fast detection systems.
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将首先解释离群点检测和异常检测概念之间的差异和共同之处。读者将通过一个想象的欺诈案例研究，随后通过示例，展示在现实世界应用中存在异常的危险以及自动和快速检测系统的重要性。
+- en: Before to move onto the deep learning implementations, we will cover a few families
+    of techniques widely used in traditional machine learning and their current limits.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在进入深度学习实现之前，我们将介绍一些广泛应用于传统机器学习的技术家族及其当前局限性。
+- en: 'We will apply the architectures of deep auto-encoders seen in [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised* *Feature Learning*,
+    but for a particular kind of semi-supervised learning, also known as novelty detection.
+    We will propose two powerful approaches: one based on reconstruction errors and
+    another based on low-dimensional feature compression.'
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将应用在[第4章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f "第4章。无监督特征学习")中看到的深度自动编码器的架构，但用于一种特定的半监督学习，也称为新颖性检测。我们将提出两种强大的方法：一种基于重建错误，另一种基于低维特征压缩。
+- en: We will introduce H2O, one of the most demanded open source frameworks for building
+    simple, but scalable feed-forward multi-layer neural networks.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将介绍H2O，这是一个最受欢迎的用于构建简单但可扩展的前馈多层神经网络的开源框架之一。
+- en: Lastly, we will code a couple of examples of anomaly detection using the Python
+    API of the H2O auto-encoder model.
+  id: totrans-8
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，我们将使用H2O自动编码器模型的Python API编写一些异常检测示例。
+- en: The first example will reuse the MNIST digit dataset that you have seen [Chapter
+    3](part0022_split_000.html#KVCC2-c1ed1b54ca0b4e9fbb9fe2b2431d634f "Chapter 3. Deep
+    Learning Fundamentals"), *Deep Learning Fundamentals* and [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature Learning*,
+    but for detecting badly written digits. A second example will show how to detect
+    anomalous pulsations in electrocardiogram time series.
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第一个例子将重用你在[第3章](part0022_split_000.html#KVCC2-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第3章。深度学习基础")中看到的MNIST数字数据集，*深度学习基础*和[第4章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第4章。无监督特征学习")中看到的*无监督特征学习*，但用于检测书写不良的数字。第二个例子将展示如何检测心电图时间序列中的异常脉动。
+- en: 'To summarize, this chapter will cover the following topics:'
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 总结一下，本章将涵盖以下主题：
+- en: What is anomaly and outlier detection?
+  id: totrans-11
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 什么是异常和离群点检测？
+- en: Real-world applications of anomaly detection
+  id: totrans-12
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 异常检测的实际应用
+- en: Popular shallow machine learning techniques
+  id: totrans-13
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 流行的浅层机器学习技术
+- en: Anomaly detection using deep auto-encoders
+  id: totrans-14
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用深度自动编码器进行异常检测
+- en: H2O overview
+  id: totrans-15
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: H2O概述
+- en: 'Code examples:'
+  id: totrans-16
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 代码示例：
+- en: MNIST digit anomaly recognition
+  id: totrans-17
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: MNIST数字异常识别
+- en: Electrocardiogram pulse detection
+  id: totrans-18
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 心电图脉动检测
+- en: What is anomaly and outlier detection?
+  id: totrans-19
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 什么是异常和离群点检测？
+- en: Anomaly detection, often related to outlier detection and novelty detection,
+    is the identification of items, events, or observations that deviate considerably
+    from an expected pattern observed in a homogeneous dataset.
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 异常检测通常与离群值检测和新奇检测相关，它是识别在同质数据集中偏离预期模式的项目、事件或观察结果。
+- en: Anomaly detection is about predicting the unknown.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 异常检测是关于预测未知的。
+- en: 'Whenever we find a discordant observation in the data, we could call it an
+    anomaly or outlier. Although the two words are often used interchangeably, they
+    actual refer to two different concepts, as Ravi Parikh describes in one of his
+    blog posts (`https://blog.heapanalytics.com/garbage-in-garbage-out-how-anomalies-can-wreck-your-data/`):'
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 每当我们在数据中发现一个不一致的观察结果，我们可以称之为异常或离群值。尽管这两个词经常可以互换使用，但实际上它们指的是两个不同的概念，正如 Ravi Parikh
+    在他的一篇博客文章中描述的那样（`https://blog.heapanalytics.com/garbage-in-garbage-out-how-anomalies-can-wreck-your-data/`）：
+- en: '*"An outlier is a legitimate data point that''s far away from the mean or median
+    in a distribution. It may be unusual, like a 9.6-second 100-meter dash, but still
+    within the realm of reality. An anomaly is an illegitimate data point that''s
+    generated by a different process than whatever generated the rest of the data."*'
+  id: totrans-23
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+  zh: '*"异常值是一个远离分布均值或中位数的合法数据点。它可能是不寻常的，比如 9.6 秒的 100 米赛跑，但仍在现实范围内。异常是由与其余数据生成过程不同的过程生成的非法数据点。"*'
+- en: Let's try to explain the difference using a simple example of fraud detection.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们尝试用一个简单的欺诈检测示例来解释两者的区别。
+- en: In a log of transactions, we observe that a particular customer spends an average
+    of $10 for their lunch every weekday. Suddenly, one day they spend $120\. This
+    is certainly an outlier, but perhaps that day they decided to pay the whole bill
+    with their credit card. If a few of those transactions are orders of magnitude
+    higher than their expected amount, then we could identify an anomaly. An anomaly
+    is when the singular rare event justification does not hold anymore, for instance,
+    transactions of $120 or higher over three consecutive orders. In this scenario,
+    we are talking of anomalies because a pattern of repeated and linked outliers
+    have been generated from a different process, possibly credit card fraud, with
+    respect to the usual behavior.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在一份交易日志中，我们观察到一个特定客户每个工作日的午餐平均花费 10 美元。突然间，有一天他们花了 120 美元。这当然是一个离群值，但也许那天他们决定用信用卡支付整笔账单。如果这些交易中有几笔远高于预期金额的订单，那么我们可以识别出异常。异常是指当单一的罕见事件理由不再成立时，例如，连续三个订单的交易金额超过
+    120 美元。在这种情况下，我们谈论的是异常，因为已经从一个不同的过程生成了重复和相关的离群值模式，可能是信用卡欺诈，与通常的行为相比。
+- en: While threshold rules can solve many detection problems, discovering complicated
+    anomalies requires more advanced techniques.
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当阈值规则可以解决许多检测问题时，发现复杂的异常需要更高级的技术。
+- en: What if a cloned credit card makes a lot of micro-payments of the amount of
+    10$? The rule-based detector would probably fail.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果一个克隆的信用卡进行了大量金额为 10 美元的微支付，基于规则的检测器可能会失败。
+- en: 'By simply looking at the measures over each dimension independently, the anomaly
+    generation process could still be hidden within the average distribution. A single
+    dimension signal would not trigger any alert. Let''s see what happens if we add
+    a few extra dimensions to the credit card fraud example: the geo-location, the
+    time of the day in the local time zone, and the day of the week.'
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过简单地查看每个维度上的度量值，异常生成过程仍然可能隐藏在平均分布内。单一维度信号不会触发任何警报。让我们看看如果我们在信用卡欺诈示例中添加一些额外维度会发生什么：地理位置、当地时区的时间以及一周中的日期。
+- en: 'Let''s analyze the same fraud example in more detail. Our customer is a full-time
+    employee based in Milan, but resident in Rome. Every Monday morning, he takes
+    the train, goes to work, and comes back to Rome on Saturday morning to see his
+    friends and family. He loves cooking at home; he only goes out for dinner a few
+    times during the week. In Rome, he lives near to his relatives, so he never has
+    to prepare lunch during weekends, but he often enjoys spending the night out with
+    friends. The distributions of the expected behavior would be as follows:'
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们更详细地分析同一个欺诈示例。我们的客户是一名全职员工，居住在罗马，但在米兰工作。每个周一早上，他乘火车去上班，然后在周六早上回罗马看朋友和家人。他喜欢在家做饭；他一周只出去吃几次晚餐。在罗马，他住在他的亲戚附近，所以他周末从不必准备午餐，但他经常喜欢和朋友出去过夜。预期行为的分布如下：
+- en: '**Amount**: Between $5 and $40'
+  id: totrans-30
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**金额**：介于 5 到 40 美元之间'
+- en: '**Location**: Milan 70% and Rome 30%'
+  id: totrans-31
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**位置**：米兰70%和罗马30%'
+- en: '**Time of the day**: 70% between noon and 2 P.M. and 30% between 9 P.M. and
+    11 P.M.'
+  id: totrans-32
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**一天中的时间**：70%在中午到下午2点之间，30%在晚上9点到11点之间。'
+- en: '**Day of the week**: Uniform over the week'
+  id: totrans-33
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**一周中的日期**：一周内均匀分布'
+- en: One day, his credit card is cloned. The fraudulent person lives near his workplace
+    and in order not to get caught, they systematically make small payments of $25
+    every night around 10 P.M. in an accomplice's corner shop.
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有一天，他的信用卡被克隆了。欺诈者住在他的工作地附近，为了不被抓住，他们每天晚上约10点在一家同伙的小店里系统地进行25美元的小额支付。
+- en: If we look at the single dimensions, the fraudulent transactions would be just
+    slightly outside the expected distribution, but still acceptable. The effect on
+    the distributions of the amount and the day of the week would stay more or less
+    the same while the location and time of the day would slightly increase toward
+    Milan at evening time.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们只看单个维度，欺诈交易将只是略微偏离预期分布，但仍然可接受。金额和一周中的日期的分布效果将保持更多或更少相同，而位置和一天中的时间将稍微增加到米兰的晚上时间。
+- en: Even if systematically repeated, a little change in his lifestyle would be a
+    reasonable explanation. The fraudulent activity would soon turn into the newer
+    expected behavior, the normality.
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 即使是系统地重复，他生活方式的微小变化也是一个合理的解释。欺诈行为很快就会变成新的预期行为，即正常状态。
+- en: 'Let''s consider the joint distribution instead:'
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们考虑联合分布：
+- en: 70% amount around 10$ in Milan over lunch time only on weekdays
+  id: totrans-38
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 约70%的金额在米兰午餐时间约10美元左右，只在工作日
+- en: 30% amount around 30$ in Rome at dinner time only at weekends
+  id: totrans-39
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 约30%的金额在周末晚餐时间在罗马约30美元左右
+- en: In this scenario, the fraudulent activity would immediately be flagged as an
+    outlier at its first occurrence since transactions in Milan at night above $20
+    are very rare.
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这种情况下，欺诈行为在第一次发生时会立即被标记为异常值，因为米兰夜间超过20美元的交易非常罕见。
+- en: Given the preceding example, we might think that considering more dimensions
+    together makes our anomaly detection smarter. Just like any other machine learning
+    algorithm, you need to find a trade-off between complexity and generalization.
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 给出前面的例子，我们可能会认为考虑更多维度可以使我们的异常检测更智能。就像任何其他机器学习算法一样，你需要在复杂性和泛化之间找到一个权衡。
+- en: Having too many dimensions would project all of the observations in a space
+    where all of them are equally distant from each other. As a consequence, everything
+    would be an "outlier", which, in the way we defined an outlier, intrinsically
+    makes the whole dataset "normal". In other words, if every point looks just the
+    same then you can't distinguish between the two cases. Having too few dimensions
+    would not allow the model to spot an outlier from the haystack and may let it
+    hide in the mass distribution for longer or maybe forever.
+  id: totrans-42
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果维度过多，所有观察结果都会投射到一个空间中，其中所有观察结果彼此等距离。因此，一切都将成为“异常值”，按照我们定义异常值的方式，这本质上使整个数据集“正常”。换句话说，如果每个点看起来都一样，那么你就无法区分这两种情况。如果维度太少，模型将无法从草堆中发现异常值，可能会让它在大量分布中隐藏更长时间，甚至永远。
+- en: 'Nevertheless, only identifying outliers is not enough. Outliers can happen
+    due to rare events, errors in data collection, or noise. Data is always dirty
+    and full of inconsistencies. The first rule is "never assume your data is clean
+    and correct". Finding outliers is just a standard routine. What would be surprising,
+    instead, is finding contingent and unexplainable repeated behaviors:'
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，仅识别异常值是不够的。异常值可能是由于罕见事件、数据收集中的错误或噪音引起的。数据总是肮脏的，充满了不一致性。第一条规则是“永远不要假设你的数据是干净和正确的”。找到异常值只是一个标准例程。更令人惊讶的是发现偶发且无法解释的重复行为：
+- en: '*"Data scientists realize that their best days coincide with discovery of truly
+    odd features in the data."*'
+  id: totrans-44
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+  zh: '*"数据科学家意识到，他们最好的日子与发现数据中真正奇怪的特征的日子重合。"*'
+- en: ''
+  id: totrans-45
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Haystacks and Needles: Anomaly Detection By: Gerhard Pilcher & Kenny Darrell,
+    Data Mining Analyst, Elder Research, Inc.*'
+  id: totrans-46
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+  zh: '*《草堆与针》：异常检测，作者：Gerhard Pilcher & Kenny Darrell，数据挖掘分析师，Elder Research, Inc.*'
+- en: The persistence of a given outlier pattern is the signal that something has
+    changed in the system we are monitoring. The real anomaly detection happens when
+    observing systematic deviations in the underlying data generation process.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 特定异常模式的持续存在是我们正在监控的系统中发生了变化的信号。真正的异常检测发生在观察到基础数据生成过程中的系统偏差时。
+- en: This also has an implication in the data preprocessing step. Contrary to what
+    you would do for many machine learning problems, in anomaly detection you can't
+    just filter out all of the outliers! Nevertheless, you should be careful in distinguishing
+    between the nature of those. You do want to filter out wrong data entries, remove
+    the noise, and normalize the remaining. Ultimately, you want to detect novelties
+    in your cleaned dataset.
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这也影响到数据预处理步骤。与许多机器学习问题相反，在异常检测中，你不能只过滤掉所有的异常值！尽管如此，你应该仔细区分它们的性质。你确实想要过滤掉错误的数据条目，删除噪声，并对剩余的数据进行归一化。最终，你想要在清理后的数据集中检测到新颖性。
+- en: Real-world applications of anomaly detection
+  id: totrans-49
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 异常检测的现实应用
+- en: Anomalies can happen in any system. Technically, you can always find a never-seen-before
+    event that could not be found in the system's historical data. The implications
+    of detecting those observations in some contexts can have a great impact (positive
+    and negative).
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 异常情况可能发生在任何系统中。从技术上讲，你总是可以找到一个在系统历史数据中找不到的从未见过的事件。在某些情况下检测到这些观察结果的影响可能会产生巨大的影响（积极和消极）。
+- en: In the field of law enforcement, anomaly detection could be used to reveal criminal
+    activities (supposing you are in an area where the average person is honest enough
+    to identify criminals standing out of the distribution).
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在执法领域，异常检测可以用于揭示犯罪活动（假设你在一个平均人足够诚实以便识别突出分布之外的罪犯的地区）。
+- en: In a network system, anomaly detection can help at finding external intrusions
+    or suspicious activities of users, for instance, an employee who is accidentally
+    or intentionally leaking large amounts of data outside the company intranet. Or
+    maybe a hacker opening connections on non-common ports and/or protocols. In the
+    specific case of Internet security, anomaly detection could be used for stopping
+    new malware from spreading out by simply looking at spikes of visitors on non-trusted
+    domains. And even if cyber security is not your core business, you should protect
+    your network with data-driven solutions that can monitor and alert you in case
+    of unrecognized activities.
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在网络系统中，异常检测可以帮助发现外部入侵或用户的可疑活动，例如，一个意外或故意向公司内部网络以外泄露大量数据的员工。或者可能是黑客在非常用端口和/或协议上打开连接。在互联网安全的特定案例中，异常检测可以用于通过简单地观察非受信任域名上的访客激增来阻止新的恶意软件传播。即使网络安全不是你的核心业务，你也应该通过数据驱动的解决方案来保护你的网络，以便在出现未识别的活动时监控并提醒你。
+- en: Another similar example is authentication systems for many major social networks.
+    Dedicated security teams have developed solutions that can measure each single
+    activity, or sequence of them, and how distant those are from the median behavior
+    of other users. Every time the algorithm marks an activity as suspicious, the
+    system will prompt you with additional verifications. Those techniques can dramatically
+    reduce identity theft and offer greater privacy protection. Likewise, the same
+    concept can be applied to financial fraud, as we have seen in the previous example.
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一个类似的例子是许多主要社交网络的身份验证系统。专门的安全团队已经开发出可以衡量每个单独活动或活动序列以及它们与其他用户的中位行为有多远的解决方案。每当算法标记一项活动为可疑时，系统将提示你进行额外的验证。这些技术可以大大减少身份盗窃，并提供更大的隐私保护。同样，相同的概念也可以应用于金融欺诈，正如我们在前面的例子中看到的那样。
+- en: Anomalies generated by human behavior are among the most popular applications,
+    but also the toughest. It is like a chess game. On one side, you have subject
+    matter experts, data scientists, and engineers developing advanced detection systems.
+    On the other side, you have hackers, aware of the game, studying their opponent's
+    moves. That's why those kinds of systems require a lot of domain knowledge and
+    should be designed to be reactive and dynamic.
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由人类行为产生的异常是最受欢迎的应用之一，但也是最棘手的。这就像一场国际象棋比赛。一方面，你有专业领域的专家、数据科学家和工程师开发先进的检测系统。另一方面，你有黑客，他们了解这场比赛，研究对手的走法。这就是为什么这种系统需要大量的领域知识，并且应该设计成具有反应性和动态性的。
+- en: Not all of the anomalies are originated from the "bad guys". In marketing, anomalies
+    can represent isolated, but highly profitable customers who can be targeted with
+    tailored offers. Their different and particular interests and/or profitable profile
+    can be used to detect the outlying customers. For example, during an economy recession
+    period, finding a few potential customers who are increasing their profit despite
+    the mass trend could be an idea for adapting your product and redesigning your
+    business strategy.
+  id: totrans-55
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 并非所有的异常都来自“坏人”。在营销中，异常可以代表孤立的，但高利润的客户，可以用定制的报价来定位他们。他们不同和特殊的兴趣和/或有利可图的个人资料可用于检测离群客户。例如，在经济衰退期间，找到一些潜在客户，尽管大趋势，他们的利润增长，这可能是适应你的产品和重新设计业务策略的一个想法。
+- en: Other applications are medical diagnosis, hardware fault detection, predictive
+    maintenance, and many more. Those applications also require agility.
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 其他应用包括医学诊断、硬件故障检测、预测性维护等。这些应用也需要灵活性。
+- en: Business opportunities, just like new malware, can rise every day and their
+    life cycle could be very short, from hours to a few weeks. If your system is slow
+    to react, you could be too late and will never catch up to your competitors.
+  id: totrans-57
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 商机，就像新的恶意软件一样，每天都可能出现，它们的生命周期可能非常短，从几小时到几周。如果你的系统反应慢，你可能会太晚，永远追不上你的竞争对手。
+- en: Human detection systems are not able to scale and generally suffer from generalization.
+    Deviations from normal behavior are not always obvious and it could be hard for
+    an analyst to remember the whole history to compare to, which is the core requirement
+    for anomaly detection. The situation complicates if the anomaly pattern is hidden
+    inside abstract and non-linear relationships of entities in your data. The need
+    for intelligent and fully automated systems that can learn complex interactions
+    and provide real-time and accurate monitoring is the next frontier of innovation
+    in the field.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 人工检测系统不能扩展，通常也遭受泛化的困扰。正常行为的偏差并不总是显而易见，分析师可能难以记住整个历史以进行比对，这是异常检测的核心要求。如果异常模式隐藏在数据中实体的抽象和非线性关系中，情况会变得复杂。需要智能和完全自动化的系统，能够学习复杂的互动关系，提供实时和准确的监控，是该领域创新的下一个前沿。
+- en: Popular shallow machine learning techniques
+  id: totrans-59
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 流行的浅层机器学习技术
+- en: 'Anomaly detection is not new and many techniques have been well studied. The
+    modeling can be divided and combined into two phases: data modeling and detection
+    modeling.'
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 异常检测并不新鲜，许多技术已经被广泛研究。建模可以分为两个阶段：数据建模和检测建模。
+- en: Data modeling
+  id: totrans-61
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 数据建模
+- en: Data modeling generally consists of grouping available data in the granularity
+    of observations we would like to detect such that it contains all of the necessary
+    information we would like the detection model to consider.
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 数据建模通常包括将可用数据分组成我们希望检测的观察的粒度，以包含检测模型需要考虑的所有必要信息。
+- en: 'We can identify three major types of data modeling techniques:'
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以确定三种主要类型的数据建模技术：
+- en: '**Point anomaly**: This is similar to singular outlier detection. Each row
+    in our dataset corresponds to an independent observation. The goal is to classify
+    each observation as "normal" or "anomaly" or, better, to provide a numerical anomaly
+    score.'
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**点异常**：这类似于单个异常值检测。我们数据集中的每一行对应一个独立的观察。目标是将每个观察分类为“正常”或“异常”，或者更好地提供一个数字异常得分。'
+- en: '**Contextual anomaly**: Each point is enriched with additional context information.
+    A typical example is finding anomalies in a time series, where time itself represents
+    the context. A spike of ice cream sales in January is not the same as in July.
+    The context must be encapsulated into additional features. The time context could
+    be a categorical calendar variable representing the month, quarter, day of month,
+    day of week, or Boolean flags such as *is it* *a public holiday?*'
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**上下文异常**：每个点都附加有额外的上下文信息。一个典型的例子是在时间序列中查找异常，其中时间本身就代表了上下文。一月份冰淇淋销售的激增和七月份是不同的。上下文必须封装到额外的特征中。时间上下文可以是代表月份、季度、日期、星期几的分类日历变量，或布尔标志如*是否*
+    *是* *公共假期？*'
+- en: '**Collective anomaly**: Patterns of observations that represent the potential
+    anomaly cause. The collective measures should be smartly aggregated into new features.
+    An example is the fraud detection example described earlier. Transactions should
+    be slotted into sessions or intervals and statistics should be extracted from
+    the sequence such as standard deviation of payment amount, frequency, average
+    interval between two consecutive transactions, spending trend, and so on.'
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**集体异常**：代表潜在异常原因的观测模式。集体指标应该被智能地聚合成新的特征。一个例子是之前描述的欺诈检测示例。交易应该被分组到会话或间隔中，并且应该从序列中提取统计数据，比如付款金额的标准偏差、频率、两次连续交易之间的平均间隔、消费趋势等。'
+- en: The same problem could be addressed with multiple hybrid approaches defining
+    data points at different granularities. For example, you could initially detect
+    individual anomalous transactions independently, then link them chronologically,
+    encapsulate the time context, and repeat the detection over the slotted sequence.
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 同样的问题可以用多种混合方法来解决，定义不同粒度的数据点。例如，可以独立地最初检测出个别异常交易，然后在时间上进行链接，封装时间上下文，并在分组序列上重复检测。
+- en: Detection modeling
+  id: totrans-68
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 检测建模
+- en: Regardless of the data type, the general input of the detection model consists
+    of points in a multi-dimensional space (the feature space). Thus, with a bit of
+    feature engineering, we can turn any anomaly representation into a single vector
+    of features.
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 无论数据类型如何，检测模型的通用输入由多维空间中的点（特征空间）组成。因此，通过一些特征工程，我们可以将任何异常表示转换为单个特征向量。
+- en: For this reason, we can see anomaly detection as a special case of outlier detection
+    where the single point also encapsulates the context and any other information
+    that can represent a pattern.
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 出于这个原因，我们可以将异常检测看作是离群值检测的特殊情况，其中单个数据点还包含了上下文和能够代表模式的任何其他信息。
+- en: 'As any other machine learning technique, we have both supervised and unsupervised
+    approaches. In addition, we also propose a semi-supervised schema:'
+  id: totrans-71
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与任何其他机器学习技术一样，我们既有监督学习方法，也有无监督学习方法。此外，我们还提出了半监督模式：
+- en: '**Supervised**: Anomaly detection in a supervised manner can also be referred
+    to as anomaly classification, for example, spam detection. In anomaly classification,
+    we label each observation as anomaly (spam) or non-anomaly (ham) and then use
+    a binary classifier to assign each point to the corresponding class. Any standard
+    machine learning algorithm can be used, such as SVM, random forests, logistic
+    regression, and of course neural networks even though it is not the focus of this
+    chapter.'
+  id: totrans-72
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**监督**：以监督方式进行的异常检测也可以称为异常分类，例如垃圾邮件检测。在异常分类中，我们将每个观测标记为异常（垃圾邮件）或非异常（正常邮件），然后使用二元分类器将每个点分配到相应的类别。可以使用任何标准的机器学习算法，比如支持向量机、随机森林、逻辑回归，当然还有神经网络，尽管它不是本章的重点。'
+- en: One of the main problems with this approach is the skewness of the data. By
+    definition, anomalies only represent a small percentage of the population. The
+    absence of enough counter-examples during the training phase would lead to poor
+    results. Moreover, some anomalies may have never been seen previously and it would
+    be very hard to build a model that generalizes enough to correctly classify them.
+  id: totrans-73
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 这种方法的主要问题之一是数据的倾斜度。根据定义，异常只占人口的一小部分。在训练阶段没有足够的反例将导致糟糕的结果。此外，一些异常可能以前从未见过，很难建立一个足够概括正确分类它们的模型。
+- en: '**Unsupervised**: A purely unsupervised approach means having no ground truth
+    (no golden reference) of what constitutes an anomaly or not. We know there might
+    be anomalies in the data, but no historical information is available about them.'
+  id: totrans-74
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**无监督**：纯粹的无监督方法意味着没有关于什么构成异常或不异常的基本事实（没有黄金标准）的历史信息。我们知道数据中可能存在异常，但没有关于它们的历史信息。'
+- en: In these scenarios, the detection can also be seen as a clustering problem where
+    the goal is not just grouping similar observations together, but also identifying
+    all of the remaining isolated points. As such, it brings all of the issues and
+    considerations of clustering problems. Data modeling and distance metrics should
+    be carefully selected in order to be able to rank each point as close or far from
+    one of the existing "normal behavior" clusters.
+  id: totrans-75
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 在这些场景中，检测也可以视为聚类问题，目标不仅是将相似的观测结果进行分组，还要识别所有其余的孤立点。因此，它带来了所有关于聚类问题的问题和考虑。数据建模和距离度量应该被谨慎选择，以便能够将每个点排列为靠近或远离现有的“正常行为”群集之一。
+- en: Typical algorithms are k-means or density-based clustering. The major difficulties
+    with clustering are the high sensitivity to noise and the well-known curse of
+    dimensionality.
+  id: totrans-76
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 典型的算法是k-means或基于密度的聚类。聚类的主要困难在于对噪声的高度敏感和著名的维度灾难。
+- en: '**Semi-supervised**: Also known as novelty detection, semi-supervised learning
+    might be a new term for you. It can be seen as both unsupervised learning (data
+    is not labeled) and one-class supervised learning (all under the same label).
+    The semi-supervision comes from the assumption that the training dataset belongs
+    entirely to a single label: "the expected behavior". Instead of learning the rules
+    for predicting whether it is "expected" or "anomalous", we learn the rules for
+    predicting whether the observed point was generated from the same source that
+    generated the training data or not. This is quite a strong assumption and it is
+    what makes anomaly detection one of the hardest problems to solve in practice.'
+  id: totrans-77
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**半监督**：也被称为新颖性检测，半监督学习可能对你来说是一个新名词。它既可以被视为无监督学习（数据未标记），也可以被视为单类别监督学习（所有都在同一个标签下）。半监督的假设是训练数据集完全属于一个标签："期望的行为"。我们不是学习用于预测“期望”还是“异常”的规则，而是学习用于预测观察到的点是否来自生成训练数据的相同源的规则。这是一个相当强的假设，也是使异常检测成为实践中最难解决的问题之一的原因。'
+- en: Popular techniques are SVM one-class classifier and statistical distribution
+    models such as Multivariate Gaussian Distribution.
+  id: totrans-78
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 流行的技术包括SVM单类别分类器和统计分布模型，例如多元高斯分布。
+- en: 'More information on Multivariate Gaussian Distribution for anomaly detection
+    can be found in this tutorial: [http://dnene.bitbucket.org/docs/mlclass-notes/lecture16.html](https://bitbucket.org/).
+    The following figure shows the classic identification of outliers from the main
+    distribution visualized in a two-dimensional space:'
+  id: totrans-79
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 更多关于用于异常检测的多元高斯分布的信息可以在这个教程中找到：[http://dnene.bitbucket.org/docs/mlclass-notes/lecture16.html](https://bitbucket.org/)。下图显示了在二维空间中可视化的主分布中的异常值的经典识别：
+- en: '![Detection modeling](img/00313.jpeg)'
+  id: totrans-80
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+  zh: '![检测建模](img/00313.jpeg)'
+- en: Two-dimensional representation of normal distribution with one single outlier
+    ([http://dnene.bitbucket.org/docs/mlclass-notes/lecture16.html)](https://bitbucket.org/)
+  id: totrans-81
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 具有单个异常值的正态分布的二维表示（[http://dnene.bitbucket.org/docs/mlclass-notes/lecture16.html)](https://bitbucket.org/)
+- en: Anomaly detection using deep auto-encoders
+  id: totrans-82
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 使用深度自编码器进行异常检测。
+- en: 'The proposed approach using deep learning is semi-supervised and it is broadly
+    explained in the following three steps:'
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用深度学习的提出方法是半监督的，并且在以下三个步骤中广泛解释：
+- en: Identify a set of data that represents the normal distribution. In this context,
+    the word "normal" represents a set of points that we are confident to majorly
+    represent non-anomalous entities and not to be confused with the Gaussian normal
+    distribution.
+  id: totrans-84
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 确定代表正态分布的一组数据。在这种情况下，“正常”一词代表一组我们有信心主要代表非异常实体的点，并且不应与高斯正态分布混淆。
+- en: The identification is generally historical, where we know that no anomalies
+    were officially recognized. This is why this approach is not purely unsupervised.
+    It relies on the assumption that the majority of observations are anomaly-free.
+    We can use external information (even labels if available) to achieve a higher
+    quality of the selected subset.
+  id: totrans-85
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 识别通常是历史性的，我们知道没有官方确认的异常。这就是为什么这种方法不是纯无监督的原因。它依赖于这样一个假设：大多数观察结果是没有异常的。我们可以使用外部信息（即使是可用的标签）来实现所选子集的更高质量。
+- en: Learn what "normal" means from this training dataset. The trained model will
+    provide a sort of metric in its mathematical definition; that is, a function mapping
+    every point to a real number representing the distance from another point representing
+    the normal distribution.
+  id: totrans-86
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 从这个训练数据集中学习“正常”是什么意思。训练模型将在其数学定义中提供一种度量标准；也就是说，将每个点映射到代表与另一个代表正态分布的点之间距离的实数。
+- en: Detected based on a threshold, on the anomaly score. By selecting the right
+    threshold we can achieve the desired trade-off between precision (fewer false
+    alarms) and recall (fewer missed detections).
+  id: totrans-87
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 基于异常分数的阈值进行检测。通过选择合适的阈值，我们可以在精度（更少的虚警）和召回（更少的漏报）之间实现所需的折衷。
+- en: One of the pros of this approach is robustness to noise. We can accept a small
+    portion of outliers in the normal data used for training since that model will
+    try to generalize the main distribution of the population and not the single observations.
+    This property gives us an enormous advantage in terms of generalization with respect
+    to the supervised approach, which is limited to only what can be observed in the
+    past.
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种方法的优点之一是对噪声的鲁棒性。我们可以接受训练中正常数据中的一小部分异常值，因为该模型将试图概括群体的主要分布而不是单个观测值。这种特性在泛化方面给我们带来了巨大的优势，相对于监督方法而言，后者仅限于过去所能观察到的内容。
+- en: Moreover, this approach can be extended to labeled data as well, making it suitable
+    for every class of anomaly detection problems. Since the label information is
+    not taken into account in the modeling, we can discard it from the feature space
+    and consider everything to be under the same label. Labels can still be used as
+    ground truth during the validation phase. We could then treat the anomaly score
+    as a binary classification score and use the ROC curve, and related measures,
+    as benchmarks.
+  id: totrans-89
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，这种方法也可以扩展到带标签的数据，使其适用于各种类别的异常检测问题。由于建模过程中不考虑标签信息，我们可以将其从特征空间中丢弃，并将所有内容视为同一标签下的。在验证阶段，标签仍然可以用作基本真相。然后，我们可以将异常分数视为二元分类分数，并使用
+    ROC 曲线及相关指标作为基准。
+- en: 'For our use cases, we will make use of auto-encoder architecture to learn the
+    distribution of the training data. As we have seen in [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature* *Learning*,
+    the network is designed to have arbitrary, but symmetric hidden layers with the
+    same number of neurons in both the input layer and output layer. The whole topology
+    has to be symmetric in the sense that the encoding topology on the left side is
+    just mirrored to the decoding part to the right and they both share the same number
+    of hidden units and activation functions:'
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于我们的用例，我们将利用自编码器架构来学习训练数据的分布。正如我们在 [第四章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning") *无监督特征学习* 中所看到的，网络被设计为具有任意但对称的隐藏层，输入层和输出层中的神经元数量相同。整个拓扑结构必须对称，即左侧的编码拓扑与右侧的解码部分相同，并且它们都共享相同数量的隐藏单元和激活函数：
+- en: '![Anomaly detection using deep auto-encoders](img/00314.jpeg)'
+  id: totrans-91
+  prefs: []
+  type: TYPE_IMG
+  zh: '![使用深度自编码器进行异常检测](img/00314.jpeg)'
+- en: Auto-encoder simple representation from H2O training book (https://github.com/h2oai/h2o-training-book/blob/master/hands-on_training/images/autoencoder.png)
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 训练手册中的自编码器简单表示（https://github.com/h2oai/h2o-training-book/blob/master/hands-on_training/images/autoencoder.png）
+- en: The loss function generally used is the **MSE** (**mean squared error**) between
+    the input and the corresponding neurons in the output layer. This way, the network
+    is forced to approximate an identity function via a non-linear and compressed
+    representation of the original data.
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通常使用的损失函数是输入与输出层中相应神经元之间的 **MSE**（**均方误差**）。通过这种方式，网络被迫通过原始数据的非线性和压缩表示来逼近一个恒等函数。
+- en: Deep auto-encoders are also frequently used as a pre-training step for supervised
+    learning models and for dimensionality reduction. In fact, the central layer of
+    the auto-encoder could be used to represent the points in a reduced dimensionality,
+    as we will see in the last example.
+  id: totrans-94
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 深度自编码器也经常用作监督学习模型的预训练步骤和降维。事实上，自编码器的中心层可以用于表示降维的点，正如我们将在最后一个示例中看到的那样。
+- en: We can then start making analysis with the fully reconstructed representation
+    that is the result of the encoding and decoding in cascade. An identity auto-encoder
+    would reconstruct exactly the same values of the original point. That would not
+    be very useful. In practice, auto-encoders reconstruct based on intermediate representations
+    that minimize the training error. Thus, we learn those compression functions from
+    the training set so that a normal point is very likely to be reconstructed correctly,
+    but an outlier would have a higher **reconstruction error** (the mean squared
+    error between the original point and the reconstructed one).
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，我们可以开始使用完全重构的表示进行分析，这是编码和解码级联的结果。恒等自编码器会完全重构原始点的相同值。这并不是非常有用的。实际上，自编码器基于中间表示进行重构，这些表示使训练误差最小化。因此，我们从训练集中学习这些压缩函数，使得正常点很可能被正确重构，但异常值的
+    **重构误差**（原始点与重构点之间的均方误差）会更高。
+- en: We can then use the reconstruction error as an anomaly score.
+  id: totrans-96
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后我们可以使用重构误差作为异常分数。
+- en: Alternatively, we can use a trick of setting the middle layer of the network
+    small enough so that we can transform every point into a low-dimensional compressed
+    representation. If we set it equal to two or three, we can even visualize the
+    points. Hence, we can use auto-encoders for reducing the dimensionality followed
+    by standard machine learning techniques for detection.
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 或者，我们可以使用一个技巧，将网络的中间层设置得足够小，以便我们可以将每个点转换为低维压缩表示。如果将其设置为二或三，甚至可以可视化这些点。因此，我们可以使用自动编码器来降低维度，然后使用标准机器学习技术进行检测。
+- en: H2O
+  id: totrans-98
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: H2O
+- en: Before we deep dive into the examples, let's spend some time justifying our
+    decision of using H2O as our deep learning framework for anomaly detection.
+  id: totrans-99
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们深入研究示例之前，让我们花一些时间来证明我们选择使用 H2O 作为异常检测的深度学习框架的决定是合理的。
+- en: H2O is not just a library or package to install. It is an open source, rich
+    analytics platform that provides both machine learning algorithms and high-performance
+    parallel computing abstractions.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 不仅仅是一个要安装的库或软件包。它是一个开源、功能丰富的分析平台，提供了机器学习算法和高性能并行计算抽象。
+- en: H2O core technology is built around a Java Virtual Machine optimized for in-memory
+    processing of distributed data collections.
+  id: totrans-101
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 核心技术是围绕着为内存处理分布式数据集进行优化的 Java 虚拟机构建的。
+- en: The platform is usable via a web-based UI or programmatically in many languages,
+    such as Python, R, Java, Scala, and JSON in a REST API.
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 可以通过基于 Web 的 UI 或在许多语言中以编程方式使用，例如 Python、R、Java、Scala 和 JSON 中的 REST API。
+- en: Data can be loaded from many common data sources, such as HDFS, S3, most of
+    the popular RDBMSes, and a few other NoSQL databases.
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 数据可以从许多常见数据源加载，例如 HDFS、S3、大多数流行的 RDBMS 和少数其他 NoSQL 数据库。
+- en: After loading, data is represented in an `H2OFrame`, making it familiar to people
+    used to working with R, Spark, and Python pandas data frames.
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 加载后，数据以`H2OFrame`的形式表示，使得习惯于使用 R、Spark 和 Python pandas 数据框架的人感到熟悉。
+- en: The backend can then be switched among different engines. It can run locally
+    in your machine or it can be deployed in a cluster on top of Spark or Hadoop MapReduce.
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 后端可以在不同引擎之间切换。它可以在您的机器上本地运行，也可以部署在 Spark 或 Hadoop MapReduce 之上的集群中。
+- en: H2O will automatically handle the memory occupation and will optimize the execution
+    plan for most of the data operations and model learning.
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 将自动处理内存占用，并优化大多数数据操作和模型学习的执行计划。
+- en: It provides a very fast scoring of data points against a trained model; it is
+    advertised to run in nanoseconds.
+  id: totrans-107
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 它提供了针对经过训练模型的数据点进行快速评分的功能；据宣传，它的运行时间为纳秒级。
+- en: In addition to traditional data analysis and machine learning algorithms, it
+    features a few very robust implementations of deep learning models.
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 除了传统的数据分析和机器学习算法外，它还提供了一些非常强大的深度学习模型的实现。
+- en: The general API for building models is via the `H2OEstimator`. A dedicated `H2ODeepLearningEstimator`
+    class can be used to build feed-forward multilayer artificial networks.
+  id: totrans-109
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 构建模型的一般 API 是通过`H2OEstimator`。可以使用专门的`H2ODeepLearningEstimator`类来构建前馈多层人工神经网络。
+- en: One of the main reasons why we choose H2O for anomaly detection is that it provides
+    a built-in class very useful for our cause, the `H2OAutoEncoderEstimator`.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们选择 H2O 用于异常检测的一个主要原因是它提供了一个内置类，非常适用于我们的用例，即`H2OAutoEncoderEstimator`。
+- en: As you will see in the following examples, building an auto-encoder network
+    only requires a few parameters to be specified and then it will self-tune the
+    rest.
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您将在以下示例中看到的那样，构建一个自动编码器网络只需要指定几个参数，然后它将自动调整其余部分。
+- en: The output of an estimator is a model, which depending on the problem to be
+    solved, can be a classification model, regression, clustering, or in our case
+    an auto-encoder.
+  id: totrans-112
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 估算器的输出是一个模型，根据要解决的问题，可以是分类模型、回归、聚类，或在我们的情况下是自动编码器。
+- en: Deep learning with H2O is not exhaustive, but it is quite simple and straightforward.
+    It features automatic adaptive weight initialization, adaptive learning rates,
+    various regularization techniques, performance tuning, grid-search, and cross-fold
+    validation just to name a few. We will explore those advanced features in [Chapter
+    10](part0074_split_000.html#26I9K1-c1ed1b54ca0b4e9fbb9fe2b2431d634f "Chapter 10. Building
+    a Production-Ready Intrusion Detection System"), *Building a Production-Ready
+    Intrusion Detection System*.
+  id: totrans-113
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 的深度学习并不是穷尽的，但它相当简单直接。它具有自动自适应权重初始化、自适应学习率、各种正则化技术、性能调整、网格搜索和交叉折叠验证等功能。我们将在[第
+    10 章](part0074_split_000.html#26I9K1-c1ed1b54ca0b4e9fbb9fe2b2431d634f "第 10 章。构建生产就绪的入侵检测系统")
+    *构建生产就绪的入侵检测系统* 中探讨这些高级功能。
+- en: We also hope to see RNNs and more advanced deep learning architecture soon implemented
+    in the framework.
+  id: totrans-114
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们也希望很快在框架中看到 RNN 和更高级的深度学习架构的实现。
+- en: The key points of H2O are scalability, reliability, and ease of use. It is a
+    good fit for enterprise environments that care about production aspects. The simplicity
+    and built-in functionalities make it also well suited for research tasks and curious
+    users who want to learn and experiment with deep learning.
+  id: totrans-115
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O 的关键点是可伸缩性、可靠性和易用性。它非常适合关心生产方面的企业环境。其简单性和内置功能也使其非常适合研究任务和希望学习和尝试深度学习的好奇用户。
+- en: Getting started with H2O
+  id: totrans-116
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 开始使用 H2O
+- en: H2O in local mode can be simply installed as dependency using `pip`. Follow
+    the instructions at [http://www.h2o.ai/download/h2o/python](http://www.h2o.ai/download/h2o/python).
+  id: totrans-117
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本地模式下的 H2O 可以简单地使用 `pip` 安装为依赖项。请按照 [http://www.h2o.ai/download/h2o/python](http://www.h2o.ai/download/h2o/python)
+    上的说明操作。
+- en: A local instance will be automatically spun at your first initialization.
+  id: totrans-118
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第一次初始化时将自动启动本地实例。
+- en: 'Open a Jupyter notebook and create an `h2o` instance:'
+  id: totrans-119
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 打开 Jupyter 笔记本并创建一个 `h2o` 实例：
+- en: '[PRE0]'
+  id: totrans-120
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: To check whether the initialization was successful, it should print something
+    like `"Checking whether` there is an H2O instance running at `http://localhost:54321`.
+    `connected."`.
+  id: totrans-121
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要检查初始化是否成功，应该打印出类似于 `"Checking whether` there is an H2O instance running at
+    `http://localhost:54321`. `connected."` 的内容。
+- en: You are now ready to import data and start building deep learning networks.
+  id: totrans-122
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你现在已经准备好导入数据并开始构建深度学习网络了。
+- en: Examples
+  id: totrans-123
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 示例
+- en: The following examples are proof-of-concepts of how to apply auto-encoders to
+    identify anomalies. Specific tuning and advanced design considerations are out
+    of the scope for this chapter. We will take for granted some results from the
+    literature without going into too much theoretical ground, which has already been
+    covered in previous chapters.
+  id: totrans-124
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下示例是如何应用自动编码器来识别异常的概念证明。本章不涉及特定调优和高级设计考虑。我们将默认一些文献中的结果，而不深入研究太多已经在前几章中涵盖的理论基础。
+- en: We recommend the reader to carefully read [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised* *Feature Learning*
+    and the corresponding sections regarding auto-encoders.
+  id: totrans-125
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们建议读者仔细阅读[第 4 章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第 4 章。无监督特征学习") *无监督特征学习* 和有关自动编码器的相关部分。
+- en: We will use a Jupyter notebook for our examples.
+  id: totrans-126
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在示例中使用 Jupyter 笔记本。
+- en: Alternatively, we could have used H2O Flow (`http://www.h2o.ai/product/flow/`),
+    which is a notebook-style UI for H2O pretty much like Jupyter, but we did not
+    want to confuse the reader throughout the book.
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 或者，我们也可以使用 H2O Flow (`http://www.h2o.ai/product/flow/`)，这是一个类似 Jupyter 的 H2O
+    笔记本样式的用户界面，但我们不想在整本书中使读者感到困惑。
+- en: We also assume that the reader has a basic idea of how the H2O framework, pandas,
+    and related plotting libraries (`matplotlib` and `seaborn`) work.
+  id: totrans-128
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们还假设读者对 H2O 框架、pandas 和相关绘图库 (`matplotlib` 和 `seaborn`) 的工作原理有基本了解。
+- en: In the code, we often convert an `H2OFrame` instance into a `pandas.DataFrame`
+    so that we can use the standard plotting libraries. This is doable because our
+    `H2OFrame` contains small data; it is not recommended when the data is large.
+  id: totrans-129
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在代码中，我们经常将一个 `H2OFrame` 实例转换为 `pandas.DataFrame`，以便我们可以使用标准绘图库。这是可行的，因为我们的 `H2OFrame`
+    包含小数据；但在数据量大时不推荐使用。
+- en: MNIST digit anomaly recognition
+  id: totrans-130
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: MNIST 数字异常识别
+- en: This is a pretty standard example used for benchmarking anomaly detection models.
+  id: totrans-131
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这是一个用于基准测试异常检测模型的相当标准的示例。
+- en: We have already seen this dataset in [Chapter 3](part0022_split_000.html#KVCC2-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 3. Deep Learning Fundamentals"), *Deep Learning Fundamentals*. In this
+    case though, we are not predicting which number each image represents, but whether
+    the image represents a clear or an ugly handwritten digit. The goal is identifying
+    badly written digit images.
+  id: totrans-132
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们在[第3章](part0022_split_000.html#KVCC2-c1ed1b54ca0b4e9fbb9fe2b2431d634f "Chapter 3. Deep
+    Learning Fundamentals")中已经看到过这个数据集，*深度学习基础*。不过，在这种情况下，我们不是在预测每个图像代表的数字，而是判断图像代表的是一个清晰的手写数字还是一个丑陋的手写数字。目标是识别写得不好的数字图像。
+- en: In fact, in our example, we will discard the response column containing the
+    label (the digit). We are not interested in which number each image represents,
+    but rather how clearly this number is represented.
+  id: totrans-133
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 实际上，在我们的示例中，我们将丢弃包含标签（数字）的响应列。我们对每个图像代表的数字不感兴趣，而是更关心这个数字的清晰程度。
+- en: We are going to follow the same configurations provided in the H2O tutorial
+    at `github.com/h2oai/h2o-training-book/blob/master/hands-on_training/anomaly_detection.md`.
+  id: totrans-134
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将遵循H2O教程中提供的相同配置，位于`github.com/h2oai/h2o-training-book/blob/master/hands-on_training/anomaly_detection.md`。
+- en: 'We will start with some standard imports of `pandas` and `matplotlib`:'
+  id: totrans-135
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将以标准的`pandas`和`matplotlib`导入开始：
+- en: '[PRE1]'
+  id: totrans-136
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: 'Next, we are importing the data from the H2O repository (this is a readapted
+    version of the original dataset in order to make it easier to parse and load into
+    H2O):'
+  id: totrans-137
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们将从H2O存储库导入数据（这是原始数据集的改编版本，以便更轻松地解析和加载到H2O中）：
+- en: '[PRE2]'
+  id: totrans-138
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: The loaded train and test datasets represent one digit image for each row and
+    contain 784 columns representing grayscale values in a scale from 0 to 255 of
+    each pixel of a 28 x 28 image grid plus the last column used as label (the digit
+    number).
+  id: totrans-139
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 加载的训练和测试数据集表示每行一个数字图像，并包含784列，表示28 x 28图像网格中每个像素的0到255的灰度值，最后一列用作标签（数字）。
+- en: 'We will use only the first 784 as predictors and leave the label only for validation:'
+  id: totrans-140
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将只使用前784个作为预测因子，而将标签保留在验证中：
+- en: '[PRE3]'
+  id: totrans-141
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: The H2O tutorial suggests a shallow model made of just one hidden layer of 20
+    neurons using a hyperbolic tangent as an activation function and 100 epochs (100
+    scans over the data).
+  id: totrans-142
+  prefs: []
+  type: TYPE_NORMAL
+  zh: H2O教程建议使用一个只有20个神经元的隐藏层的浅层模型，以双曲正切作为激活函数，并进行100个epochs（对数据进行100次扫描）。
+- en: 'The goal is not to learn how to tune the network, but rather understand the
+    intuitions and concepts behind the anomaly detection approach. What we need to
+    understand is that the encoder capacity depends on the number of hidden neurons.
+    A too large capacity would lead to an identity function model, which would not
+    learn any interesting structures. In our case, we are setting a low capacity,
+    from 784 pixels to 20 nodes. This way, we will force the model to learn how to
+    best approximate an identity function by only using a few features representing
+    the relevant structures of the data:'
+  id: totrans-143
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 目标不是学习如何调整网络，而是理解异常检测方法背后的直觉和概念。我们需要理解的是编码器容量取决于隐藏神经元的数量。过大的容量会导致一个恒等函数模型，这不会学习任何有趣的结构。在我们的案例中，我们设置了一个较低的容量，从784个像素到20个节点。这样，我们将迫使模型学习如何通过只使用表示数据相关结构的少数特征最好地逼近恒等函数：
+- en: '[PRE4]'
+  id: totrans-144
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: 'After we have trained the auto-encoder model, we can predict the digits in
+    the test set, reconstructed using our new reduced dimensionality representation,
+    and rank them according to the reconstruction error:'
+  id: totrans-145
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们训练自编码器模型之后，我们可以预测测试集中使用我们的新降维表示重构的数字，并根据重构错误对它们进行排序：
+- en: '[PRE5]'
+  id: totrans-146
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: 'Let''s quickly describe the reconstruction error:'
+  id: totrans-147
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们快速描述一下重构错误：
+- en: '[PRE6]'
+  id: totrans-148
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: We will see that it ranges between 0.01 and 1.62 with a mean of around 0.02,
+    not a symmetric distribution.
+  id: totrans-149
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们会看到重构错误在0.01到1.62之间，平均值大约为0.02，不是对称分布。
+- en: 'Let''s make a scatter plot of the reconstruction error for all of the test
+    points:'
+  id: totrans-150
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们绘制出所有测试点的重构错误的散点图：
+- en: '[PRE7]'
+  id: totrans-151
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: '![MNIST digit anomaly recognition](img/00315.jpeg)'
+  id: totrans-152
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00315.jpeg)'
+- en: We can see that the test set contains only one obvious outlier, while the rest
+    of the points fall in the range [0.0, 0.07].
+  id: totrans-153
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以看到测试集仅包含一个明显的异常点，而其余的点落在[0.0，0.07]范围内。
+- en: 'Let''s join the test feature set, including the label, with the reconstruction
+    error and grab the outlier point and try to reconstruct it using the auto-encoder
+    model:'
+  id: totrans-154
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们将包括标签在内的测试特征集与重构错误连接起来，并抓取异常点，并尝试使用自编码器模型重构它：
+- en: '[PRE8]'
+  id: totrans-155
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: 'We need to define a helper function to plot a single digit image:'
+  id: totrans-156
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们需要定义一个辅助函数来绘制单个数字图像：
+- en: '[PRE9]'
+  id: totrans-157
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: 'And plot both the original outlier and its reconstructed version:'
+  id: totrans-158
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 并且绘制原始异常值和其重构版本：
+- en: '[PRE10]'
+  id: totrans-159
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: '![MNIST digit anomaly recognition](img/00316.jpeg)'
+  id: totrans-160
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00316.jpeg)'
+- en: The reconstructed version is very noisy even though the outlier seems to clearly
+    be representing the number three. We will see that it has one particular detail
+    that makes it different from the rest of the other three digits.
+  id: totrans-161
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重构版本非常嘈杂，尽管异常值似乎清晰地表示数字三。我们会发现它有一个使它与其他三个数字不同的特定细节。
+- en: 'Let''s zoom into the error distribution of the remaining points:'
+  id: totrans-162
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们更仔细地观察剩余点的错误分布：
+- en: '[PRE11]'
+  id: totrans-163
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: '![MNIST digit anomaly recognition](img/00317.jpeg)'
+  id: totrans-164
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00317.jpeg)'
+- en: From the distribution, we can split the "central bell" at 0.02 into the "good"
+    digits (on the left) and the "bad" (on the right). The rightmost tail (greater
+    than 0.05) could be considered the "ugly" digits or the most anomalous.
+  id: totrans-165
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 根据分布，我们可以将“中心钟”在 0.02 处分为“好”数字（在左边）和“坏”数字（在右边）。最右边的尾部（大于 0.05）可以被视为“丑陋”的数字或最异常的数字。
+- en: 'We will now pick some digits of the number three from the "good" subset and
+    compare them with our outlier:'
+  id: totrans-166
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将从“好”子集中挑选一些数字三的数字，并与我们的异常值进行比较：
+- en: '[PRE12]'
+  id: totrans-167
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: 'In order to visualize multiple digits, we need to extend the plot util into
+    a function that plots a grid of images:'
+  id: totrans-168
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了可视化多个数字，我们需要将绘图工具扩展为一个绘制图像网格的函数：
+- en: '[PRE13]'
+  id: totrans-169
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: 'We can now plot both the original and reconstructed values of 36 random digits
+    arranged on a `6 (nx)` times `6 (ny)` grid:'
+  id: totrans-170
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，我们可以绘制36个随机数字的原始值和重构值，排列在一个`6（nx）`乘以`6（ny）`的网格中：
+- en: '[PRE14]'
+  id: totrans-171
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: '![MNIST digit anomaly recognition](img/00318.jpeg)'
+  id: totrans-172
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00318.jpeg)'
+- en: Original good digits of number three
+  id: totrans-173
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 原始的数字三的好数字
+- en: '![MNIST digit anomaly recognition](img/00319.jpeg)'
+  id: totrans-174
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00319.jpeg)'
+- en: Reconstructed version of the good digits of number three
+  id: totrans-175
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 数字三的好数字的重构版本
+- en: At first glance, our outlier does not look very different with the good-classified
+    ones. Many of the reconstructed figures look similar to their original representation.
+  id: totrans-176
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 乍一看，我们的异常值看起来与分类良好的图像并没有太大的不同。许多重构出来的图像看起来与它们的原始表示很相似。
+- en: If we look more carefully at the figures, we can observe that none of them have
+    the bottom-left shape of the digit so long to almost touch the corner.
+  id: totrans-177
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们仔细观察这些数字，我们会发现它们中没有一个数字具有几乎触及角落的底部左侧形状。
+- en: 'Let''s pick the digit with index 1, which scores 0.02, and let''s copy the
+    bottom-left part (the last 16 x 10 pixels) from the outlier figure. We will recompute
+    the anomaly score to the modified image:'
+  id: totrans-178
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们选择索引为1的数字，得分为0.02，并复制异常值图像的底部左侧部分（最后的16 x 10像素）。我们将重新计算修改后图像的异常分数：
+- en: '[PRE15]'
+  id: totrans-179
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE15]'
+- en: '![MNIST digit anomaly recognition](img/00320.jpeg)'
+  id: totrans-180
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00320.jpeg)'
+- en: Magically, the MSE went up to 0.86\. The remaining contribution to the high
+    anomaly score (~1.62) is probably explained by the abnormal handwriting style.
+  id: totrans-181
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 神奇的是，均方误差上升到了0.86。高异常值分数（~1.62）的剩余贡献可能是由异常的书写风格解释的。
+- en: This explanation means that the model is too sensitive to noise. It marks a
+    digit image as anomalous due to a licit property simply because the training data
+    does not contain enough samples. This is an "outlier" of the outlier detector,
+    an example of a false positive.
+  id: totrans-182
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个解释意味着模型对噪音过于敏感。它会因为训练数据不包含足够的样本，而将一个数字图像标记为异常，仅仅是因为它具有合法的特性。这就是异常值检测器的“异常值”，一个错误的正例示例。
+- en: This problem can generally be solved using denoising auto-encoders. In order
+    to discover more robust representations, we can train the model to reconstruct
+    the original input from a noisy version of it. We can look at [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature Learning*,
+    for more theoretical explanations.
+  id: totrans-183
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一般情况下，可以使用去噪自动编码器来解决这个问题。为了发现更健壮的表示，我们可以训练模型从它的嘈杂版本中重构原始输入。我们可以在[第 4 章](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第 4 章. 无监督特征学习")，*无监督特征学习* 中找到更多理论解释。
+- en: In our use case, we could mask each digit with a binomial sampling where we
+    randomly set pixels to 0 with probability *p*. The loss function will then be
+    the error of the reconstructed image from the noisy version and the original one.
+    At the time of writing, H2O did not offer this feature, nor a customization of
+    the loss function. Hence, implementing it on our own would have been too complicated
+    for this example.
+  id: totrans-184
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的用例中，我们可以使用二项式抽样掩盖每个数字，在这个过程中，我们以概率 *p* 随机将像素设为0。损失函数将是从嘈杂版本和原始版本的重构图像的误差。在撰写本文时，H2O没有提供这个功能，也没有损失函数的定制。因此，为了这个例子而实现它将会太过复杂。
+- en: Our dataset contains labels for the digits, but unfortunately it does not have
+    any assessment about the quality of them. We will have to do a manual inspection
+    to gain confidence that our model works fine.
+  id: totrans-185
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的数据集包含数字的标签，但不幸的是，它没有关于它们质量的任何评估。我们将不得不进行手动检查，以确保我们的模型运行良好。
+- en: 'We will grab the bottom 100 (good) and top 100 (ugly) points and visualize
+    them in a 10 x 10 grid:'
+  id: totrans-186
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将抓取底部的100个（好的）和顶部的100个（丑的）点，并将它们可视化成一个10 x 10的网格：
+- en: '[PRE16]'
+  id: totrans-187
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE16]'
+- en: '![MNIST digit anomaly recognition](img/00321.jpeg)'
+  id: totrans-188
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00321.jpeg)'
+- en: Reconstruction error of the top good digits
+  id: totrans-189
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最佳数字的重构误差
+- en: '[PRE17]'
+  id: totrans-190
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE17]'
+- en: '![MNIST digit anomaly recognition](img/00322.jpeg)'
+  id: totrans-191
+  prefs: []
+  type: TYPE_IMG
+  zh: '![MNIST数字异常识别](img/00322.jpeg)'
+- en: Reconstruction error of the worst ugly digits
+  id: totrans-192
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最糟糕的丑数字的重构误差
+- en: From the figures, it is easy to see that "the good" represent number one, which
+    is the easiest digit to write due to its simple structure of a straight line.
+    Thus, digits of number one are less prone to be miswritten.
+  id: totrans-193
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 从图中很容易看出，“好的”代表数字1，这是最容易写的数字，因为它的简单结构是一条直线。因此，数字1的数字不太容易写错。
+- en: The bottom group is clearly ugly. The round shapes make it harder to distinguish
+    between similar numbers and it strongly depends on the specific person's handwriting.
+    Thus, those are most likely to represent "anomalies". They are most likely to
+    deviate from the majority of the population's writing style.
+  id: totrans-194
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 底部的组别显然很丑陋。圆形的形状使得在类似数字之间更难区分，并且它非常依赖于特定人的手写风格。因此，它们很可能代表“异常”。它们很可能偏离大多数人口的书写风格。
+- en: Please be careful that different runs may lead to different results due to randomness
+    introduced for scalability reasons due to race conditions generated by the Hogwild!
+    algorithm explained in the following chapter. In order to make results reproducible,
+    you should specify a `seed` and set `reproducibility=True`.
+  id: totrans-195
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '请注意，不同的运行可能会因为引入了用于可扩展性的随机性而导致不同的结果，这是由于Hogwild!算法在以下章节中解释的竞争条件引起的。为了使结果可重复，您应该指定一个
+    `seed` 并设置 `reproducibility=True`。 '
+- en: Electrocardiogram pulse detection
+  id: totrans-196
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 心电图脉冲检测
+- en: In this second example, we will take a snapshot of data of an electrocardiogram
+    time series specifically prepared from H2O for the anomaly detection use case.
+  id: totrans-197
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在第二个例子中，我们将从H2O专门为异常检测用例准备的心电图时间序列数据中获取一份快照。
+- en: The prepared data is available from the H2O public repository. The original
+    dataset is provided by [http://www.physionet.org/](http://www.physionet.org/).
+    Additional references are available at [http://www.cs.ucr.edu/~eamonn/discords/](http://www.cs.ucr.edu/~eamonn/discords/).
+  id: totrans-198
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 准备好的数据可从H2O公共存储库获取。原始数据集由[http://www.physionet.org/](http://www.physionet.org/)提供。其他参考资料可在[http://www.cs.ucr.edu/~eamonn/discords/](http://www.cs.ucr.edu/~eamonn/discords/)找到。
+- en: The prepared dataset contains 20 ECG time series of good heartbeats plus three
+    anomalous heartbeats.
+  id: totrans-199
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 准备好的数据集包含20个正常心跳的心电图时间序列加上三个异常心跳。
+- en: Each row has 210 columns representing value samples in an ordered sequence.
+  id: totrans-200
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 每一行有210列，表示有序序列中的值样本。
+- en: 'Firstly, we load the ECG data and derive the training and test sets:'
+  id: totrans-201
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 首先，我们加载心电图数据并生成训练集和测试集：
+- en: '[PRE18]'
+  id: totrans-202
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE18]'
+- en: 'Let''s define a function that stacks and plots the time series:'
+  id: totrans-203
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们定义一个函数，堆叠并绘制时间序列：
+- en: '[PRE19]'
+  id: totrans-204
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE19]'
+- en: 'And then plot the dataset:'
+  id: totrans-205
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后绘制数据集：
+- en: '[PRE20]'
+  id: totrans-206
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE20]'
+- en: '![Electrocardiogram pulse detection](img/00323.jpeg)'
+  id: totrans-207
+  prefs: []
+  type: TYPE_IMG
+  zh: '![心电图脉冲检测](img/00323.jpeg)'
+- en: We can clearly see that the first 20 time series are normal while the last three
+    (identified as 21, 22, and 23) are quite different from the others.
+  id: totrans-208
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以清楚地看到前20个时间序列是正常的，而最后三个（标记为21、22和23）与其他时间序列非常不同。
+- en: Hence, we want to train the model only on the first 20 samples. This time, we
+    will use a deeper architecture made of five hidden layers of respectively 50,
+    20, and 20, 50 at the edges and two neurons in the middle. Remember that auto-encoders'
+    topology is always symmetric and generally with decreasing layer size. The idea
+    is to learn how to encode original data into a lower-dimensional space with minimum
+    information loss and then be able to reconstruct the original values from this
+    compressed representation.
+  id: totrans-209
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This time, we will fix the value of the seed for reproducibility:'
+  id: totrans-210
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  id: totrans-211
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE21]'
+- en: 'We can plot the reconstructed signals as follows:'
+  id: totrans-212
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  id: totrans-213
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE22]'
+- en: '![Electrocardiogram pulse detection](img/00324.jpeg)'
+  id: totrans-214
+  prefs: []
+  type: TYPE_IMG
+- en: The reconstructed signals all look very similar. The outliers (20, 21, and 23)
+    are now indistinguishable, which means they will have a higher reconstruction
+    error.
+  id: totrans-215
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s compute and plot the reconstruction error:'
+  id: totrans-216
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  id: totrans-217
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE23]'
+- en: '![Electrocardiogram pulse detection](img/00325.jpeg)'
+  id: totrans-218
+  prefs: []
+  type: TYPE_IMG
+- en: It is very easy to identify the last three points as outliers.
+  id: totrans-219
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let''s try to see the problem from a different perspective. By setting
+    the central layer size equal to two, we can then use the encoder output to compress
+    and visualize our points in a two-dimensional plot. We will use the `deepfeatures`
+    API of the trained model to plot a new data frame with the 2D representation specifying
+    the hidden layer index (starting from 0, the middle one is at index 2):'
+  id: totrans-220
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  id: totrans-221
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE24]'
+- en: 'Then we visualize all of the points with the previously trained model with
+    seed 1:'
+  id: totrans-222
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  id: totrans-223
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE25]'
+- en: 'If we repeat the same procedure by retraining the model with the seed set to
+    2, 3, 4, 5, and 6, we obtain the following:'
+  id: totrans-224
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Electrocardiogram pulse detection](img/00326.jpeg)'
+  id: totrans-225
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, each seed gives a totally different two-dimensional representation.
+    What is more interesting is that the outlier points (marked with 20, 21, and 22)
+    always have the same reconstruction error (given by their color). For the model,
+    those are all valid two-dimensional compressed representations that contain the
+    same amount of information and can be decoded into the original time series.
+  id: totrans-226
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could then use the auto-encoder for reducing the dimensionality followed
+    by an unsupervised approach (for example, density-based clustering) to group similar
+    points together. By repeating the clustering for each seed, we can then apply
+    a Consensus Clustering to determine which are the points that mostly agree with
+    each other (points that are always clustered together). This approach won't necessary
+    tell you where the anomalies are, but it will help you understand your data and
+    spot clusters of small dimensions that can be further investigated. The smaller
+    and more isolated from the other clusters, the higher the anomaly scores.
+  id: totrans-227
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  id: totrans-228
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Anomaly detection is a very common problem that can be found in many applications.
+  id: totrans-229
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the start of this chapter, we described a few possible use cases and highlighted
+    the major types and differences according to the context and application requirements.
+  id: totrans-230
+  prefs: []
+  type: TYPE_NORMAL
+- en: We briefly covered some of the popular techniques for solving anomaly detection
+    using shallow machine learning algorithms. The major differences can be found
+    in the way features are generated. In shallow machine learning, this is generally
+    a manual task, also called feature engineering. The advantage of using deep learning
+    is that it can automatically learn smart data representations in an unsupervised
+    fashion. Good data representations can substantially help the detection model
+    to spot anomalies.
+  id: totrans-231
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们简要介绍了使用浅层机器学习算法解决异常检测的一些流行技术。主要差异在于特征生成的方式。在浅层机器学习中，这通常是一个手动任务，也称为特征工程。使用深度学习的优势在于它可以以无监督的方式自动学习智能数据表示。良好的数据表示可以极大帮助检测模型发现异常。
+- en: We have provided an overview of H2O and summarized its functionalities for deep
+    learning, in particular the auto-encoders.
+  id: totrans-232
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们概述了H2O并总结了其用于深度学习的功能，特别是自编码器。
+- en: We have implemented a couple of proof-of-concept examples in order to learn
+    how to apply auto-encoders for solving anomaly detection problems.
+  id: totrans-233
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们实施了一些概念验证示例，以学习如何应用自编码器来解决异常检测问题。
+- en: For the digit recognition, we ranked each image according to an anomaly score
+    given by the model reconstruction error.
+  id: totrans-234
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于数字识别，我们根据模型重构误差给出的异常分数对每个图像进行了排序。
+- en: A similar approach could also be further extended to applications such as signature
+    verification, author handwriting recognition of manuscripts, or fault detection
+    via image pictures.
+  id: totrans-235
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 类似的方法还可以进一步扩展到应用程序，如签名验证、手稿的作者手写识别或通过图像照片进行故障检测。
+- en: The digit recognition example was a type of individual point outlier detection.
+    It used a shallow architecture made of only one single hidden layer.
+  id: totrans-236
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 数字识别示例是一种单点异常检测。它使用了仅有一个隐藏层的浅层架构。
+- en: For the ECG example, we used a deeper architecture and showed an additional
+    detection technique based on the compressed feature representation instead of
+    the fully reconstructed one. We used the encoder part of the network to compress
+    the non-linear relationships of the raw data into a smaller dimensionality space.
+    The newer representation can then be used as a pre-process step in order to apply
+    classic anomaly detection algorithms such as Gaussian Multivariate Distribution.
+    By reducing to a two-dimensional space, we could even visualize the data points
+    and identify anomalies at the frontier of the main elliptical distribution.
+  id: totrans-237
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于心电图（ECG）示例，我们使用了更深的架构，并展示了一种基于压缩特征表示而不是完全重构的附加检测技术。我们使用网络的编码器部分将原始数据的非线性关系压缩成更小的维度空间。然后可以将新的表示用作预处理步骤，以应用常规的异常检测算法，如高斯多元分布。通过减少到二维空间，甚至可以可视化数据点并识别主椭圆分布边界上的异常。
+- en: Nevertheless, auto-encoders are not the only way of doing anomaly detection
+    using deep learning. You can also follow a supervised approach where you take
+    out part of the information from your data and try to estimate based on the remaining
+    information. The predicted value will represent your normal expected behavior
+    and deviations from this value would represent your anomalies. For example, in
+    case of time series, you could use recurrent neural networks (RNNs), or their
+    evolution in long short-term memory (LSTM), as a regression model to predict what
+    is going to be the next numerical value of a time sequence and then use the error
+    between the predicted and observed value as an anomaly score.
+  id: totrans-238
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管如此，自编码器并不是使用深度学习进行异常检测的唯一方法。您也可以采用监督方法，从数据中剔除部分信息，并尝试根据剩余信息进行估计。预测值将代表您的正常预期行为，与该值偏离的部分将代表异常。例如，在时间序列的情况下，您可以使用循环神经网络（RNN）或其在长短期记忆（LSTM）中的演变作为回归模型，以预测时间序列的下一个数值，然后使用预测值和观察值之间的误差作为异常得分。
+- en: We preferred to focus on this semi-supervised approach because it can be applied
+    to many applications and also because it is nicely implemented in H2O.
+  id: totrans-239
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们更倾向于专注于这种半监督方法，因为它可以应用于许多应用程序，并且还因为它在H2O中得到了很好的实现。
+- en: Another important detail is that the majority of the code snippets were written
+    for data analysis, manipulation, and visualization. By using H2O, we used the
+    built-in classes to implement deep neural networks in just a couple of lines of
+    code. This is quite impressive compared to the overhead of other frameworks. Moreover,
+    the H2O estimators and models offer a wide range of customizable parameters and
+    different configurations. On the other hand, we found H2O to be quite limited
+    in extending its usage for scopes that are not currently supported. Overall, it
+    is a very promising technology and there is much room for further improvement.
+  id: totrans-240
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一个重要的细节是，大部分代码片段是用于数据分析、操作和可视化的。通过使用H2O，我们可以仅用几行代码就实现深度神经网络。与其他框架相比，这相当令人印象深刻。此外，H2O的估计器和模型提供了各种可自定义的参数和不同的配置。另一方面，我们发现H2O在扩展其用途到目前不支持的范围方面相当有限。总的来说，这是一项非常有前景的技术，还有很大的改进空间。
+- en: Be aware that the techniques covered in this chapter served only as proof-of-concept
+    for how deep learning could be applied to anomaly detection. There are many gotchas
+    and pitfalls to consider, both technical and practical, when dealing with production
+    data. We will cover a few of them in [Chapter 10](part0074_split_000.html#26I9K1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 10. Building a Production-Ready Intrusion Detection System"), *Building
+    a Production-Ready Intrusion Detection System*.
+  id: totrans-241
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，本章涵盖的技术仅作为深度学习如何应用于异常检测的概念验证。在处理生产数据时，有许多技术和实际方面的注意事项和陷阱需要考虑。我们将在[第10章](part0074_split_000.html#26I9K1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第10章。构建一个生产就绪的入侵检测系统"), *构建一个生产就绪的入侵检测系统*中涵盖其中的一些。
