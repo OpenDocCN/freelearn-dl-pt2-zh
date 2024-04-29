@@ -1,0 +1,1120 @@
+- en: '4'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Teaching Networks to Generate Digits
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we covered the building blocks of neural network models.
+    In this chapter, our first project will recreate one of the most groundbreaking
+    models in the history of deep learning, **Deep Belief Network** (**DBN**). DBN
+    was one of the first multi-layer networks for which a feasible learning algorithm
+    was developed. Besides being of historical interest, this model is connected to
+    the topic of this book because the learning algorithm makes use of a generative
+    model in order to pre-train the neural network weights into a reasonable configuration
+    prior to backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to load the **Modified National Institute of Standards and Technology**
+    (**MNIST**) dataset and transform it using TensorFlow 2's Dataset API.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How a **Restricted Boltzmann Machine** (**RBM**) – a simple neural network –
+    is trained by minimizing an "energy" equation that resembles formulas from physics
+    to generate images.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to stack several RBMs to make a DBN and apply forward and backward passes
+    to pre-train this network to generate image data.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to implement an end-to-end classifier by combining this pre-training with
+    backpropagation "fine-tuning" using the TensorFlow 2 API.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The MNIST database
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In developing the DBN model, we will use a dataset that we have discussed before
+    – the MNIST database, which contains digital images of hand-drawn digits from
+    0 to 9¹. This database is a combination of two sets of earlier images from the
+    **National Institute of Standards and Technology** (**NIST**): Special Database
+    1 (digits written by US high school students) and Special Database 3 (written
+    by US Census Bureau employees),² the sum of which is split into 60,000 training
+    images and 10,000 test images.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The original images in the dataset were all black and white, while the modified
+    dataset normalized them to fit into a 20x20-pixel bounding box and removed jagged
+    edges using anti-aliasing, leading to intermediary grayscale values in cleaned
+    images; they are padded for a final resolution of 28x28 pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the original NIST dataset, all the training images came from Bureau employees,
+    while the test dataset came from high school students, and the modified version
+    mixes the two groups in the training and test sets to provide a less biased population
+    for training machine learning algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.1: Digits from the NIST dataset (left)³ and MNIST (right)⁴'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An early application of **Support Vector Machines** (**SMVs**) to this dataset
+    yielded an error rate of 0.8%,⁵ while the latest deep learning models have shown
+    error rates as low as 0.23%.⁶ You should note that these figures were obtained
+    due to not only the discrimination algorithms used but also "data augmentation"
+    tricks such as creating additional translated images where the digit has been
+    shifted by several pixels, thus increasing the number of data examples for the
+    algorithm to learn from. Because of its wide availability, this dataset has become
+    a benchmark for many machine learning models, including Deep Neural Networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The dataset was also the benchmark for a breakthrough in training multi-layer
+    neural networks in 2006, in which an error rate of 1.25% was achieved (without
+    image translation, as in the preceding examples).⁷ In this chapter, we will examine
+    in detail how this breakthrough was achieved using a generative model, and explore
+    how to build our own DBN that can generate MNIST digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Retrieving and loading the MNIST dataset in TensorFlow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The first step in training our own DBN is to construct our dataset. This section
+    will show you how to transform the MNIST data into a convenient format that allows
+    you to train a neural network, using some of TensorFlow 2's built-in functions
+    for simplicity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by loading the MNIST dataset in TensorFlow. As the MNIST data
+    has been used for many deep learning benchmarks, TensorFlow 2 already has convenient
+    utilities for loading and formatting this data. To do so, we need to first install
+    the `tensorflow-datasets` library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After installing the package, we need to import it along with the required
+    dependencies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can download the MNIST data locally from **Google Cloud Storage** (**GCS**)
+    using the builder functionality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The dataset will now be available on disk on our machine. As noted earlier,
+    this data is divided into a training and test dataset, which you can verify by
+    taking a look at the `info` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the test dataset has 10,000 examples, the training dataset has
+    60,000 examples, and the images are 28x28 pixels with a label from one of 10 classes
+    (0 to 9).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by taking a look at the training dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can visually plot some examples using the `show_examples` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.2: MNIST digit examples from the TensorFlow dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also see more clearly here the grayscale edges on the numbers where
+    the anti-aliasing was applied to the original dataset to make the edges seem less
+    jagged (the colors have also been flipped from the original example in *Figure
+    4.1*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also plot an individual image by taking one element from the dataset,
+    reshaping it to a 28x28 array, casting it as a 32-bit float, and plotting it in
+    grayscale:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.3: A MNIST digit in TensorFlow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is nice for visual inspection, but for our experiments in this chapter,
+    we will actually need to flatten these images into a vector. To do so, we can
+    use the `map()` function, and verify that the dataset is now flattened; note that
+    we also need to cast to a float for use in the RBM later. The RBM also assumes
+    binary (0 or 1) inputs, so we need to rescale the pixels, which range from 0 to
+    256 to the range 0 to 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives a 784x1 vector, which is the "flattened" version of the pixels of
+    the digit "4":'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.4: Flattening the MNIST digits in TensorFlow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have the MNIST data as a series of vectors, we are ready to start
+    implementing an RBM to process this data and ultimately create a model capable
+    of generating new images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Restricted Boltzmann Machines: generating pixels with statistical mechanics'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The neural network model that we will apply to the MNIST data has its origins
+    in earlier research on how neurons in the mammalian brain might work together
+    to transmit signals and encode patterns as memories. By using analogies to statistical
+    mechanics in physics, this section will show you how simple networks can "learn"
+    the distribution of image data and be used as building blocks for larger networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hopfield networks and energy equations for neural networks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we discussed in *Chapter 3*, *Building Blocks of Deep Neural Networks*, Hebbian
+    Learning states, "Neurons that fire together, wire together",⁸ and many models,
+    including the multi-layer perceptron, made use of this idea in order to develop
+    learning rules. One of these models was the **Hopfield network**, developed in
+    the 1970-80s by several researchers^(9 10). In this network, each "neuron" is
+    connected to every other by a symmetric weight, but no self-connections (there
+    are only connections between neurons, no self-loops).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike the multi-layer perceptrons and other architectures we studied in *Chapter
+    3*, *Building Blocks of Deep Neural Networks,* the Hopfield network is an undirected
+    graph, since the edges go "both ways."
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Chapter_04_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.5: The Hopfield network'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The neurons in the Hopfield network take on binary values, either (-1, 1) or
+    (0, 1), as a thresholded version of the tanh or sigmoidal activation function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The threshold values (sigma) never change during training; to update the weights,
+    a "Hebbian" approach is to use a set of *n* binary patterns (configurations of
+    all the neurons) and update as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *n* is the number of patterns, and *e* is the binary activations of neurons
+    *i* and *j* in a particular configuration. Looking at this equation, you can see
+    that if the neurons share a configuration, the connection between them is strengthened,
+    while if they are opposite signs (one neuron has a sign of +1, the other -1),
+    it is weakened. Following this rule to iteratively strengthen or weaken a connection
+    leads the network to converge to a stable configuration that resembles a "memory"
+    for a particular activation of the network, given some input. This represents
+    a model for associative memory in biological organisms – the kind of memory that
+    links unrelated ideas, just as the neurons in the Hopfield network are linked
+    together^(11 12).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides representing biological memory, Hopfield networks also have an interesting
+    parallel to electromagnetism. If we consider each neuron as a particle or "charge,"
+    we can describe the model in terms of a "free energy" equation that represents
+    how the particles in this system mutually repulse/attract each other and where
+    on the distribution of potential configurations the system lies relative to equilibrium:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'where w is the weights between neurons *i* and *j*, *s* is the "states" of
+    those neurons (either 1, "on," or -1, "off"), and sigma is the threshold of each
+    neuron (for example, the value that its total inputs must exceed to set it to
+    "on"). When the Hopfield network is in its final configuration, it also minimizes
+    the value of the energy function computed for the network, which is lowered by
+    units with an identical state(s) being connected strongly (*w*). The probability
+    associated with a particular configuration is given by the **Gibbs measure**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *Z(B)* is a normalizing constant that represents all possible configurations
+    of the network, in the same respect as the normalizing constant in the Bayesian
+    probability function you saw in *Chapter 1*, *An Introduction to Generative AI:
+    "Drawing" Data from Models*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also notice in the energy function definition that the state of a neuron is
+    only affected by local connections (rather than the state of every other neuron
+    in the network, regardless of if it is connected); this is also known as the **Markov
+    property**, since the state is "memoryless," depending only on its immediate "past"
+    (neighbors). In fact, the *Hammersly-Clifford theorem* states that any distribution
+    having this same memoryless property can be represented using the Gibbs measure.^(13)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modeling data with uncertainty with Restricted Boltzmann Machines
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: What other kinds of distributions might we be interested in? While useful from
+    a theoretical perspective, one of the shortcomings of the Hopfield network is
+    that it can't incorporate the kinds of uncertainty seen in actual physical or
+    biological systems; rather than deterministically turning on or off, real-world
+    problems often involve an element of chance – a magnet might flip polarity, or
+    a neuron might fire at random.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This uncertainty, or *stochasticity*, is reflected in the *Boltzmann machine*,^(14)
+    a variant of the Hopfield network in which half the neurons (the "visible" units)
+    receive information from the environment, while half (the "hidden" units) only
+    receive information from the visible units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Chapter_04_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.6: The Boltzmann machine'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Boltzmann machine randomly turns on (1) or off (0) each neuron by sampling,
+    and over many iterations converges to a stable state represented by the minima
+    of the energy function. This is shown schematically in *Figure 4.6*, in which
+    the white nodes of the network are "off," and the blue ones are "on;" if we were
+    to simulate the activations in the network, these values would fluctuate over
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In theory, a model like this could be used, for example, to model the distribution
+    of images, such as the MNIST data using the hidden nodes as a "barcode" that represents
+    an underlying probability model for "activating" each pixel in the image. In practice,
+    though, there are problems with this approach. Firstly, as the number of units
+    in the Boltzmann network increases, the number of connections increases exponentially
+    (for example, the number of potential configurations that has to be accounted
+    for in the Gibbs measure's normalization constant explodes), as does the time
+    needed to sample the network to an equilibrium state. Secondly, weights for units
+    with intermediate activate probabilities (not strongly 0 or 1) will tend to fluctuate
+    in a random walk pattern (for example, the probabilities will increase or decrease
+    randomly but never stabilize to an equilibrium value) until the neurons converge,
+    which also prolongs training.^(15)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A practical modification is to remove some of the connections in the Boltzmann
+    machine, namely those between visible units and between hidden units, leaving
+    only connections between the two types of neurons. This modification is known
+    as the RBM, shown in *Figure 4.7*^(16):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Chapter_04_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.7: RBM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine as described earlier that the visible units are input pixels from the
+    MNIST dataset, and the hidden units are an encoded representation of that image.
+    By sampling back and forth to convergence, we could create a generative model
+    for images. We would just need a learning rule that would tell us how to update
+    the weights to allow the energy function to converge to its minimum; this algorithm
+    is **contrastive divergence** (**CD**). To understand why we need a special algorithm
+    for RBMs, it helps to revisit the energy equation and how we might sample to get
+    equilibrium for the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Contrastive divergence: Approximating a gradient'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'If we refer back to *Chapter 1*, *An Introduction to Generative AI: "Drawing"
+    Data from Models*, creating a generative model of images using an RBM essentially
+    involves finding the probability distribution of images, using the energy equation^(17):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'where *x* is an image, theta is the parameters of the model (the weights and
+    biases), and *Z* is the partition function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_006.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In order to find the parameters that optimize this distribution, we need to
+    maximize the likelihood (product of each datapoint''s probability under a density
+    function) based on data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In practice, it''s a bit easier to use the negative log likelihood, as this
+    is represented by a sum:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If the distribution *f* has a simple form, then we can just take the derivative
+    of *E* with respect to parameters of *f*. For example, if *f* is a single normal
+    distribution, then the values that maximize *E* with respect to mu (the mean)
+    and sigma (the standard deviation) are, respectively, the sample mean and standard
+    deviation; the partition function *Z* doesn't affect this calculation because
+    the integral is 1, a constant, which becomes 0 once we take the logarithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the distribution is instead a sum of *N* normal distributions, then the partial
+    derivative of *mu(i)* (one of these distributions) with respect to *f* (the sum
+    of all the *N* normal distributions) involves the mu and sigma of each other distribution
+    as well. Because of this dependence, there is no closed-form solution (for example,
+    a solution equation we can write out by rearranging terms or applying algebraic
+    transformations) for the optimal value; instead, we need to use a gradient search
+    method (such as the backpropagation algorithm we discussed in *Chapter 3*, *Building
+    Blocks of Deep Neural Networks*) to iteratively find the optimal value of this
+    function. Again, the integral of each of these *N* distributions is 1, meaning
+    the partition function is the constant *log(N)*, making the derivative 0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What happens if the distribution *f* is a product, instead of a sum, of normal
+    distributions? The partition function *Z* is now no longer a constant in this
+    equation with respect to theta, the parameters; the value will depend on how and
+    where these functions overlap when computing the integral – they could cancel
+    each other out by being mutually exclusive (0) or overlapping (yielding a value
+    greater than 1). In order to evaluate gradient descent steps, we would need to
+    be able to compute this partition function using numerical methods. In the RBM
+    example, this partition function for the configuration of 28x28 MNIST digits would
+    have 784 logistic units, and a massive number (2^(784)) of possible configurations,
+    making it unwieldy to evaluate every time we want to take a gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Is there any other way we could optimize the value of this energy equation
+    without taking a full gradient? Returning to the energy equation, let''s write
+    out the gradient explicitly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_009.png)![](img/B16176_04_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The partition function *Z* can be further written as a function of the integral
+    involving *X* and the parameters of *f*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_011.png)![](img/B16176_04_012.png)![](img/B16176_04_013.png)![](img/B16176_04_014.png)![](img/B16176_04_015.png)![](img/B16176_04_016.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *< >* represents an average over the observed data sampled from the distribution
+    of *x*. In other words, we can approximate the integral by sampling from the data
+    and computing the average, which allows us to avoid computing or approximating
+    high-dimensional integrals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we can't directly sample from *p(x)*, we can use a technique known as
+    **Markov Chain Monte Carlo** (**MCMC**) sampling to generate data from the target
+    distribution *p(x')*. As was described in our discussion on Hopfield networks,
+    the "Markov" property means that this sampling only uses the last sample as input
+    in determining the probability of the next datapoint in the simulation – this
+    forms a "chain" in which each successive sampled datapoint becomes input to the
+    next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The "Monte Carlo" in the name of this technique is a reference to a casino
+    in the principality of Monaco, and denotes that, like the outcomes of gambling,
+    these samples are generated through a random process. By generating these random
+    samples, you can use *N* MCMC steps as an approximation of the average of a distribution
+    that is otherwise difficult or impossible to integrate. When we put all of this
+    together, we get the following gradient equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_017.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *X* represents the data at each step in the MCMC chain, with *X*⁰ being
+    the input data. While in theory you might think it would take a large number of
+    steps for the chain to converge, in practice it has been observed that even *N=1*
+    steps is enough to get a decent gradient approximation.^(18)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that the end result is a *contrast* between the input data and the sampled
+    data; thus, the method is named **contrastive divergence** as it involves the
+    difference between two distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Applying this to our RBM example, we can follow this recipe to generate the
+    required samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take an input vector *v*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute a "hidden" activation *h*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the activation from (*2*) to generate a sampled visible state *v'*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use (*3*) to generate a sampled hidden state *h'*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the updates, which are simply the correlations of the visible and hidden
+    units:![](img/B16176_04_018.png)![](img/B16176_04_019.png)![](img/B16176_04_020.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: where *b* and *c* are the bias terms of visible and hidden units, respectively,
+    and *e* is the learning rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This sampling is known as **Gibbs sampling**, a method in which we sample one
+    unknown parameter of a distribution at a time while holding all others constant.
+    Here we hold the visible or the hidden fixed and sample units in each step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With CD, we now have a way to perform gradient descent to learn the parameters
+    of our RBM model; as it turns out, we can potentially compute an even better model
+    by stacking RBMs in what is called a DBN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Stacking Restricted Boltzmann Machines to generate images: the Deep Belief
+    Network'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have seen that an RBM with a single hidden layer can be used to learn a
+    generative model of images; in fact, theoretical work has suggested that with
+    a sufficiently large number of hidden units, an RBM can approximate *any* distribution
+    with binary values.^(19) However, in practice, for very large input data, it may
+    be more efficient to add additional layers, instead of a single large layer, allowing
+    a more "compact" representation of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Researchers who developed DBNs also noted that adding additional layers can
+    only lower the log likelihood of the lower bound of the approximation of the data
+    reconstructed by the generative model.^(20) In this case, the hidden layer output
+    *h* of the first layer becomes the input to a second RBM; we can keep adding other
+    layers to make a deeper network. Furthermore, if we wanted to make this network
+    capable of learning not only the distribution of the image (*x*) but also the
+    label – which digit it represents from 0 to 9 (*y*) – we could add yet another
+    layer to a stack of connected RBMs that is a probability distribution (softmax)
+    over the 10 possible digit classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A problem with training a very deep graphical model such as stacked RBMs is
+    the "explaining-away effect" that we discussed in *Chapter 3*, *Building Blocks
+    of Deep Neural Networks*. Recall that the dependency between variables can complicate
+    inference of the state of hidden variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Chapter_04_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.8: The explaining-away effect in a Bayesian network^(21)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 4.8*, the knowledge that the pavement is wet can be explained by
+    a sprinkler being turned on, to the extent that the presence or absence of rain
+    becomes irrelevant, meaning we can''t meaningfully infer the probability that
+    it is raining. This is equivalent to saying that the posterior distribution (*Chapter
+    1*, *An Introduction to Generative AI: "Drawing" Data from Models*) of the hidden
+    units cannot be tractably computed, since they are correlated, which interferes
+    with easily sampling the hidden states of the RBM.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One solution is to treat each of the units as independent in the likelihood
+    function, which is known as *variational inference*; while this works in practice,
+    it is not a satisfying solution given that we know that these units are in fact
+    correlated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But where does this correlation come from? If we sample the state of the visible
+    units in a single-layer RBM, we set the states of each hidden unit randomly since
+    they are independent; thus the *prior distribution* over the hidden units is independent.
+    Why is the posterior then correlated? Just as the knowledge (data) that the pavement
+    is wet causes a correlation between the probabilities of a sprinkler and rainy
+    weather, the correlation between pixel values causes the posterior distribution
+    of the hidden units to be non-independent. This is because the pixels in the images
+    aren't set randomly; based on which digit the image represents, groups of pixels
+    are more or less likely to be bright or dark. In the 2006 paper *A Fast Learning
+    Algorithm for Deep Belief Nets*,^(22) the authors hypothesized that this problem
+    could be solved by computing a *complementary prior* that has exactly the opposite
+    correlation to the likelihood, thus canceling out this dependence and making the
+    posterior also independent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To compute this *complementary prior*, we could use the posterior distribution
+    over hidden units in a higher layer. The trick to generating such distributions
+    is in a greedy, layer-wise procedure for "priming" the network of stacked RBMs
+    in a multi-layer generative model, such that the weights can then be fine-tuned
+    as a classification model. For example, let''s consider a three-layer model for
+    the MNIST data (*Figure 4.9*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.9: DBN architecture based on "A fast learning algorithm for deep belief
+    nets" by Hinton et al.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The two 500-unit layers form representations of the MNIST digits, while the
+    2000- and 10-unit layers are "associative memory" that correlates labels with
+    the digit representation. The two first layers have directed connections (different
+    weights) for upsampling and downsampling, while the top layers have undirected
+    weights (the same weight for forward and backward passes).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This model could be learned in stages. For the first 500-unit RBM, we would
+    treat it as an undirected model by enforcing that the forward and backward weights
+    are equal; we would then use CD to learn the parameters of this RBM. We would
+    then fix these weights and learn a *second* (500-unit) RBM that uses the hidden
+    units from the first layer as input "data," and repeat for the 2000-layer unit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After we have "primed" the network, we no longer need to enforce that the weights
+    in the bottom layers are tied, and can fine-tune the weights using an algorithm
+    known as "wake-sleep."^(23)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Firstly, we take input data (the digits) and compute the activations of the
+    other layers all the way up until the connections between the 2000- and 10-unit
+    layers. We compute updates to the "generative weights" (those that compute the
+    activations that yield image data from the network) pointing downward using the
+    previously given gradient equations. This is the "wake" phase because if we consider
+    the network as resembling a biological sensory system, then it receives input
+    from the environment through this forward pass.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the 2000- and 10-unit layers, we use the sampling procedure for CD using
+    the second 500-unit layer's output as "data" to update the undirected weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then take the output of the 2000-layer unit and compute activations downward,
+    updating the "recognition weights" (those that compute activations that lead to
+    the classification of the image into one of the digit classes) pointing upward.
+    This is called the "sleep" phase because it displays what is in the "memory" of
+    the network, rather than taking data from outside.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then repeat *these steps* until convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that in practice, instead of using undirected weights in the top layers
+    of the network, we could replace the last layer with directed connections and
+    a softmax classifier. This network would then technically no longer be a DBN,
+    but rather a regular Deep Neural Network that we could optimize with backpropagation.
+    This is an approach we will take in our own code, as we can then leverage TensorFlow's
+    built-in gradient calculations, and it fits into the paradigm of the Model API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have covered the theoretical background to understand how a DBN
+    is trained and how the pre-training approach resolves issues with the "explaining-away"
+    effect, we will implement the whole model in code, showing how we can leverage
+    TensorFlow 2's gradient tape functionality to implement CD as a custom learning
+    algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating an RBM using the TensorFlow Keras layers API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that you have an appreciation of some of the theoretical underpinnings of
+    the RBM, let's look at how we can implement it using the TensorFlow 2.0 library.
+    For this purpose, we will represent the RBM as a custom layer type using the Keras
+    layers API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Code in this chapter was adapted to TensorFlow 2 from the original Theano (another
+    deep learning Python framework) code from deeplearning.net.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly, we extend `tf.keras.layer`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We input a number of hidden units, visible units, a learning rate for CD updates,
+    and the number of steps to take with each CD pass. For the layers API, we are
+    only required to implement two functions: `build()` and `call()`. `build()` is
+    executed when we call `model.compile()`, and is used to initialize the weights
+    of the network, including inferring the right size of the weights given the input
+    dimensions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need a way to perform both forward and reverse samples from the model.
+    For the forward pass, we need to compute sigmoidal activations from the input,
+    and then stochastically turn the hidden units on or off based on the activation
+    probability between 1 and 0 given by that sigmoidal activation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Likewise, we need a way to sample in reverse for the visible units:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also implement `call()` in the RBM class, which provides the forward pass
+    we would use if we were to use the `fit()` method of the Model API for backpropagation
+    (which we can do for fine-tuning later in our deep belief model):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To actually implement CD learning for each RBM, we need to create some additional
+    functions. The first calculates the free energy, as you saw in the Gibbs measure
+    earlier in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note here that we could have used the Bernoulli distribution from `tensorflow_probability`
+    in order to perform this sampling, using the sigmoidal activations as the probabilities;
+    however, this is slow and would cause performance issues when we need to repetitively
+    sample during CD learning. Instead, we use a speedup in which we sample an array
+    of uniform random numbers the same size as the sigmoidal array and then set the
+    hidden unit as 1 if it is greater than the random number. Thus, if a sigmoidal
+    activation is 0.9, it has a 90% probability of being greater than a randomly sampled
+    uniform number, and is set to "on." This has the same behavior as sampling a Bernoulli
+    variable with a probability of 0.9, but is computationally much more efficient.
+    The reverse and visible samples are computed similarly. Finally, putting these
+    together allows us to perform both forward and reverse Gibbs samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To perform the CD updates, we make use of TensorFlow 2''s eager execution and
+    the `GradientTape` API you saw in *Chapter 3*, *Building Blocks of Deep Neural
+    Networks*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We perform one or more sample steps, and compute the cost using the difference
+    between the free energy of the data and the reconstructed data (which is cast
+    as a constant using `tf.constant` so that we don''t treat it as a variable during
+    autogradient calculation). We then compute the gradients of the three weight matrices
+    and update their values, before returning our reconstruction cost as a way to
+    monitor progress. The reconstruction cost is simply the cross-entropy loss between
+    the input and reconstructed data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'which represents the formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_021.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *y* is the target label, *y-hat* is the estimated label from the softmax
+    function, and *N* is the number of elements in the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we enforce the weights being equal by copying over the transposed
+    value of the updated (recognition) weights into the generative weights. Keeping
+    the two sets of weights separate will be useful later on when we perform updates
+    only on the recognition (forward) or generative (backward) weights during the
+    wake-sleep procedure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Putting it all together, we can initialize an RBM with 500 units like in Hinton''s
+    paper24, call `build()` with the shape of the flattened MNIST digits, and run
+    successive epochs of training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After ~25 steps, the model should converge, and we can inspect the results.
+    One parameter of interest is the weight matrix *w*; the shape is 784 (28x28) by
+    500, so we could see each "column" as a 28x28 filter, similar to the kernels in
+    the convolutional networks we studied in *Chapter 3*, *Building Blocks of Deep
+    Neural Networks*. We can visualize a few of these to see what kinds of patterns
+    they are recognizing in the images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This provides a set of filters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_04_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.10: DBN filters after training'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can see that these filters appear to represent different shapes that we
+    would find in a digit image, such as curves or lines. We can also observe the
+    reconstruction of the images by sampling from our data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![](img/B16176_04_11.png)![](img/B16176_04_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.11: Original (right) and reconstructed (left) digits from DBN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see in *Figure 4.11* that the network has nicely captured the underlying
+    data distribution, as our samples represent a recognizable binary form of the
+    input images. Now that we have one layer working, let's continue by combining
+    multiple RBMs in layers to create a more powerful model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a DBN with the Keras Model API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have now seen how to create a single-layer RBM to generate images; this
+    is the building block required to create a full-fledged DBN. Usually, for a model
+    in TensorFlow 2, we only need to extend `tf.keras.Model` and define an initialization
+    (where the layers are defined) and a `call` function (for the forward pass). For
+    our DBN model, we also need a few more custom functions to define its behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, in the initialization, we need to pass a list of dictionaries that contain
+    the parameters for our RBM layers (`number_hidden_units`, `number_visible_units`,
+    `learning_rate`, `cd_steps`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note at the same time that we also initialize a set of sigmoidal dense layers
+    with a softmax at the end, which we can use for fine-tuning through backpropagation
+    once we''ve trained the model using the generative procedures outlined earlier.
+    To train the DBN, we begin a new code block to start the generative learning process
+    for the stack of RBMs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that for computational efficiency, we generate the input for each layer
+    past the first by passing every datapoint through the prior layer in a forward
+    pass using the `map()` function for the Dataset API, instead of having to generate
+    these forward samples repeatedly. While this takes more memory, it greatly reduces
+    the computation required. Each layer in the pre-training loop calls back to the
+    CD loop you saw before, which is now a member function of the DBN class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we have pre-trained in a greedy manner, we can proceed to the wake-sleep
+    step. We start with the upward pass:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Again, note that we gather a list of the transformed forward passes at each
+    stage so that we have the necessary inputs for the update formula. We''ve now
+    added a function, `wake_update`, to the RBM class, which will compute updates
+    only for the generative (downward) weights, in every layer except the last (the
+    associate, undirected connections):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is almost identical to the CD update, except that we are only updating
+    the generative weights and the visible unit bias terms. Once we compute the forward
+    pass, we then perform a contrastive update on the associate memory in the top
+    layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then need to compute the data for the `reverse` pass of the wake-sleep algorithm;
+    we do this by again applying a mapping to the last layer input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the sleep pass, we need to traverse the RBM in reverse, updating only the
+    non-associative (undirected) connections. We first need to map the required input
+    for each layer in reverse:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we perform a backward traversal of the layers, only updating the non-associative
+    connections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we are satisfied with the training progress, we can tune the model further
+    using normal backpropagation. The last step in the wake-sleep procedure is to
+    set all the dense layers with the results of the trained weights from the RBM
+    layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have included a forward pass for a neural network in the DBN class using
+    the call `function()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This can be used in the `fit()` call in the TensorFlow API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: This begins to train the now pre-trained weights using backpropagation, to fine-tune
+    the discriminative power of the model. One way to conceptually understand this
+    fine-tuning is that the pre-training procedure guides the weights to a reasonable
+    configuration that captures the "shape" of the data, which backpropagation can
+    then tune for a particular classification task. Otherwise, starting from a completely
+    random weight configuration, the parameters are too far from capturing the variation
+    in the data to be efficiently navigated to an optimal configuration through backpropagation
+    alone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You have seen how to combine multiple RBMs in layers to create a DBN, and how
+    to run a generative learning process on the end-to-end model using the TensorFlow
+    2 API; in particular, we made use of the gradient tape to allow us to record and
+    replay the gradients using a non-standard optimization algorithm (for example,
+    not one of the default optimizers in the TensorFlow API), allowing us to plug
+    a custom gradient update into the TensorFlow framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about one of the most important models from the
+    beginnings of the deep learning revolution, the DBN. You saw that DBNs are constructed
+    by stacking together RBMs, and how these undirected models can be trained using
+    CD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The chapter then described a greedy, layer-wise procedure for priming a DBN
+    by sequentially training each of a stack of RBMs, which can then be fine-tuned
+    using the wake-sleep algorithm or backpropagation. We then explored practical
+    examples of using the TensorFlow 2 API to create an RBM layer and a DBN model,
+    illustrating the use of the `GradientTape` class to compute updates using CD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also learned how, following the wake-sleep algorithm, we can compile the
+    DBN as a normal Deep Neural Network and perform backpropagation for supervised
+    training. We applied these models to MNIST data and saw how an RBM can generate
+    digits after training converges, and has features resembling the convolutional
+    filters described in *Chapter 3*, *Building Blocks of Deep Neural Networks*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the examples in the chapter involved significantly extending the basic
+    layer and model classes of the TensorFlow Keras API, they should give you an idea
+    of how to implement your own low-level alternative training procedures. Going
+    forward, we will mostly stick to using the standard `fit()` and `predict()` methods,
+    starting with our next topic, Variational Autoencoders, a sophisticated and computationally
+    efficient way to generate image data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'LeCun, Yann; Léon Bottou; Yoshua Bengio; Patrick Haffner (1998). *Gradient-
+    Based Learning Applied to Document Recognition*. Proceedings of the IEEE. 86 (11):
+    2278–2324'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: LeCun, Yann; Corinna Cortes; Christopher J.C. Burges. *MNIST handwritten digit
+    database, Yann LeCun, Corinna Cortes, and Chris Burges*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'NIST''s original datasets: [https://www.nist.gov/system/files/documents/srd/nistsd19.pdf](https://www.nist.gov/system/files/documents/srd/nistsd19.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/MnistExamples.png/440px-MnistExamples.png](https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/MnistExamples.png/440px-MnistExamples.png)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'LeCun, Yann; Léon Bottou; Yoshua Bengio; Patrick Haffner (1998). *Gradient-Based
+    Learning Applied to Document Recognition*. Proceedings of the IEEE. 86 (11): 2278–2324'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: D. Ciregan, U. Meier and J. Schmidhuber, (2012) *Multi-column deep neural networks
+    for image classification*, 2012 IEEE Conference on Computer Vision and Pattern
+    Recognition, pp. 3642-3649\. [https://ieeexplore.ieee.org/document/6248110](https://ieeexplore.ieee.org/document/6248110)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton GE, Osindero S, Teh YW. (2006) *A fast learning algorithm for deep belief
+    nets*. Neural Comput. 18(7):1527-54\. [https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf](https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hebb, D. O. (1949). *The Organization of Behavior: A Neuropsychological Theory*.
+    New York: Wiley and Sons'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gurney, Kevin (2002). *An Introduction to Neural Networks*. Routledge
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sathasivam, Saratha (2008). *Logic Learning in Hopfield Networks*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hebb, D. O.. *The organization of behavior: A neuropsychological theory*. Lawrence
+    Erlbaum, 2002.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Suzuki, Wendy A. (2005). *Associative Learning and the Hippocampus*. Psychological
+    Science Agenda. American Psychological Association. [https://www.apa.org/science/about/psa/2005/02/suzuki](https://www.apa.org/science/about/psa/2005/02/suzuki)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hammersley, J. M.; Clifford, P. (1971), Markov fields on finite graphs and
+    lattices; Clifford, P. (1990), *Markov random fields in statistics*, in Grimmett,
+    G. R.; Welsh, D. J. A. (eds.), *Disorder in Physical Systems: A Volume in Honour
+    of John M. Hammersley*, Oxford University Press, pp. 19–32'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Ackley, David H; Hinton, Geoffrey E; Sejnowski, Terrence J (1985), *A learning
+    algorithm for Boltzmann machines* (PDF), Cognitive Science, 9 (1): 147–169'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*Boltzmann machine*. Wikipedia. Retrieved April, 26, 2021 from [https://en.wikipedia.org/wiki/Boltzmann_machine](https://en.wikipedia.org/wiki/Boltzmann_machine)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Smolensky, Paul (1986). *Chapter 6: Information Processing in Dynamical Systems:
+    Foundations of Harmony Theory* (PDF). In Rumelhart, David E.; McLelland, James
+    L. (eds.). *Parallel Distributed Processing: Explorations in the Microstructure
+    of Cognition*, Volume 1: Foundations. MIT Press. pp. 194–281'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Woodford O. *Notes on Contrastive Divergence*. [http://www.robots.ox.ac.uk/~ojw/files/NotesOnCD.pdf](http://www.robots.ox.ac.uk/~ojw/files/NotesOnCD.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton, G E. (2000). *Training Products of Experts by Minimizing Contrastive
+    Divergence*. [http://www.cs.utoronto.ca/~hinton/absps/nccd.pdf](http://www.cs.utoronto.ca/~hinton/absps/nccd.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Roux, N L., Bengio, Y. (2008). *Representational Power of Restricted Boltzmann
+    Machines and Deep Belief Networks*. in Neural Computation, vol. 20, no. 6, pp.
+    1631-1649\. [https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/representational_power.pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/representational_power.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton, G E. (2000). *Training Products of Experts by Minimizing Contrastive
+    Divergence*. [http://www.cs.utoronto.ca/~hinton/absps/nccd.pdf](http://www.cs.utoronto.ca/~hinton/absps/nccd.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pearl J., Russell S. (2000). *BAYESIAN NETWORKS*. [https://ftp.cs.ucla.edu/pub/stat_ser/r277.pdf](https://ftp.cs.ucla.edu/pub/stat_ser/r277.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton GE, Osindero S, Teh YW. (2006) *A fast learning algorithm for deep belief
+    nets*. Neural Comput. 18(7):1527-54\. [https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf](https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton GE, Osindero S, Teh YW. (2006) *A fast learning algorithm for deep belief
+    nets*. Neural Comput. 18(7):1527-54\. [https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf](https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton GE, Osindero S, Teh YW. (2006) *A fast learning algorithm for deep belief
+    nets*. Neural Comput. 18(7):1527-54\. [https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf](https://www.cs.toronto.edu/~hinton/absps/fastnc.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

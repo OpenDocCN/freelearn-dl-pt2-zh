@@ -1,0 +1,987 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Painting Pictures with Neural Networks Using VAEs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you saw in *Chapter 4*, *Teaching Networks to Generate Digits*, deep neural
+    networks are a powerful tool for creating generative models for complex data such
+    as images, allowing us to develop a network that can generate images from the
+    MNIST hand-drawn digit database. In that example, the data is relatively simple;
+    images can only come from a limited set of categories (the digits 0 through 9)
+    and are low-resolution grayscale data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What about more complex data, such as color images drawn from the real world?
+    One example of such "real world" data is the Canadian Institute for Advanced Research
+    10 class dataset, denoted as CIFAR-10.¹ It is a subset of 60,000 examples from
+    a larger set of 80 million images, divided into ten classes – airplanes, cars,
+    birds, cats, deer, dogs, frogs, horses, ships, and trucks. While still an extremely
+    limited set in terms of the diversity of images we would encounter in the real
+    world, these classes have some characteristics that make them more complex than
+    MNIST. For example, the MNIST digits can vary in width, curvature, and a few other
+    properties; the CIFAR-10 classes have a much wider potential range of variation
+    for animal or vehicle photos, meaning we may require more complex models in order
+    to capture this variation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will discuss a class of generative models known as **Variational
+    Autoencoders** (**VAEs**), which are designed to make the generation of these
+    complex, real-world images more tractable and tunable. They do this by using a
+    number of clever simplifications to make it possible to sample over the complex
+    probability distribution represented by real-world images in a way that is scalable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will explore the following topics to reveal how VAEs work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How neural networks create low-dimensional representations of data, and some
+    desirable properties of those representations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How variational methods allow us to sample from complex data using these representations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How using the reparameterization trick allows us to stabilize the variance of
+    a neural network based on variational sampling—a VAE
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How we can use **Inverse Autoregressive Flow** (**IAF**) to tune the output
+    of a VAE
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to implement VAE/IAF in TensorFlow
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating separable encodings of images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In *Figure 5.1*, you can see an example of images from the CIFAR-10 dataset,
+    along with an example of an early VAE algorithm that can generate fuzzy versions
+    of these images based on a random number input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.1: CIFAR-10 sample (left), VAE (right)²'
+  prefs: []
+  type: TYPE_NORMAL
+- en: More recent work on VAE networks has allowed these models to generate much better
+    images, as you will see later in this chapter. To start, let's revisit the problem
+    of generating MNIST digits and how we can extend this approach to more complex data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall from *Chapter 1*, *An Introduction to Generative AI: "Drawing" Data
+    from Models* and *Chapter 4*, *Teaching Networks to Generate Digits* that the
+    RBM (or DBN) model in essence involves learning the posterior probability distribution
+    for images (*x*) given some latent "code" (*z*), represented by the hidden layer(s)
+    of the network, the "marginal likelihood" of *x*:³'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see *z* as being an "encoding" of the image *x* (for example, the activations
+    of the binary hidden units in the RBM), which can be decoded (for example, run
+    the RBM in reverse in order to sample an image) to get a reconstruction of *x*.
+    If the encoding is "good," the reconstruction will be close to the original image.
+    Because these networks encode and decode representations of their input data,
+    they are also known as "autoencoders."
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ability of deep neural networks to capture the underlying structure of complex
+    data is one of their most attractive features; as we saw with the DBN model in
+    *Chapter 4*, *Teaching Networks to Generate Digits*, it allows us to improve the
+    performance of a classifier by creating a better underlying model for the distribution
+    of the data. It can also be used to simply create a better way to "compress" the
+    complexity of data, in a similar way to **principal component analysis** (**PCA**)
+    in classical statistics. In *Figure 5.2*, you can see how the stacked RBM model
+    can be used as a way to encode the distribution of faces, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start with a "pre-training" phase to create a 30-unit encoding vector, which
+    we then calibrate by forcing it to reconstruct the input image, before fine-tuning
+    with standard backpropagation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.2: Using a DBN as an autoencoder⁴'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As an example of how the stacked RBM model can more effectively represent the
+    distribution of images, the authors of the paper *Reducing the Dimensionality
+    of Data with Neural Networks*, from which *Figure 5.2* is derived, demonstrated
+    using a two-unit code for the MNIST digits compared to PCA:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: PCA versus RBM autoencoder for MNIST digits⁵'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On the left, we see the digits 0-9 (represented by different shades and shapes)
+    encoded using 2-dimensional PCA. Recall that PCA is generated using a low-dimensional
+    factorization of the covariance matrix of the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *Cov(X)* is the same height/width *M* as the data (for example, 28 by
+    28 pixels in MNIST) and *U* and *V* are both lower dimensional (*M* x *k* and
+    *k* x *M*), where *k* is much smaller than *M*. Because they have a smaller number
+    of rows/columns *k* than the original data in one dimension, *U* and *V* are lower-dimensional
+    representations of the data, and we can get an encoding of an individual image
+    by projecting it onto these *k* vectors, giving a *k* unit encoding of the data.
+    Since the decomposition (and projection) is a linear transformation (multiplying
+    two matrices), the ability of the PCA components to distinguish data well depends
+    on the data being linearly separable (we can draw a hyperplane through the space
+    between groups—that space could be two-dimensional or *N* dimensional, like the
+    784 pixels in the MNIST images).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in *Figure 5.3*, PCA yields overlapping codes for the images,
+    showing that it is challenging to represent digits using a two-component linear
+    decomposition, in which vectors representing the same digit are close together,
+    while those representing different digits are clearly separated. Conceptually,
+    the neural network is able to capture more of the variation between images representing
+    different digits than PCA, as shown by its ability to separate the representations
+    of these digits more clearly in a two-dimensional space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As an analogy to understand this phenomenon, consider a very simple two-dimensional
+    dataset consisting of parallel hyperbolas (2^(nd) power polynomials) (*Figure
+    5.4*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.4: Parallel hyperbolas and separability'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the top, even though we have two distinct classes, we cannot draw a straight
+    line through two-dimensional space to separate the two groups; in a neural network,
+    the weight matrix in a single layer before the nonlinear transformation of a sigmoid
+    or tanh is, in essence, a linear boundary of this kind. However, if we apply a
+    nonlinear transformation to our 2D coordinates, such as taking the square root
+    of the hyperbolas, we can create two separable planes (*Figure 5.4*, *bottom*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A similar phenomenon is at play with our MNIST data: we need a neural network
+    in order to place these 784-digit images into distinct, separable regions of space.
+    This goal is achieved by performing a non-linear transformation on the original,
+    overlapping data, with an objective function that rewards increasing the spatial
+    separation among vectors encoding the images of different digits. A separable
+    representation thus increases the ability of the neural network to differentiate
+    image classes using these representations. Thus, in *Figure 5.3*, we can see on
+    the right that applying the DBN model creates the required non-linear transformation
+    to separate the different images.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've covered how neural networks can compress data into numerical
+    vectors and what some desirable properties of those vector representations are,
+    we'll examine how to optimally compress information in these vectors. To do so,
+    each element of the vector should encode distinct information from the others,
+    a property we can achieve using a variational objective. This variational objective
+    is the building block for creating VAE networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The variational objective
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We previously covered several examples of how images can be compressed into
+    numerical vectors using neural networks. This section will introduce the elements
+    that allow us to create effective encodings to sample new images from a space
+    of random numerical vectors, which are principally efficient inference algorithms
+    and appropriate objective functions. Let''s start by quantifying more rigorously
+    what makes such an encoding "good" and allows us to recreate images well. We will
+    need to maximize the posterior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A problem occurs when the probability of *x* is extremely high dimensional,
+    which, as you saw, can occur in even simple data such as binary MNIST digits,
+    where we have *2^* (number of pixels) possible configurations that we would need
+    to integrate over (in a mathematical sense of integrating over a probability distribution)
+    to get a measure of the probability of an individual image; in other words, the
+    density *p*(*x*) is intractable, making the posterior *p*(*z*|*x*), which depends
+    on *p*(*x*), likewise intractable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some cases, such as you saw in *Chapter 4*, *Teaching Networks to Generate
+    Digits*, we can use simple cases such as binary units to compute an approximation
+    such as contrastive divergence, which allows us to still compute a gradient even
+    if we can't calculate a closed form. However, this might also be challenging for
+    very large datasets, where we would need to make many passes over the data to
+    compute an average gradient using **Contrastive Divergence** (**CD**), as you
+    saw previously in *Chapter 4*, *Teaching Networks to Generate Digits*.⁶
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we can''t calculate the distribution of our encoder *p*(*z*|*x*) directly,
+    maybe we could optimize an approximation that is "close enough"—let''s called
+    this *q*(*z*|*x*). Then, we could use a measure to determine if the distributions
+    are close enough. One useful measure of closeness is whether the two distributions
+    encode similar information; we can quantify information using the Shannon Information
+    equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Consider why this is a good measure: as *p*(*x*) decreases, an event becomes
+    rarer, and thus observation of the event communicates more information about the
+    system or dataset, leading to a positive value of *-log*(*p*(*x*)). Conversely,
+    as the probability of an event nears 1, that event encodes less information about
+    the dataset, and the value of *-log*(*p*(*x*)) becomes 0 (*Figure 5.5*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.5: Shannon information'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, if we wanted to measure the difference between the information encoded
+    in two distributions, *p* and *q*, we could use the difference in their information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Finally, if we want to find the expected difference in information between
+    the distributions for all elements of *x*, we can take the average over *p*(*x*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_006.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This quantity is known as the **Kullback Leibler** (**KL**) **Divergence**.
+    It has a few interesting properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is not symmetric: *KL*(*p*(*x*), *q*(*x*)) does not, in general, equal *KL*(*q*(*x*),
+    *p*(*x*)), so the "closeness" is measured by mapping one distribution to another
+    in a particular direction.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Whenever *q*(*x*) and *p*(*x*) match, the term is 0, meaning they are a minimum
+    distance from one another. Likewise, *KL*(*p*(*x*), *q*(*x*)) is 0 only if *p*
+    and *q* are identical.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If *q*(*x*) is 0 or *p*(*x*) is 0, then *KL* is undefined; by definition, it
+    only computes relative information over the range of *x* where the two distributions
+    match.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*KL* is always greater than 0.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If we were to use the *KL* divergence to compute how well an approximation
+    *q*(*z,x*) is of our intractable *p*(*z*|*x*), we could write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'and:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B16176_05_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now we can write an expression for our intractable *p*(*x*) as well: since
+    *log*(*p*(*x*)) does not depend on *q*(*z*|*x*), the expectation with respect
+    to *p*(*x*) is simply *log*(*p*(*x*)). Thus, we can represent the objective of
+    the VAE, learning the marginal distribution of *p*(*x*), using the *KL* divergence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The second term is also known as the **Variational Lower Bound**, which is also
+    referred to as the **Evidence Lower Bound** (**ELBO**); since *KL*(*q,p*) is strictly
+    greater than 0, *log*(*p(x*)) is strictly greater than or (if *KL*(*q,p*) is 0)
+    equal to this value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To explain what this objective is doing, notice that the expectation introduces
+    a difference between *q*(*z*|*x*) (*encoding x*) and *p*(*x*|*z*)*p*(*z*) (the
+    joint probability of the data and the encoding); thus we want to minimize a lower
+    bound that is essentially the gap between the probability of the encoding and
+    the joint probability of the encoding and data, with an error term given by *KL*(*q,p*),
+    the difference between a tractable approximation and intractable form of the encoder
+    *p*(*z*|*x*). We can imagine the functions *Q*(*z*|*x*) and *P*(*x*|*z*) being
+    represented by two deep neural networks; one generates the latent code *z*(*Q*),
+    and the other reconstructs *x* from this code (*P*). We can imagine this as an
+    autoencoder setup, as above with the stacked RBM models, with an encoder and decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.6: Autoencoder/Decoder of an un-reparameterized VAE⁷'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We want to optimize the parameters of the encoder *Q* and the decoder *P* to
+    minimize the reconstruction cost. One way to do this is to construct Monte Carlo
+    samples to optimize the parameters ![](img/B16176_05_011.png) of *Q* using gradient
+    descent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_012.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where we sample *z*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_013.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: However, it has been found in practice that a large number of samples may be
+    required in order for the variance of these gradient updates to stabilize.⁸
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also have a practical problem here: even if we could choose enough samples
+    to get a good approximation of the gradients for the encoder, our network contains
+    a stochastic, non-differentiable step (sampling *z*) that we can''t backpropagate
+    through, in a similar way we couldn''t backpropagate through the stochastic units
+    in the RBM in *Chapter 4*, *Teaching Networks to Generate Digits*. Thus, our reconstruction
+    error depends on samples from *z*, but we can''t backpropagate through the step
+    that generates these samples to tune the network end to end. Is there a way we
+    can create a differentiable decoder/encoder architecture while also reducing the
+    variance of sample estimates? One of the main insights of the VAE is to enable
+    this through the "reparameterization trick."'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reparameterization trick
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In order to allow us to backpropagate through our autoencoder, we need to transform
+    the stochastic samples of *z* into a deterministic, differentiable transformation.
+    We can do this by reparameterizing *z* as a function of a noise variable ![](img/B16176_05_014.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Once we have sampled from ![](img/B16176_05_016.png), the randomness in *z*
+    no longer depends on the parameters of the variational distribution *Q* (the encoder),
+    and we can backpropagate end to end. Our network now looks like *Figure 5.7*,
+    and we can optimize our objective using random samples of ![](img/B16176_05_017.png)
+    (for example, a standard normal distribution). This reparameterization moves the
+    "random" node out of the encoder/decoder framework so we can backpropagate through
+    the whole system, but it also has a subtler advantage; it reduces the variance
+    of these gradients. Note that in the un-reparameterized network, the distribution
+    of *z* depends on the parameters of the encoder distribution *Q*; thus, as we
+    are changing the parameters of *Q*, we are also changing the distribution of *z*,
+    and we would need to potentially use a large number of samples to get a decent
+    estimate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By reparameterizing, *z* now depends only on our simpler function, *g*, with
+    randomness introduced through sampling ![](img/B16176_05_018.png) from a standard
+    normal (that doesn''t depend on *Q*); hence, we''ve removed a somewhat circular
+    dependency, and made the gradients we are estimating more stable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.7: Autoencoder/decoder of a reparameterized VAE⁹'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that you have seen how the VAE network is constructed, let''s discuss a
+    further refinement of this algorithm that allows VAEs to sample from complex distributions:
+    **Inverse Autoregressive Flow** (**IAF**).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inverse Autoregressive Flow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In our discussion earlier, it was noted that we want to use *q*(*z*|*x*) as
+    a way to approximate the "true" *p*(*z*|*x*) that would allow us to generate an
+    ideal encoding of the data, and thus sample from it to generate new images. So
+    far, we've assumed that *q*(*z*|*x*) has a relatively simple distribution, such
+    as a vector of Gaussian distribution random variables that are independent (a
+    diagonal covariance matrix with 0s on the non-diagonal elements). This sort of
+    distribution has many benefits; because it is simple, we have an easy way to generate
+    new samples by drawing from random normal distributions, and because it is independent,
+    we can separately tune each element of the latent vector *z* to influence parts
+    of the output image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, such a simple distribution may not fit the desired output distribution
+    of data well, increasing the *KL* divergence between *p*(*z*|*x*) and *q*(*z*|*x*).
+    Is there a way we can keep the desirable properties of *q*(*z*|*x*) but "transform"
+    *z* so that it captures more of the complexities needed to represent *x*?
+  prefs: []
+  type: TYPE_NORMAL
+- en: One approach is to apply a series of autoregressive transformations to *z* to
+    turn it from a simple to a complex distribution; by "autoregressive," we mean
+    that each transformation utilizes both data from the previous transformation and
+    the current data to compute an updated version of *z*. In contrast, the basic
+    form of VAE that we introduced above has only a single "transformation:" from
+    *z* to the output (though *z* might pass through multiple layers, there is no
+    recursive network link to further refine that output). We've seen such transformations
+    before, such as the LSTM networks in *Chapter 3*, *Building Blocks of Deep Neural
+    Networks*, where the output of the network is a combination of the current input
+    and a weighted version of prior time steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An attractive property of the independent *q*(*z*|*x*) distributions we discussed
+    earlier, such as independent normals, is that they have a very tractable expression
+    for the log likelihood. This property is important for the VAE model because its
+    objective function depends on integrating over the whole likelihood function,
+    which would be cumbersome for more complex log likelihood functions. However,
+    by constraining a transformed *z* to computation through a series of autoregressive
+    transformations, we have the nice property that the log-likelihood of step *t*
+    only depends on *t-1*, thus the Jacobian (gradient matrix of the partial derivative
+    between *t* and *t-1*) is lower triangular and can be computed as a sum:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_019.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'What kinds of transformations *f* could be used? Recall that after the parameterization
+    trick, *z* is a function of a noise element *e* and the mean and standard deviation
+    output by the encoder *Q*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_020.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If we apply successive layers of transformation, step *t* becomes the sum of
+    ![](img/B16176_05_021.png) and the element-wise product of the prior layer *z*
+    and the sigmoidal output ![](img/B16176_05_022.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_023.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In practice, we use a neural network transformation to stabilize the estimate
+    of the mean at each step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_024.png)![](img/B16176_05_025.png)![](img/B16176_05_026.png)![](img/B16176_05_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.8: IAF networks⁶'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, note the similarity of this transformation to the LSTM networks discussed
+    in *Chapter 3*, *Building Blocks of Deep Neural Networks*. In *Figure 5.8*, there
+    is another output (*h*) from the encoder *Q* in addition to the mean and standard
+    deviation in order to sample *z*. *H* is, in essence, "accessory data" that is
+    passed into each successive transformation and, along with the weighted sum that
+    is being calculated at each step, represents the "persistent memory" of the network
+    in a way reminiscent of the LSTM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Importing CIFAR
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've discussed the underlying theory of VAE algorithms, let's start
+    building a practical example using a real-world dataset. As we discussed in the
+    introduction, for the experiments in this chapter, we'll be working with the Canadian
+    Institute for Advanced Research (CIFAR) 10 dataset.^(10) The images in this dataset
+    are part of a larger 80 million "small image" dataset^(11), most of which do not
+    have class labels like CIFAR-10\. For CIFAR-10, the labels were initially created
+    by student volunteers^(12), and the larger tiny images dataset allows researchers
+    to submit labels for parts of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Like the MNIST dataset, CIFAR-10 can be downloaded using the TensorFlow dataset''s
+    API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will download the dataset to disk and make it available for our experiments.
+    To split it into training and test sets, we can use the following commands:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s inspect one of the images to see what format it is in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output tells us that each image in the dataset is of format `<DatasetV1Adapter
+    shapes: {image: (32, 32, 3), label: ()}`, `types: {image: tf.uint8, label: tf.int64}>:`
+    Unlike the MNIST dataset we used in *Chapter 4*, *Teaching Networks to Generate
+    Digits*, the CIFAR images have three color channels, each with 32 x 32 pixels,
+    while the label is an integer from 0 to 9 (representing one of the 10 classes).
+    We can also plot the images to inspect them visually:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.9: The output'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Like the RBM model, the VAE model we''ll build in this example has an output
+    scaled between 1 and 0 and accepts flattened versions of the images, so we''ll
+    need to turn each image into a vector and scale it to a maximum of 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This results in each image being a vector of length 3072 (32*32*3), which we
+    can reshape once we've run the model to examine the generated images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the network from TensorFlow 2
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've downloaded the CIFAR-10 dataset, split it into test and training
+    data, and reshaped and rescaled it, we are ready to start building our VAE model.
+    We'll use the same Model API from the Keras module in TensorFlow 2\. The TensorFlow
+    documentation contains an example of how to implement a VAE using convolutional
+    networks ([https://www.tensorflow.org/tutorials/generative/cvae](https://www.tensorflow.org/tutorials/generative/cvae)),
+    and we'll build on this code example; however, for our purposes, we will implement
+    simpler VAE networks using MLP layers based on the original VAE paper, *Auto-Encoding
+    Variational Bayes*^(13), and show how we adapt the TensorFlow example to also
+    allow for IAF modules in decoding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the original article, the authors propose two kinds of models for use in
+    the VAE, both MLP feedforward networks: Gaussian and Bernoulli, with these names
+    reflecting the probability distribution functions used in the MLP network outputs
+    in their finals layers The Bernoulli MLP can be used as the decoder of the network,
+    generating the simulated image *x* from the latent vector *z*. The formula for
+    the Bernoulli MLP is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_027.png)![](img/B16176_05_028.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where the first line is the cross-entropy function we use to determine if the
+    network generates an approximation of the original image in reconstruction, while
+    *y* is a feedforward network with two layers: a tanh transformation followed by
+    a sigmoidal function to scale the output between 0 and 1\. Recall that this scaling
+    is why we had to normalize the CIFAR-10 pixels from their original values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can easily create this Bernoulli MLP network using the Keras API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We just need to specify the dimensions of the single hidden layer and the latent
+    output (*z*). We then specify the forward pass as a composition of these two layers.
+    Note that in the output, we've returned three values, with the second two set
+    as `None`. This is because in our end model, we could use either the BernoulliMLP
+    or GaussianMLP as the decoder. If we used the GaussianMLP, we return three values,
+    as we will see below; the example in this chapter utilizes a binary output and
+    cross-entropy loss so we can use just the single output, but we want the return
+    signatures for the two decoders to match.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second network type proposed by the authors in the original VAE paper was
+    a Gaussian MLP, whose formulas are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_029.png)![](img/B16176_05_030.png)![](img/B16176_05_031.png)![](img/B16176_05_032.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This network can be used as either the encoder (generating the latent vector
+    *z*) or the decoder (generating the simulated image *x*) in the network. The equations
+    above assume that it is used as the decoder, and for the encoder we just switch
+    the *x* and *z* variables. As you can see, this network has two types of layers,
+    a hidden layer given by a tanh transformation of the input, and two output layers,
+    each given by linear transformations of the hidden layer, which are used as the
+    inputs of a lognormal likelihood function. Like the Bernoulli MLP, we can easily
+    implement this simple network using the TensorFlow Keras API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see, to implement the call function, we must return the two outputs
+    of the model (the mean and log variance of the normal distribution we''ll use
+    to compute the likelihood of *z* or *x*). However, recall that for the IAE model,
+    the encoder has to have an additional output *h*, which is fed into each step
+    of the normalizing flow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_033.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: To allow for this additional output, we include a third variable in the output,
+    which gets set to a linear transformation of the input if we set the IAF options
+    to `True`, and is none if `False`, so we can use the GaussianMLP as an encoder
+    in networks both with and without IAF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have both of our subnetworks defined, let''s see how we can use
+    them to construct a complete VAE network. Like the sub-networks, we can define
+    the VAE using the Keras API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, this model is defined to contain both an encoder and decoder
+    network. Additionally, we allow the user to specify whether we are implementing
+    IAF as part of the model, in which case we need a stack of autoregressive transforms
+    specified by the `iaf_params` variable. Because this IAF network needs to take
+    both *z* and *h* as inputs, the input shape is twice the size of the `latent_dim`
+    (*z*). We allow the decoder to be either the GaussianMLP or BernoulliMLP network,
+    while the encoder is the GaussianMLP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a few other functions of this model class that we need to cover;
+    the first are simply the encoding and decoding functions of the VAE model class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: For the encoder, we simply call (run the forward pass for) the encoder network.
+    To decode, you will notice that we specify three outputs. The article that introduced
+    VAE models, *Autoencoding Variational Bayes*, provided examples of a decoder specified
+    as either a **Gaussian Multilayer Perceptron** (**MLP**) or Benoulli output. If
+    we used a Gaussian MLP, the decoder would yield the value, mean, and standard
+    deviation vectors for the output, and we need to transform that output to a probability
+    (0 to 1) using the sigmoidal transform. In the Bernoulli case, the output is already
+    in the range 0 to 1, and we don't need this transformation (`apply_sigmoid`=`False`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we''ve trained the VAE network, we''ll want to use sampling in order to
+    generate random latent vectors (*z*) and run the decoder to generate new images.
+    While we could just run this as a normal function of the class in the Python runtime,
+    we''ll decorate this function with the `@tf.function` annotation, which will allow
+    it to be executed in the TensorFlow graph runtime (just like any of the `tf` functions,
+    such as `reduce_sum` and multiply), making using of GPU and TPU devices if they
+    are available. We sample a value from a random normal distribution, for a specified
+    number of samples, and then apply the decoder to generate new images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, recall that the "reparameterization trick" is used to allow us to
+    backpropagate through the value of *z* and reduce the variance of the likelihood
+    of *z*. We need to implement this transformation, which is given by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the original paper, *Autoencoding Variational Bayes*, this is given by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_034.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *i* is a data point in *x* and l is a sample from the random distribution,
+    here, a normal. In our code, we multiply by 0.5 because we are computing the **log
+    variance** (or standard deviation squared), and *log*(*s^2*) = *log*(*s*)*2*,
+    so the 0.5 cancels the 2, leaving us with *exp*(*log*(*s*)) = *s*, just as we
+    require in the formula.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll also include a class property (with the `@property` decorator) so we
+    can access the array of normalizing transforms if we implement IAF:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we''ll need a few additional functions to actually run our VAE algorithm.
+    The first computes the log normal **probability density function** (**pdf**),
+    used in the computation of the variational lower bound, or ELBO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now need to utilize this function as part of computing the loss with each
+    minibatch gradient descent pass in the process of training the VAE. As with the
+    sample method, we''ll decorate this function with the `@tf.function` annotation
+    so it will be executed on the graph runtime:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's unpack a bit of what is going on here. First, we can see that we call
+    the encoder network on the input (a minibatch of flattened images, in our case)
+    to generate the needed mean, `logvariance`, and, if we are using IAF in our network,
+    the accessory input `h` that we'll pass along with each step of the normalizing
+    flow transform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We apply the "reparameterization trick" on the inputs in order to generate the
+    latent vector `z`, and apply a lognormal pdf to get the *logq*(*z*|*x*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we are using IAF, we need to iteratively transform `z` using each network,
+    and pass in the `h` (accessory input) from the decoder at each step. Then we apply
+    the loss from this transform to the initial loss we computed, as per the algorithm
+    given in the IAF paper:^(14)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_036.png)![](img/B16176_05_037.png)![](img/B16176_05_038.png)![](img/B16176_05_039.png)![](img/B16176_05_040.png)![](img/B16176_05_041.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Once we have the transformed or untransformed *z*, we decode it using the decoder
+    network to get the reconstructed data, *x*, from which we calculate a cross-entropy
+    loss. We sum these over the minibatch and take the lognormal pdf of *z* evaluated
+    at a standard normal distribution (the prior), before computing the expected lower
+    bound.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall that the expression for the variational lower bound, or ELBO, is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_035.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So, our minibatch estimator is a sample of this value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have these ingredients, we can run the stochastic gradient descent
+    using the `GradientTape` API, just as we did for the DBN in *Chapter 4*, *Teaching
+    Networks to Generate Digits* passing in an optimizer, model, and minibatch of data
+    (*x*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To run the training, first we need to specify a model using the class we''ve
+    built. If we don''t want to use IAF, we could do this as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we want to use IAF transformations, we need to include some additional arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With the model created, we need to specify a number of epochs, an optimizer
+    (in this instance, Adam, as we described in *Chapter 3*, *Building Blocks of Deep
+    Neural Networks*). We split our data into minibatches of 32 elements, and apply
+    gradient updates after each minibatch for the number of epochs we''ve specified.
+    At regular intervals, we output the estimate of the ELBO to verify that our model
+    is getting better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can verify that the model is improving by looking at updates, which should
+    show an increasing ELBO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'To examine the output of the model, we can first look at the reconstruction
+    error; does the encoding of the input image by the network approximately capture
+    the dominant patterns in the input image, allowing it to be reconstructed from
+    its vector *z*? We can compare the raw image to its reconstruction formed by passing
+    the image through the encoder, applying IAF, and then decoding it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the first few CIFAR-10 images, we get the following output, showing that
+    we have captured the overall pattern of the image (although it is fuzzy, a general
+    downside to VAEs that we''ll address in our discussion of **Generative Adversarial
+    Networks** (**GANs**) in future chapters):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_12.png)![](img/B16176_05_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.10: The output for the CIFAR-10 images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What if we wanted to create entirely new images? Here we can use the "sample"
+    function we defined previously in *Creating the network from TensorFlow 2* to
+    create batches of new images from randomly generated *z* vectors, rather than
+    the encoded product of CIFAR images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This code will produce output like the following, which shows a set of images
+    generated from vectors of random numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_05_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B16176_05_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.11: Images generated from vectors of random numbers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These are, admittedly, a bit blurry, but you can appreciate that they show
+    structure and look comparable to some of the "reconstructed" CIFAR-10 images you
+    saw previously. Part of the challenge here, as we''ll discuss more in subsequent
+    chapters, is the loss function itself: the cross-entropy function, in essence,
+    penalizes each pixel for how much it resembles the input pixel. While this might
+    be mathematically correct, it doesn''t capture what we might think of as conceptual
+    "similarity" between an input and reconstructed image. For example, an input image
+    could have a single pixel set to infinity, which would create a large difference
+    between it and a reconstruction that set that pixel to 0; however, a human, looking
+    at the image, would perceive both as being identical. The objective functions
+    used for GANs, described in *Chapter 6*, *Image Generation with GANs*, capture
+    this nuance more accurately.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you saw how deep neural networks can be used to create representations
+    of complex data such as images that capture more of their variance than traditional
+    dimension reduction techniques, such as PCA. This is demonstrated using the MNIST
+    digits, where a neural network can spatially separate the different digits in
+    a two-dimensional grid more cleanly than the principal components of those images.
+    The chapter showed how deep neural networks can be used to approximate complex
+    posterior distributions, such as images, using variational methods to sample from
+    an approximation of an intractable distribution, leading to a VAE algorithm based
+    on minimizing the variational lower bound between the true and approximate posterior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also learned how the latent vector from this algorithm can be reparameterized
+    to have lower variance, leading to better convergence in stochastic minibatch
+    gradient descent. You saw how the latent vectors generated by encoders in these
+    models, which are usually independent, can be transformed into more realistic
+    correlated distributions using IAF. Finally, we implemented these models on the
+    CIFAR-10 dataset and showed how they can be used to reconstruct the images and
+    generate new images from random vectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next chapter will introduce GANs and show how we can use them to add stylistic
+    filters to input images, using the StyleGAN model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Eckersley P., Nasser Y. *Measuring the Progress of AI Research*. EFF. Retrieved
+    April 26, 2021, [https://www.eff.org/ai/metrics#Measuring-the-Progress-of-AI-Research](https://www.eff.org/ai/metrics#Measuring-the-Progress-of-AI-Research)
+    and CIFAR-10 datasets, [https://www.cs.toronto.edu/~kriz/](https://www.cs.toronto.edu/~kriz/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Malhotra P. (2018). Autoencoder-Implementations. GitHub repository. [https://www.piyushmalhotra.in/Autoencoder-Implementations/VAE/](https://www.piyushmalhotra.in/Autoencoder-Implementations/VAE/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kingma, D P., Welling, M. (2014). *Auto-Encoding Variational Bayes*. arXiv:1312.6114\.
+    [https://arxiv.org/pdf/1312.6114.pdf](https://arxiv.org/pdf/1312.6114.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton G. E., Salakhutdinov R. R. (2006). *Reducing the Dimensionality of Data
+    with Neural Networks*. ScienceMag. [https://www.cs.toronto.edu/~hinton/science.pdf](https://www.cs.toronto.edu/~hinton/science.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hinton G. E., Salakhutdinov R. R. (2006). *Reducing the Dimensionality of Data
+    with Neural Networks*. ScienceMag. [https://www.cs.toronto.edu/~hinton/science.pdf](https://www.cs.toronto.edu/~hinton/science.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kingma, D P., Welling, M. (2014). *Auto-Encoding Variational Bayes*. arXiv:1312.6114\.
+    [https://arxiv.org/pdf/1312.6114.pdf](https://arxiv.org/pdf/1312.6114.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Doersch, C. (2016). *Tutorial on Variational Autoencoders*. arXiv:1606.05908\.
+    [https://arxiv.org/pdf/1606.05908.pdf](https://arxiv.org/pdf/1606.05908.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Paisley, J., Blei, D., Jordan, M. (2012). *Variational Bayesian Inference with
+    Stochastic Search*. [https://icml.cc/2012/papers/687.pdf](https://icml.cc/2012/papers/687.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Doersch, C. (2016). *Tutorial on Variational Autoencoders*. arXiv:1606.05908\.
+    [https://arxiv.org/pdf/1606.05908.pdf](https://arxiv.org/pdf/1606.05908.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Angelov, Plamen; Gegov, Alexander; Jayne, Chrisina; Shen, Qiang (2016-09-06).
+    *Advances in Computational Intelligence Systems: Contributions Presented at the
+    16th UK Workshop on Computational Intelligence*, September 7–9, 2016, Lancaster,
+    UK. Springer International Publishing. pp. 441–. ISBN 9783319465623\. Retrieved
+    January 22, 2018.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'TinyImages: [http://groups.csail.mit.edu/vision/TinyImages/](http://groups.csail.mit.edu/vision/TinyImages/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Krizhevsky A. (2009). *Learning Multiple Layers of Features from Tiny Images*.
+    [http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.222.9220&rep=rep1&type=pdf](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.222.9220&rep=rep1&type=pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kingma, D P., Welling, M. (2014). *Auto-Encoding Variational Bayes*. arXiv:1312.6114\.
+    [https://arxiv.org/pdf/1312.6114.pdf](https://arxiv.org/pdf/1312.6114.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kingma, D P., Salimans, T., Jozefowicz, R., Chen, X., Sutskever, I., Welling,
+    M. (2016). *Improving Variational Inference with Inverse Autoregressive Flow*.
+    arXiv:1606.04934\. [https://arxiv.org/pdf/1606.04934.pdf](https://arxiv.org/pdf/1606.04934.pdf)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

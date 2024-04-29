@@ -1,0 +1,972 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'NLP 2.0: Using Transformers to Generate Text'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw in the previous chapter, the NLP domain has seen some remarkable leaps
+    in the way we understand, represent, and process textual data. From handling long-range
+    dependencies/sequences using LSTMs and GRUs to building dense vector representations
+    using word2vec and friends, the field in general has seen drastic improvements.
+    With word embeddings becoming almost the de facto representation method and LSTMs
+    as the workhorse for NLP tasks, we were hitting some roadblocks in terms of further
+    enhancement. This setup of using embeddings with LSTM made the best use of encoder-decoder
+    (and related architectures) style models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We saw briefly in the previous chapter how certain improvements were achieved
+    due to the research and application of CNN-based architectures for NLP use cases.
+    In this chapter, we will touch upon the next set of enhancements that led to the
+    development of current state-of-the-art transformer architectures. We will focus
+    on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An overview of attention and how transformers changed the NLP landscape
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The GPT series of models, with a step-by-step guide to preparing a text-generation
+    pipeline based on GPT-2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will be covering topics such as attention, self-attention, contextual embeddings,
+    and finally transformer architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All code snippets presented in this chapter can be run directly in Google Colab.
+    For reasons of space, import statements for dependencies have not been included,
+    but readers can refer to the GitHub repository for the full code: [https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2](https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's first turn our attention to attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attention
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The LSTM-based architecture we used to prepare our first language model for
+    text generation had one major limitation. The RNN layer (generally speaking, it
+    could be LSTM, or GRU, etc.) takes in a context window of a defined size as input
+    and encodes all of it into a single vector. This bottleneck vector needs to capture
+    a lot of information in itself before the decoding stage can use it to start generating
+    the next token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Attention is one of the most powerful concepts in the deep learning space that
+    really changed the game. The core idea behind the attention mechanism is to make
+    use of all interim hidden states of the RNN to decide which one to focus upon
+    before it is used by the decoding stage. A more formal way of presenting attention
+    is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given a vector of values (all the hidden states of the RNN) and a query vector
+    (this could be the decoder state), attention is a technique to compute a weighted
+    sum of the values, dependent on the query.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The weighted sum acts as a selective summary of the information contained in
+    the hidden states (value vectors) and the query decides which values to focus
+    on. The roots of the attention mechanism can be found in the research associated
+    with **Neural Machine Translation** (**NMT**) architectures. NMT models particularly
+    struggled with alignment issues and this is where attention greatly helped. For
+    instance, translation of a sentence from English to French may not match words
+    one-to-one. Attention is not limited to NMT use cases only and is widely used
+    across other NLP tasks, such as text generation and classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The idea is pretty straightforward, but how do we implement and use it? *Figure
+    10.1* depicts a sample scenario of how an attention mechanism works. The figure
+    demonstrates an unrolled RNN at time step *t*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B16176_10_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.1: A simple RNN with an attention mechanism'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Referring to the figure, let us understand step-by-step how attention is calculated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let the RNN encoder hidden states be denoted as *h*[1], *h*[2] …, *h*[N] and
+    the current output vector as *s*[t].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We first calculate the *attention score* *e*^t for time step *t* as:![](img/B16176_10_001.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This step is also called the alignment step.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We then transform this score into the *attention distribution*: ![](img/B16176_10_002.png).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Using the softmax function helps us to transform the score into a probability
+    distribution that sums to 1.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The final step is to calculate the attention vector, denoted as *a*[t], also
+    called a context vector, by taking a weighted sum of encoder hidden states with
+    ![](img/B16176_10_003.png):![](img/B16176_10_004.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once we have the attention vector, we can then simply concatenate it with the
+    decoder state vector from the previous time step and continue to decode the vector
+    as previously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Different variants of the attention mechanism have been explored by various
+    researchers so far. A couple of important points to note are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The aforementioned steps for the attention calculation are the same across all variants.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: However, the difference lies in the way the attention score (denoted as *e*^t)
+    is calculated.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Widely used attention scoring functions are content-based attention, additive
+    attention, dot-product, and scaled dot-product. Readers are encouraged to explore
+    these further for better understanding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Contextual embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The big leap from BoW-based text representation models to unsupervised dense
+    representation techniques such as word2vec, GloVe, fastText, and so on was the
+    secret sauce to improve deep learning model performance on NLP tasks. Yet these
+    representations had a few limitations, which we''ll remind ourselves of:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Words can have different meanings depending on the context in which they are
+    used. These techniques result in the same vector representation regardless of
+    the context. This can be rectified a bit by using very strong word-sense disambiguation
+    methods (such as the usage of supervised learning algorithms to disambiguate words),
+    but inherently, this isn't captured by any of the known techniques.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Words can have different uses, semantics, and syntactic behaviors, yet the word
+    representation remains the same.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If we think about this carefully, the architecture that we prepared in the
+    previous chapter using LSTMs was trying to solve these issues internally. To elaborate
+    further, let us do a quick recap of the architecture we built:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We started off with our input text being transformed into character or word
+    embeddings.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These embeddings were then passed through an LSTM layer (or a stack of LSTM
+    layers or even bi-LSTM layers) and the final hidden state was transformed and
+    decoded to generate the next token.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: While the starting point leverages pre-trained embeddings, which have the same
+    representation of any given word in every context, the LSTM layers bring in the
+    context. The set of LSTM layers analyzes the sequence of tokens and each layer
+    tries to learn concepts related to *language syntax*, *semantics*, and so on.
+    This provides the much-required context to each token's (word or character) representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **TagLM** architecture by Peters et al. in 2017¹ was one of the first works
+    that provided an insight into how we could combine pre-trained word embeddings
+    with a pre-trained neural language model to generate context-aware embeddings
+    for downstream NLP tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The big breakthrough that changed the NLP landscape came in the form of **ELMo**,
+    or **Embeddings from Language Models**. The ELMo architecture was presented by
+    Peters et al. in their work titled *Deep Contextualized Word Representations*
+    in 2018.² Without going into too much detail, the main highlights of the ELMo
+    architecture were:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model used a bi-LSTM-based language model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Character CNNs were used to generate embeddings, in place of pre-trained word
+    vectors, which made use of huge 4096 LSTM units but transformed into smaller 512-sized
+    vectors using feedforward layers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The model made use of residual layers to help carry the gradient between deep
+    layers of the architecture. This helped prevent issues like vanishing gradients.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main innovation was to make use of all the hidden bi-LSTM layers for generating
+    input representation. Unlike previous works, where only the final LSTM layer was
+    used to fetch the representation of the input, this work took a weighted average
+    of all the hidden layers' hidden states. This helped the model learn contextual
+    word embeddings where each layer contributed to things like syntax and semantics.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main reason ELMo got so much attention was not the fact that it helped improve
+    the performance by a certain factor. The contextual embeddings learned by ELMo
+    helped it improve state-of-the-art performance using previous architectures on
+    not just a couple of NLP tasks, but *almost all of them* (see paper for details).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **ULMFiT** model by Howard and Ruder in 2018 was based on similar concepts
+    and helped introduce, or rather push, widespread application of *transfer learning*
+    in the NLP domain.³
+  prefs: []
+  type: TYPE_NORMAL
+- en: Self-attention
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We've already briefly discussed the attention mechanism and its impact on improving
+    NLP models in general. In this section, we will talk about a successive improvement
+    upon the attention mechanism called self-attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Self-attention was proposed by Cheng et al. in their paper titled *Long Short-Term
+    Memory Networks for Machine Reading* in 2016.⁴ The concept of self-attention builds
+    upon the general idea of attention. Self-attention enables a model to learn the
+    correlation between the current token (character or word or sentence, etc.) and
+    its context window. In other words, it is an attention mechanism that relates
+    different positions of a given sequence so as to generate a representation of
+    the same sequence. Imagine this as a way of transforming word embeddings in the
+    context of the given sentence/sequence. The concept of self-attention as presented
+    in the original paper itself is depicted in *Figure 10.2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B16176_10_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.2: Self-attention⁴'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us try and understand the self-attention output presented in this figure.
+    Each row/sentence represents the state of the model at every time step, with the
+    current word highlighted in red. Blue represents the attention of the model, with
+    the intensity of focus depicted by the shade of blue. Thus, each word in the context
+    of the current word gets to contribute to the embeddings of the current word to
+    a certain extent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Interested readers may explore a notebook by the Google Brain team that showcases
+    a framework called Tensor2Tensor (now deprecated in favor of JAX). This notebook
+    presents an interactive visualization to help understand the concept of self-attention:
+    [https://colab.research.google.com/github/tensorflow/tensor2tensor/blob/master/tensor2tensor/notebooks/hello_t2t.ipynb](https://colab.research.google.com/github/tensorflow/tensor2tensor/blob/master/tensor2tensor/notebook).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concept forms one of the core building blocks of the transformer architecture
+    we are about to discuss next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The culmination of concepts such as attention, contextual embeddings, and recurrence-free
+    architectures led to what we now call **transformer architectures**. The transformer
+    architecture was presented in the seminal paper *Attention is All You Need* by
+    Vaswani et al. back in 2017.⁵ This work represented a complete paradigm shift
+    in the NLP space; it presented not just a powerful architecture but also a smart
+    use of some of the recently developed concepts that helped it beat state-of-the-art
+    models by a margin across different benchmarks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the internals of the transformer architecture briefly. For a
+    step-by-step explanation, readers may refer to *Illustrated Transformer* by Jay
+    Alammar: [https://jalammar.github.io/illustrated-transformer/](https://jalammar.github.io/illustrated-transformer/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the core, a transformer is a recurrence- and convolution-free attention-based
+    encoder-decoder architecture. It *solely depends upon the attention mechanism*
+    to learn local and global dependencies and thus enables massive parallelization.
+    Let us now have a look at the main contributions of this work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall architecture
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As mentioned earlier, a transformer is an encoder-decoder architecture at its
+    core. Yet unlike known encoder-decoder architectures in the NLP domain, this work
+    presented a stacked encoder-decoder setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 10.3* shows the high-level transformer setup.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B16176_10_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.3: A high-level schematic of the transformer architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the architecture makes use of multiple encoder blocks
+    stacked on top of each other. The decoder itself consists of stacked decoding
+    blocks, and the final encoder block feeds into each of the decoder blocks. The
+    important thing to note here is that neither the encoder nor the decoder blocks
+    are comprised of recurrent or convolutional layers. *Figure 10.4 (A)* outlines
+    the encoder block and *Figure 10.4 (B)* the decoder block. Dotted lines denote
+    residual connections between different sets of layers. The original paper presented
+    the transformer architecture with 6 identical encoder blocks and decoder blocks
+    each.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B16176_10_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.4: A) Encoder block, B) Decoder block used in the transformer architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder block, as shown in *Figure 10.4 (A)*, consists of a layer for calculating
+    self-attention followed by normalization and feed-forward layers. There are skip
+    connections between these layers. The decoder block is almost the same as the
+    encoder block, with one additional sub-block consisting of self-attention and
+    normalization layers. This additional sub-block takes input from the last encoder
+    block to ensure that the encoder's attention is propagated to the decoding blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first layer in the decoder block carries a slight modification. This multi-head
+    self-attention layer is masked for future timesteps/contexts. This ensures the
+    model does not attend to future positions of the target while decoding the current
+    token. Let's spend a bit more time trying to understand the multi-head self-attention
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-head self-attention
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We discussed the concept of self-attention in the previous section. In this
+    section, we will discuss how the transformer architecture implements self-attention
+    and its related parameters. While presenting the concept of attention, we discussed
+    it in terms of the query vector (decoder state, denoted as *q*) and the value
+    vectors (the encoder's hidden state, denoted as *v*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of transformers, this is modified a bit. We make use of encoder
+    states or input tokens as both query and value vectors (self-attention) along
+    with an additional vector called the *key* vector (denoted as *k*). The key, value,
+    and query vectors are of the same dimension in this case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer architecture makes use of the *scaled dot-product* as its attention
+    mechanism. This scoring function is defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_10_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'where the attention output is calculated first as the dot product *QK*^T between
+    the query and key vectors *Q* and *K* (these are actually matrices, but we will
+    explain that in a bit). The dot product tries to capture the similarity of the
+    query with encoder states, which is then scaled by the square root of the dimension
+    *n* of the input vector. This scaling factor is introduced to ensure the gradients
+    are propagated properly, since vanishing gradients are observed for large embedding
+    vectors. The softmax operation transforms the score into a probability distribution
+    summing to 1\. The final step is to calculate the product of the weighted sum
+    of the encoder states (the value vector *V* this time) with the output of the
+    softmax. This overall operation is depicted in *Figure 10.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B16176_10_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.5: (Left) scaled dot product attention, (right) multi-head self-attention
+    combining several self-attention layers in parallel.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In place of using a single attention head per encoder block, the model makes
+    use of multiple attention heads in parallel (as depicted in *Figure 10.5 (right)*).
+    The authors mention in the paper that "multi-head attention allows the model to
+    jointly attend to information from different representation subspaces at different
+    positions. With a single attention head, averaging inhibits this." In other words,
+    multi-head attention allows the model to learn different aspects of every word
+    in the input, that is, one attention head could be capturing the impact of the
+    relationships with prepositions, the other one could be focusing on its interactions
+    with verbs, and so on. As each attention head would have its own set of *Q*, *K,*
+    and *V* vectors, in practice these are implemented as matrices with each row corresponding
+    to a specific head.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A highly intuitive visual explanation of multi-head self-attention is presented
+    here for reference: [https://www.youtube.com/watch?v=-9vVhYEXeyQ&ab_channel=Peltarion](https://www.youtube.com/watch?v=-9vVhYEXeyQ&ab_channel=Peltarion).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One may think that due to the multi-head setup, the number of parameters would
+    suddenly blow out of proportion and slow down the training process. To counteract
+    this, the authors made use of smaller-dimensional vectors (size 64) by first projecting
+    the larger input embeddings into a smaller dimension. They then made use of 8
+    heads in the original implementation. This resulted in a final concatenated vector
+    (from all attention heads) of the same dimension as it would be with a single
+    attention head with a larger input embedding vector. This neat trick helps the
+    model capture a lot more semantics in the same space without any impact on the
+    overall training speed. The overall transformer architecture uses multiple such
+    encoder blocks with each of them containing multi-head attention layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Positional encodings
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The transformer model is devoid of any recurrence or convolutional layers,
+    so in order to ensure that the model understands the importance of the sequence
+    of the inputs, the concept of *positional embeddings* was used. The authors chose
+    to use the following method to generate positional encodings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_10_006.png)![](img/B16176_10_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *pos* is the position of the input token, *i* is the dimension, and *d*[model]
+    is the length of the input embedding vector. The authors use sine for even positions
+    and cosine for odd ones. The positional encoding vector dimension is kept the
+    same as the input vector and both vectors are summed up before they are fed into
+    the encoder or decoder blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The combination of multi-head self-attention along with positional encodings
+    helps the transformer network build highly contextual representations of input
+    sequences. This, along with the completely attention-based architecture, enables
+    the transformer to not only beat the state-of-the-art models on a number of benchmarks,
+    but also form the basis of a whole family of transformer-based models. In the
+    next section, we will briefly touch upon this family of transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BERT-ology
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The transformer architecture ushered in completely unheard-of performance benchmarks
+    in the NLP domain. This recurrence-free setup led to research into and the development
+    of a whole family of transformer-based architectures. One of the initial and most
+    successful ones is the BERT model. **BERT**, or **Bi-Directional Encoder Representations**
+    **from Transformers**, was presented by Devlin et al., a team at Google AI in
+    2018.⁶
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model drastically improved upon the benchmarks set by the transformer model.
+    BERT also helped push the transfer-learning envelope in the NLP domain by showcasing
+    how a pre-trained model can be fine-tuned for various tasks to provide state-of-the-art
+    performance. In computer vision use cases, we can use a large pre-trained network
+    such as VGG or ResNet as a feature extractor with a classification layer, or we
+    can fine-tune the whole network for the given task. We can do the same thing using
+    BERT as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The BERT model makes use of a transformer-style encoder with a different number
+    of encoder blocks depending on the model size. The authors presented two models,
+    BERT-base with 12 blocks and BERT-large with 24 blocks. Both of these models have
+    larger feedforward networks (768 and 1024 respectively) and a greater number of
+    attention heads (12 and 16 respectively) compared to the original transformer
+    setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another major change from the original transformer implementation is the bi-directional
+    masked language model objective. A typical language model ensures causality, that
+    is, the decoding process only looks at the past context and not future time steps.
+    The authors of BERT tweaked this objective to build context from both directions,
+    i.e. the objective of *predicting masked words* along with *next sentence prediction*.
+    This is depicted in *Figure 10.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application  Description automatically generated](img/B16176_10_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.6: BERT training objectives of a masked language model and next sentence
+    prediction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the *masked language model* randomly masks out 15% of
+    tokens for the training process. They train the model on a huge corpus and then
+    fine-tune it for different tasks on GLUE ([https://gluebenchmark.com/](https://gluebenchmark.com/))
+    and other related benchmarks. As reported in the paper, the model outperforms
+    all previous architectures by a good margin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The success of BERT led to a series of improved models that tweaked certain
+    aspects with respect to embeddings, encoder layers, and so on to provide incremental
+    performance improvements. Models such as RoBERTa⁷, ALBERT⁸, DistilBERT⁹, XLNet^(10),
+    and so on share the core idea and build upon it to provide improvements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As BERT does not conform to causality, it cannot be used for typical language
+    modeling tasks such as text generation. In the next section, we will discuss a
+    parallel architectural family of transformers from OpenAI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT 1, 2, 3…
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: OpenAI is an AI research group that has been in the spotlight for quite some
+    time because of their newsworthy works such as GPT, GPT-2, and the recently released
+    GPT-3\. In this section, we will walk through a brief discussion related to these
+    architectures and their novel contributions. Toward the end, we will use a pre-trained
+    version of GPT-2 for our task of text generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Generative pre-training: GPT'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The first model in this series is called **GPT**, or **Generative Pre-Training**.
+    It was released in 2018, about the same time as the BERT model. The paper^(11)
+    presents a task-agnostic architecture based on the ideas of transformers and unsupervised
+    learning. The GPT model was shown to beat several benchmarks such as GLUE and
+    SST-2, though the performance was overtaken by BERT, which was released shortly
+    after this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GPT is essentially a language model based on the *transformer-decoder* we presented
+    in the previous chapter (see the section on *Transformers*). Since a language
+    model can be trained in an unsupervised fashion, the authors of this model made
+    use of this unsupervised approach to train on a very large corpus and then fine-tuned
+    it for specific tasks. The authors used the **BookCorpus** dataset,^(12) which
+    contains over 7,000 unique, unpublished books across different genres. This dataset,
+    the authors claim, allows the model to learn long-range information due to the
+    presence of long stretches of contiguous text. This is seen to be better than
+    the 1B Word Benchmark dataset used by earlier works, which misses out on long-range
+    information due to shuffled sentences. The overall GPT setup is depicted in the
+    following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B16176_10_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.7: GPT architecture (left), task-based setup using GPT (right)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Figure 10.7 (left)*, the GPT model is similar to the original transformer-decoder.
+    The authors make use of 12 decoder blocks (as opposed to 6 in the original transformer)
+    with 768-dimensional states and 12 self-attention heads each. Since the model
+    uses masked self-attention, it maintains the causal nature of the language model
+    and hence can be used for text generation as well. For the rest of the tasks showcased
+    in *Figure 10.7 (right)*, essentially the same pre-trained language model is used
+    with minimal task-specific preprocessing of inputs and final task-specific layers/objectives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT-2
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: GPT was superseded by an even more powerful model called GPT-2\. Radford et
+    al. presented the GPT-2 model as part of their work titled *Language Models are
+    Unsupervised Multi-task Learners* in 2019.^(13) The largest GPT-2 variant is a
+    huge 1.5 billion parameter transformer-based model which was able to perform remarkably
+    well on various NLP tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most striking aspect of this work is that the authors showcase how a model
+    trained in an unsupervised fashion (language modeling) achieves state-of-the-art
+    performance in a *few-shot* setting. This is particularly important because, in
+    comparison to GPT and even BERT, GPT-2 does not require any fine-tuning on specific
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to GPT, the secret sauce for GPT-2 is its dataset. The authors prepared
+    a massive 40 GB dataset by crawling 45 million outbound links from a social networking
+    site called Reddit. They performed some heuristic-based cleaning, de-duplication,
+    and removal of Wikipedia articles (of course, why not?) to end up with roughly
+    8 million documents. This dataset is called the **WebText** dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The overall architecture of GPT-2 remains the same as GPT, with minor changes
+    such as the placement of layer normalization at the start of each sub-block and
+    an additional layer normalization after the final self-attention block. The four
+    variants of the model leveraged 12, 24, 36, and 48 layers respectively. The vocabulary
+    was also expanded to cover 50,000 words and the context window was expanded to
+    1,024 tokens (as compared to 512 for GPT).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GPT-2 was so performant as a language model that the authors initially decided
+    against releasing the pre-trained model for the general good.^(14) They eventually
+    did release it, citing the fact that no ill-intentioned use had been found so
+    far. It is important to note that it isn''t just an ethical issue. The sheer size
+    of the data and the model make it nearly impossible for most people to even think
+    about training such a model. *Figure 10.8* depicts the size of some recent NLP
+    models and the amount of compute required to train them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B16176_10_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.8: Scale of NLP models^(15)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TPUs are multiple times faster than typical GPUs and, as shown in the figure,
+    GPT-2 requires 2048 TPU days to train on the reported dataset. Compare this against
+    256 TPU days for the large BERT model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Interested readers may explore the official implementation of GPT-2 here: [https://github.com/openai/gpt-2](https://github.com/openai/gpt-2).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While the official implementation was made for TensorFlow 1.14, an unofficial
+    implementation using TensorFlow 2.x is available at this link:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://akanyaani.github.io/gpt-2-tensorflow2.0/](https://akanyaani.github.io/gpt-2-tensorflow2.0/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thankfully, as the pre-trained model was released, researchers at Hugging Face
+    decided to work toward democratizing the transformer architectures. The `transformer`
+    package from Hugging Face is a high-level wrapper that enables us to use these
+    massive NLP models with a few lines of code. The library also provides a web app
+    for exploring different transformer-based models. *Figure 10.9* is a snapshot
+    of the paragraph generated by this web app when provided with a "GPT is" seed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B16176_10_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.9: A sample output using GPT-2 based on the Hugging Face transformer
+    package^(16)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generated text in the figure shows how impressively GPT-2 works. In the
+    first sentence, the model does a remarkable job and even follows a proper convention
+    for citing a previous work (although the citation itself isn't correct). The content
+    does not make much sense, but syntactically it is on the mark and quite coherent
+    with respect to the minimal seed text we provided as input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now leverage the `transformers` package to build a text generation pipeline
+    of our own based on GPT-2, and see how well our model can do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hands-on with GPT-2
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Keeping with the theme of some of the previous chapters where we were generating
+    fake content using various complex architectures, let''s generate some fake headlines
+    using GPT-2\. The million-headlines dataset contains over a million headlines
+    from ABC News Australia, collected over a period of 17 years. The dataset is available
+    at the following links:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SYBGZL](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SYBGZL)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.kaggle.com/therohk/million-headlines](https://www.kaggle.com/therohk/million-headlines   )'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will be using the `transformers` library from Hugging Face to fine-tune GPT-2
+    on this dataset. At a high level, this task of fake headline generation is the
+    same as the language modeling task we worked on in the initial sections of *Chapter
+    9*, *The Rise of Methods for Text Generation*. Since we are using the `transformers`
+    package, the steps relating to training dataset creation, tokenization, and finally
+    training the model are abstracted with high-level APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `transformers` library works with both TensorFlow and PyTorch backends.
+    For this particular case, we are using the default retraining setup based on PyTorch.
+    The library is constantly improving and at the time of writing, the stable version
+    3.3.1 has issues with fine-tuning GPT-2 using TensorFlow. Since `transformers`
+    is a high-level library, readers will not notice much difference in the following
+    code snippets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step, as always, is to read the dataset at hand and transform it
+    into the required format. We need not prepare the word-to-integer and reverse
+    mappings on our own. The `Tokenizer` class from the `transformers` library handles
+    that for us. The following snippet prepares the dataset and required objects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: We make use of the class `AutoModelWithLMHead` as a high-level wrapper for GPT-2
+    with a language model objective. The `Trainer` class simply iterates through training
+    steps based on the parameters set using the `TrainingArguments` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to simply call the `train` function and let the fine-tuning
+    begin. The following snippet shows training steps for GPT-2:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us now generate some fake headlines to see how good or bad our GPT-2 model
+    is. *Figure 10.10* showcases a few fake headlines generated using our model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a flower  Description automatically generated](img/B16176_10_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.10: Fake headlines using fine-tuned GPT-2\. Text in bold is the seed
+    text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generated output showcases the potential of GPT-2 and transformer-based
+    architectures in general. Readers should compare this against the LSTM-based variants
+    we trained in the initial sections of *Chapter 9*, *The Rise of Methods for Text
+    Generation*. The model shown here is able to pick up a few nuances associated
+    with news headlines. For instance, it is generating short and crisp sentences,
+    picking up words such as *kangaroo*, *indigenous*, and even *Melbourne*, which
+    are all relevant in an Australian context, the domain of our training dataset.
+    All of this was captured by the model with only a few epochs of training. The
+    possibilities are endless.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mammoth GPT-3
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The OpenAI group did not just stop after the massive success of GPT-2\. Rather,
+    GPT-2 demonstrated how model capacity (parameter size) and larger datasets can
+    lead to impressive results. The recently published paper titled *Language Models
+    are Few Shot Learners* by Brown et al. was released in May 2020.^(17) This paper
+    introduces the mammoth 175 billion-parameter GPT-3 model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT-3 is orders of magnitude larger (10x) than any previous language model and
+    explores the transformer architecture to its limits. In this work, the authors
+    present 8 different variants of the model, starting from a 125 million-parameter,
+    12-layer "GPT-3 small" to a 175 billion-parameter, 96-layer GPT-3 model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model architecture is the same as GPT-2, but with one major change (aside
+    from the increase in embedding size, attention heads, and layers). This major
+    change is the use of alternating dense and locally banded sparse attention patterns
+    in transformer blocks. This sparse attention technique is similar to the one presented
+    for sparse transformers (see *Generating Long Sequences with Sparse Transformers*,
+    Child et al.^(18)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to earlier GPT models, the authors had to prepare an even larger dataset
+    for this third iteration. They prepared a 300 billion-token dataset based on existing
+    datasets like Common Crawl (filtered for better content), WebText2 (a larger version
+    of WebText used for GPT-2), Books1 and Books2, and the Wikipedia dataset. They
+    sampled each dataset in proportion to the dataset's quality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors compare the overall learning paradigm of NLP models, and machine
+    learning in general, with the way humans learn. Despite the improved performance
+    and capacity of language models over the years, the state-of-the-art models still
+    require task-specific fine-tuning. To showcase the capabilities of GPT-3, they
+    evaluate the model in *few-shot*, *one-shot*, and *zero-shot modes*. The fine-tuning
+    mode is left as a future exercise for the time being.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The three evaluation modes can be summarised as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Zero-shot**: Given only a natural language description of the task, i.e.
+    without being shown any examples of correct output, the model predicts the answer.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**One-shot**: As well as a description of the task, the model is shown one
+    example of the task.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Few-shot**: As well as a description of the task, the model is shown a few
+    examples of the task.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In each case, no gradient updates are performed (as we are only evaluating,
+    not training, the model in any of these modes). *Figure 10.11* shows sample settings
+    for each of the evaluation modes with the task being translation of text from
+    English to Spanish.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B16176_10_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.11: Evaluation modes for GPT-3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, in zero-shot mode, the model is presented with the task
+    description and a prompt for translation. Similarly, for one-shot and few-shot
+    modes the model is presented with one and a few examples respectively before presenting
+    a prompt for actual translation. The authors observe that GPT-3 achieves promising
+    results in zero-shot and one-shot settings. In a few-shot setting, the model is
+    mostly competitive and for certain tasks even surpasses the current state-of-the-art.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Aside from the usual NLP tasks, GPT-3 seems to showcase some extraordinary capabilities
+    on tasks which otherwise require rapid adaptation or on-the-fly reasoning. The
+    authors observe that GPT-3 is able to perform reasonably well on tasks such as
+    unscrambling words, performing three-digit arithmetic, and even using novel words
+    in a sentence after seeing them defined just once. The authors also observe that
+    the news articles generated by GPT-3 in the few-shot setting are good enough to
+    cause difficulties for human evaluators when distinguishing them from human-generated
+    articles. It would be interesting to test out GPT-3 against the fine-tuned GPT-2
+    we prepared in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model is huge enough to require a dedicated high-performance cluster to
+    train it as described in the paper. The authors present a discussion on the amount
+    of compute and energy required to train this huge model. In its current state,
+    the model remains out of bounds for most of us. OpenAI plans to expose the model
+    in the form of an API, but details are sketchy at the time of writing this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we introduced some of the core ideas that have dominated recent
+    models for NLP, like the *attention* mechanism, *contextual embeddings*, and *self-attention*.
+    We then used this foundation to learn about the *transformer* architecture and
+    its internal components. We briefly discussed BERT and its family of architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section of the chapter, we presented a discussion on the transformer-based
+    language models from OpenAI. We discussed the architectural and dataset-related
+    choices for GPT and GPT-2\. We also used the `transformer` package from Hugging
+    Face to develop our own GPT-2-based text generation pipeline. We finally closed
+    the chapter with a brief discussion on the latest and greatest language model,
+    GPT-3\. We discussed various motivations behind developing such a huge model and
+    its long list of capabilities, which go beyond the list of traditionally tested
+    benchmarks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter, along with *Chapter 9*, *The Rise of Methods for Text Generation*,
+    showcased how NLP is a field of study of its own. Yet, concepts from computer
+    vision and deep learning/machine learning in general cross-pollinate to push the
+    boundaries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will shift our focus to understanding the audio landscape
+    and how generative models work in the audio domain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Peters, M.E., Ammar, W., Bhagavatula, C., & Power, R. (2017). *Semi-supervised
+    sequence tagging with bidirectional language models*. arXiv. [https://arxiv.org/abs/1705.00108](https://arxiv.org/abs/1705.00108)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Peters, M.E., Neumann, M., Iyyer, M., Gardner, M., Clark, C., Lee, K., & Zettlemoyer,
+    L. (2018). *Deep contexualized word representations*. arXiv. [https://arxiv.org/abs/1802.05365](https://arxiv.org/abs/1802.05365)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Howard, J., & Ruder, S. (2018). *Universal Language Model Fine-tuning for Text
+    Classification*. arXiv. [https://arxiv.org/abs/1801.06146](https://arxiv.org/abs/1801.06146)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Cheng, J., Dong, L., & Lapata, M. (2016). *Long Short-Term Memory-Networks for
+    Machine Reading*. arXiv. [https://arxiv.org/abs/1601.06733](https://arxiv.org/abs/1601.06733)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N.,
+    Kaiser, L., & Polosukhin, I. (2017). *Attention Is All You Need*. arXiv. [https://arxiv.org/abs/1706.03762](https://arxiv.org/abs/1706.03762)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Devlin, J., Chang, M-W., Lee, K., & Toutanova, K. (2018). *BERT: Pre-training
+    of Deep Bidirectional Transformers for Language Understanding*. arXiv. [https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., Levy, O., Lewis,
+    M., Zettlemoyer, L., & Stoyanov, V. (2019). *RoBERTa: A Robustly Optimized BERT
+    Pretaining Approach*. arXiv. [https://arxiv.org/abs/1907.11692](https://arxiv.org/abs/1907.11692)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Lan, Z., Chen, M., Goodman, S., Gimpel, K., Sharma, P., & Soricut, R. (2019).
+    *ALBERT: A Lite BERT for Self-supervised Learning of Language Representations*.
+    arXiv. [https://arxiv.org/abs/1909.11942](https://arxiv.org/abs/1909.11942)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Sanh, V., Debut, L., Chaumond, J., & Wolf, T. (2019) *DistilBERT, a distilled
+    version of BERT: smaller, faster, cheaper and lighter*. arXiv. [https://arxiv.org/abs/1910.01108](https://arxiv.org/abs/1910.01108)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Yang, Z., Dai, Z., Yang, Y., Carbonell, J., Salakhutdinov, R., & Le, Q.V. (2019).
+    *XLNet: Generalized Autoregressive Pretraining for Language Understanding*. arXiv.
+    [https://arxiv.org/abs/1906.08237](https://arxiv.org/abs/1906.08237)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Radford, A. (2018, June 11). *Improving Language Understanding with Unsupervised
+    Learning*. OpenAI. [https://openai.com/blog/language-unsupervised/](https://openai.com/blog/language-unsupervised/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Zhu, Y., Kiros, R., Zemel, R., Salakhutdinov, R., Urtasun, R., Torralba, A.,
+    & Fidler, S. (2015). *Aligning Books and Movies: Towards Story-like Visual Explanations
+    by Watching Movies and Reading Books*. arXiv. [https://arxiv.org/abs/1506.06724](https://arxiv.org/abs/1506.06724)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., & Sutskever, I. (2019).
+    *Language Models are Unsupervised Multitask Learners*. OpenAI. [https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pd)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Radford, A., Wu, J., Amodei, D., Amodei, D., Clark, J., Brundage, M., & Sutskever,
+    I. (2019, February 14). *Better Language Models and Their Implications*. OpenAI.
+    [https://openai.com/blog/better-language-models/](https://openai.com/blog/better-language-models/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'stanfordonline. (2019, March 21). *Stanford CS224N: NLP with Deep Learning
+    | Winter 2019 | Lecture 13 – Contextual Word Embeddings* [Video]. YouTube. [https://www.youtube.com/watch?v=S-CspeZ8FHc&ab_channel=stanfordonline](https://www.youtube.com/watch?v=S-CspeZ8FHc&ab_channel=stanfordonline)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hugging Face. (n.d.). *gpt2 abstract*. Retrieved April 22, 2021, from [https://transformer.huggingface.co/doc/arxiv-nlp/ByLHXHhnBJtBLOpRENZmulqc/edit](https://transformer.huggingface.co/doc/arxiv-nlp/ByLHXHhnBJtBLOpRENZmulqc/edit)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Brown, T.B., Mann, B., Ryder, N., Subbiah, M., Kaplan, J., Dhariwal, P., Neelakantan,
+    A., Shyam, P., Sastry, G., Askell, A., Agarwal, S., Herbert-Voss, A., Krueger,
+    G., Henighan, T., Child, R., Ramesh, A., Ziegler, D., Wu, J., Winter, C., Hesse,
+    C., Chen, M., Sigler, E., Litwin, M., Gray, S., Chess, B., Clark, J., Berner,
+    C., McCandlish, S., Radford, A., Sutskever, I., & Amodei, D. (2020). "*Language
+    Models are Few-Shot Learners*". arXiv. [https://arxiv.org/abs/2005.14165](https://arxiv.org/abs/2005.14165)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Child, R., Gray, S., Radford, A., & Sutskever, I. (2019). *Generating Long Sequences
+    with Sparse Transformers*. arXiv. [https://arxiv.org/abs/1904.10509](https://arxiv.org/abs/1904.10509)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

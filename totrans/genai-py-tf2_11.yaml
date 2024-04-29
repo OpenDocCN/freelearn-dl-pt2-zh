@@ -1,0 +1,929 @@
+- en: '11'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Composing Music with Generative Models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the preceding chapters, we discussed a number of generative models focused
+    on tasks such as image, text, and video generation. In the contexts of very basic
+    MNIST digit generation to more involved tasks like mimicking Barack Obama, we
+    explored a number of complex works along with their novel contributions, and spent
+    time understanding the nuances of the tasks and datasets involved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw, in the previous chapters on text generation, how improvements in the
+    field of computer vision helped usher in drastic improvements in the NLP domain
+    as well. Similarly, audio is another domain where the cross-pollination of ideas
+    from computer vision and NLP domains has broadened the perspective. Audio generation
+    is not a new field, but thanks to research in the deep learning space, this domain
+    has seen some tremendous improvements in recent years as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Audio generation has a number of applications. The most prominent and popular
+    ones nowadays are a series of smart assistants (Google Assistant, Apple Siri,
+    Amazon Alexa, and so on). These virtual assistants not only try to understand
+    natural language queries but also respond in a very human-like voice. Audio generation
+    also finds applications in the field of assistive technologies, where text-to-speech
+    engines are used for reading content onscreen for people with reading disabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging such technologies in the field of music generation is increasingly
+    being explored as well. The acquisition of AI-based royalty-free music generation
+    service Jukedeck by ByteDance (the parent company of social network TikTok) speaks
+    volumes for this field's potential value and impact.¹
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, AI-based music generation is a growing trend with a number of competing
+    solutions and research work. Commercial offerings for computer-aided music generation,
+    such as Apple's GarageBand,² provide a number of easy-to-use interfaces for novices
+    to compose high-quality music tracks with just a few clicks. Researchers on Google's
+    project Magenta³ are pushing the boundaries of music generation to new limits
+    by experimenting with different technologies, tools, and research projects to
+    enable people with little to no knowledge of such complex topics to generate impressive
+    pieces of music on their own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover different concepts, architectures, and components
+    associated with generative models for audio data. In particular, we will limit
+    our focus to music generation tasks only. We will concentrate on the following
+    topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A brief overview of music representations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RNN-based music generation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A simple setup to understand how GANs can be leveraged for music generation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Polyphonic music generation based on MuseGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'All code snippets presented in this chapter can be run directly in Google Colab.
+    For reasons of space, import statements for dependencies have not been included,
+    but readers can refer to the GitHub repository for the full code: [https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2](https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin with an introduction to the task of music generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting started with music generation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Music generation is an inherently complex and difficult task. Doing so with
+    the help of algorithms (machine learning or otherwise) is even more challenging.
+    Nevertheless, music generation is an interesting area of research with a number
+    of open problems and fascinating works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will build a high-level understanding of this domain and
+    understand a few important and foundational concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Computer-assisted music generation or, more specifically, deep music generation
+    (due to the use of deep learning architectures) is a multi-level learning task
+    composed of score generation and performance generation as its two major components.
+    Let''s briefly discuss each of these components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Score generation**: A score is a symbolic representation of music that can
+    be used/read by humans or systems to produce music. To draw an analogy, we can
+    safely consider the relationship between scores and music to be similar to that
+    between text and speech. Music scores consist of discrete symbols which can effectively
+    convey music. Some works use the term *AI Composer* to denote models associated
+    with the task of score generation.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Performance generation**: Continuing with the text-speech analogy, performance
+    generation (analogous to speech) is where performers use scores to generate music
+    using their own characteristics of tempo, rhythm, and so on. Models associated
+    with the task of performance generation are sometimes termed *AI Performers* as
+    well.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can realize different use cases or tasks based on which component is being
+    targeted. *Figure 11.1* highlights a few such tasks that are being researched
+    in the context of music generation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.1: Different components of music generation and associated list of
+    tasks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, by focusing on score generation alone, we can work toward
+    tasks such as melody generation and melody harmonization, as well as music in-painting
+    (associated with filling in missing or lost information in a piece of music).
+    Apart from the composer and the performer, there is also research being done toward
+    building AI DJs. Similar to human disc jockeys (DJs), AI DJs make use of pre-existing
+    music components to create medleys, mashups, remixes, and even highly personalized
+    playlists.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the coming sections, we will work mainly toward building our own score generation
+    models or AI Composers. Now that we have a high-level understanding of the overall
+    music generation landscape, let's focus on understanding how music is represented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Representing music
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Music is a work of art that represents mood, rhythm, emotions, and so on. Similar
+    to text, which is a collection of alphabets and grammatical rules, music scores
+    have their own notation and set of rules. In the previous chapters, we discussed
+    how textual data is first transformed into usable vector form before it can be
+    leveraged for any NLP task. We would need to do something similar in the case
+    of music as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Music representation can be categorized into two main classes: continuous and
+    discrete. The continuous representation is also called the **audio domain representation**.
+    It handles music data as waveforms. An example of this is presented in *Figure
+    11.2 (a)*. Audio domain representation captures rich acoustic details such as
+    timbre and articulation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B16176_11_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.2: Continuous or audio domain representation of music. a) 1D waveforms
+    are a direct representation of audio signals. b) 2D representations of audio data
+    can be in the form of spectrograms with one axis as time and second axis as frequency'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the figure, audio domain representations can be directly as 1D
+    waveforms or 2D spectrograms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The 1D waveform is a direct representation of the audio signal, with the *x*-axis
+    as time and the *y*-axis as changes to the signal
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The 2D spectrogram introduces time as the *x*-axis and frequency as the *y*-axis
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We typically use **Short-Time Fourier Transformation** (**STFT**) to convert
+    from 1D waveform to 2D spectrogram. Based on how we achieve the final spectrogram,
+    there are different varieties such as Mel-spectrograms or magnitude spectrograms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On the other hand, discrete or **symbolic representation** makes use of discrete
+    symbols to capture information related to pitch, duration, chords, and so on.
+    Even though less expressive than audio-domain representation, symbolic representation
+    is widely used across different music generation works. This popularity is primarily
+    due to the ease of understanding and handling such a representation. *Figure 11.3*
+    showcases a sample symbolic representation of a music score:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.3: Discrete or symbolic representation of music'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, a symbolic representation captures information using
+    various symbols/positions. **MIDI**, or **Musical Instrument Digital Interface**,
+    is an interoperable format used by musicians to create, compose, perform, and
+    share music. It is a common format used by various electronic musical instruments,
+    computers, smartphones, and even software to read and play music files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The symbolic representation can be designed to capture a whole lot of events
+    such as *note-on*, *note-off*, *time shift*, *bar*, *track*, and so on. To understand
+    the upcoming sections and the scope of this chapter, we will only focus on two
+    main events, note-on and note-off. The MIDI format captures 16 channels (numbered
+    0 to 15), 128 notes, and 128 loudness settings (also called velocity). There are
+    a number of other formats as well, but for the purposes of this chapter, we will
+    leverage MIDI-based music files only as these are widely used, expressive, interoperable,
+    and easy to understand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have covered quite some ground so far in terms of understanding the overall
+    music generation landscape and a few important representation techniques. Next,
+    we will get started with music generation itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Music generation using LSTMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw in the previous section, music is a continuous signal, which is a
+    combination of sounds from various instruments and voices. Another characteristic
+    is the presence of structural recurrent patterns which we pay attention to while
+    listening. In other words, each musical piece has its own characteristic coherence,
+    rhythm, and flow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Such a setup is similar to the case of text generation we saw in *Chapter 9*,
+    *The Rise of Methods for Text Generation*. In the case of text generation, we
+    saw the power and effectiveness of LSTM-based networks. In this section, we will
+    extend a stacked LSTM network for the task of music generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To keep things simple and easy to implement, we will focus on a single instrument/monophonic
+    music generation task. Let's first look at the dataset and think about how we
+    would prepare it for our task of music generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dataset preparation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'MIDI is an easy-to-use format which helps us extract a symbolic representation
+    of music contained in the files. For the hands-on exercises in this chapter, we
+    will make use of a subset of the massive public MIDI dataset collected and shared
+    by reddit user *u/midi_man*, which is available at this link:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.reddit.com/r/WeAreTheMusicMakers/comments/3ajwe4/the_largest_midi_collection_on_the_internet/](https://www.reddit.com/r/WeAreTheMusicMakers/comments/3ajwe4/the_largest_midi_collection_on_the_inte)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The subset is based on classical piano pieces by great musicians such as Beethoven, Bach,
+    Bartok, and the like. The subset can be found in a zipped folder, `midi_dataset.zip`,
+    along with the code in this book's GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As mentioned previously, we will make use of `music21` to process the subset
+    of this dataset and prepare our data for training the model. As music is a collection
+    of sounds from various instruments and voices/singers, for the purpose of this
+    exercise we will first use the `chordify()` function to extract chords from the
+    songs. The following snippet helps us to get a list of MIDI scores in the required
+    format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we have the list of scores, the next step is to extract notes and their
+    corresponding timing information. For extracting these details, `music21` has
+    simple-to-use interfaces such as `element.pitch` and `element.duration`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following snippet helps us extract such information from MIDI files and
+    prepare two parallel lists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now have the mapping ready. In the following snippet, we prepare the training
+    dataset as sequences of length 32 with their corresponding target as the very
+    next token in the sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we''ve seen, the dataset preparation stage was mostly straightforward apart
+    from a few nuances associated with the handling of MIDI files. The generated sequences
+    and their corresponding targets are shown in the following output snippet for
+    reference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The transformed dataset is now a sequence of numbers, just like in the text
+    generation case. The next item on the list is the model itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTM model for music generation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned earlier, our first music generation model will be an extended version
+    of the LSTM-based text generation model from *Chapter 9*, *The Rise of Methods
+    for Text Generation*. Yet there are a few caveats that we need to handle and necessary
+    changes that need to be made before we can use the model for this task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike text generation (using Char-RNN) where we had only a handful of input
+    symbols (lower- and upper-case alphabets, numbers), the number of symbols in the
+    case of music generation is pretty large (~500). Add to this list of symbols a
+    few additional ones required for time/duration related information as well. With
+    this larger input symbol list, the model requires more training data and capacity
+    to learn (capacity in terms of the number of LSTM units, embedding size, and so
+    on).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next obvious change we need to take care of is the model's capability to
+    take two inputs for every timestep. In other words, the model should be able to
+    take the notes as well as duration information as input at every timestep and
+    generate an output note with its corresponding duration. To do so, we leverage
+    the functional `tensorflow.keras` API to prepare a multi-input multi-output architecture
+    in place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As discussed in detail in *Chapter 9*, *The Rise of Methods for Text Generation*,
+    stacked LSTMs have a definite advantage in terms of being able to learn more sophisticated
+    features over networks with a single LSTM layer. In addition to that, we also
+    discussed **attention mechanisms** and how they help in alleviating issues inherent
+    to RNNs, such as difficulties in handling long-range dependencies. Since music
+    is composed of local as well as global structures which are perceivable in the
+    form of rhythm and coherence, attention mechanisms can certainly make an impact.
+    The following code snippet prepares a multi-input stacked LSTM network in the
+    manner discussed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Training this model is as simple as calling the `fit()` function on the `keras`
+    model object. We train the model for about 100 epochs. *Figure 11.4* depicts the
+    learning progress of the model across different epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text  Description automatically generated](img/B16176_11_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.4: Model output as the training progresses across epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the model is able to learn a few repeating patterns
+    and generate music. Here, we made use of temperature-based sampling as our decoding
+    strategy. As discussed in *Chapter 9*, *The Rise of Methods for Text Generation*,
+    readers can experiment with techniques such as greedy decoding, pure sampling-based
+    decoding, and other such strategies to see how the output music quality changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This was a very simple implementation of music generation using deep learning
+    models. We drew analogies with concepts learned in the previous two chapters on text
+    generation. Next, let's do some music generation using adversarial networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Music generation using GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we tried our hand at music generation using a very
+    simple LSTM-based model. Now, let's raise the bar a bit and try to see how we
+    can generate music using a GAN. In this section, we will leverage the concepts
+    related to GANs that we have learned in the previous chapters and apply them to
+    generating music.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've already seen that music is continuous and sequential in nature. LSTMs
+    or RNNs in general are quite adept at handling such datasets. We have also seen
+    that, over the years, various types of GANs have been proposed to train deep generative
+    networks efficiently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Combining the power of LSTMs and GAN-based generative networks, Mogren et al.
+    presented *Continuous Recurrent Neural Networks with Adversarial Training: C-RNN-GAN*⁴
+    in 2016 as a method for music generation. This is a straightforward yet effective
+    implementation for music generation. As in the previous section, we will keep
+    things simple and focus only on monophonic music generation, even though the original
+    paper mentions using features such as tone length, frequency, intensity, and time
+    apart from music notes. The paper also mentions a technique called *feature mapping*
+    to generate polyphonic music (using the C-RNN-GAN-3 variant). We will only focus
+    on understanding the basic architecture and pre-processing steps and not try to
+    implement the paper as-is. Let''s begin with defining each of the components of
+    our music-generating GAN.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generator network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The generator model is a fairly straightforward implementation which highlights
+    the effectiveness of a GAN-based generative model. Next, let us prepare the discriminator
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discriminator network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In a GAN setup, the discriminator's job is to differentiate between real and
+    generated (or fake) samples. In this case, since the sample to be checked is a
+    musical piece, the model needs to have the ability to handle sequential input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to handle sequential input samples, we use a simple stacked RNN network.
+    The first recurrent layer is an LSTM layer with 512 units, followed by a bi-directional
+    LSTM layer. The bi-directionality of the second layer helps the discriminator
+    learn about the context better by viewing what came before and after a particular
+    chord or note. The recurrent layers are followed by a stack of dense layers and
+    a final sigmoid layer for the binary classification task. The discriminator network
+    is presented in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown in the snippet, the discriminator is also a very simple model consisting
+    of a few recurrent and dense layers. Next, let us combine all these components
+    and train the overall GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and results
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The first step is to instantiate the generator and discriminator models using
+    the utilities we presented in the previous sections. Once we have these objects,
+    we combine the generator and discriminator into a stack to form the overall GAN.
+    The following snippet presents the instantiation of the three networks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we have done in the previous chapters, the discriminator training is first
+    set to `false` before it is stacked into the GAN model object. This ensures that
+    only the generator weights are updated during the generation cycle and not the
+    discriminator weights. We prepare a custom training loop just as we have presented
+    a number of times in previous chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the sake of completeness, we present it again here for reference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have used the same training dataset as in the previous section. We train
+    our setup for about 200 epochs with a batch size of 64\. *Figure 11.5* is a depiction
+    of discriminator and generator losses over training cycles, along with a few outputs
+    at different intervals:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.5: a) Discriminator and generator losses as the training progresses
+    over time. b) The output from the generator model at different training intervals'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The outputs shown in the figure highlight the potential of a GAN-based music
+    generation setup. Readers may choose to experiment with different datasets or
+    even the details mentioned in the C-RNN-GAN paper by Mogren et al. The generated
+    MIDI files can be played using the MuseScore app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output from this GAN-based model as compared to the LSTM-based model from
+    the previous section might feel a bit more refined (though this is purely subjective
+    given our small datasets). This could be attributed to GANs' inherent ability
+    to better model the generation process compared to an LSTM-based model. Please
+    refer to *Chapter 6*, *Image Generation with GANs*, for more details on the topology
+    of generative models and their respective strengths.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have seen two variations of monophonic music generation, let us graduate
+    toward polyphonic music generation using MuseGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MuseGAN – polyphonic music generation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The two models we have trained so far have been simplified versions of how music
+    is actually perceived. While limited, both the attention-based LSTM model and
+    the C-RNN-GAN based model helped us to understand the music generation process
+    very well. In this section, we will build on what we've learned so far and make
+    a move toward preparing a setup which is as close to the actual task of music
+    generation as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In 2017, Dong et al. presented a GAN-type framework for multi-track music generation
+    in their work titled *MuseGAN: Multi-track Sequential Generative Adversarial Networks
+    for Symbolic Music Generation and Accompaniment*.⁵ The paper is a detailed explanation
+    of various music-related concepts and how Dong and team tackled them. To keep
+    things within the scope of this chapter and without losing details, we will touch
+    upon the important contributions of the work and then proceed toward the implementation.
+    Before we get onto the "how" part, let''s understand the three main properties
+    related to music that the MuseGAN work tries to take into account:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Multi-track interdependency**: As we know, most songs that we listen to are
+    usually composed of multiple instruments such as drums, guitars, bass, vocals,
+    and so on. There is a high level of interdependency in how these components play
+    out for the end-user/listener to perceive coherence and rhythm.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Musical texture**: Musical notes are often grouped into chords and melodies.
+    These groupings are characterized by a high degree of overlap and not necessarily
+    chronological ordering (this simplification of chronological ordering is usually
+    applied in most known works associated with music generation). The chronological
+    ordering comes not only as part of the need for simplification but also as a generalization
+    from the NLP domain, language generation in particular.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Temporal structure**: Music has a hierarchical structure where a song can
+    be seen as being composed of paragraphs (at the highest level). A paragraph is
+    composed of various phrases, which are in turn composed of multiple bars, and
+    so on. *Figure 11.6* depicts this hierarchy pictorially:![Table  Description automatically
+    generated](img/B16176_11_06.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Figure 11.6: Temporal structure of a song'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, a bar is further composed of beats and at the lowest level,
+    we have pixels. The authors of MuseGAN mention a bar as the compositional unit,
+    as opposed to notes, which we have been considering the basic unit so far. This
+    is done in order to account for grouping of notes from the multi-track setup.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: MuseGAN works toward solving these three major challenges through a unique framework
+    based on three music generation approaches. These three basic approaches make
+    use of jamming, hybrid, and composer models. We will briefly explain these now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Jamming model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'If we were to extrapolate the simplified-monophonic GAN setup from the previous
+    section to a polyphonic setup, the simplest method would be to make use of multiple
+    generator-discriminator combinations, one for each instrument. The jamming model
+    is precisely this setup, where *M* multiple independent generators prepare music
+    from their respective random vectors. Each generator has its own critic/discriminator,
+    which helps in training the overall GAN. This setup is depicted in *Figure 11.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B16176_11_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.7: Jamming model composed of M generator and discriminator pairs
+    for generating multi-track outputs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the preceding figure, the jamming setup imitates a grouping of musicians
+    who create music by improvising independently and without any predefined arrangement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Composer model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As the name suggests, this setup assumes that the generator is a typical human
+    composer capable of creating multi-track piano rolls, as shown in *Figure 11.8*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.8: Composer model composed of a single generator capable of generating
+    M tracks and a single discriminator for detecting fake versus real samples'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the setup only has a single discriminator to detect
+    real or fake (generated) samples. This model requires only one common random vector *z* as
+    opposed to *M* random vectors in the previous jamming model setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hybrid model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'This is an interesting take that arises by combining the jamming and composer
+    models. The hybrid model has *M* independent generators that make use of their
+    respective random vectors, which are also called *intra-track random vectors*.
+    Each generator also takes an additional random vector called the *inter-track
+    random vector*. This additional vector is supposed to imitate the composer and
+    help in the coordination of the independent generators. *Figure 11.9* depicts
+    the hybrid model, with *M* generators each taking intra-track and inter-track
+    random vectors as input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, logo  Description automatically generated](img/B16176_11_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.9: Hybrid model composed of M generators and a single discriminator.
+    Each generator takes two inputs in the form of inter-track and intra-track random
+    vectors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the hybrid model with its *M* generators works with
+    only a single discriminator to predict whether a sample is real or fake. The advantage
+    of combining both jamming and composer models is in terms of flexibility and control
+    at the generator end. Since we have *M* different generators, the setup allows
+    for flexibility to choose different architectures (different input sizes, filters,
+    layers, and so on) for different tracks, as well as additional control via the
+    inter-track random vector to manage coordination amongst them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apart from these three variants, the authors of MuseGAN also present a temporal
+    model, which we discuss next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Temporal model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The temporal structure of music was one of the three aspects we discussed as
+    top priorities for the MuseGAN setup. The three variants explained in the previous
+    sections, jamming, composer, and hybrid models, all work at the bar level. In
+    other words, each of these models generates multi-track music bar by bar, but
+    possibly with no coherence or continuity between two successive bars. This is
+    different from the hierarchical structure where a group of bars makes up a phrase,
+    and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To maintain coherence and the temporal structure of the song being generated,
+    the authors of MuseGAN present a temporal model. While generating from scratch
+    (as one of the modes), this additional model helps in generating fixed-length
+    phrases by taking bar-progression as an additional dimension. This model consists
+    of two sub-components, the temporal structure generator *G*[temp] and the bar
+    generator *G*[bar]. This setup is presented in *Figure 11.10*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.10: Temporal model with its two sub-components, temporal structure
+    generator G[temp] and bar generator G[bar]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The temporal structure generator maps a noise vector *z* to a sequence of latent
+    vectors ![](img/B16176_11_001.png). This latent vector ![](img/B16176_11_002.png)
+    carries temporal information and is then used by *G*[bar] to generate music bar
+    by bar. The overall setup for the temporal model is formulated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The authors note that this setup is similar to some of the works on video generation,
+    and cite references for further details. The authors also mention another setting
+    where a conditional setup is presented for the generation of temporal structure
+    by learning from a human-generated track sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have covered details on the specific building blocks for the MuseGAN setup.
+    Let's now dive into how these components make up the overall system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MuseGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The overall MuseGAN setup is a complex architecture composed of a number of moving
+    parts. To bring things into perspective, the paper presents experiments with jamming,
+    composer, and hybrid generation approaches at a very high level. To ensure temporal
+    structure, the setup makes use of the two-step temporal model approach we discussed
+    in the previous section. A simplified version of the MuseGAN architecture is presented
+    in *Figure 11.11*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated with medium confidence](img/B16176_11_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.11: Simplified MuseGAN architecture consisting of a hybrid model
+    with M generators and a single discriminator, along with a two-stage temporal
+    model for generating phrase coherent output'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the setup makes use of a temporal model for certain
+    tracks and direct random vectors for others. The outputs from temporal models,
+    as well as direct inputs, are then concatenated (or summed) before they are passed
+    to the bar generator model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bar generator then creates music bar by bar and is evaluated using a critic
+    or discriminator model. In the coming section, we will briefly touch upon implementation
+    details for both the generator and critic models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note that the implementation presented in this section is close to the
+    original work but not an exact replication. We have taken certain shortcuts in
+    order to simplify and ease the understanding of the overall architecture. Interested
+    readers may refer to official implementation details and the code repository mentioned
+    in the cited work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generators
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As mentioned in the previous section, the generator setup depends on whether
+    we are using the jamming, composer, or hybrid approach. For simplicity, we will
+    focus only on the hybrid setup where we have multiple generators, one for each
+    track.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One set of generators focuses on tracks which require temporal coherence; for
+    instance, components such as melody are long sequences (more than one bar long)
+    and coherence between them is an important factor. For such tracks, we use a temporal
+    architecture as shown in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown, the temporal model firstly reshapes the random vector to desired dimensions,
+    then passes it through transposed convolutional layers to expand the output vector
+    so that it spans the length of specified bars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the tracks where we do not require inter-bar coherence, we directly use
+    the random vector *z* as-is. Groove or beat-related information covers such tracks
+    in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The outputs from the temporal generator and the direct random vectors are first
+    concatenated to prepare a larger coordinated vector. This vector then acts as
+    an input to the bar generator *G*[bar] shown in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Critic
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The critic model is simpler compared to the generator we built in the previous
+    section. The critic is basically a convolutional WGAN-GP model (similar to WGAN,
+    covered in *Chapter 6*, *Image Generation with GANs*), which takes the output
+    from the bar generator, as well as real samples, to detect whether the generator
+    output is fake or real. The following snippet presents the critic model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: One major point to note here is the use of 3D convolutional layers. We typically
+    make use of 2D convolutions for a majority of tasks. In this case, since we have
+    4-dimensional inputs, a 3D convolutional layer is required for handling the data
+    correctly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use these utilities to prepare 4 different generators, one for each track,
+    into a common generator model object. In the next step, we prepare the training
+    setup and generate some sample music.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and results
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have all the components ready. The final step is to combine them and train
+    in the manner a typical WGAN-GP is trained. The authors of the paper mention that
+    the model achieves stable performance if they update the generators once for every
+    5 updates of the discriminator. We follow a similar setup to achieve the results
+    shown in *Figure 11.12*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_11_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11.12: Results from MuseGAN setup showcase multi-track output, which
+    seems to be coherent across bars and has a consistent rhythm to it'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the figure, the multi-track polyphonic output from MuseGAN indeed
+    seems quite impressive. We urge readers to use a MIDI player (or even MuseScore
+    itself) to play the generated music samples in order to understand the complexity
+    of the output, along with the improvement over the simpler models prepared in
+    the earlier sections of the chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Congratulations on completing yet another complex chapter. In this chapter,
+    we covered quite a bit of ground in terms of building an understanding of music
+    as a source of data, and then various methods of generating music using generative
+    models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first section of this chapter, we briefly discussed the two components
+    of music generation, namely *score* and *performance generation*. We also touched
+    upon different use cases associated with music generation. The next section focused
+    on different methods for music representation. At a high level, we discussed continuous
+    and discrete representation techniques. We primarily focused on *1D waveforms*
+    and *2D spectrograms* as main representations in the audio or continuous domain.
+    For symbolic or discrete representation, we discussed *notes/chords*-based sheet
+    music. We also performed a quick hands-on exercise using the `music21` library
+    to transform a given MIDI file into readable sheet music.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we had some basic understanding of how music can be represented, we turned
+    toward building music generation models. The first and the simplest method we
+    worked upon was based on a stacked LSTM architecture. The model made use of an
+    attention mechanism and symbolic representation to generate the next set of notes.
+    This LSTM-based model helped us to get a peek into the music generation process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section focused on using a GAN setup to generate music. We designed
+    our GAN similar to *C-RNN-GAN* presented by Mogren et al. The results were very
+    encouraging and gave us a good insight into how an adversarial network can be
+    used for the task of music generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: During the first two hands-on exercises, we limited our music generation process
+    to only monophonic music to keep things simple. In the final section of this chapter,
+    our aim was to understand the complexities and techniques required to generate
+    polyphonic/multi-track music. We discussed in detail *MuseGAN*, a polyphonic/multi-track
+    GAN-based music generation architecture presented by Dong et al. in 2017\. Dong
+    and team discussed *multi-track interdependency*, *musical texture*, and *temporal
+    structure* as three main aspects that should be handled by any multi-track music
+    generation model. They presented three variants for music generation in the form
+    of *jamming*, *composer*, and *hybrid models*. They also presented a discussion
+    on *temporal* and *bar* generation models to bring things into perspective. The
+    MuseGAN paper presents MuseGAN as a complex combination of these smaller components/models
+    to handle multi-track/polyphonic music generation. We leveraged this understanding
+    to build a simplified version of this work and generate polyphonic music of our
+    own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter provided us with a look into yet another domain which can be handled
+    using generative models. In the next chapter, we will level things up and focus
+    on the exciting field of reinforcement learning. Using RL, we will build some
+    cool applications as well. Stay tuned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Butcher, M. (2019, July 23). *It looks like TikTok has acquired Jukedeck, a
+    pioneering music AI UK startup*. TechCrunch. [https://techcrunch.com/2019/07/23/it-looks-like-titok-has-acquired-jukedeck-a-pioneering-music-ai-uk-startup/](https://techcrunch.com/2019/07/23/it-looks-like-titok-has-acquired-jukedeck-a-pioneering-music-ai-uk)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apple. (2021). *GarageBand for Mac - Apple*. [https://www.apple.com/mac/garageband/](https://www.apple.com/mac/garageband/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Magenta. (n.d.) *Make Music and Art Using Machine Learning*. [https://magenta.tensorflow.org/](https://magenta.tensorflow.org/)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Mogren, O. (2016). *C-RNN-GAN: Continuous recurrent neural networks with adversarial
+    training*. Constructive Machine Learning Workshop (CML) at NIPS 2016 in Barcelona,
+    Spain, December 10\. [https://arxiv.org/abs/1611.09904](https://arxiv.org/abs/1611.09904)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Dong, H-W., Hsiao, W-Y., Yang, L-C., & Yang, Y-H. (2017). *MuseGAN: Multi-Track
+    Sequential Generative Adversarial Networks for Symbolic Music Generation and Accompaniment*.
+    The Thirty-Second AAAI Conference on Artificial Intelligence (AAAI-18). [https://salu133445.github.io/musegan/pdf/musegan-aaai2018-paper.pdf](https://salu133445.github.io/musegan/pdf/musegan-aaai2018-paper.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

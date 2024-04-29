@@ -1,0 +1,1176 @@
+- en: '7'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Style Transfer with GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Neural networks are improving in a number of tasks involving analytical and
+    linguistic skills. Creativity is one sphere where humans have had an upper hand.
+    Not only is art subjective and has no defined boundaries, it is also difficult
+    to quantify. Yet this has not stopped researchers from exploring the creative
+    capabilities of algorithms. There have been several successful attempts at creating,
+    understanding, and even copying art or artistic styles over the years, a few examples
+    being *Deep Dream*¹ and *Neural Style Transfer*.²
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generative models are well suited to tasks associated with imagining and creating.
+    **Generative Adversarial Networks** (**GANs**) in particular have been studied
+    and explored in detail for the task of style transfer over the years. One such
+    example is presented in *Figure 7.1*, where the CycleGAN architecture has been
+    used to successfully transform photographs into paintings using the styles of
+    famous artists such as Monet and Van Gogh.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.1: Style transfer based on the artistic style of four famous painters
+    using CycleGAN³'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 7.1* gives us a visual sense of how style transfer works. The samples
+    show that the CycleGAN model is able to preserve the details and structures of
+    the input image, yet transforms it in a way that mimics famous painters'' works.
+    In other words, style transfer is a technique that transforms an input image such
+    that it adopts the visual style of another/reference image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover style transfer methods using different GAN architectures.
+    We will focus on the following aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image-to-image paired style transfer techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Image-to-image unpaired style transfer techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Related works
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will cover the internal workings of different GAN architectures and key contributions
+    that have enabled the style transfer setup. We will also build and train these
+    architectures from scratch to get a better understanding of how they work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All code snippets presented in this chapter can be run directly in Google Colab.
+    For reasons of space, import statements for dependencies have not been included,
+    but readers can refer to the GitHub repository for the full code: [https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2](https://github.com/PacktPublishing/Hands-On-Generative-AI-with-Python-and-TensorFlow-2)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's get started by looking at paired style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Paired style transfer using pix2pix GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 6*, *Image Generation with GANs*, we discussed a number of innovations
+    related to GAN architectures that led to improved results and better control of
+    the output class. One of those innovations was conditional GANs. This simple yet
+    powerful addition to the GAN setup enabled us to navigate the latent vector space
+    and control the generator to generate specific outputs. We experimented with a
+    simple MNIST conditional GAN where we were able to generate the output of our
+    choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will cover a variant of conditional GANs in the context
+    of style transfer. We will go through details of the pix2pix architecture, discuss
+    the important components and also train a paired style transfer network of our
+    own. We will close this section with some amazing and innovative use cases of
+    such a capability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Style transfer is an intriguing research area, pushing the boundaries of creativity
+    and deep learning together. In their work titled *Image-to-Image Translation with
+    Conditional Adversarial Networks*,⁴ Isola and Zhu et al. present a conditional
+    GAN network that is able to learn task-specific loss functions and thus work across
+    datasets. As the name suggests, this GAN architecture takes a specific type of
+    image as input and transforms it into a different domain. It is called pair-wise
+    style transfer as the training set needs to have matching samples from both source
+    and target domains. This generic approach is shown to effectively synthesize high-quality
+    images from label maps and edge maps, and even colorize images. The authors highlight
+    the importance of developing an architecture capable of understanding the dataset
+    at hand and learning mapping functions without the need for hand-engineering (which
+    has been the case typically).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This work presents a number of contributions on top of the conditional GAN architecture.
+    Some of these contributions have been used in other works as well, with the authors
+    citing the required references in their work. We encourage readers to go through
+    these for an in-depth understanding. We will now cover each component of the pix2pix
+    GAN setup in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The U-Net generator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Deep convolutional generators were explored as part of the DC-GAN setup in
+    *Chapter 6*,*Image Generation with GANs*. Since CNNs are optimized for computer
+    vision tasks, using them for generator as well as discriminator architectures
+    has a number of advantages. This work focuses on two related architectures for
+    the generator setup. The two choices are the vanilla encoder-decoder architecture
+    and the encoder-decoder architecture with skip connections. The architecture with
+    skip connections has more in common with the U-Net model⁵ than the encoder-decoder
+    setup. Hence, the generator in the pix2pix GAN is termed a U-Net generator. See
+    *Figure 7.2* for reference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing clock  Description automatically generated](img/B16176_07_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.2: (left) Encoder-decoder generator. (right) Encoder-decoder with
+    skip connections, or a U-Net generator'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A typical encoder (in the encoder-decoder setup) takes an input and passes it
+    through a series of downsampling layers to generate a condensed vector form. This
+    condensed vector is termed the bottleneck features. The decoder part then upsamples
+    the bottleneck features to generate the final output. This setup is extremely
+    useful in a number of scenarios, such as language translation and image reconstruction.
+    The bottleneck features condense the overall input into a lower-dimensional space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Theoretically, the bottleneck features capture all the required information,
+    but practically this becomes difficult when the input space is large enough.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Additionally, for our task of image-to-image translation, there are a number
+    of important features that need to be consistent between the input and output
+    images. For example, if we are training our GAN to generate aerial photos out
+    of outline maps, the information associated with roads, water bodies, and other
+    low-level information needs to be preserved between inputs and outputs, as shown
+    in *Figure 7.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing text  Description automatically generated](img/B16176_07_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.3: The U-Net architecture enables the generator to ensure features
+    are consistent between the input and the generated output'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The U-Net architecture uses skip connections to shuttle important features
+    between the input and output (see *Figures 7.2* and *7.3*). In the case of the
+    pix2pix GAN, skip connections are added between every *i*^(th) down-sampling layer
+    and (*n - i*)^(th) over-sampling layer, where n is the total number of layers
+    in the generator. The skip connection leads to the concatenation of all channels
+    from the *i*^(th) to (*n - i*)^(th) layers, with the *i*^(th) layers being appended
+    to the (*n - i*)^(th) layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16176_07_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.4: The encoder and decoder blocks of the U-Net generator'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator presented in the paper follows a repeating block structure for
+    both encoder and decoder parts. Each encoder block consists of a convolutional
+    layer followed by a batch normalization layer, dropout layer, and leaky ReLU activation.
+    Every such block downsamples by a factor of 2, using a stride of 2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The decoder blocks use a transposed-convolution layer followed by batch normalization
+    and leaky ReLU activation. Each block upsamples by a factor of 2\. A simplified
+    setup of encoder and decoder blocks is shown in *Figure 7.4*. As mentioned earlier,
+    each of these blocks is connected using a skip connection as well. Equipped with
+    this knowledge about the generator, let's get onto implementation details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Firstly, let us prepare utility methods for downsampling and upsampling blocks
+    of the U-Net generator. The downsampling block uses a stack comprised of convolutional
+    layers, followed by leaky ReLU activation, and finally an optional batch normalization
+    layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `downsample_block` helper function below takes input parameters for the
+    number of filters required, kernel size, and whether we need batch normalization
+    or not:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next helper function is the upsampling block. Each upsampling block is a
+    stack comprised of an upsampling layer followed by a convolutional 2D layer, an
+    optional dropout layer, and finally the batch normalization layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The final piece of the puzzle is to prepare the decoder. For this, we stack
+    seven decoder blocks using the `upsample_block()` function, with skip connections
+    from the encoder layers. The following snippet implements this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This shows the ease with which we can leverage building blocks to form complex
+    architectures such as the U-Net generator. Let us now understand the details associated
+    with the discriminator for pix2pix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Patch-GAN discriminator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A typical discriminator works by taking an input image and classifies it as
+    fake or real, that is, generates a single output scalar. In the case of a conditional
+    discriminator, there are two inputs, the first being the conditional input and
+    the second the generated sample (from the generator) for classification. For our
+    image-to-image transfer use case, the discriminator is provided with a source
+    image (conditional input) as well as the generated sample, and its aim is to predict
+    whether the generated sample is a plausible transformation of the source or not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors of pix2pix propose a Patch-GAN setup for the discriminator, which
+    takes the two required inputs and generates an output of size *N* x *N*. *Figure
+    7.5* illustrates the concept of Patch-GAN in a simplified manner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A picture containing showing, photo, different, screen  Description automatically
+    generated](img/B16176_07_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.5: Simplified illustration to understand the workings of a Patch-GAN
+    discriminator'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The configuration presented in the paper uses three Patch-GAN layers using
+    a kernel size of 4 x 4 and a stride of 2\. The final two layers use a kernel size
+    of 4 x 4 with a stride of 1\. This leads to a 70 x 70 Patch-GAN setup, that is,
+    each output pixel/cell/element in the *N* x *N* output matrix corresponds to a
+    70 x 70 patch of the input image. Each such 70 x 70 patch has high overlaps as
+    the input image has a size of 256 x 256\. To understand this better, let''s work
+    through the calculation of effective receptive fields using the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The snippet shows the calculation for understanding how each output pixel corresponds
+    to a patch of size 70 x 70 in the initial input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The intuitive way of understanding this is to assume that the model prepares
+    multiple overlapping patches of the input image and tries to classify each patch
+    as fake or real, then averages them to prepare the overall result. This is shown
+    to improve the overall output quality of the generated images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors experiment with different patch sizes ranging from 1 x 1 (Pixel-GAN)
+    to 256 x 256 (Image-GAN), but they report best results with the 70 x 70 configuration
+    (Patch-GAN) and little to no improvements beyond it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Intuitively, we can perhaps reason why: in style transfer, the goal is to copy
+    local characteristics from the source image onto the target image, so the patch
+    size needs to best serve this goal; a pixel-level patch size is too narrow and
+    loses sight of larger characteristics, while an image-level patch size is insensitive
+    to local variation within the image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now prepare our Patch-GAN discriminator using TensorFlow 2\. The first
+    step is to prepare a utility for defining a discriminator block consisting of
+    a convolutional layer, leaky ReLU, and an optional batch normalization layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will use these blocks to prepare the Patch-GAN discriminator as follows.
+    The snippet below prepares a discriminator model that takes in two inputs (the
+    generator''s output and the conditioning image) followed by four discriminator
+    blocks with an increasing number of filters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similar to the generator, we now have a function to build the required Patch-GAN
+    discriminator. The next step is to understand the objective functions used to
+    train the overall setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We discussed conditional GANs in detail in *Chapter 6*, *Image Generation with
+    GANs*, where we introduced the overall conditional GAN objective function. Here
+    it is again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The authors observe that the typical way of utilizing L1 and L2 regularization
+    methods to improve output quality works by capturing low frequencies only, that
+    is, local structures that contribute to the overall crispness of the generated
+    image. L1 regularization helps prevent blurring compared to L2 regularization.
+    Therefore, we can formulate L1 regularization as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'where *x* is the source image, *y* is the conditioned input, and *z* is the
+    noise vector. Coupling the U-Net setup with L1 regularization leads to the generation
+    of sharp output images, where the GAN handles high frequencies while the L1 assists
+    with low frequencies. The updated objective function can be stated as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Similar to improvements suggested in the original GAN paper, pix2pix also maximizes
+    *log(D(G(z|y)))* instead of minimizing *log(1 – D(G(z|y)))*. This results in better
+    feedback from gradient curves (refer to the section *Training GANs* in *Chapter
+    6*, *Image Generation with GANs*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training pix2pix
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We now have all the required components ready. The final piece of the puzzle
+    is to combine the generator and discriminator into a training loop for preparing
+    the pix2pix GAN network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We attach relevant loss functions to each of the component networks as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above function takes the generator, discriminator, and the combined pix2pix
+    GAN model object as inputs. Based on the size of the Patch-GAN discriminator,
+    we define NumPy arrays for holding fake and real output predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to the way we trained GANs in the previous chapter, we loop through
+    multiple iterations by first using the generator to generate a fake sample and
+    then using this to get discriminator output. Finally, these outputs are used to
+    calculate the loss and update the corresponding model weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have the training loop, the following snippet prepares the discriminator
+    and GAN networks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training loop is simple and similar to what we used in the previous chapter:
+    for every epoch, we alternate between training the discriminator and the generator.
+    The hyperparameters used are as stated in the pix2pix paper. The outputs from
+    the model at different stages of training are showcased in *Figure 7.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.6: Pix2pix-generated outputs at different stages of training'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike the simpler architectures we trained in *Chapter 6*,*Image Generation
+    with GANs*, despite being far more complex, the pix2pix GAN trains faster and
+    stabilizes to far better results in fewer iterations. The outputs showcased in
+    *Figure 7.6* show the model's ability to learn the mapping and generate high-quality
+    outputs right from the first epoch. This can all be attributed to some of the
+    innovations discussed in the previous sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've seen how to set up and train a pix2pix GAN for paired style transfer,
+    let's look at some of the things it can be used for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use cases
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The image-to-image translation setup opens up a lot of use cases and applications
+    in the real world. The pix2pix setup provides a generic framework that can be
+    applied to a number of image-to-image translation use cases without specifically
+    engineering the architectures or loss functions. In their work, Isola and Zhu
+    et al. present a number of interesting studies to showcase these capabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This conditional GAN setup of the pix2pix GAN is capable of performing tasks
+    such as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building façade generation from label inputs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Colorization of black and white images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transforming satellite/aerial map input images to Google Maps-like outputs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Semantic segmentation tasks such as street view to segment labels
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sketch to image tasks such as sketch to photo, sketch to portrait, sketch to
+    cat, sketch to colored Pokémon, and even outline to fashion objects such as shoes,
+    bags, and so on
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Background removal
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In-painting or image completion
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Thermal to RGB image translation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Day to night scene and summer to winter scene conversion
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Some of the types of translations performed in the paper are shown in *Figure
+    7.7* for reference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing photo, different  Description automatically generated](img/B16176_07_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: A few examples of different image-to-image translation tasks using
+    pix2pix'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As mentioned earlier, the pix2pix architecture is highly optimized and trains
+    even on very small datasets. This enables many more creative use cases experimented
+    with by the community and other researchers; the authors have developed a website
+    for the paper where they showcase such use cases. We encourage readers to visit
+    the website for more details: [https://phillipi.github.io/pix2pix/](https://phillipi.github.io/pix2pix/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having discussed paired style transfer, next we're going to look at unpaired
+    style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unpaired style transfer using CycleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Paired style transfer is a powerful setup with a number of use cases, some of
+    which we discussed in the previous section. It provides the ability to perform
+    cross-domain transfer given a pair of source and target domain datasets. The pix2pix
+    setup also showcased the power of GANs to understand and learn the required loss
+    functions without the need for manually specifying them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While being a huge improvement over hand-crafted loss functions and previous
+    works, paired style transfer is limited by the availability of paired datasets.
+    Paired style transfer requires the input and output images to be structurally
+    the same even though the domains are different (aerial to map, labels to scene,
+    and so on). In this section, we will focus on an improved style transfer architecture
+    called CycleGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CycleGAN improves upon paired style transfer architecture by relaxing the constraints
+    on input and output images. CycleGAN explores the unpaired style transfer paradigm
+    where the model actually tries to learn the stylistic differences between source
+    and target domains without explicit pairing between input and output images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Zhu and Park et al. describe this unpaired style transfer as similar to our
+    ability to imagine how Van Gogh or Monet would have painted a particular scene,
+    without having actually seen a side-by-side example. Quoting from the paper³:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead, we have knowledge of the set of Monet paintings and of the set of landscape
+    photographs. We can reason about the stylistic differences between these two sets,
+    and thereby imagine what a scene might look like if we were to translate it from
+    one set into the other.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: This provides a nice advantage as well as opening up additional use cases where
+    an exact pairing of source and target domains is either not available or we do
+    not have enough training examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall setup for CycleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the case of paired style transfer, the training dataset consists of paired
+    samples, denoted as {*x*[i], *y*[i]}, where *x*[i] and *y*[i] have correspondence
+    between them. This is shown in *Figure 7.8 (a)* for reference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.8: (a) Paired training examples. (b) Unpaired training examples. (Source:
+    Zhu and Park et al. Unpaired Image-to-Image Translation using Cycle-Consistent
+    Adversarial Networks, Figure 2)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For CycleGAN, the training dataset consists of unpaired samples from the source
+    set, denoted as ![](img/B16176_07_004.png) , and target set ![](img/B16176_07_005.png),
+    with no specific information regarding which *x*[i] matches which *y*[j]. See
+    *Figure 7.8 (b)* for reference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the previous chapter, we discussed how GANs learn a mapping ![](img/B16176_07_006.png)
+    such that the output ![](img/B16176_07_007.png) is indistinguishable from ![](img/B16176_07_008.png).
+    While this works well for other scenarios, it is not so good for unpaired image-to-image
+    translation tasks. Due to the lack of paired samples, we cannot use the L1 loss
+    as before to learn a *G*, so we need to formulate a different loss for unpaired
+    style transfer. In general, when we learn the function *G*(*x*), it is one of
+    the numerous possibilities for learning *Y*. In other words, for a given *X* and
+    *Y*, there are infinitely many *G*s that will have the same distribution over
+    ![](img/B16176_07_009.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to reduce the search space and add more constraints in our search for
+    the best possible generator *G*, the authors introduced a property called **cycle
+    consistency**. Mathematically, assume we have two generators , *G* and *F*, such
+    that ![](img/B16176_07_010.png) and ![](img/B16176_07_011.png). In the best possible
+    setting, *G* and *F* would be inverses of each other and should be bijections,
+    that is, one-to-one. For CycleGAN, the authors train both generators, *G* and
+    *F*, simultaneously for adversarial loss along with cycle consistency constraints
+    to encourage ![](img/B16176_07_012.png) and ![](img/B16176_07_013.png). This results
+    in the successful training of the unpaired style transfer GAN setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Please note that similar to the generators, we have two sets of discriminators
+    as well in this setup, *D*[Y] for *G* and *D*[X] for *F*. The intuition behind
+    this setup of having a pair of generators/discriminators is that we can learn
+    the best possible translation from the source domain to target only if we are
+    able to do the same in reverse order as well. *Figure 7.9* demonstrates the concept
+    of cycle consistency pictorially:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing clock  Description automatically generated](img/B16176_07_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.9: High-level schematic for CycleGAN³'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first section (left-most) of *Figure 7.9* depicts the CycleGAN setup. The
+    setup shows two pairs of generators and discriminators, *G* & *D*[Y] and *F* &
+    *D*[X].
+  prefs: []
+  type: TYPE_NORMAL
+- en: The middle section of *Figure 7.9* shows CycleGAN's forward cycle training.
+    Input *x* is transformed to ![](img/B16176_07_014.png) using *G*, and then *F*
+    tries to regenerate the original input as ![](img/B16176_07_015.png). This pass
+    updates *G* and *D*[Y]. The cycle consistency loss helps to reduce the distance
+    between *x* and its regenerated form ![](img/B16176_07_015.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, the third section (right-most) of *Figure 7.9* showcases the backward
+    pass where *y* is transformed to *X* and then *G* tries to regenerate the original
+    input as ![](img/B16176_07_017.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To better understand how the unpaired training setup works, let's walk through
+    a generic example. Assume the task is to translate from English to French. A setup
+    where the model has learned the best possible mapping of English to French would
+    be the one which when reversed (that is, French to English) results in the original
+    sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's now look under the hood and understand each component in detail in the
+    coming subsections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adversarial loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A typical GAN uses adversarial loss to train a generator that is smart enough
+    to fool a discriminator. In the case of CycleGAN, as we have two sets of generators
+    and discriminators, we need some tweaking of the adversarial loss. Let us take
+    it step by step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the first generator-discriminator set in our CycleGAN, that is, ![](img/B16176_07_018.png),
+    the adversarial loss can be defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_019.png)![](img/B16176_07_020.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Similarly, the second-generator-discriminator ![](img/B16176_07_021.png) set
+    is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_022.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Together, these two objectives form the first two terms of the overall objective
+    for CycleGAN. One additional change to both sets of generator-discriminators is
+    the minimization part. Instead of using the standard negative log likelihood,
+    the choice is made in favor of least squares loss. It is denoted as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_023.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The least squares loss is observed to be more stable and leads to better quality
+    output samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cycle loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We introduced the concept of cycle consistency earlier; now we'll see how to
+    implement it explicitly. In their paper for CycleGAN, authors Zhu and Park et
+    al. highlight that adversarial loss is not enough for the task of unpaired image-to-image
+    translation. Not only is the search space too wide, but with enough capacity,
+    the generator can fall into mode-collapse without learning about the actual characteristics
+    of the source and target domains.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To reduce the search space and ensure the learned mappings are good enough,
+    the CycleGAN setup should be able to generate the original input *x* after being
+    processed through both *G* and *F*, that is, ![](img/B16176_07_024.png) as well
+    as the reverse path of ![](img/B16176_07_025.png). These are termed as forward
+    and backward cycle consistencies respectively. The overall cycle consistency loss
+    is an L1 loss defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_026.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This loss ensures that the reconstruction of the original input from the generated
+    output is as close as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identity loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The authors for CycleGAN also observed a specific issue with the overall setup
+    with respect to colored objects. Without any constraints specifically for colors,
+    the *G* and *F* generators were found to be introducing different tints while
+    going through the forward and backward cycles when none was necessary. To reduce
+    this unwanted behavior, a regularization term called **identity loss** was introduced.
+    See *Figure 7.10* showcasing this particular effect in action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing photo, different, showing, show  Description automatically
+    generated](img/B16176_07_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.10 Impact of identity loss on CycleGAN performance. The outputs correspond
+    to those of the generator G(x). (Source: Zhu and Park et al. Unpaired Image-to-Image
+    Translation using Cycle-Consistent Adversarial Networks, Figure 9)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As is evident from the middle column in *Figure 7.10*, without the additional
+    constraint of the identity loss, CycleGAN introduces unnecessary tints in its
+    outputs. Thus, the identity loss, defined as ![](img/B16176_07_027.png), can be
+    stated as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_028.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In simple words, this loss regularizes the generators to be near an identity
+    mapping when real samples from the target domain are used as inputs for generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The overall objective of CycleGAN is simply a weighted sum of the different
+    losses we discussed in the previous subsections, namely, the adversarial loss,
+    the cycle consistency loss, and the identity loss. The overall objective is defined
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_029.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The paper highlights different values for ![](img/B16176_07_030.png) and ![](img/B16176_07_031.png)
+    for different experiments. We will explicitly mention the value used for these
+    regularization terms when we prepare our model from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hands-on: Unpaired style transfer with CycleGAN'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We discussed the overall setup for CycleGAN and its key innovations in the form
+    of cycle consistency loss and identity loss, which enable unpaired style transfer.
+    In this section, we will implement it, part by part, and train a couple of CycleGANs
+    to convert apples to oranges and photos to Van Gogh paintings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generator setup
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Let us begin with the generator. Similar to the pix2pix GAN, CycleGAN also makes
+    use of U-Net generators (pay attention, there are two of them in this setup).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is to prepare utility methods for upsampling and downsampling
+    blocks. One important difference here is the use of **instance normalization**
+    in place of the batch normalization layer. Instance normalization works by normalizing
+    each channel in each training sample. This is in contrast to batch normalization,
+    where normalization is done across the whole mini-batch and across all input features.
+    See *Chapter 6*, *Image Generation with GANs*, for more details on instance normalization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The U-Net generators used here are shallower compared to the pix2pix setup,
+    yet perform equally well (see the section on *Cycle loss*). The following snippet
+    demonstrates the method to build the generator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can see, the generator consists of four downsampling and four upsampling
+    blocks, followed by a Conv2D layer that outputs the target image. Now let's build
+    the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discriminator setup
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Just like the generators, the discriminators used in CycleGAN make use of contributions
+    from the pix2pix paper. The discriminators are Patch-GANs and the following code
+    listing demonstrates a method for constructing a discriminator block as well as
+    a method for building the discriminators:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now have the building blocks ready. Let's use them to build the overall CycleGAN
+    architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GAN setup
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We use these methods to prepare two sets of generators and discriminators required
+    for mapping from domain *A* to *B* and then back from *B* to *A*. The following
+    snippet does exactly this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: We just created objects for both pairs of generators and discriminators. We
+    combine them in the `gan` object by defining the required inputs and outputs.
+    Let's implement the training loop next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The training loop
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The final piece of the puzzle is to write a custom training loop. This loop
+    first uses both generators to generate fake samples, which are then used to update
+    the discriminators in both directions (that is, `A` to `B` and `B` to `A`). We
+    finally use the updated discriminators to train the overall CycleGAN. The following
+    snippet shows the training loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The training loop for CycleGAN is mostly similar to that of pix2pix with a few
+    additions. As we have two pairs of generators and discriminators, the function
+    takes all four models as input along with a combined `gan` object. The training
+    loop starts with the generation of fake samples from both generators and then
+    uses them to update weights for their corresponding discriminators. These are
+    then combined to train the overall GAN model as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the components described in this section, we experimented with two sets
+    of style transfer datasets, turning apples into oranges and turning photographs
+    into Van Gogh paintings. *Figure 7.11* shows the output of the apples to oranges
+    experiment through different stages of training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.11: CycleGAN generated outputs at different stages of training for
+    the apples to oranges experiment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, *Figure 7.12* shows how CycleGAN learns to transform photographs
+    into Van Gogh style artwork:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.12: CycleGAN generated outputs at different stages of training for
+    the photographs to Van Gogh style paintings experiment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As is evident from the samples above (*Figures 7.11* and *7.12*), CycleGAN seems
+    to have picked up the nuances from both domains without having paired training
+    samples. This is a good leap forward in cases where paired samples are hard to
+    get.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important observation from the two experiments is the amount of training
+    required. While both experiments used exactly the same setup and hyperparameters,
+    the apples to oranges experiment trained much faster compared to the photograph
+    to Van Gogh style painting setup. This could be attributed to the large number
+    of modes in the case of the second experiment, along with diversity in the training
+    samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This ends our section on unpaired style transfer. Now we're going to explore
+    some work relating to and branching off from both paired and unpaired style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Related works
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Style transfer is an amusing field and a lot of parallel research is going on
+    across different research groups to improve the state of the art. The two most
+    influential works in the paired and unpaired style transfer space have been discussed
+    in this chapter so far. There have been a few more related works in this space
+    that are worth discussing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will briefly discuss two more works in the unpaired image-to-image
+    translation space that have similar ideas to CycleGAN. Specifically, we will touch
+    upon the DiscoGAN and DualGAN setups, as they present similar ideas with minor
+    changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to note that there are a number of other works in the same space.
+    We limit our discussion to only a few of them for the sake of completeness and
+    consistency. Readers are encouraged to explore other interesting architectures
+    as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DiscoGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Kim and Cha et al. presented a model that discovers cross-domain relations with
+    GANs called DiscoGAN.⁶ The task of transforming black and white images to colored
+    images, satellite images to map-like images, and so on can also termed *cross-domain
+    transfer*, as well as style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we've seen already, cross-domain transfer has a number of applications in
+    the real world. Domains such as autonomous driving and healthcare have started
+    to leverage deep learning techniques, yet many use cases fall short because of
+    the unavailability of larger datasets. Unpaired cross-domain transfer works such
+    as DiscoGAN (and CycleGAN) can be of great help in such domains.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing clock  Description automatically generated](img/B16176_07_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.13: DiscoGAN setup⁶'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Published about the same time as CycleGAN, DiscoGAN has a number of similarities
+    and a few slight differences in performing unpaired style transfer. Like CycleGAN,
+    DiscoGAN achieves cross-domain transfer with the help of two pairs of generators
+    and discriminators. The generator in the first pair transforms images from domain
+    *A* to *B* (denoted as *G*[AB]) and the discriminator (denoted as *D*[B]) classifies
+    whether the generated output (denoted as *x*[A][B]) is real or fake.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second generator-discriminator pair is the crux of the paper. By enforcing
+    that the system regenerates the original input image from the generated output
+    (*x*[A][B]), DiscoGAN is able to learn the required cross-domain representations
+    without the need for explicit pairs. This reconstruction of original samples is
+    achieved using the second generator (denoted as G[B][A]) and its corresponding
+    discriminator (*D*[A]). The overall setup is represented in *Figure 7.13* for
+    reference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Figure 7.13*, to learn cross-domain representations, DiscoGAN not
+    only transforms images from domain *A* to *x*[AB] and then reconstructs them back,
+    but also does the same for images in domain *B* as well (that is, *B* to *x*[BA]
+    and reconstruct back). This two-way mapping, also called a bijection, along with
+    the reconstruction loss and adversarial loss, helps achieve state-of-the-art results.
+    The authors note that setups that only rely on reconstruction loss without the
+    additional pipeline (*B* to *x*[BA] and reconstruction) still lead to failure
+    modes such as mode collapse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unlike CycleGAN, where we noted that the reconstruction loss is an L1 loss
+    and a weighted sum of forward and backward reconstruction, DiscoGAN explores and
+    uses the reconstruction loss slightly differently. The DiscoGAN paper mentions
+    that the reconstruction loss could be any of the distance measures, such as mean
+    squared error, cosine distance, or hinge loss. As shown in the following equations,
+    the generators then use the reconstruction loss in their training separately:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16176_07_032.png)![](img/B16176_07_033.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where ![](img/B16176_07_034.png) represents the original adversarial loss and
+    ![](img/B16176_07_035.png) is the reconstruction loss for each of the GAN pairs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generators make use of an encoder-decoder setup with convolutional and deconvolutional
+    layers (or transposed convolutions) to downsample and upsample intermediate representations/feature
+    maps. The decoder, on the other hand, is similar to the encoder part of the generator,
+    consisting of convolutional layers with the final layer being a sigmoid for classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors of DiscoGAN present a number of well-documented experiments to understand
+    how their proposed architecture handles mode-collapse. One such experiment is
+    the car-to-car mapping experiment. In this setup, the authors explore how three
+    architectures, that is, the original GAN, the GAN with reconstruction loss, and
+    DiscoGAN, handle various modes. The mapping experiment transforms the input image
+    of a car with specific rotation (azimuth) to a different rotation angle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16176_07_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.14: Car-to-car mapping experiment to understand mode collapse under
+    different settings. (a) Original GAN, (b) GAN with reconstruction loss, (c) DiscoGAN
+    setup.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As noted in *Figure 7.14 (a)* and *(b)*, both the GAN and GAN with reconstruction
+    loss suffer from mode collapse; the clustered dots in both cases represent the
+    fact that these architectures have been able to learn only a few modes, or car
+    orientations (the line being the ground truth). Conversely, *Figure 7.14 (c)*
+    shows that DiscoGAN learns a better representation of various modes, with the
+    dots spread across the line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up DiscoGAN is fairly straightforward. Using the utilities described
+    in the chapter so far, we trained a DiscoGAN setup to learn an edges-to-shoes
+    mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B16176_07_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.15: DiscoGAN during training for an edges-to-shoes experiment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 7.15* shows the training progress of our model. It starts with a random
+    mapping to understand boundary shapes and a few colors. Training for longer periods
+    achieves even better results, as shown by the authors in their paper.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DualGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'DualGAN is the latest in the family of unpaired image-to-image translation
+    architectures. It approaches this task of unpaired image-to-image translation
+    from a slightly different perspective compared to DiscoGAN and CycleGAN. Authors
+    Yi and Zhang et al. present their work titled *DualGAN: Unsupervised Dual Learning
+    for Image-to-Image Translation*⁷ inspired by a seminal paper on *Dual Learning
+    for Machine Translation*.⁸ Quoting from the paper, the idea behind looking at
+    image-to-image translation as a dual learning task goes as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our approach is inspired by dual learning from natural language processing.
+    Dual learning trains two "opposite" language translators (e.g., English-to-French
+    and French-to-English) simultaneously by minimizing the re-construction loss resulting
+    from a nested application of the two translators. The two translators represent
+    a primal-dual pair and the nested application forms a closed loop, allowing the
+    application of reinforcement learning. Specifically, the reconstruction loss measured
+    over monolingual data (either English or French) would generate informative feed-back
+    to train a bilingual translation model.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Though not explicitly cited in the CycleGAN paper, the ideas seem to have quite
+    a bit of overlap. The setup for DualGAN, as expected, also uses two pairs of generator-discriminator.
+    The pairs are termed as primal-GAN and dual-GAN. *Figure 7.16* presents the overall
+    setup for DualGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16176_07_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.16: DualGAN setup⁷'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primal GAN (denoted as *G*[A]) takes input u from domain U and learns to
+    transform this into *v* from domain *V*, and the dual GAN does the reverse of
+    this. The two feedback signals from this setup are termed the reconstruction error
+    and the membership score. The membership score is similar to the adversarial loss
+    in CycleGAN, where the aim of *G*[A] is to generate outputs *G*[A](*u*, *z*) that
+    are good enough to fool *D*[A].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reconstruction loss represents the learned ability of *G*[B] to reconstruct
+    the original input *u* from the generated output *G*[A](*u*, *z*). The reconstruction
+    loss is similar to the cycle consistency loss for CycleGAN, apart from differences
+    in problem formulation compared to CycleGAN, and a slight difference in training
+    setup as well. The DualGAN setup makes use of Wasserstein loss to train. They
+    report that using Wasserstein loss helps achieve stable models easily. *Figure
+    7.17* shows a few experiments from the DualGAN paper:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing food  Description automatically generated](img/B16176_07_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.17: Unpaired image-to-image translation using DualGAN⁷'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The DualGAN setup also makes use of U-Net style generators and Patch-GAN style
+    discriminators, and the impact of these tricks is seen in the quality of the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we explored the creative side of GAN research through the lenses
+    of image-to-image translation tasks. While the creative implications are obvious,
+    such techniques also open up avenues to improve the research and development of
+    computer vision models for domains where datasets are hard to get.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We started off the chapter by understanding the paired image-to-image translation
+    task. This task provides training data where the source and destination domains
+    have paired training samples. We explored this task using the pix2pix GAN architecture.
+    Through this architecture, we explored how the encoder-decoder architecture is
+    useful for developing generators that can produce high-fidelity outputs. The pix2pix
+    paper took the encoder-decoder architecture one step further by making use of
+    skip-connections or a U-Net style generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This setup also presented another powerful concept, called the Patch-GAN discriminator,
+    which works elegantly to assist the overall GAN with better feedback signal for
+    different style transfer use cases. We used these concepts to build and train
+    our own pix2pix GAN from scratch to transfigure satellite images to Google Maps-like
+    outputs. Our training results were good-quality outputs using very few training
+    samples and training iterations. This faster and stable training was observed
+    to be a direct implication of different innovations contributed by the authors
+    of this work. We also explored various other use cases that can be enabled using
+    pix2pix style architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the second part of the chapter, we extended the task of image-to-image translation
+    to work in the unpaired setting. The unpaired training setup is no doubt a more
+    complex problem to solve, yet it opens up a lot more avenues. The paired setup
+    is good for cases where we have explicit pairs of samples in both source and target
+    domains, but most real-life scenarios do not have such datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We explored the unpaired image-to-image translation setup through CycleGAN architecture.
+    The authors of CycleGAN presented a number of intuitive yet powerful contributions
+    that enable the unpaired setup to work. We discussed the concepts of cycle-consistency
+    loss and identity loss as regularization terms for the overall adversarial loss.
+    We specifically discussed how identity loss helps improve the overall reconstruction
+    of samples and thus the overall quality of output. Using these concepts, we built
+    the CycleGAN setup from scratch using TensorFlow-Keras APIs. We experimented with
+    two datasets, apples to oranges and photographs to Van Gogh style paintings. The
+    results were exceptionally good in both cases with unpaired samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We discussed a couple of related works in the final section of the chapter,
+    the DiscoGAN and DualGAN architectures. Along with CycleGAN, these two architectures
+    form the overall family of unpaired image-to-image translation GANs. We discussed
+    how these architectures present similar ideas from slightly different perspectives.
+    We also discussed how slight differences in their problem formulation and overall
+    architectures impact the final results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we built upon the concepts related to GANs and particularly
+    conditional GANs that we discussed in *Chapter 6*, *Image Generation with GANs*.
+    We discussed a number of innovations and contributions that make use of simple
+    building blocks to enable some amazing use cases. The next set of chapters will
+    push the boundaries of generative models even further into domains such as text
+    and audio. Fasten your seat belts!
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Mordvintsev, A., McDonald, K., Rudolph, L., Kim, J-S., Li, J., & daviga404\.
+    (2015). deepdream. GitHub repository. [https://github.com/google/deepdream](https://github.com/google/deepdream)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gatys, L.A., Ecker, A.S., & Bethge, M. (2015). *A Neural Algorithm of Artistic
+    Style*. arXiv. [https://arxiv.org/abs/1508.06576](https://arxiv.org/abs/1508.06576)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Zhu, J-Y., Park, T., Isola, P., & Efros, A.A. (2017). *Unpaired Image-to-Image
+    Translation using Cycle-Consistent Adversarial Networks*. arXiv. [https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Isola, P., Zhu, J-Y., Zhou, T., & Efros, A.A. (2017). *Image-to-Image Translation
+    with Conditional Adversarial Networks*. 2017 IEEE Conference on Computer Vision
+    and Pattern Recognition (CVPR), 2017, pp. 5967-5976\. [https://ieeexplore.ieee.org/document/8100115](https://ieeexplore.ieee.org/document/8100115)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Ronneberger, O., Fisher, P., & Brox, T. (2015). *U-net: Convolutional Networks
+    for Biomedical Image Segmentation*. MICCAI, 2015\. [https://arxiv.org/abs/1505.04597](https://arxiv.org/abs/1505.04597)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kim, T., Cha, M., Kim, H., Lee, J.K., & Kim, J. (2017). *Learning to Discover
+    Cross-Domain Relations with Generative Adversarial Networks*. International Conference
+    on Machine Learning (ICML) 2017\. [https://arxiv.org/abs/1703.05192](https://arxiv.org/abs/1703.05192)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Yi, Z., Zhang, H., Tan, P., & Gong, M. (2017). *DualGAN: Unsupervised Dual
+    Learning for Image-to-Image Translation*. ICCV 2017\. [https://arxiv.org/abs/1704.02510v4](https://arxiv.org/abs/1704.02510v4)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Xia, Y., He, D., Qin, T., Wang, L., Yu, N., Liu, T-Y., & Ma, W-Y. (2016). *Dual
+    Learning for Machine Translation*. NIPS 2016\. [https://arxiv.org/abs/1611.00179](https://arxiv.org/abs/1611.00179)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
