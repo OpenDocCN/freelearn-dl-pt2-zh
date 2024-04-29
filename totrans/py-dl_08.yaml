@@ -1,0 +1,1642 @@
+- en: Chapter 8. Deep Learning for Computer Games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The last chapter focused on solving board games. In this chapter, we will look
+    at the more complex problem of training AI to play computer games. Unlike with
+    board games, the rules of the game are not known ahead of time. The AI cannot
+    tell what will happen if it takes an action. It can't simulate a range of button
+    presses and their effect on the state of the game to see which receive the best
+    scores. It must instead learn the rules and constraints of the game purely from
+    watching, playing, and experimenting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Experience replay
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Actor-critic
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model-based approaches
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A supervised learning approach to games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The challenge in reinforcement learning is working out a good target for our
+    network. We saw one approach to this in the last chapter, policy gradients. If
+    we can ever turn a reinforcement learning task into a supervised task problem,
+    it becomes a lot easier. So, if our aim is to build an AI agent that plays computer
+    games, one thing we might try is to look at how humans play and get our agent
+    to learn from them. We can make a recording of an expert human player playing
+    a game, keeping track of both the screen image and the buttons the player is pressing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we saw in the chapter on computer vision, deep neural networks can identify
+    patterns from images, so we can train a network that has the screen as input and
+    the buttons the human pressed in each frame as the targets. This is similar to
+    how AlphaGo was pretrained in the last chapter. This was tried on a range of complex
+    3D games, such as Super Smash Bros and Mario Tennis. Convolutional networks were
+    used for their image recognition qualities, and LTSMs were used to handle the
+    long-term dependencies between frames. Using this approach, a trained network
+    for Super Smash Bros could defeat the in-game AI on the hardest difficulty setting:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A supervised learning approach to games](img/00285.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Learning from humans is a good starting point, but our aim in doing reinforcement
+    learning should be to achieve super-human performance. Also, agents trained in
+    this way will always be limited in what they can do, and what we really want are
+    agents that can truly learn for themselves. In the rest of this chapter, we'll
+    look at approaches that aim to go further than replicating human levels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying genetic algorithms to playing games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For a long time, the best results and the bulk of the research in AI''s playing
+    in video game environments were around genetic algorithms. This approach involves
+    creating a set of modules that take parameters to control the behavior of the
+    AI. The range of parameter values are then set by a selection of genes. A group
+    of agents would then be created using different combinations of these genes, which
+    would be run on the game. The most successful set of agent''s genes would be selected,
+    then a new generation of agents would be created using combinations of the successful
+    agent''s genes. Those would again be run on the game and so on until a stopping
+    criteria is reached, normally either a maximum number of iterations or a level
+    of performance in the game. Occasionally, when creating a new generation, some
+    of the genes can be mutated to create new genes. A good example of this is *MarI/O*,
+    an AI that learnt to play the classic SNES game *Super Mario World* using neural
+    network genetic evolution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Applying genetic algorithms to playing games](img/00286.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 1: Learning Mario using genetic algorithms (https://www.youtube.com/watch?v=qv6UVOQ0F44)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The big downside of these approaches is that they require a lot of time and
+    computational power to simulate all the variations of parameters. Each member
+    of every generation must run through the whole game until the termination point.
+    The technique also does not take advantage of any of the rich information in the
+    game that a human can use. Whenever a reward or punishment is received, there
+    is contextual information around the state and the actions taken, but Genetic
+    algorithms only use the final result of a run to determine fitness. They are not
+    so much learning as doing trial and error. In recent years, better techniques
+    have been found, which take advantage of backpropagation to allow the agent to
+    really learn as it plays. Like the last chapter, this one is quite code heavy;
+    so if you don''t want to spend your time copying text from the pages, you can
+    find all the code in a GitHub repository here: [https://github.com/DanielSlater/PythonDeepLearningSamples](https://github.com/DanielSlater/PythonDeepLearningSamples).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-Learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Imagine that we have an agent who will be moving through a maze environment,
+    somewhere in which is a reward. The task we have is to find the best path for
+    getting to the reward as quickly as possible. To help us think about this, let''s
+    start with a very simple maze environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-Learning](img/00287.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 2: A simple maze, the agent can move along the lines to go from one
+    state to another. A reward of 4 is received if the agent gets to state D.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the maze pictured, the agent can move between any of the nodes, in both directions,
+    by following the lines. The node the agent is in is its state; moving along a
+    line to a different node is an action. There is a reward of **4** if the agent
+    gets to the goal in state **D**. We want to come up with the optimum path through
+    the maze from any starting node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's think about this problem for a moment. If moving along a line puts us
+    in state **D**, then that will always be the path we want to take as that will
+    give us the **4** reward in the next time step. Then going back a step, we know
+    that if we get to state **C**, which has a direct route to **D**, we can get that
+    4 reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To pick the best action, we need a function that can give us the reward we
+    could expect for the state that action would put us in. The name for this function
+    in reinforcement learning is the Q-function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: As stated before, the reward for getting to state **D** is **4**. What should
+    be the reward for getting to state **C**? From state **C**, a single action can
+    be taken to move to state **D** and get a reward of **4**, so perhaps we could
+    set the reward for **C** as **4**. But if we take a series of random actions in
+    our maze pictured, we will always eventually reach state **D**, which would mean
+    each action gives equal reward because from any state, we will eventually reach
+    the reward of **4** in state **D**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We want our expected reward to factor in the number of actions it will take
+    to get a future reward. We will like this expectation to create the effect that
+    when in state **A**, we go to state **C** directly rather than via state **B**,
+    which will result in it taking longer to get to **D**. What is needed is an equation
+    that factors in a future reward, but at a discount compared with reward gained
+    sooner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another way of thinking about this is to think of human behavior towards money,
+    which is good proxy for human behavior towards reward, in general. If given a
+    choice between receiving $1 one week from now and $1 10 weeks from now, people
+    will generally choose receiving the $1 sooner. Living in an uncertain environment,
+    we place greater value on rewards we get with less uncertainty. Every moment we
+    delay getting our reward is more time when the uncertainty of the world might
+    remove our reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To apply this to our agent, we will use the temporal difference equation for
+    valuing reward; it looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-Learning](img/00288.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this equation, *V* is the reward for a sequence of actions taken, *r* [*t*]
+    is the reward received at time *t* in this sequence, and *g* is a constant, where
+    *0 < g < 1*, which will mean rewards further in the future are less valuable than
+    rewards achieved sooner; this is often referred to as the discount factor. If
+    we go back to our maze, this function will give a better reward to actions that
+    get to the reward in one move versus those that get to the reward in two or more
+    moves. If a value of 1 is used for *g*, the equation becomes simply the sum of
+    reward over time. This is rarely used in practice for Q-learning; it can result
+    in the agent not converging.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that we can evaluate a path for our agent moving through the maze, how do
+    we find the optimal policy? The simple answer for our maze problem is that given
+    a choice of actions, we simply want the one leading to the max reward; this is
+    not just for the current action but also the max action for the state that we
+    would get into after the current action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The name for this function is the Q-function. This function gives us the optimal
+    action in any state if we have perfect information; it looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-function](img/00289.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *s* is a state, *a* is an action that can be taken in that state, and
+    *0 < g < 1* is the discount factor. *rewards* is a function that returns the reward
+    for taking an action in a state. *actions* is a function that returns the state
+    *s'* and that you transition into after taking actions *a* in state *s* and all
+    the actions *a'* available in that state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how the maze looks if we apply the Q-function to the maze with discount
+    factor *g=0.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-function](img/00290.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3: Simple maze, now with Q-values. the arrows show the expected reward
+    for moving between the two states at each end'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You will notice that the Q-function as shown is infinitely recursive. It is
+    a hypothetical perfect Q-function, so not something we could apply in code. To
+    use it in code, one approach is to simply have a maximum number of actions to
+    look ahead; then it might look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `state` is some object that defines the state of the environment. `action`
+    is some object that defines a valid action that can be taken in a state. `reward_func`
+    is a function that returns the float value reward, given a state. `apply_action_func`
+    returns a new state that is the result of applying a given action to a given state.
+    `actions_for_state_func` is a function that returns all valid actions given a
+    state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The aforementioned will give good results if we don't have to worry about rewards
+    far in the future and our state space is small. It also requires that we can accurately
+    simulate forward from the current state to future states as we could for board
+    games. But if we want to train an agent to play a dynamic computer game, none
+    of these constraints is true. When presented with an image from a computer game,
+    we do not know until we try what the image will be after pressing a given button
+    or what reward we will receive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning in action
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A game may have in the region of 16-60 frames per second, and often rewards
+    will be received based on actions taken many seconds ago. Also, the state space
+    is vast. In computer games, the state contains all the pixels on the screen used
+    as input to the game. If we imagine a screen downsampled to say 80 x 80 pixels,
+    all of which are single color and binary, black or white, that is still a 2^6400
+    state. This makes a direct map from state to reward impractical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we will need to do is learn an approximation of the Q-function. This is
+    where neural networks can be used for their universal function approximation ability.
+    To train our Q-function approximation, we will store all the game states, rewards,
+    and actions our agent took as it plays through the game. The loss function for
+    our network will be the square of the difference between its approximation of
+    the reward in the previous state and the actual reward it got in the current state,
+    plus its approximation of the reward for the current state it reached in the game,
+    times the discount factor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-learning in action](img/00291.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '*s* is the previous state, *a* is the action that was taken in that state,
+    and *0 < g < 1* is the discount factor. *rewards* is a function that returns the
+    reward for taking an action in a state. *actions* is a function that returns the
+    *s''* state and that you transition into after taking actions *a* in state *s*
+    and all the actions *a''* available in that state. *Q* is the Q-function presented
+    earlier.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By training successive iterations in this manner, our Q-function approximator
+    will slowly converge towards the true Q-function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by training the Q-function for the worlds simplest game. The environment
+    is a one-dimensional map of states. A hypothetical agent must navigate the maze
+    by moving either left or right to maximize its reward. We will set up the rewards
+    for each state as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we were to visualize it, it might look something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Q-learning in action](img/00292.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4: Simple maze game, agent can move between connected nodes and can
+    get a reward of 1 in the top node.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we were to put our agent into a space in this "maze" in position 1, he would
+    have the option of moving to either position 0 or 2\. We want to build a network
+    that learns the value of each state and, by extension, the value of taking an
+    action that moves to that state. The first pass of training our network will learn
+    just the innate rewards of each state. But on the second pass, it will use the
+    information gained from the first pass to improve its estimation of the rewards.
+    What we expect to see at the end of training is a pyramid shape, with the most
+    value in the 1 reward space and then decreasing value on either side as we move
+    away from the center to spaces where you would have to travel further, and thus
+    apply more future discounting to get the reward. Here is how this looks in code
+    (the full sample is in `q_learning_1d.py` in the Git repo):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We create a list of `states`; the value of each item in the list is the reward
+    the agent will get for moving to that position. In this example, it gets a reward
+    for getting to the 5th position:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This method will take a number and change it into a one-hot encoding for the
+    space of our states, for example, 3 becomes [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We create a TensorFlow `session` and placeholders for our input and targets;
+    the `None` in the arrays is for the mini-batch dimension:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For this simple example, we can accurately value everything just using a linear
+    relationship between the state and the action reward, so we will only create an
+    `output` layer that is a matrix multiplication of the `weights`. There''s no need
+    for a hidden layer or any kind of non-linearity function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We use the MSE for the loss and standard gradient descent training. What makes
+    this Q-learning is what we will eventually use as the value for the targets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We create a `state_batch`, each item of which is each of the states in the
+    game, encoded in one hot form. For example, [1, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1,
+    0, 0, 0, 0, 0, 0, 0], and so on. We will then train the network to approximate
+    the value for each state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For each state, we now get the position we would be in if we took each possible
+    action from that state. Note for the example that the states wrap around, so moving
+    -1 from position 0 puts you in position 8:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We use our network, which is our q-function approximator to get the reward
+    it thinks we will get if we were to take each of the actions, `minus_action_index`
+    and `plus_action_index`, which is the reward the network thinks we would get in
+    the states it puts us into:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we have the Python version of the now familiar Q-function equation. We
+    take the initial reward for moving into a state and add to it the `DISCOUNT_FACTOR`
+    times the max reward we could receive for our actions taken in that state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We add these to the `rewards_batch`, which will be used as targets for the
+    training operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then run the actual train step once we have the full set of rewards for
+    each state. If we run this script and look at the output, we can get a sense of
+    how the algorithm iteratively updates. After the first training run, we see this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Everything is 0, except the items on either side of the rewarding state. These
+    two states now get a reward on the basis that you could move from them to the
+    reward square. Go forward a few more steps and you see that the reward has started
+    to spread out across the states:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The eventual output for this program will look something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the highest reward is in the fifth spot in the array, the position
+    we originally set up to have the reward. But the reward we gave was only 1; so
+    why is the reward here higher than that? This is because `1.295` is the sum of
+    the reward gained for being in the current space plus the reward we can get in
+    the future for moving away from this space and coming back again repeatedly, with
+    these future rewards reduced by our discount factor, 0.5.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Learning this kind of future reward to infinity is good, but rewards are often
+    learned in the process of doing a task that has a fixed end. For example, the
+    task might be stacking objects on a shelf that ends when either the stack collapses
+    or all objects are stacked. To add this concept into our simple 1-D game, we need
+    to add in terminal states. These will be states where, once reached, the task
+    ends; so in contrast to every other state, when evaluating the Q-function for
+    it, we would not train by adding a future reward. To make this change, first we
+    need an array to define which states are terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will be set in the fifth state, the one we get the reward from to be terminal.
+    Then all we need is to modify our training code to take into account this terminal
+    state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we run the code again now, the output will settle to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Dynamic games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now that we have learned the world''s simplest game, let''s try learning something
+    a bit more dynamic. The cart pole task is a classic reinforcement learning problem.
+    The agent must control a cart, on which is balanced a pole, attached to the cart
+    via a joint. At every step, the agent can choose to move the cart left or right,
+    and it receives a reward of 1 every time step that the pole is balanced. If the
+    pole ever deviates by more than 15 degrees from upright, then the game ends:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Dynamic games](img/00293.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5: The cart pole task'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run the cart pole task, we will use OpenAIGym, an open source project set
+    up in 2015, which gives a way to run reinforcement learning agents against a range
+    of environments in a consistent way. At the time of writing, OpenAIGym has support
+    for running a whole range of Atari games and even some more complex games, such
+    as doom, with minimum setup. It can be installed using `pip` by running this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Running cart pole in Python can be done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `gym.make` method creates the environment that our agent will run in. Passing
+    in the `"CartPole-v0"` string tells OpenAIGym that we want this to be the cart
+    pole task. The returned `env` object is used to interact with the cart pole game.
+    The `env.reset()` method puts the environment into its initial state, returning
+    an array that describes it. Calling `env.render()` will display the current state
+    visually, and subsequent calls to `env.step(action)` allow us to interact with
+    the environment, returning the new states in response to the actions we call it
+    with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In what ways will we need to modify our simple 1-D game code in order to learn
+    the cart-pole challenge? We no longer have access to a well-defined position;
+    instead, the cart pole environment gives us as input an array of four floating
+    point values that describe the position and angle of the cart and pole. These
+    will be the input into our neural network, which will consist of one hidden layer
+    with 20 nodes and a `tanh` activation function, leading to an output layer with
+    two nodes. One output node will learn the expected reward for a move left in the
+    current state, the other the expected reward for a move right. Here is what that
+    code looks like (the full code sample is in `deep_q_cart_pole.py` in the git repo):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Why one hidden layer with 20 nodes? Why use a `tanh` activation function? Picking
+    hyperparameters is a dark art; the best answer I can give is that when tried,
+    these values worked well. But knowing that they worked well in practice and knowing
+    something about what kind of level of complexity is needed to solve the cart pole
+    problem, we can make a guess about why that may guide us in picking hyperparameters
+    for other networks and tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One rule of thumb for the number of hidden nodes in supervised learning is
+    that it should be somewhere in between the number of input nodes and the number
+    of output nodes. Often two-thirds of the number of inputs is a good region to
+    look at. Here, however, we have chosen 20, five times larger than the number of
+    input nodes. In general, there are two reasons for favoring fewer hidden nodes:
+    the first is computation time, fewer units means our network is quicker to run
+    and train. The second is to reduce overfitting and improve generalization. You
+    will have learned from the previous chapters about overfitting and how the risk
+    of having too complex a model is that it learns the training data exactly, but
+    has no ability to generalize to new data points.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In reinforcement learning, neither of these issues is as important. Though we
+    care about computation time, often a lot of the bottleneck is time spent running
+    the game; so a few extra nodes is of less concern. For the second issue, when
+    it comes to generalization, we don't have a division of test set and training
+    set, we just have an environment in which an agent gets a reward. So overfitting
+    is not something we have to worry about (until we start to train agents that can
+    operate across multiple environments). This is also why you often won't see reinforcement
+    learning agents use regularizers. The caveat to this is that over the course of
+    training, the distribution of our training set may change significantly as our
+    agent changes over the course of training. There is always the risk that the agent
+    may overfit to the early samples we got from our environment and cause learning
+    to become more difficult later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given these issues, it makes sense to choose an arbitrary large number of nodes
+    in the hidden layers in order to give the maximum chances of learning complex
+    interactions between inputs. But the only true way to know is testing. *Figure
+    6* shows the results of running a neural network with three hidden nodes against
+    the cart pole task. As you can see, though it is able to learn eventually, it
+    performs a lot worse than with 20 hidden nodes as shown in *Figure 7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Dynamic games](img/00294.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6: Cart pole with three hidden nodes, y = average reward of last 10
+    games, x = games played'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why only one hidden layer? The complexity of the task can help us estimate this.
+    If we think about the cart pole task, we know that we care about the inter-relationship
+    of input parameters. The position of the pole may be good or bad depending on
+    the position of the cart. This level of interaction means that a purely linear
+    combination of weights may not be enough. This guess can be confirmed by a quick
+    run, which will show that though a network with no hidden layers can learn this
+    task better than random, it performs a lot less well than a single hidden layer
+    network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Would a deeper network be better? Maybe, but for tasks that only have this kind
+    of slight complexity, more layers tend not to improve things. Running the network
+    will confirm extra hidden layers appear to make little difference. One hidden
+    layer gives us the capacity we need to learn the things we want in this task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As for the choice of *tanh*, there are a few factors to think about. The reason
+    relu activation functions have been popular for deep networks is because of saturation.
+    When running a many-layered network with activation functions bounded to a narrow
+    range, for example the 0 to 1 of a logistic function, lots of nodes will learn
+    to activate at close to the maximum of 1\. They saturate at 1\. But we often want
+    something to signal to a greater degree when it has a more extreme input. This
+    is why relu has been so popular—it gives non-linearity to a layer while not bounding
+    its maximum activation. This is especially important in many layered networks
+    because early layers may get extreme activations that it is useful to signal forward
+    to future layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With only one layer, this is not a concern, so a sigmoid function makes sense.
+    The output layer will be able to learn to scale the values from our hidden layer
+    to what they need to be. Is there any reason to favor `tanh` over the logistic
+    function? We know that our target will sometimes be negative, and that for some
+    combinations of parameters can be either good or bad depending on their relative
+    values. That would suggest that the range of -1 to 1 provided by the `tanh` function
+    might be preferable to the logistic function, where to judge negative associations,
+    the bias would first have to be learned. This is a lot of conjecture and reasoning
+    after the fact; the best answer is ultimately that this combination works very
+    well on this task, but hopefully, it should give some feeling for where to start
+    guessing at the best hyperparameters when presented with other similar problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To get back to the code, here is what our loss and train functions will look
+    like for our cart pole task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `q_value_for_state_action` variable will be the `q-value` that the network
+    predicts for a given state and action. Multiplying `output_layer` by the `action_placeholder`
+    vector, which will be 0 for everything except for a 1 for the action we took,
+    and then summing across that means that our output will be our neural networks
+    approximation for the expected value for just that action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our cost is the difference between what we think is the expected return of the
+    state and action and what it should be as defined by the `target_placeholder`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the downsides to the policy gradient approach described in [Chapter 7](part0046_split_000.html#1BRPS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 7. Deep Learning for Board Games"), *Deep Learning for Board Games*,
+    is that all training must be done against the environment. A set of policy parameters
+    can only be evaluated by seeing its effect on the environments reward. With Q-learning,
+    we are instead trying to learn how to value a state and action. As our ability
+    to value specific states improves, we can use that new information to better value
+    the previous states we have experienced. So, rather than always training on the
+    currently experienced state, we can have our network store a history of states
+    and train against those. This is known as **experience replay**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Experience replay
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Every time we take an action and get into a new state, we store a tuple of `previous_state,
+    action_taken, next_reward, next_state`, and `next_terminal`. These five pieces
+    of information are all we need to run a q-learning training step. As we play the
+    game, we will store this as a list of observations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another difficulty that experience replay helps solve is that in reinforcement
+    learning, it can be very hard for training to converge. Part of the reason for
+    this is that the data we train on is very heavily correlated. A series of states
+    experienced by a learning agent will be closely related; a time series of states
+    and actions leading to a reward if trained on together will have a large impact
+    on the weights of the network and can undo a lot of the previous training. One
+    of the assumptions of neural networks is that the training samples are all independent
+    samples from a distribution. Experience replay helps with this problem because
+    we can have our training mini-batches be randomly sampled from our memory, making
+    it unlikely that samples are correlated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A learning algorithm that learns from memories is called an off-line learning
+    algorithm. The other approach is on-line learning, in which we are only able to
+    adjust the parameters based on direct play of the game. Policy gradients, genetic
+    algorithms, and cross-entropy methods are all examples of this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what the code for running cart pole with experience replay looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We start with our `observations` collection. A deque in Python is a queue that
+    once hits capacity will start removing items from the beginning of the queue.
+    Making the deque here has a maxlen of 20,000, which means we will only store the
+    last 20,000 observations. We also create the last action, `np.array`, which will
+    store the action we decided on from the previous main loop. It will be a one-hot
+    vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is the main loop. We will first render the environment, then decide on
+    an action to take based on the `last_state` we were in, then take that action
+    so as to get the next state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The cart pole task in OpenAIGym always gives a reward of 1 for every time step.
+    We will force giving a negative reward when we hit the terminal state so the agent
+    has a signal to learn to avoid it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We store the information for this transition in our observations array. We
+    can also start training if we have enough observations stored. It is important
+    to only begin training once we have a good number of samples, otherwise a few
+    early observations could heavily bias training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we are in a terminal state, we need to `reset` our `env` so as to give us
+    a fresh state of the game. Otherwise, we can just set `last_state` to be the `current_state`
+    for the next training loop. We also now need to decide what action to take based
+    on the state. Then here is the actual `train` method, using the same steps as
+    our earlier 1-D example, but changed to use samples from our observations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Take 100 random items from our observations; these will be the `mini_batch`
+    to train on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Unpack the `mini_batch` tuples into separate lists for each type of data. This
+    is the format we need to feed into our neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the reward for each `current_state` as predicted by our neural network.
+    Output here will be an array of the size of the `mini_batch`, where each item
+    is an array with two elements, the estimate of the Q-value for taking the action
+    move left, and the estimate for taking the action move right. We take the max
+    of these to get the estimated Q-value for the state. Successive training loops
+    will improve this estimate towards the true Q-value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Augment the rewards we actually got with the rewards our network predicts if
+    it''s a non-terminal state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, run the training operation on the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Epsilon greedy
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Another issue Q-learning has is that initially, the network will be very poor
+    at estimating the rewards of actions. But these poor action estimations are the
+    things that determine the states we move into. Our early estimates may be so bad
+    that we may never get into a reward state from which we would be able to learn.
+    Imagine if in the cart pole the network weights are initialized so the agent always
+    picks to go left and hence fails after a few time steps. Because we only have
+    samples of moving left, we will never start to adjust our weights for moving right
+    and so will never be able to find a state with better rewards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a few different solutions to this, such as giving the network a reward
+    for getting into novel situations, known as novelty search, or using some kind
+    of modification to seek out the actions with the greatest uncertainty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simplest solution and one that has been shown to work well is to start
+    by choosing actions randomly so as to explore the space, and then over time as
+    the network estimations get better and better, replace those random choices with
+    actions chosen by the network. This is known as the epsilon greedy strategy and
+    it can be used as an easy way to implement exploration for a range of algorithms.
+    The epsilon here refers to the variable that is used for choosing whether a random
+    action is used, greedy refers to taking the maximum action if not acting randomly.
+    In the cart pole example, we will call this epsilon variable `probability_of_random_action`.
+    It will start at 1, meaning 0 chance of a random action, and then at each training
+    step, we will reduce it by some small amount until it hits 0:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the final step, we need the method that changes our neural network output
+    into the action of the agent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Choose an action randomly if a random value comes up less than `probability_of_random_action`;
+    otherwise choose the max output of our neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is a graph of training progress against the cart pole task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Epsilon greedy](img/00295.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7: Cart pole task, y = average length of game over last 10 games x =
+    number of games played'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This looks good. Success for the cart pole task is defined as being able to
+    last over 200 turns. After 400 games, we beat that comfortably averaging well
+    over 300 turns per game. Because we set this learning task up using OpenAIGym,
+    it is now easy to set up against other games. All we need to do is change the
+    `gym.make` line to take a new input game string as input and then adjust the number
+    of inputs and outputs to our network to fit that game. There are a few other interesting
+    control tasks in OpenAIGym, such as the pendulum and acrobat, which q-learning
+    should also do well on, but as a challenge, let's look at playing some Atari games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atari Breakout
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Breakout is a classic Atari game originally released in 1976\. The player controls
+    a paddle and must use it to bounce a ball into the colored blocks at the top of
+    the screen. Points are scored whenever a block is hit. If the ball travels down
+    past the paddle off the bottom of the screen, the player loses a life. The game
+    ends either when the all the blocks have been destroyed or if the player loses
+    all three lives that he starts with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Atari Breakout](img/00296.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8: Atari Breakout'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Think about how much harder learning a game like Breakout is compared to the
+    cart pole task we just looked at. For cart pole, if a bad move is made that leads
+    to the pole tipping over, we will normally receive feedback within a couple of
+    moves. In Breakout, such feedback is much rarer. If we position our paddle wrong,
+    that can be because of 20 or more moves that went into positioning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atari Breakout random benchmark
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before we go any further, let''s create an agent that will play Breakout by
+    selecting moves randomly. That way we will have a benchmark against which to judge
+    out a new agent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We select our move randomly; in Breakout, the moves are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '1: Move left'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '2: Stay still'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '3: Move right'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we've come to the end of our game, then we store our score, print it, and
+    call `env.reset()` to keep playing. If we let this run for a few hundred games,
+    we can see that random breakout tends to score around 1.4 points per game. Let's
+    see how much better we can do with Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first issue we must deal with adapting from our cart pole task is that the
+    state space is so much larger. Where the cart pole input was a set of four numbers
+    for Breakout, it is the full screen of 210 by 160 pixels, with each pixel containing
+    three floats, one for each color. To understand the game, those pixels must be
+    related to blocks, paddles, and balls, and then the interaction between those
+    things must be on some level computed. To make things even more difficult, a single
+    image of the screen is not enough to understand what is going on in the game.
+    The ball is moving over time with velocity; to understand the best move, you cannot
+    just rely on the current screen image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three approaches to dealing with this: one is to use a recurrent
+    neural network that will judge the current state based on the previous output.
+    This approach can work, but it is a lot more difficult to train. Another approach
+    is to supply the screen input as a delta between the current frame and the last.
+    In *Figure 9*, you will see an example of this. Both frames have been converted
+    to grayscale because the color is providing us no information in Pong. The image
+    of the previous frame has been subtracted from the image of the current frame.
+    This allows you to see the path of the ball and the direction in which both paddles
+    are moving:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Atari Breakout random benchmark](img/00297.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9: Pong delta images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach can work well for games such as Pong, which are only composed
+    of moving elements, but for a game such as Breakout, where blocks are in fixed
+    positions, we would be losing important information about the state of the world.
+    Indeed, we would only ever be able to see a block for a brief flash when it was
+    hit, while blocks we had not yet hit would remain invisible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The third approach that we will take for Breakout is to set the current state
+    to be the image of the last *n* states of the game, where *n* is 2 or more. This
+    allows the neural network to have all the information it needs to make a good
+    judgment about the state of the game. Using an *n* of 4 is a good default value
+    for most games; but for Breakout, *n* of 2 has been found to be sufficient. It
+    is good to use as low a value for *n* as possible because this reduces the number
+    of parameters that our network will need.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preprocessing the screen
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The full code for this is in `deep_q_breakout.py` in the Git repo. But we will
+    go through a few of the important modifications from the cart pole example here.
+    The first is the type of neural network. For the cart pole, a network with a single
+    hidden layer sufficed. But that involved four values being mapped to just two
+    actions. Now we are working with `screen_width * screen_height * color_channels
+    * number_of_frames_of_state = 201600` being mapped to three actions, a much higher
+    level of complexity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first thing we can do to make life easier for ourselves is to resize the
+    screen to a smaller size. From experimentation, we find that you can still play
+    Breakout with a much smaller screen. Scaling down by a factor of 2 still allows
+    you to see the ball, the paddles, and all the blocks. Also, a lot of the image
+    space is not useful information for the agent. The score at the top, the gray
+    patches along the sides and top, and the black space at the bottom can all be
+    cropped from the image. This allows us to reduce the 210 * 160 screen into a more
+    manageable 72 by 84, reducing the number of parameters by more than three quarters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Also in Breakout, the color of the pixels doesn''t contain any useful information,
+    so we can replace the three colors with just a single color, which is only ever
+    black or white, reducing the number of inputs again to just a third. We are now
+    down to 72 by 84 = 6048 bits, and we need two frames of the game to be able to
+    learn from. Let''s write a method that does this processing of the Breakout screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `screen_image` argument will be the Numpy array that we get from the `env.reset`
+    or `env.next_step` operations on OpenAIGym. It will have shape 210 by 160 by 3,
+    with each item being an `int` between 0 and 255 representing the value for that
+    color:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This operation on the Numpy array crops the image, so we remove the scores
+    at the top, black space at the bottom, and gray areas on either side:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `::2` argument to a Python array means we take every second item, which
+    conveniently Numpy also supports. The 0 at the end means we just take the red
+    color channel, which is fine because we are about to turn it into just black and
+    white anyway. `screen_image` will now be of size 72 by 84 by 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This sets everything that isn''t completely black in the image to 1\. This
+    may not work for some games where you need precise contrast, but it works fine
+    for Breakout:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, this returns the `screen_image` from the method making sure that the
+    type is converted to float. This will save time later when we want to put our
+    values into TensorFlow. *Figure 10* shows how the screen looks before and after
+    preprocessing. After processing, though it is a lot less pretty, the image still
+    contains all the elements you would need to play the game:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Preprocessing the screen](img/00298.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10: Breakout before and after processing'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This leaves our state as 72*84*2 = 12800 bits, meaning we have *2*^(*12800*)
+    possible states that we need to map our three actions to. This sounds like a lot,
+    but the problem is made simpler by the fact that though that is the full range
+    of states possible in Breakout, only a quite small and predictable set of the
+    states will occur. The paddles move horizontally across a fixed area; a single
+    pixel will be active for the ball, and some number of blocks will exist across
+    the central area. One could easily imagine that there are a small set of features
+    that could be extracted from the image that might better relate to the actions
+    we want to take—features such as the relative position of our paddle from the
+    ball, the velocity of the ball, and so on—the kind of features deep neural networks
+    can pick up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a deep convolutional network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s next replace the single hidden layer network from the cart pole example
+    with a deep convolutional network. Convolutional networks were first introduced
+    in [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature Learning*.
+    A convolutional network makes sense because we are dealing with image data. The
+    network we create will have three convolutional layers leading to a single flat
+    layer, leading to our output. Having four hidden layers makes some intuitive sense
+    because we know we are going to need to detect very abstract invariant representations
+    from the pixels, but it has also been shown to work successfully for a range of
+    architectures. Because this is a deep network, relu activation functions make
+    sense. *Figure 11* shows what the network will look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Creating a deep convolutional network](img/00299.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 11: Architecture for our network that will learn to play breakout.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the code for creating our deep convolutional network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These constants will be used throughout our `create_network` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We define our input to be a product of the height, the width, and the state
+    frames; the none dimension will be for batches of states:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first convolutional layer will be an 8 by 8 widow across the width and
+    height, taking in both the state frames. So it will get data on both the current
+    8 by 8 section of what the image looks like and what that 8 by 8 patch looked
+    like in the previous frame. Each patch will map to 32 convolutions that will be
+    the input to the next layer. We give the bias a very slight positive value; this
+    can be good for layers with relu activations to reduce the number of dead neurons
+    caused by the relu function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We put the weight and bias variables into the convolutional layer. This is
+    created by the `tf.nn.conv2d` method. Setting `strides=[1, 4, 4, 1]` means the
+    8 by 8 convolutional window will be applied every four pixels across the width
+    and height of the image. All the convolutional layers will go through the relu
+    activation function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Creating the next two convolutional layers proceeds in the same way. Our final
+    convolutional layer, `hidden_convolutional_layer_3`, must now be connected to
+    a flat layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This reshapes our convolutional layer, which is of dimensions none, 9, 11,
+    64 into a single flat layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: We then create the last two flat layers in the standard way. Note that there
+    is no activation function on the final layer because we are learning the value
+    of an action in a given state here, and that has an unbounded range.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our main loop will now need the following code added so that the current state
+    is the combination of multiple frames, for breakout `STATE_FRAMES` is set to `2`,
+    but higher numbers will also work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we have no `last_state`, then we construct a new Numpy array that is just
+    the current `screen_binary` stacked as many times as we want `STATE_FRAMES`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Otherwise, we append our new `screen_binary` into the first position in our
+    `last_state` to create the new `current_state`. Then we just need to remember
+    to re-assign our `last_state` to equal our current state at the end of the main
+    loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One issue we may now run into is that our state space is now a 84*74*2 array,
+    and we want to be storing in the order of 1,000,000 of these as our list of past
+    observations from which to train. Unless your computer is quite a beast, you may
+    start to run into memory issues. Fortunately, a lot of these arrays will be very
+    sparse and only contain two states, so one simple solution to this is to use in
+    memory compression. This will sacrifice a bit of CPU time to save on memory; so
+    before using this, consider which one is more important to you. Implementing it
+    in Python is only a few lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we compress the data before adding it to our list of observations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then when sampling from the list, we decompress only our mini batch sample as
+    we use it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another issue we may run into is that while the cart pole is trained in as
+    little as a couple of minutes, for Breakout, training will be measured in days.
+    To guard against something going wrong, such as a power failure shutting off the
+    computer, we will want to start saving our network weights as we go. In Tensorflow,
+    this are only a couple of lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This can be put at the beginning of the file, just the `session.run( tf.initialize_all_variables())`
+    line. Then we just need to run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This means every couple of thousand training iterations are to have regular
+    backups of our network created. Now let''s see what training looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Creating a deep convolutional network](img/00300.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As we can see after 1.7 million iterations, we are playing at a level well above
+    random. This same Q-learning algorithm has been tried on a wide range of Atari
+    games, and with good hyper parameter, tuning was able to achieve human level or
+    higher performance in, among others, Pong, Space Invaders, and Q*bert.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convergence issues in Q-learning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'But it''s not all plane sailing. Let''s see how agent training is continued
+    after the end of the preceding sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Convergence issues in Q-learning](img/00301.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, at a certain point the agent's ability took a massive and prolonged
+    drop off before returning to a similar level. The likely reason for this (as much
+    as we can ever know the exact reasons) is one of the problems with Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning is training against its own expectation of how good it thinks a state
+    action pair will be. This is a moving target because every time you run a training
+    step, the targets change. We hope that they are moving towards a more accurate
+    estimation of the reward. But as they head there, small changes in parameters
+    can result in quite extreme oscillations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we end up in a space where we are doing worse than our previous estimations
+    of ability, every single state action evaluation must adjust to this new reality.
+    If we're getting an average of 30 points a game and with our new policy, we are
+    down to just 20, the whole network must adjust to this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Target network freezing (Minh et al 2015 Human-level control through deep reinforcement
+    learning—Nature) can help reduce this. A second neural network, referred to as
+    the target network, is created as a copy of the main training network. During
+    training, we use the target network to generate the target values used to train
+    the main neural network. In this way, the main network is learning against a more
+    fixed point. The target networks weight frozen, but once a set number of iterations
+    have passed, or a convergence criterion is reached, the target network is updated
+    with the values from the main network. This process has been shown to significantly
+    speed up training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another issue that a lot of reinforcement learning can struggle with pertains
+    to games that have quite extreme rewards. Pac-Man, for example, has a very high
+    reward for taking the power pill and then eating the ghosts. These extreme rewards
+    received can cause problems with the gradients and lead to sub-optimal learning.
+    The very easy but unsatisfactory way to fix this is called reward clipping, which
+    just involves clipping the rewards received from the environment in some range
+    (-1 and +1 are commonly used). For very little effort, this works, but it has
+    the problem that the agent has lost the information about these larger rewards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another approach is what''s called a normalized deep q network (**Hasselt et
+    al—learning values across many orders of magnitude, 2016)**. This involves setting
+    up the neural network to output the expected reward of the state and action in
+    the -1 to 1 range. Put the output into this range; it is put through the following
+    equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Convergence issues in Q-learning](img/00302.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *U(s, a)* is the output of the neural network. The parameters σ and µ
+    can be worked out by making sure that the scaled output is constant between the
+    target and main network, as described in target network freezing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Convergence issues in Q-learning](img/00303.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Using this approach, the neural network gradients will be directed more towards
+    learning the relative values of states and actions as opposed to expending energy
+    simply learning the scale of the Q-value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradients versus Q-learning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Though we gave an example using policy gradients for learning a board game and
+    Q-learning for a computer game, neither technique is limited to that type. Originally,
+    Q-learning was considered the better technique overall, but over time and with
+    better hyperparameters, tuning policy gradients have often been shown to perform
+    better. The world's best performance in backgammon was achieved in 1991 using
+    a neural network and Q-learning, and latest research suggests that policy gradients
+    are best for most Atari games. So when should you use policy gradients versus
+    Q-learning?
+  prefs: []
+  type: TYPE_NORMAL
+- en: One constraint is that Q-learning can only work for discrete action tasks, whereas
+    policy gradients can learn continuous action tasks. Also Q-learning is a deterministic
+    algorithm, and for some tasks, the optimum behavior involves having some degree
+    of randomness. For example, rock, paper, scissors, where any behavior that deviates
+    from purely random can be exploited by an opponent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is also the online versus offline aspect. For many tasks, especially robot-control
+    tasks, online learning may be very expensive. The ability to learn from memory
+    is needed, so Q-learning is the best option. Unfortunately, the success of both
+    Q-learning and policy gradients can vary a lot depending on the task and choice
+    of hyperparameters; so when determining the best for a new task, experimentation
+    appears to be the best approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradients also have a greater tendency to get stuck in local minima.
+    Q-learning has a better chance of finding the global optima, but the cost of this
+    is that it is not proven to converge, and performance may oscillate wildly or
+    fail completely on its way there.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But there is also another approach that takes some of the best aspects of both.
+    These are known as actor-critic methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Actor-critic methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Approaches to reinforcement learning can be divided into three broad categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Value-based learning**: This tries to learn the expected reward/value for
+    being in a state. The desirability of getting into different states can then be
+    evaluated based on their relative value. Q-learning in an example of value-based
+    learning.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Policy-based learning**: In this, no attempt is made to evaluate the state,
+    but different control policies are tried out and evaluated based on the actual
+    reward from the environment. Policy gradients are an example of that.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Model-based learning**: In this approach, which will be discussed in more
+    detail later in the chapter, the agent attempts to model the behavior of the environment
+    and choose an action based on its ability to simulate the result of actions it
+    might take by evaluating its model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Actor-critic methods all revolve around the idea of using two neural networks
+    for training. The first, the critic, uses value-based learning to learn a value
+    function for a given state, the expected reward achieved by the agent. Then the
+    actor network uses policy-based learning to maximize the value function from the
+    critic. The actor is learning using policy gradients, but now its target has changed.
+    Rather than being the actual reward received by playing, it is using the critic's
+    estimate of that reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the big problems with Q-learning is that in complex cases, it can be
+    very hard for the algorithm to ever converge. As re-evaluations of the Q-function
+    change what actions are selected, the actual value rewards received can vary massively.
+    For example, imagine a simple maze-walking robot. At the first T-junction it encounters
+    in the maze, it initially moves left. Successive iterations of Q-learning eventually
+    lead to it determining that right is the preferable way to move. But now because
+    its path is completely different, every other state evaluation must now be recalculated;
+    the previously learned knowledge is now of little value. Q-learning suffers from
+    high variance because small shifts in policy can have huge impacts on reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In actor-critic, what the critic is doing is very similar to Q-learning, but
+    there is a key difference: instead of learning the hypothetical best action for
+    a given state, it is learning the expected reward based on the most likely sub-optimal
+    policy that the actor is currently following.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conversely, policy gradients have the inverse high variance problem. As policy
+    gradients are exploring a maze stochastically, certain moves may be selected,
+    which are, in fact, quite good but end up being evaluated as bad because of other
+    bad moves being selected in the same rollout. It suffers because though the policy
+    is more stable, it has high variance related to evaluating the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where actor critic aims to mutually solve these two problems. The value-based
+    learning now has lower variance because the policy is now more stable and predictable,
+    while the policy gradient learning is also more stable because it now has a much
+    lower variance value function from which to get its gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Baseline for variance reduction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'There are a few different variants of actor-critic methods: the first one we
+    will look at is the baseline actor critic. Here, the critic tries to learn the
+    average performance of the agent from a given position, so its loss function would
+    be this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Baseline for variance reduction](img/00304.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![Baseline for variance reduction](img/00305.jpeg) is the output of the
+    critic network for the state at time step *t*, and *r*[*t*] is the cumulative
+    discounted reward from time step *t*. The actor can then be trained using the
+    target:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Baseline for variance reduction](img/00306.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Because the baseline is the average performance from this state, this has the
+    effect of massively reducing the variance of training. If we run the cart pole
+    task once using policy gradients and once using baselines, where we do not use
+    batch normalization, we can see that baselines perform much better. But if we
+    add in batch normalization, the result is not much different. For more complex
+    tasks than cart pole, where the reward may vary a lot more with the state, the
+    baselines approach may improve things a lot more. An example of this can be found
+    at `actor_critic_baseline_cart_pole.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generalized advantage estimator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The baselines approach does a great job at reducing variance, but it is not
+    a true actor-critic approach because the actor is not learning the gradient of
+    the critic, simply using it to normalize the reward. Generalized advantage estimator
+    goes a step further and incorporates the critics gradients into the actor's objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to do this, we need to learn not just the value of the states the
+    agent is in, but also of the state action pairs it takes. If *V(s*[*t*]*)* is
+    the value of the state, and *Q(s*[*t*]*, a*[*t*]*)* is the value of the state
+    action pair, we can define an advantage function like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Generalized advantage estimator](img/00307.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This will give us the difference between how well the action *a*[*t*] did in
+    state *s*[*t*] and the average action the agent takes in this position. Moving
+    towards the gradient of this function should lead to us maximizing our reward.
+    Also, we don''t need another network to estimate *Q(s*[*t*]*, a*[*t*]*)* because
+    we can use the fact that we have the value function for the state we reached at
+    *s*[*t+1*], and the definition of a Q-function is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Generalized advantage estimator](img/00308.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *r* *t* is now the reward for that time step, not the cumulative reward
+    as in the baseline equation, and ![Generalized advantage estimator](img/00309.jpeg)
+    is the future reward discount factor. We can now substitute that in to give us
+    our advantage function purely in terms in *V*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Generalized advantage estimator](img/00310.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Again, this gives us a measure of whether the critic thinks a given action improved
+    or hurt the value of the position. We replace the cumulative reward in our actor's
+    loss function with the result of the advantage function. The full code for this
+    is in `actor_critic_advantage_cart_pole.py`. This approach used on the cart-pole
+    challenge can complete it, but it may take longer than simply using policy gradients
+    with batch normalization. But for more complex tasks such as learning computer
+    games, advantage actor-critic can perform the best.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Asynchronous methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have seen a lot of interesting methods in this chapter, but they all suffer
+    from the constraint of being very slow to train. This isn't such a problem when
+    we are running on basic control problems, such as the cart-pole task. But for
+    learning Atari games, or the even more complex human tasks that we might want
+    to learn in the future, the days to weeks of training time are far too long.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A big part of the time constraint, for both policy gradients and actor-critic,
+    is that when learning online, we can only ever evaluate one policy at a time.
+    We can get significant speed improvements by using more powerful GPUs and bigger
+    and bigger processors; the speed of evaluating the policy online will always act
+    as a hard limit on performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the problem that asynchronous methods aim to solve. The idea is to train
+    multiple copies of the same neural networks across multiple threads. Each neural
+    network trains online against a separate instance of the environment running on
+    its thread. Instead of updating each neural network per training step, the updates
+    are stored across multiple training steps. Every *x* training steps the accumulated
+    batch updates from each thread are summed together and applied to all the networks.
+    This means network weights are being updated with the average change in parameter
+    values across all the network updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach has been shown to work for policy gradients, actor-critic, and
+    Q-learning. It results in a big improvement to training time and even improved
+    performance. The best version of asynchronous methods was found to be asynchronous
+    advantage actor-critic, which, at the time of writing , is said to be the most
+    successful generalized game learning algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model-based approaches
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The approaches we''ve so far shown can do a good job of learning all kinds
+    of tasks, but an agent trained in these ways can still suffer from significant
+    limitations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It trains very slowly; a human can learn a game like Pong from a couple of plays,
+    while for Q-learning, it may take millions of playthroughs to get to a similar
+    level.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For games that require long-term planning, all the techniques perform very badly.
+    Imagine a platform game where a player must retrieve a key from one side of a
+    room to open a door on the other side. There will rarely be a passage of play
+    where this occurs, and even then, the chance of learning that it was the key that
+    lead to the extra reward from the door is miniscule.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It cannot formulate a strategy or in any way adapt to a novel opponent. It may
+    do well against an opponent it trains against, but when presented with an opponent
+    showing some novelty in play, it will take a long time to learn to adapt to this.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If given a new goal within an environment, it would require retraining. If we
+    are training to play Pong as the left paddle and then we're recast as the right
+    paddle, we would struggle to reuse the previously learned information. A human
+    can do this without even thinking about it.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All these points could be said to relate to a central problem. Q-learning and
+    policy gradients optimize parameters for a reward in a game very successfully,
+    but they do not learn to understand a game. Human learning feels different from
+    Q-learning in many ways, but one significant one is that when humans learn an
+    environment, they are, on some level, learning a model of that environment. They
+    can then use that model to make predictions or imagine hypothetical things that
+    would happen if they made different actions within the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Think of a player learning chess: he can think through what would happen if
+    he were to make a certain move. He can imagine what the board would look like
+    after this move, what options he would then have in that new position. He might
+    even be able to factor his opponent into his model, what kind of personality this
+    player has, what kinds of moves he favors, what his mood is.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is what model-based approaches to reinforcement learning aim to do. A model-based
+    approach to Pong would aim to build a simulation of the result of different actions
+    it might take and try and get that simulation as close to reality as possible.
+    Once a good model of an environment has been built up, learning the best action
+    becomes a lot simpler as the agent can just treat the current state as the root
+    of a Markov chain and use some of the techniques from [Chapter 7](part0046_split_000.html#1BRPS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 7. Deep Learning for Board Games"), *Deep Learning for Board Games*,
+    such as MCTS-UCT, to sample from its model to see which actions have the best
+    results. It could even go further and use Q-learning or policy gradients trained
+    on its own model, rather than the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model-based approaches also have the advantage that they might allow the AI
+    to adapt much easier to change. If we have learned a model of an environment but
+    want to change our goal within it, we can reuse the same model and simply adjust
+    our policy within the model. If we are talking about robots, or other AI that
+    operate in the physical world, learning using policy gradient by playing millions
+    of episodes is completely impractical, especially when you consider that every
+    experiment in the real world carries a cost in terms of time, energy, and the
+    risk of damage through misadventure. Model-based approaches mitigate a lot of
+    these issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a model raises all kinds of questions. If you were building a model-based
+    agent to learn Pong, you know that it takes place in a 2D environment with two
+    paddles and a ball and very basic physics. You would want all these elements in
+    your model for it to be successful. But if you hand craft these, then there is
+    no longer much learning going on, and your agent is very far from a generalized
+    learning algorithm. What is the right *prior* for a model? How can we build a
+    model that is flexible enough to learn the myriad things that can be encountered
+    in the world while still being able to successfully learn specifics?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In more formal terms, learning the model can be seen as learning a function
+    that gives the next state given the current state and action pair:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Model-based approaches](img/00311.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If the environment is stochastic, the function might even return a probability
+    distribution of possible next states. A deep neural network would naturally be
+    a good choice for the function, and then learning would take the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Build a network where the input is the current state, and an action and output
+    are the next state and the reward.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gather a collection of state action transitions from the environment following
+    an explorative policy. Simply making moves at random might be a good initial choice.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the collection of state action transitions to train the network in a supervised
+    manner using the next states and state rewards as the targets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the trained network transitions to determine the best move using MCTS, policy
+    gradients, or Q-learning.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If we use the cart pole task as an example, using the MSE as our loss function,
+    we can find that it is easy to train a deep neural network to accurately predict
+    all the state transitions for this environment, including when a new state will
+    be terminal. A code sample for this is in the Git repo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is even possible to learn models for more complex Atari games, using convolutional
+    and recurrent layers. Here is an example of the architecture of the network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Model-based approaches](img/00312.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Source: http://cs231n.stanford.edu/reports2016/116_Report.pdf'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A network like this was trained using two convolutional/deconvolutional layers
+    and 128 node RNN to learn to predict next frames in Pong. It could do a good job
+    of successfully predicting blurry versions of next frames, but the model was found
+    to not be robust enough to run an MCTS to predict events beyond a frame or two
+    in the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A modified version of this approach worked a lot better. In this, instead of
+    trying to do a deconvolution to predict the next image, the network just tries
+    to predict what the input to the RNN will be in the next frame, thus removing
+    the need for the deconvolution. This network could learn to play Pong to a high
+    enough standard to beat the in-game AI, winning by an average of 2.9 points per
+    game after training. This is a long way short of the 20.0, which can be achieved
+    by a fully trained Deep Q Network, but it is still a promising result for a very
+    new approach. Similar results were also achieved on Breakout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we looked at building computer game playing agents using reinforcement
+    learning. We went through the three main approaches: policy gradients, Q-learning,
+    and model-based learning, and we saw how deep learning can be used with these
+    approaches to achieve human or greater level performance. We would hope that the
+    reader would come out of this chapter with enough knowledge to be able to use
+    these techniques in other games or problems that they may want to solve. Reinforcement
+    learning is an incredibly exciting area of research at the moment. Companies such
+    as Google, Deepmind, OpenAI, and Microsoft are all investing heavily to unlock
+    this future.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will take a look at anomaly detection and how the deep
+    learning method can be applied to detect instances of fraud in financial transaction
+    data.
+  prefs: []
+  type: TYPE_NORMAL

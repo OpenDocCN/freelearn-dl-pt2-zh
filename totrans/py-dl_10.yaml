@@ -1,0 +1,2882 @@
+- en: Chapter 10. Building a Production-Ready Intrusion Detection System
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we explained in detail what an anomaly detection is
+    and how it can be implemented using auto-encoders. We proposed a semi-supervised
+    approach for novelty detection. We introduced H2O and showed a couple of examples
+    (MNIST digit recognition and ECG pulse signals) implemented on top of the framework
+    and running in local mode. Those examples used a small dataset already cleaned
+    and prepared to be used as proof-of-concept.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Real-world data and enterprise environments work very differently. In this chapter,
+    we will leverage H2O and general common practices to build a scalable distributed
+    system ready for deployment in production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use as an example an intrusion detection system with the goal of detecting
+    intrusions and attacks in a network environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will raise a few practical and technical issues that you would probably face
+    in building a data product for intrusion detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In particular, you will learn:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What a data product is
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to better initialize the weights of a deep network
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to parallelize in multi-threading the Stochastic Gradient Descent algorithm
+    with HOGWILD!
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to distribute computation using Map/Reduce on top of Apache Spark using
+    Sparkling Water
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A few rules of thumb for tweaking scalability and implementation parameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A comprehensive list of techniques for adaptive learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to validate both in presence and absence of ground truth
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to pick the right trade-off between precision and reduced false alarms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An example of an exhaustive evaluation framework considering both technical
+    and business aspects
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A summary of model hyper parameters and tuning techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to export your trained model as a POJO and deploy it in an anomaly detection
+    API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is a data product?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The final goal in data science is to solve problems by adopting data-intensive
+    solutions. The focus is not only on answering questions but also on satisfying
+    business requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just building data-driven solutions is not enough. Nowadays, any app or website
+    is powered by data. Building a web platform for listing items on sale does consume
+    data but is not necessarily a data product.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Mike Loukides gives an excellent definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*A data application acquires its value from the data itself, and creates more
+    data as a result; it''s not just an application with data; it''s a data product.
+    Data science enables the creation of data products.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*From "What is Data Science" ([https://www.oreilly.com/ideas/what-is-data-science](https://www.oreilly.com/ideas/what-is-data-science))*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The fundamental requirement is that the system is able to derive value from
+    data—not just consuming it as it is—and generate knowledge (in the form of data
+    or insights) as output. A data product is the automation that let you extract
+    information from raw data, build knowledge, and consume it effectively to solve
+    a specific problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The two examples in the anomaly detection chapter are the definition of what
+    a data product is not. We opened a notebook, loaded a snapshot of data, started
+    analyzing and experimenting with deep learning, and ultimately produced some plots
+    that prove we could apply auto-encoders for detecting anomalies. Although the
+    whole analysis is reproducible, in the best case, we could have built a proof-of-concept
+    or a toy model. Will this be suitable for solving a real-world problem? Is this
+    a Minimum Viable Product (MVP) for your business? Probably not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Machine learning, statistics, and data analysis techniques are not new. The
+    origin of mathematical statistics dates back to the 17th century; Machine Learning
+    is a subset of **Artificial Intelligence** (**AI**), which was proven by Alan
+    Turing with his *Turing Test* in 1950\. You might argue that the data revolution
+    started with the increase of data collection and advances in technology. I would
+    say this is what enabled the data revolution to happen smoothly. The real shift
+    probably happened when companies started realizing they can create new products,
+    offer better services, and significantly improve their decision-making by trusting
+    their data. Nevertheless, the innovation is not in manually looking for answers
+    in data; it is in integrating streams of information generated from data-driven
+    systems that can extract and provide insights able to drive human actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **data product** is the result of the intersection between science and technology
+    in order to generate artificial intelligence, able to scale and take unbiased
+    decisions on our behalf.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because a data product grows and get better by consuming more data, and because
+    it generates data itself, the generative effect could theoretically establish
+    an infinite stream of information. For this reason, a data product must also be
+    self-adapting and able to incrementally incorporate new knowledge as new observations
+    are collected. A statistical model is just one component of the final data product.
+    For instance, an intrusion detection system after the anomaly inspection would
+    feed back a bunch of labeled data that can be re-used for training the model in
+    the following generations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nevertheless, data analytics is also extremely important in every organization.
+    It is quite common to find hybrid teams of Data Scientists and Analysts within
+    organizations. The manual supervision, inspection, and visualization of intermediate
+    results is a must requirement for building successful solutions. What we aim to
+    remove is the manual intervention in the finite product. In other words, the development
+    stage involves a lot of exploratory analysis and manual checkpoints but the final
+    deliverable is generally an end-to-end pipeline (or a bunch of independent micro-services)
+    that receives data as input and produces data as output. The whole workflow should
+    preferably be automated, tested, and scalable. Ideally we would like to have real-time
+    predictions integrated within the enterprise system that can react upon each detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An example could be a large screen in a factory showing a live dashboard with
+    real-time measurements coming from the active machines and firing alerts whenever
+    something goes wrong. This data product would not fix the machine for you but
+    would be a support tool for human intervention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Human interaction should generally happen as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Domain expertise by setting priors coming from their experience
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing and testing
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Final consumption of the product
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In our intrusion detection system, we will use the data to recommend actions
+    for a team of security analysts so that they can prioritize and take better decisions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training a network means having already designed its topology. For that purpose
+    we recommend the corresponding Auto-Encoder section in [Chapter 4](part0027_split_000.html#PNV62-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 4. Unsupervised Feature Learning"), *Unsupervised Feature Learning* for
+    design guidelines according to the type of input data and expected use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have defined the topology of the neural network, we are just at the
+    starting point. The model now needs to be fitted during the training phase. We
+    will see a few techniques for scaling and accelerating the learning of our training
+    algorithm that are very suitable for production environments with large datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weights initialization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The final convergence of neural networks can be strongly influenced by the initial
+    weights. Depending on which activation function we have selected, we would like
+    to have a gradient with a steep slope in the first iterations so that the gradient
+    descent algorithm can quickly jump into the optimum area.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For a hidden unit *j* in the first layer (directly connected to the input layer),
+    the sum of values in the first iteration for the training sample *x* of dimensionality
+    *d* would be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00327.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *w*[*0,i*] is the initial weight of the *i*^(th) dimension.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we choose the weights to be independent and identically distributed *(i.i.d.)*
+    and also independent from the inputs, the mean of unit *j* is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00328.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If the input values *x*[*i*] are normalized to have *µ*[*x*]*=0* and standard
+    deviation *s*[*x*]*=1*, the mean will be *E(h*[*j*]*)* and the variance will be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00329.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The output of the hidden unit j will be transformed through its activation
+    function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00330.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here *b* is the bias term that can be simply initialized to 0 or some value
+    very close to 0, such as 0.01 in the case of ReLU activation functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of a sigmoid function, we have very flat curve for large values
+    (both positives and negatives). In order to have a large gradient we would like
+    to be in the range between *[-4, +4]*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we draw the initial weights from a uniform distribution ![Weights initialization](img/00331.jpeg),
+    the variance of unit *j* becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00332.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The probability that *h*[*j*] will fall outside [-4, +4] is very small. We are
+    effectively reducing the probability of early saturation regardless of the size
+    of *d*
+  prefs: []
+  type: TYPE_NORMAL
+- en: This technique of assigning the initial weights as function of the number of
+    nodes in the input layer *d* is called uniform adaptive initialization. H2O by
+    default applies the uniform adaptive option which is generally a better choice
+    than a fixed uniform or normal distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we have only one hidden layer, it is sufficient to just initialize the weights
+    of the first layer. In case of deep auto-encoders we can pre-train a stack of
+    single layer auto-encoders. That is, we create a bunch of shallow auto-encoders
+    where the first one reconstructs the input layer, the second one reconstructs
+    the latent states of the first hidden layer, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use the label *L*[*i*] to identify the *i*^(th) layer with *L*[*0*] to
+    be the input layer, the last one to be the final output, and all the others in
+    the middle to be the hidden layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, a 5-layer network ![Weights initialization](img/00333.jpeg) could
+    be broken down into 2 networks ![Weights initialization](img/00334.jpeg) and ![Weights
+    initialization](img/00335.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first auto-encoder, after training, will initialize the weights of *L*[*1*]
+    and will turn the input data into the latent states of *L*[*1*]. These states
+    are used to train the second auto-encoder, which will be used to initialize the
+    weights of *L*[*2*].
+  prefs: []
+  type: TYPE_NORMAL
+- en: The decoding layers share the same initial weights and bias of the encoding
+    counterpart. Thus, we only need to pre-train the left-half of the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Likely, a 7-layer network ![Weights initialization](img/00336.jpeg) can be broken
+    down into ![Weights initialization](img/00337.jpeg), ![Weights initialization](img/00338.jpeg)
+    and ![Weights initialization](img/00339.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, if the deep auto-encoder has N layers we can treat it as a stack
+    of ![Weights initialization](img/00340.jpeg)stacked single-layer auto-encoders:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Weights initialization](img/00341.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: After pre-training, we can train the entire network with the specified weights
+    all together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallel SGD using HOGWILD!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we have seen in previous chapters, deep neural networks are trained via backpropagation
+    of a given error generated from a loss function. Backpropagation provides the
+    gradient of the model parameters (weights *W* and biases *B* of each layer). Once
+    we have calculated the gradient, we could use it to follow the direction that
+    minimizes the error. One of the most popular technique is **Stochastic Gradient
+    Descent** (**SGD**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: SGD can be summarized as following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize *W*, *B*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'While convergence is not reached:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Get the training example *i*
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![Parallel SGD using HOGWILD!](img/00342.jpeg) for any ![Parallel SGD using
+    HOGWILD!](img/00343.jpeg) in *W*'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![Parallel SGD using HOGWILD!](img/00344.jpeg) for any ![Parallel SGD using
+    HOGWILD!](img/00345.jpeg) in *B*'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Here *W* is the weights matrix, *B* is bias vector, ![Parallel SGD using HOGWILD!](img/00346.jpeg)
+    the is gradient computed via backpropagation and *a* is the learning rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While SGD is the de-facto most popular training algorithm for many machine learning
+    models, it is not efficiently parallelizable. Many parallelized versions have
+    been proposed in the literature, but most of them are bottlenecked by the synchronization
+    and memory locks amongst processors, without taking advantage of the sparsity
+    of the parameters updates, a common property for neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In most neural networks problems, the update step is generally sparse. For every
+    training input, only a few weights associated with the neurons that are wrongly
+    reacting are updated. Generally, a neural network is built so that each neuron
+    only activates when a specific characteristic of input is present. As a matter
+    of fact, a neuron that activates for every input would not be very useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**HOGWILD!** is an alternative algorithm that allows each thread to overwrite
+    each other''s work and provide better performances. Using HOGWILD!, multiple cores
+    can asynchronously handle separate subsets of the training data and make independent
+    contributions to the updates of the gradient ![Parallel SGD using HOGWILD!](img/00347.jpeg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we divide the data dimensionality *d* into small subsets *E* of *{1,…,d}*
+    and ![Parallel SGD using HOGWILD!](img/00348.jpeg) the portion of the vector *x*
+    on the coordinates indexed by *e*, we can separate the whole cost function *L*
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Parallel SGD using HOGWILD!](img/00349.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The key property that we exploit is that cost functions are sparse in the sense
+    that ![Parallel SGD using HOGWILD!](img/00350.jpeg) and *d* can be large but *L*[*e*]
+    is calculated only on a much smaller components of the input vector (![Parallel
+    SGD using HOGWILD!](img/00351.jpeg)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we have *p* processors, all sharing the same memory and all able to access
+    the vector *x*, the component-wise update would be atomic due to the additive
+    property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Parallel SGD using HOGWILD!](img/00352.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'That means we can update the state of the single unit without a separate locking
+    structure. A different story is the case of updating multiple components at once
+    where each processor would repeat asynchronously the following loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample *e* uniformly at random from *E*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Read current state ![Parallel SGD using HOGWILD!](img/00348.jpeg) and evaluate
+    ![Parallel SGD using HOGWILD!](img/00353.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For ![Parallel SGD using HOGWILD!](img/00354.jpeg) do ![Parallel SGD using HOGWILD!](img/00355.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here ![Parallel SGD using HOGWILD!](img/00356.jpeg) is the gradient ![Parallel
+    SGD using HOGWILD!](img/00346.jpeg) multiplied by ![Parallel SGD using HOGWILD!](img/00357.jpeg).
+    *b*[*v*] is a bitmask vector where 1 corresponds to a selected index of *e*, and
+    *?* is the step size, which is diminished by a factor ß at the end of each epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because computing the gradient is not instantaneous and any processor may have
+    modified *x* at any time, we might update *x* with a gradient computed with an
+    old value read many clock cycles earlier. The novelty of HOGWILD! is in providing
+    conditions under which this asynchronous, incremental gradient algorithm converges.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular, it has been proven that the lag between when the gradient is
+    computed and when it is used is always less than or equal to a maximum value,
+    t. The upper bound value of t depends on the number of processors and it converges
+    to 0 as we approach the standard serial version of the algorithm. If the number
+    of processors is less than *d*^(*1/4*), then we get nearly the same number of
+    gradient steps of the serial version, which means we get a linear speedup in terms
+    of the number of processors. Moreover, the sparser the input data, the less the
+    probability of memory contention between processors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the worst case, the algorithm can always provide some speed improvement even
+    when the gradients are computationally intensive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more details in the original paper: [https://people.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf](https://people.eecs.berkeley.edu/~brecht/papers/hogwildTR.pdf).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In conclusion, there are many techniques for optimizing learning in terms of
+    speed, stability, and the probability of getting stuck into a local optimum. Non-adaptive
+    learning rates associated with Momentum would probably give the best results,
+    but it will require more parameters to be tuned. Adadelta is a trade-off between
+    complexity and performance since it only requires two parameters (ρ and ϵ) and
+    is able to adapt to different scenarios.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adaptive learning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous paragraphs, we have seen the importance of the weights initialization
+    and an overview of the SGD algorithm, which in its base version uses a fixed value
+    of the learning rate a. Both of them are important requirements in order to guarantee
+    a fast and accurate convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A few advanced techniques can be adopted to dynamically optimize the learning
+    algorithm. In particular, we can divide into two types of techniques: the ones
+    that attempt to speed up the learning wherever is convenient and the ones that
+    slows down when near local minima.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If θ[t] represents the quantity we are updating at iteration *t* (the weights
+    and biases parameters), the general SGD algorithm will update as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adaptive learning](img/00358.jpeg)![Adaptive learning](img/00359.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Rate annealing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We need to choose α. Low values of the learning rate will require a lot of iterations
+    in order to converge with the risk of getting stuck into a local minimum. Having
+    a high learning rate will cause instability. If the algorithm contains too much
+    kinetic energy, the step to minimize θ would cause it to bounce around chaotically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Rate Annealing slowly reduces the α[*t*] as we consume data points during training.
+    One technique is to update ![Rate annealing](img/00360.jpeg) every *k* samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Rate annealing](img/00361.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Thus, the decay rate would correspond to the inverse of the number of training
+    samples required to divide the learning rate in half.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Momentum
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Momentum takes into account the results of previous iterations to influence
+    the learning of a current iteration. A new velocity vector *v* is introduced and
+    defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Momentum](img/00362.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here µ is the momentum decay coefficient. Instead of using the gradient to change
+    position, we use the gradient to change velocity. The momentum term is in charge
+    of speeding up the learning over dimensions where the gradient continues pointing
+    at the same direction and slowing down those dimensions where the sign of the
+    gradient is alternating, that is, those areas corresponding to a region with a
+    local optimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This additional momentum term will help reach convergence faster. Too much
+    momentum could lead to divergence though. Suppose we are running SGD with momentum
+    for enough epochs, the final velocity would eventually be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Momentum](img/00363.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'It is a geometric series if *µ* is less than 1; then the limit will converge
+    to something proportional to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Momentum](img/00364.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this formula, when *µ* is close to 1, the system would be moving too fast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, at the beginning of the learning, there may already be large gradients
+    (the effect of weights initialization). Thus, we would like to start with a small
+    momentum (for example, 0.5); once the large gradients have disappeared, we can
+    increase the momentum until it reaches a final stable value (for example, 0.9),
+    and keep it constant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nesterov's acceleration
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The standard momentum computes the gradient at the current location and amplifies
+    the steps in the direction of the accumulated gradient. It is like pushing a ball
+    down a hill and blindly following the hill slope. Since we can approximate where
+    the ball will land, we would like to take this information into account when computing
+    the gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s remember the value of our parameters *θ* at time *t* is given by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Nesterov''s acceleration](img/00365.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The gradient of ?t, if we omit the second derivative, can be approximated as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Nesterov''s acceleration](img/00366.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The update step will be calculated using the gradient at time *t* instead of
+    *t – 1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Nesterov''s acceleration](img/00367.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The Nesterov variation would first make a big step in the direction of the previously
+    accumulated gradient and then correct it with the gradient calculated after the
+    jump. This correction prevents it from going too fast and improves stability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the *ball down the hill* analogy, the Nesterov correction adapts the velocity
+    according to the hill slope and speeds up only where possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Newton's method
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Whereas single-order methods only use gradient and function evaluations to
+    minimize *L*, second-order methods can use the curvature as well. In Newton''s
+    method, we compute the Hessian matrix *HL(θ)* which is the square matrix of second-order
+    partial derivatives of the loss function *L(θ)* . The inverse Hessian will define
+    the value of a and final step equation is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Newton''s method](img/00368.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here the absolute value of the diagonal is used to ensure the negative gradient
+    direction to minimize *L*. The parameter ? is used for smoothing regions with
+    a small curvature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By using second-order derivatives, we can perform updates in more efficient
+    directions. In particular, we will have more aggressive updates over shallow (flat)
+    curvatures and smaller steps over steep curvatures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best property of this method is that it has no hyper-parameters, except
+    the smoothing parameter which is fixed to a small value; thus it is one dimension
+    less to tune. The major issue is in the computational and memory costs. The size
+    of *H* is the square of the size of the neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A number of quasi-Newton methods have been developed to approximate the inverse
+    Hessian. For instance, **L-BFGS (Limited Memory Broyden-Fletcher-Goldfarb-Shanno**)
+    stores only a few vectors that implicitly represent the approximation and the
+    history of the last updates of all of the previous vectors. Since the Hessian
+    is constructed approximately from the previous gradient evaluation, it is important
+    that the objective function is not changed during the optimization process. Moreover,
+    the Naïve implementation requires the full dataset to be computed in a single
+    step and is not very suitable for mini-batch training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adagrad
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**Adagrad** is another optimization of SGD that adapts the learning rate of
+    each parameter based on the L2 norm of all previous computed gradients on a per-dimension
+    basis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The value of alpha will depend on the time *t* and the *i*^(th) parameter θ[t,i]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adagrad](img/00369.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here *G*[*t*] is a diagonal matrix of size *d* x *d* and the element *i, i*
+    is the sum of squares of the gradients of *θ*[*k,i*] up to the iteration *t –1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adagrad](img/00370.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Each dimension will have a learning rate inversely proportioned to the gradient.
+    That is, larger gradients will have smaller learning rates and vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The parameter ϵ is a smoothing term helpful for avoiding divisions by zero.
+    It generally ranges between 1e-4 and 1e-10.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The vectorized update step is given by the element-wise matrix-vector multiplication
+    ![Adagrad](img/00371.jpeg):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adagrad](img/00372.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The global learning rate *a* at the nominator can be set to a default value
+    (for example, 0.01) since the algorithm will automatically adapt it after a few
+    iterations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have now obtained the same decaying effect of rate annealing but with the
+    nice property that progress along each dimension evens out over time, just like
+    second-order optimization methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adadelta
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One problem with Adagrad is that is very sensitive to the initial state. If
+    the initial gradients are large, and we want them to be large as described in
+    the weights initialization, the corresponding learning rates will be very small
+    from the beginning of the training. Hence, we have to counter-balance this effect
+    by setting high values of *a*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another problem with Adagrad is that the denominator keeps accumulating gradients
+    and growing at each iteration. This makes the learning rate eventually become
+    infinitesimally small such that the algorithm cannot longer learn anything new
+    from the remaining training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Adadelta aims to solve the latter problem by fixing the number of accumulated
+    past gradients to some value *w* instead of *t – 1*. Instead of storing the *w*
+    previous values, it recursively performs an incremental decaying with the running
+    average at time *t*. We can replace the diagonal matrix *G*[*t*] with the decaying
+    average of past gradients:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00373.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here *ρ* is the decay constant typically ranging between 0.9 and 0.999.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we really need is the square root of ![Adadelta](img/00374.jpeg) which
+    approximates the **root mean square** (**RMS**) of ![Adadelta](img/00375.jpeg)
+    at time *t*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00376.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The update step would be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00377.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We have defined Δ, the update step, to add to the parameters vector at each
+    iteration. In order to make those equations correct, we shall ensure that the
+    units are matching. If we imagine the parameters to have some hypothetical unit,
+    Δ should be of the same unit. All of the first-order methods considered so far
+    relate the units of Δ to the gradient of the parameters and assume the cost function
+    *L* to be unitless:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00378.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In contrast, second-order methods such as Newton''s method use the Hessian
+    information, or an approximation of it, to get the correct units for the update
+    step ?:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00379.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: For the ![Adadelta](img/00380.jpeg) equation, we need to replace the term *a*
+    with a quantity proportional to the RMS of ?(*t*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we don''t know ?(*t*) yet, we can only compute the RMS over the same
+    window of size *w* of ?(*t* – 1):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00381.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where the same constant ? is used and has the purpose of both starting the first
+    iteration when ?(0) = 0 and ensuring progress even if previous updates are small
+    due to the saturating effect of the accumulating gradients at the denominator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the curvature is smooth enough, we can approximate ![Adadelta](img/00382.jpeg),
+    which changes the equation of Adadelta to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Adadelta](img/00383.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The final Adadelta equation covers many of the properties discussed in previous
+    methods:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is an approximation of the diagonal Hessian but uses only the RMS measures
+    of ?L and ? and only one gradient computation per iteration.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It always follows the negative gradient as in plain SGD.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The numerator lags behind by 1 the denominator. This makes the learning more
+    robust for sudden large gradients, which would increase the denominator and reduce
+    the learning rate before the numerator can react.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The numerator acts as an accelerator term, just like Momentum.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The denominator acts like the per-dimension decay seen in Adagrad, but the fixed
+    window ensures that progress is always made in every dimension at any step.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Distributed learning via Map/Reduce
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Parallelizing the training in multiple concurrent threads is a great improvement
+    but it is constrained by the quantity of cores and memory available in the single
+    machine. In other words, we can only scale vertically by buying more resourceful
+    and expensive machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining the parallel and distributed computation enables the desired horizontal
+    scalability, which is theoretically unbounded as long as we have the capability
+    of adding additional nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Two of the reasons why we chose H2O as the framework for anomaly detection are
+    that it provides an easy-to-use built-in implementation of auto-encoders, and
+    it provides an abstraction layer between the functionality (what we want to achieve)
+    and the implementation (how we do it). This abstraction layer provides transparent
+    and scalable implementations that allows to obtain the distribution of computation
+    and data processing in a map/reduce fashion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If our data is partitioned uniformly in smaller shards in each node, we can
+    describe the high-level distributed algorithm as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Initialize**: An initial model is provided with weights and biases.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Shuffling**: Data can be either entirely available in each node or bootstrapped.
+    We will cover this data replication problem at the end of the paragraph.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Map**: Each node will train a model based on the local data via asynchronous
+    threads using HOGWILD!.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Reduce**: The weights and biases of each trained model are averaged into
+    the final one. This is a monoidal and commutative operation; averaging is associative
+    and commutative.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Validate** (optional): The current averaged model can be scored against a
+    validation set for monitoring, model selection, and/or early stopping criteria.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Iterate**: Repeat the whole workflow several times until a convergence criterion
+    is met.![Distributed learning via Map/Reduce](img/00384.jpeg)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: H2O Deep Learning Architecture
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The complexity time will be o(n/p + log(p)) per iteration, where n is number
+    of data points in each node and p the number of processors (the nodes). The linear
+    term is the map computation and the logarithmic term the reduce.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding formula, we are not considering the memory occupation and the
+    expensiveness of the data shuffling. We can ignore the complexity of the model
+    averaging in the reduce step since we assume the model parameters to be small
+    enough compared to the data size. In particular, the size of a model is the number
+    of parameters that corresponds to the number of neurons of the network plus the
+    number of hidden layers (the bias terms). Assuming you have one million neurons,
+    the total size of the model would be less than 8 MB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final scalability will depend on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computation parallelism
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Memory buffering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Network traffic and I/O
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Our goal is to find the right trade-off between model accuracy and training
+    speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use the term iteration to represent the single Map/Reduce step trained
+    only on the specified number of `train_samples_per_iteration`. The parameter `epochs`
+    will define the necessary number of passes over the data to complete the training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `train_samples_per_iteration` parameter could correspond to the whole dataset,
+    be smaller (stochastic sampling without replacement), or even be larger (stochastic
+    sampling with replacement).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The value of `train_samples_per_iteration` will affect both the memory occupation
+    and the time between models averaging, that is, the training speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important parameter is the Boolean flag `replicate_training_data`. If
+    it is enabled, a copy of the whole data will be made available in each node. This
+    option will allow each model to be trained faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another linked parameter is `shuffle_trainingd_data`, which determines whether
+    the data can or cannot be shuffled among nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If N is the number of available nodes and n is the size of the training dataset,
+    we can identify a few operating modes characterized by the special values of `train_samples_per_iteration`
+    and by the activation of `replicate_training_data`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| `train_samples_per_iteration` | `replicate_training_data` | Description |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | False | Only one epoch, averaging over N models built with local data.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| -1 | True | Each node processes the whole dataset per iteration. This results
+    in training N epochs per iteration in parallel in N nodes. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| -1 | False | All nodes process only the locally stored data. One epoch corresponds
+    to one iteration. You can have many epochs. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| -2 | True | Auto-tuning of the number of sample per iteration based on both
+    computation time and network overhead. Full dataset is replicated, with sampling
+    without replacement. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| -2 | False | Auto-tuning of the number of samples per iteration based on
+    both computation time and network overhead. Only local data is available; it might
+    require sampling with replacement. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| > 0 | true | Fixed number of samples per iteration sampled from the full
+    dataset. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| > 0 | false | Fixed number of samples per iteration sampled from only the
+    local available data. |'
+  prefs: []
+  type: TYPE_TB
+- en: If *n = 1M* and *N = 4*, each node on an average will store 25K locally. If
+    we set *samples_per_iteration=200K*, the single Map/Reduce iteration will process
+    200 K records. That is, each node will process 50K rows. In order to complete
+    one epoch, we will need 5 Map/Reduce iterations corresponding to 20 local training
+    steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding example, each node will have those 50K samples from the local
+    available data with or without sampling depending on whether the local data is
+    greater or smaller than the requested one. Sampling with replacement may negatively
+    affect the accuracy of the model since we would train on a repeated and limited
+    subset of the data. If we enable the replication, we would always have the most
+    data locally in every node, assuming it can fit in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A special case is when we want to process exactly the amount of local data without
+    sampling (*train_samples_per_iteration = -1*). In that case, we would iterate
+    over the same dataset again and again at every iteration, which is redundant for
+    multiple epochs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another special case is when `samples_per_iteration` is close to or greater
+    than N * n with replication enabled. In this case, every node would train with
+    almost the whole data or more at each iteration. Similarly, it would re-use almost
+    the same data at every iteration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For those two special cases, the `shuffle_training_data` is automatically turned
+    on. That is, local data will be randomly shuffled before each training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To conclude, depending on the size of data we could or could not replicate in
+    every node. H2O offers a smart way to automatically tune and adapt the size of
+    each iteration by balancing the CPU cost and the network overhead. Unless you
+    have some requirement for fine-tuning your system, you probably want to use the
+    self-tuning option.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The distributed algorithm for deep learning will benefit your final model in
+    both accuracy and training speed. Even though you might not have a very large
+    dataset, this distributed approach is something you want to consider for a production
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sparkling Water
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Although H2O can run on its own standalone cluster, an enterprise environment
+    would probably already have a distributed data processing cluster. Managing two
+    separate clusters, even if physically on the same machines, can be expensive and
+    conflicting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Apache Spark** is nowadays the de-facto computation framework for large datasets
+    and for building scalable data products. H2O includes Sparkling Water, an abstraction
+    layer that lets you model your data and algorithms together with all of the features
+    and functionalities of the native framework but with the capabilities of Spark.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sparkling Water is an alternative to the ML and MLlib frameworks for doing machine
+    learning and one of the few alternatives for deep learning on top of Spark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spark is designed and implemented in Scala. In order to understand the inter-operability
+    of H2O and Spark, we need to refer to the native Scala APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the Sparkling Water architecture, the H2O context co-exists with the Spark
+    context in the driver node. Also, we now have SparkSession as main entry point
+    in Spark 2\. Likely, the H2O and Spark executors co-exist in the worker nodes.
+    As such, they share the same **Java Virtual Machine** (**JVM**) and memory. The
+    resource allocation and setup could happen via YARN, a Hadoop component used for
+    resource management and job scheduling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You could build end-to-end pipelines combining both the strengths of Spark and
+    MLlib with the features of H2O.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, you might use Spark and H2O together for data munging and alternate
+    different transformation functions. Then do the deep learning modeling in H2O.
+    Ultimately you can return the trained model to be integrated within a greater
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spark offers three APIs for storing, modeling, and manipulating data. The typed
+    **RDD** (**Resilient Distributed Data**), the DataFrame and the recent unified
+    DataSet API. **DataFrame** is an RDD of objects of type `sql.Row`; thus in this
+    integration, they are considered similarly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sparkling Water currently offers the conversion between `H2OFrame` and both
+    RDD and DataFrame, in both directions. When converting an `H2OFrame` to an RDD,
+    a wrapper is created, mapping the column names to the corresponding elements of
+    a specified class type bound in the `Product` trait. That is, you will typically
+    have to declare a Scala case class that acts as container for the data you are
+    converting from the `H2OFrame`. This has the limitation that case classes can
+    only store at most 21 flat fields. For larger tables, you can use nested structures
+    or dictionaries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting an `H2OFrame` into a Spark DataFrame does not require any type of
+    parameter. The schema is dynamically derived from the column names and types of
+    the `H2OFrame`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Vice versa, the conversion from an existing RDD or DataFrame into an `H2OFrame`
+    requires data to be duplicated and reloaded. Since the `H2OFrame` is registered
+    in a Key/Value store, we can optionally specify the frame name. No explicit type
+    is required to be specified in the case of RDDs since the Scala compiler can infer
+    it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The column primitive types will have to match according to the following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Scala/Java type | SQL type | H2O type |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| NA | BinaryType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Byte | ByteType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Short | ShortType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Integer | IntegerType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Long | LongType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Float | FloatType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Double | DoubleType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| String | StringType | String |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Boolean | BooleanType | Numeric |'
+  prefs: []
+  type: TYPE_TB
+- en: '| java.sql.TimeStamp | TimestampType | Time |'
+  prefs: []
+  type: TYPE_TB
+- en: Both RDDs and `H2OFrame` share the same memory space in the executor JVMs; it
+    is convenient to un-persist them after the conversion and duplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have understood how the native Scala integration with Spark works,
+    we can consider the Python wrapper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the driver program, the Python `SparkContext` will use `Py4J` to start the
+    driver JVM and the Java-corresponding `SparkContext`. The latter will create the
+    `H2OContext` which will then start the H2O cloud in the Spark cluster. After this
+    setup stage, the Python APIs of both H2O and `PySpark` can be used to interact
+    with data and algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although `PySpark` and `PySparkling` are good options for developing on top
+    of Spark and H2O in Python, please bear in mind that the Python APIs are wrappers
+    around the JVM executors. Maintaining and debugging complex projects in a distributed
+    environment could be more tedious than sticking with the native APIs could help.
+    Nevertheless, in most cases, the Python API will work just fine and you will not
+    have to switch between Python and the native language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we discuss what testing means in data science, let's summarize a few
+    concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly and in general, what is a model in science? We can cite the following
+    definitions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*In science, a model is a representation of an idea, an object or even a process
+    or a system that is used to describe and explain phenomena that cannot be experienced
+    directly.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Scientific Modelling, Science Learning Hub, http://sciencelearn.org.nz/Contexts/The-Noisy-Reef/Science-Ideas-and-Concepts/Scientific-modelling*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'And this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*A scientific model is a conceptual, mathematical or physical representation
+    of a real-world phenomenon. A model is generally constructed for an object or
+    process when it is at least partially understood, but difficult to observe directly.
+    Examples include sticks and balls representing molecules, mathematical models
+    of planetary movements or conceptual principles like the ideal gas law. Because
+    of the infinite variations actually found in nature, all but the simplest and
+    most vague models are imperfect representations of real-world phenomena.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'What is a model in science?, Reference: https://www.reference.com/science/model-science-727cde390380e207'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We need a model in order to simplify the complexity of a system in the form
+    of a hypothesis. We proved that deep neural networks can describe complex non-linear
+    relationships. Even though we are just approximating a real system with something
+    more complex than shallow models, in the end this is just another approximation.
+    I doubt any real system actually works as a neural network. Neural networks were
+    inspired by the way our brain processes information, but they are a huge simplification
+    of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A model is defined according to some parameters (parametric model). On one hand,
+    we have a definition of a model as function mapping an input space to an output.
+    On the other hand, we have a bunch of parameters that the function needs in order
+    to apply the mapping. For instance, the weights matrix and biases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model fitting and training are two terms referring to the process of estimating
+    the parameters of that model so that it best describes the underlying data. Model
+    fitting happens via a learning algorithms that defines a loss function depending
+    on both the model parameters and the data, and it tries to minimize this function
+    by estimating the best set of values for the model parameters. One of the most
+    common algorithm is Gradient Descent, with all its variants. See the previous
+    Training section. For auto-encoder, you would minimize the reconstruction error
+    plus the regularization penalty, if any.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Validation** is sometimes confused with testing and evaluation. Validation
+    and testing often use the same techniques and/or methodology but they serve two
+    different purposes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model validation corresponds to a type of hypothesis validation. We consider
+    our data to be well described by a model. The hypothesis is that, if that model
+    is correct, after having been trained (parameters estimation), it will describe
+    unseen data the same way it describes the training set. We hypothesize that the
+    model generalizes enough given the limits of the scenario in which we will use
+    it. Model validation aims to find a measure (often referred to as a metric) that
+    quantifies how well the model fits the validation data. For labeled data, we might
+    derive a few metrics from either the **Receiver Operating Characteristic** (**ROC**)
+    or Precision-Recall (**PR**) curve computed from the anomaly scores on the validation
+    data. For unlabeled data, you could for instance use the **Excess-Mass** (**EM**)
+    or **Mass-Volume** (**MV**) curve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although model validation can be a way to evaluate performances, it is widely
+    used for model selection and tuning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Model selection** is the process of selecting among a set of candidates,
+    the model that scores highest in the validation. The set of candidates could be
+    different configurations of the same model, many different models, a selection
+    of different features, different normalization, and/or transformation techniques,
+    and so on.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In deep neural networks, feature selection could be omitted because we delegate
+    to the network itself the role of figuring out and generating relevant features.
+    Moreover, features are also discarded via regularization during learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The hypothesis space (the model parameters) depends on the choice of topology,
+    the activation functions, size and depth, pre-processing (for example, whitening
+    of an image or data cleansing), and post-processing (for example, use an auto-encoder
+    to reduce the dimensionality and then run a clustering algorithm). We might see
+    the whole pipeline (the set of components on a given configuration) as the model,
+    even though the fitting could happen independently for each piece.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Analogously, the learning algorithm will introduce a few parameters (for example,
+    learning rate or decay rate). In particular, since we want to maximize the generalization
+    of the model, we generally introduce a regularization technique during the learning
+    function, and that will introduce additional parameters (for example, sparsity
+    coefficient, noise ratio, or regularization weight).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, the particular implementation of the algorithm also has a few parameters
+    (for example, epochs, number of samples per iteration).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use the same validation technique to quantify the performance of the
+    model and learning algorithm together. We can imagine to have a single big vector
+    of parameters that include the model parameters plus the hyper-parameters. We
+    can tune everything in order to minimize the validation metric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At the end of the model selection and tuning via validation, we have obtained
+    a system that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Takes some of the available data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Divides into training and validation, making sure to not introduce biases or
+    unbalancing
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creates a search space made up of the set of different models, or different
+    configurations, learning parameters, and implementation parameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fits each model on the training set by using the training data and learning
+    algorithm with a given loss function, including regularization, according to the
+    specified parameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Computes the validation metric by applying the fitted model on the validation
+    data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Selects the one point in the search space that minimizes the validation metric
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The selected point will formalize our final theory. The theory says that our
+    observations are generated from a model that is the outcome of the pipeline corresponding
+    to the selected point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluation is the process of verifying that the final theory is acceptable and
+    quantifying its quality from both technical and business perspectives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scientific literature shows how, during the course of history, one theory has
+    succeeded another. Choosing the right theory without introducing a cognitive bias
+    requires rationality, accurate judgment, and logical interpretation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Confirmation theory, the study that guides scientific reasoning other than reasoning
+    of the deductive kind, can help us defining a few principles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our context, we want to quantify the quality of our theory and verify it
+    is good enough and that it an evident advantage with respect to a much simpler
+    theory (the baseline). A baseline could be a Naïve implementation of our system.
+    In the case of an anomaly detector, it could simply be a rule-based threshold
+    model where anomalies are flagged for each observation whose feature values are
+    above a static set of thresholds. Such a baseline is probably the simplest theory
+    we can implement and maintain over time. It will probably not satisfy the full
+    acceptance criteria, but it will help us to justify why we need another theory,
+    that is, a more advanced model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Colyvan, in his book *The Indispensability of Mathematics*, summarized the
+    criteria for accepting a good theory as a replacement for another based on four
+    major criteria:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Simplicity**/**Parsimony**: Simple is better than complex if the empirical
+    results are comparable. Complexity is only required when you need to overcome
+    some limitation. Otherwise, simplicity should be preferred in both its mathematical
+    form and its ontological commitments.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Unification**/**Explanatory Power**: The capacity of consistently explaining
+    both existing and future observations. Moreover, unification means minimizing
+    the number of *theoretical devices* needed for the explanation. A good theory
+    offers an intuitive way of explaining why a given prediction is expected.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Boldness**/**Fruitfulness**: A bold theory is an idea that, if it was true,
+    would be able to predict and/or explain a lot more about the system we are modeling.
+    Boldness helps us refuse theories that would contribute very little to what we
+    know already. It is allowed to formulate something new and innovative and then
+    try to contradict it with known evidence. If we can''t prove a theory is correct
+    we can demonstrate that the evidence does not prove the contrary. Another aspect
+    is heuristic potential. A good theory can enable more theories. Between two theories
+    we want to favor the more fruitful: the one that has more potential for being
+    reused or extended in future.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Formal elegance**: A theory must have an aesthetic appeal and should be robust
+    enough for ad-hoc modifications to a failing theory. Elegance is the quality of
+    explaining something in a clear, economical, and concise way. Elegance also enables
+    better scrutiny and maintainability.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'These criteria, in the case of neural networks, are translated into the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shallow models with a few layers and small capacity are preferred. As we discussed
+    in the Network design section, we start with something simpler and incrementally
+    increase complexity if we need so. Eventually the complexity will converge and
+    any further increase will not give any benefit.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We will distinguish between explanatory power and unificatory power:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Explanatory power** is evaluated similarly to model validation but with a
+    different dataset. We mentioned earlier that we broke the data into three groups:
+    training, validation, and testing. We will use the training and validation to
+    formulate the theory (the model and hyper-parameters) that the model is retrained
+    on the union of both training and validation set becoming the new training set;
+    and ultimately the final, already validated, model is evaluated against the test
+    set. It is important at this stage to consider the validation metrics on the training
+    set and test set. We would expect the model to perform better on the training
+    set, but having too wide a gap between the two means the model does not explain
+    unseen observations very well.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Unificatory power** can be represented by the model sparsity. Explaining
+    means mapping input to output. Unifying means reducing the number of elements
+    required to apply the mapping. By adding a regularization penalty, we make the
+    features sparser, which means we can explain an observation and its prediction
+    using fewer regressors (*theoretical devices*).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Boldness and fruitfulness can also be split into two aspects:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Boldness** is represented by our test-driven approach. In addition to point
+    2, where we try to make clear what a model does and why, in the test-driven approach,
+    we treat the system as a black box and check the responses under different conditions.
+    For an anomaly detection, we can systematically create some failing scenarios
+    with different degrees of anomalousness and measure at which level the system
+    is able to detect and react. Or for time-responsive detectors, we could measure
+    how long it takes to detect a drift in the data. If the tests pass, then we have
+    achieved confidence that it works no matter how. This is probably one of the most
+    common approaches in machine learning. We try everything that we believe can work;
+    we carefully evaluate and tentatively accept when our critical efforts are unsuccessful
+    (that is,. the tests pass).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Fruitfulness** comes from the reusability of a given model and system. Is
+    it too strongly coupled to the specific use case? Auto-encoders work independently
+    of what the underlying data represent, they use very little domain knowledge.
+    Thus, if the theory is that a given auto-encoders can be used for explaining a
+    system in its working conditions, then we could extend it and re-use it for detecting
+    in any kind of system. If we introduce a pre-processing step (such as image whitening),
+    then we are assuming the input data are pixels of an image, thus even if this
+    theory superbly fit our use case it has a smaller contribution to the greater
+    usability. Nevertheless, if the domain-specific pre-processing improves the final
+    result noticeably, then we will consider it as an important part of the theory.
+    But if the contribution is negligible, it is recommended to refuse it in favor
+    of something more reusable.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: One aspect of elegance in deep neural networks could implicitly be represented
+    as the capacity of learning features from the data rather than hand-crafting them.
+    If that is the case, we can measure how the same model is able to self-adapt to
+    different scenarios by learning relevant features. For example, we could test
+    that given any dataset we consider normal, we can always construct an auto-encoder
+    that learns the normal distribution. We can either add or remove features from
+    the same dataset or partition according to some external criteria generating dataset
+    with different distributions. Then we can inspect the learned representations
+    and measure the reconstruction ability of the model. Instead of describing the
+    model as a function of the specific input features and weights, we describe it
+    in terms of neurons—entities with learning capabilities. Arguably, this is a good
+    example of elegance.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From a business perspective, we really need to think carefully about what the
+    acceptance criteria are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We would like to answer at least the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What problem are we trying to solve?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How is the business going to benefit from it?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In which way will the model be integrated within an existing system from a practical
+    and technical point of view?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is the final deliverable so that it is consumable and actionable?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will try to use as example an intrusion detection system and try to respond
+    to these questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We would like to monitor a network traffic in real time, taking individual network
+    connections and marking them as normal or suspicious. This will allow the business
+    to have enhanced protection against intruders. The flagged connections will be
+    stopped and will go into a queue for manual inspection. A team of security experts
+    will look into those connections and determine whether it is a false alarm and,
+    in the case of a confirmed attack, will mark the connection under one of the available
+    labels. Thus, the model has to provide a real-time list of connections sorted
+    by their anomaly score. The list cannot contain more elements than the capability
+    of the security team. Moreover, we need to balance the cost of permitting an attack,
+    the cost of damages in the case of an attack, and the cost required for inspection.
+    A minimum requirement consisting of precision and recall is a must in order to
+    probabilistically limit the worst-case scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All of these evaluation strategies have been mainly defined qualitatively rather
+    quantitatively. It would be quite hard to compare and report something that is
+    not numerically measurable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Bryan Hudson, a Data Science practitioner, said:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*If you can''t define it, you can''t measure it. If it can''t be measured,
+    it shouldn''t be reported. Define, then measure, then report.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define, then measure, then report. But be careful. We might think of defining
+    a new evaluation metric that takes into account every possible aspect and scenario
+    discussed so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Whilst many data scientists may attempt to quantify the evaluation of a model
+    using a single utility function, as you do during validation, for a real production
+    system, this is not advised. As also expressed in the Professional Data Science
+    Manifesto:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*A product needs a pool of measures to evaluate its quality. A single number
+    cannot capture the complexity of reality.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*The Professional Data Science Manifesto, www.datasciencemanifesto.org*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And even after we have defined our **Key Performance Indicators** (**KPIs**),
+    their real meaning is relative when compared to a baseline. We must ponder over
+    why we need this solution with respect to a much simpler or existing one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The evaluation strategy requires defining test cases and KPIs so that we can
+    cover the most scientific aspects and business needs. Some of them are aggregated
+    numbers, others can be represented in charts. We aim to summarize and efficiently
+    present all of them in a single evaluation dashboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, we will see a few techniques used for model validation
+    using both labeled and unlabelled data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then we will see how to tune the space for parameters using some parallel search
+    space techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly we will give an example of a final evaluation for a network intrusion
+    use case using A/B testing techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model validation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The goal of model validation is to evaluate whether the numerical results quantifying
+    the hypothesized estimations/predictions of the trained model are acceptable descriptions
+    of an independent dataset. The main reason is that any measure on the training
+    set would be biased and optimistic since the model has already seen those observations.
+    If we don't have a different dataset for validation, we can hold one fold of the
+    data out from training and use it as benchmark. Another common technique is the
+    cross-fold validation, and its stratified version, where the whole historical
+    dataset is split into multiple folds. For simplicity, we will discuss the hold-one-out
+    method; the same criteria apply also to the cross-fold validation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The splitting into training and validation set cannot be purely random. The
+    validation set should represent the future hypothetical scenario in which we will
+    use the model for scoring. It is important not to contaminate the validation set
+    with information that is highly correlated with the training set (leakage).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A bunch of criteria can be considered. The easiest is the time. If your data
+    is chronological, then you'll want to select the validation set to always be after
+    the training set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If your deployment plan is to retrain once a day and score all the observations
+    of the next 24 hours, then your validation set should be exactly 24 hours. All
+    observations after 24 hours would never be scored with the last trained model
+    but with a model trained with the additional past 24 hours' observations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, only using 24 hours of observations for validation is too restrictive.
+    We will have to perform a few validations, where we select a number of time split
+    points; for each split point, we train the model up to that point and validate
+    on the data in the following validation window.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The choice of number of split points depends on the amount of available resources.
+    Ideally, we would like to map the exact frequency at which the model will be trained,
+    that is, one split point a day for the last year or so.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a bunch of operational things to consider when splitting in train
+    and validation set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regardless of whether the data has a timestamp or not, the chronological time
+    should be set by what would have been available at that time. In other words,
+    let's suppose that you have 6 hours of delay between the data generation and the
+    time when it is turned into a feature space for training; you should consider
+    the latter time in order to filter what was before or after the given split point.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How long does the training procedure take? Suppose our model requires 1 hour
+    to be retrained; we would schedule its training one hour before the expiration
+    of the previous model. The scores during its training interval will be covered
+    by the previous model. That means we cannot predict any observation that happens
+    in the following hour of the last data collected for training. This introduces
+    a gap between the training set and validation set.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How does the model perform for day-0 malware (the cold start problem)? During
+    validation, we want to project the model in the worst-case scenario instead of
+    being over-optimistic. If we can find a partitioning attribute, such as device
+    ID or network card MAC address, we can then divide users into buckets representing
+    different validation folds and perform a cross-fold validation where iteratively
+    you select one fold of users to validate the model trained with the remaining
+    users folds. By doing so, we always validate predictions for users whose history
+    we have never seen before. That helps with truly measuring the generalization
+    for those cases where the training set already contains a strong signal of anomaly
+    for the same device over past connections. In that case, it would be very easy
+    for the model to spot anomalies but they would not necessary match a real use
+    case.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The choice of attribute (primary key) on which to apply the partitioning is
+    not simple. We want to reduce the correlation among folds as much as possible.
+    If we ingenuously partition on the device ID, how will we cope with the same user
+    or the same machine with multiple devices, all registered with a different identifier?
+    The choice of partitioning key is an entity resolution problem. The correct way
+    of solving this issue would be to firstly cluster the data belonging to the same
+    entity and then partition such that data of the same entity is never split among
+    different folds. The definition of the entity depends on the particular use case
+    context.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When performing cross-fold validation, we still need to ensure the time constraint.
+    That is, for each validation fold, we need to find a time split point in the intersection
+    with the other training folds. Filter the training set both on the entity id and
+    timestamp; then filter the data in the validation fold according to the validation
+    window and gap.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cross-fold validation introduces a problem with class unbalancing. By definition;
+    anomalies are rare; thus our dataset is highly skewed. If we randomly sample entities,
+    then we would probably end up with a few folds without anomalies and a few with
+    too many. Thus, we need to apply a stratified cross-fold validation where we want
+    to preserve the same distribution of anomalies uniformly in each fold. This is
+    a tricky problem in the case of unlabeled data. But we can still run some statistics
+    on the whole feature space and partition in such a way as to minimize the distribution
+    differences among folds.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We have just listed a few of the common pitfalls to consider when defining the
+    splitting strategy. Now we need to compute some metrics. The choice of the validation
+    metric should be significant with the real operational use case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will see in the following sections a few possible metrics defined for both
+    labeled and unlabeled data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Labeled Data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Anomaly detection on labeled data can be seen just as a standard binary classifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let ![Labeled Data](img/00385.jpeg) be our anomaly scoring function where the
+    higher the score, the higher the probability of being an anomaly. For auto-encoders,
+    it could simply be the MSE computed on the reconstruction error and rescaled to
+    be in the range[0,1]. We are mainly interested in relative ordering rather than
+    absolute values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can now validate using either the ROC or PR curve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to do so, we need to set a threshold *a* that corresponds to the scoring
+    function *s* and consider all of the points *x* with score *s(x) = a* to be classified
+    as anomalies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For each value of *a*, we can calculate the confusion matrix as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Number of observations n | Predicted anomaly *s(x) = a* | Predicted non-anomaly
+    *(s < a)* |'
+  prefs: []
+  type: TYPE_TB
+- en: '| True anomaly | True Positive (TP) | False Negative (FN) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| True non-anomaly | False Positive (FP) | True Negative (TN) |'
+  prefs: []
+  type: TYPE_TB
+- en: 'From each confusion matrix corresponding to a value of a, we can derive the
+    measures of **True Positive Rate** (**TPR**) and **False Positive Rate** (**FPR**)
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeled Data](img/00386.jpeg)![Labeled Data](img/00387.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can draw each value of *a* in a two-dimensional space that generates the
+    ROC curve consisting of ![Labeled Data](img/00388.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way we interpret the plot is as follows: each cut-off point tells us on
+    the y-axis the fraction of anomalies that we have spotted among the full set of
+    anomalies in the validation data (Recall). The x-axis is the false alarm ratio,
+    the fraction of observations marked as anomalies among the full set of normal
+    observations.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we set the threshold close to 0, it means we are flagging everything as anomaly
+    but all the normal observations will produce false alarms. If we set it close
+    to 1, we will never fire any anomaly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's suppose for a given value of a the corresponding TPR = 0.9 and FPR = 0.5;
+    this means that we detected 90% of anomalies but the anomaly queue contained half
+    of the normal observations as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best threshold point would be the one located at coordinates (0,1), which
+    corresponds to 0 false positive and 0 false negatives. This never happens, so
+    we need to find a trade-off between the Recall and false alarm ratio.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the issues with the ROC curve is that does not show very well what happens
+    for a highly skewed dataset. If anomalies represent only 1% of the data, the *x*
+    axis is very likely to be small and we might be tempted to relax the threshold
+    in order to increase the Recall without any major effect on the *x* axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The **Precision-Recall** (**PR**) plot swaps the axis and replaces the FPR
+    with the Precision defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeled Data](img/00389.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Precision is a more meaningful metric and represents the fraction of anomalies
+    among the list of detected ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The idea now is to maximize both the axes. On the *y* axis, we can observe the
+    expected results of the portion that will be inspected, and the *x* axis tells
+    how many anomalies we will miss, both of them on a scale that depends only on
+    the anomaly probability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having a two-dimensional plot can help us understand how the detector would
+    behave in different scenarios, but in order to apply model selection, we need
+    to minimize a single utility function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A bunch of measures can be used to synthesize this. The most common one is the
+    **area under the curve** (**AUC**), which is an indicator of the average performance
+    of the detector under any threshold. For the ROC curve, the AUC can be interpreted
+    as the probability that a uniformly drawn random anomaly observation is ranked
+    higher than a uniformly drawn random normal observation. It is not very useful
+    for anomaly detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The absolute values of Precision and Recall being defined on the same scale
+    can be aggregated using the harmonic mean, also known as **F-score**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeled Data](img/00390.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *ß* is a coefficient that weights to what extent Recall is more important
+    than Precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The term ![Labeled Data](img/00391.jpeg) is added in order to scale the score
+    between 0 and 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In case of symmetry we obtain the F1-score:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeled Data](img/00392.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Security analysts can also set preferences based on minimum requirements for
+    the values of Precision and Recall. In that situation, we can define the Preference-Centric
+    score as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeled Data](img/00393.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The PC-score allows us to select a range of acceptable thresholds and optimize
+    the points in the middle based on the F1-score. The unit term in the first case
+    is added so that it will always outperform the second one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlabeled Data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Unfortunately, most of the times data comes without a label and it would require
+    too much human effort to categorize each observation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We propose two alternatives to the ROC and PR curves that do not require labels:
+    the **Mass-Volume** (**MV**) and the **Excess-Mass** (**EM**) curves.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let ![Unlabeled Data](img/00385.jpeg) be our inverse anomaly scoring function
+    this time, where the smaller the score, the higher the probability of it being
+    an anomaly. In the case of an auto-encoder, we can use the inverse of the reconstruction
+    error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Unlabeled Data](img/00394.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here ϵ is a small term to stabilize in the case of a near zero reconstruction
+    error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The scoring function will give an ordering of each observation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let ![Unlabeled Data](img/00395.jpeg) be the probability density function of
+    the normal distribution of a set of i.i.d. observations X[1],…,X[n] and *F* its
+    cumulative density function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function *f* would return a score very close to 0 for any observation that
+    does not belong to the normal distribution. We want to find a measure of how close
+    the scoring function *s* is to *f*. The ideal scoring function would just coincide
+    with *f*. We will call such a performance criterion *C(s)*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given a set *S* of scoring functions integrable with respect to the Lebesgue
+    measure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The MV-curve of *s* is the plot of the mapping:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Unlabeled Data](img/00396.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here ![Unlabeled Data](img/00397.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Lebesgue measure of a set *X* is obtained by dividing the set into buckets
+    (sequence of open intervals) and summing the n-volume of each bucket. The n-volume
+    is the multiplication of the lengths of each dimension defined as the difference
+    between max and min values. If *X*[*i*] is a subset of a bunch of d-dimensional
+    points, their projection on each axis will give the lengths and the multiplication
+    of the lengths will give the d-dimensional volume.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The MV measure at *a* corresponds to the n-volume corresponding to the infimum
+    subset of *X* defined by the threshold *t* such that the c.d.f. of *s(X)* at *t*
+    is higher than or equal to *a*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Unlabeled Data](img/00398.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Volume-Mass curve from "Mass Volume Curves and Anomaly Ranking", S. Clemencon,
+    UMR LTCI No. 5141, Telecom ParisTech/CNRS
+  prefs: []
+  type: TYPE_NORMAL
+- en: The optimal MV curve would be the one calculated on *f*. We would like to find
+    the scoring function *s* which minimizes the L1 norm of the point-wise difference
+    with MVf on an interested interval I*MV* representing the large density level-sets
+    (for example, [0.9, 1]).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is proven that ![Unlabeled Data](img/00399.jpeg). Since *MV* *s* is always
+    below *MV* *f*, the ![Unlabeled Data](img/00400.jpeg) will correspond to the ![Unlabeled
+    Data](img/00401.jpeg). Our performance criterion for MV is ![Unlabeled Data](img/00402.jpeg).
+    The smaller the value of C*MV* the better is the scoring function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One problem with the MV-curve is that the area under the curve (AUC) diverges
+    for *a* = 1 if the support of the distribution is infinite (the set of possible
+    values is not bounded).
+  prefs: []
+  type: TYPE_NORMAL
+- en: One workaround is to choose the interval ![Unlabeled Data](img/00403.jpeg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A better variant is the Excess-Mass (EM) curve defined as the plot of the mapping:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Unlabeled Data](img/00404.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The performance criterion will be ![Unlabeled Data](img/00405.jpeg) and ![Unlabeled
+    Data](img/00406.jpeg), where ![Unlabeled Data](img/00407.jpeg). *EM*[*s*] is now
+    always finite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Unlabeled Data](img/00408.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Excess-Mass curve from "On anomaly Ranking and Excess-Mass curves", N. Goix,
+    A. Sabourin, S. Clemencon, UMR LTCI No. 5141, Telecom ParisTech/CNRS
+  prefs: []
+  type: TYPE_NORMAL
+- en: One problem of EM is that the interval of large level sets is of the same order
+    of magnitude as the inverse of the total support volume. This is a problem for
+    datasets with large dimensions. Moreover, for both EM and MV, the distribution
+    *f* of the normal data is not known and must be estimated. For practicality, the
+    Lebesgue volume can be estimated via the Monte Carlo approximation, which applies
+    only to small dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to scale to large-dimensional data, we can sub-sample training and
+    validation data with replacement iteratively along a randomly fixed number of
+    features *d'* in order to compute the EM or MV performance criterion score. Replacement
+    is done only after we have drawn the samples for each subset of features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final performance criterion is obtained by averaging these partial criteria
+    along the different features draw. The drawback is that we cannot validate combinations
+    of more than *d'* features. On the other hand, this feature sampling allows us
+    to estimate EM or MV for large dimensions and allows us to compare models produced
+    from space of different dimensions, supposing we want to select over models that
+    consume different views of the input data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary of validation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have seen how we can plot curve diagrams and compute aggregated measures
+    in the case of both labeled and unlabeled data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have shown how to select sub ranges of the threshold value of the scoring
+    function in order to make the aggregated metric more significant for anomaly detections.
+    For the PR-curve, we can set the minimum requirements of Precision and Recall;
+    for EM or MV we arbitrarily select the interval corresponding to large level-sets
+    even if they don't have a directly corresponding meaning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our example of network intrusion, we score anomalous points and store them
+    into a queue for further human inspection. In that scenario, we need to consider
+    also the throughput of the security team. Let's suppose they can inspect only
+    50 connections per day; our performance metrics should be computed only on the
+    top 50 elements of the queue. Even if the model is able to reach a recall of 100%
+    on the first 1,000 elements, those 1,000 elements are not feasible to inspect
+    in a real scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This situation kind of simplifies the problem because we will automatically
+    select the threshold that gives us the expected number of predicted anomalies
+    independently of true positive or false positives. This is the best the model
+    can do given the top N observations most likely to be anomalies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is also another issue in this kind of threshold-based validation metrics
+    in the case of cross-fold validation, that is, the aggregation technique. There
+    are two major ways of aggregating: micro and macro.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Macro aggregation is the most common one; we compute thresholds and metrics
+    in each validation fold and then we average them. Micro aggregation consists of
+    storing the results of each validation fold, concatenating them together and computing
+    one single threshold and metric at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The macro aggregation technique also gives a measure of stability, and of how
+    much the performance of our system changes if we perturb by using different samples.
+    On the other hand, macro aggregation introduces more bias into the model estimates,
+    especially in rare classes like anomaly detection. Thus, micro aggregation is
+    generally preferred.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hyper-parameters tuning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Following the design of our deep neural network according to the previous sections,
+    we would end up with a bunch of parameters to tune. Some of them have default
+    or recommended values and do not require expensive fine-tuning. Others strongly
+    depends on the underlying data, specific application domain, and a set of other
+    components. Thus, the only way to find best values is to perform a model selection
+    by validating based on the desired metric computed on the validation data fold.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we will list a table of parameters that we might want to consider tuning.
+    Please consider that each library or framework may have additional parameters
+    and a custom way of setting them. This table is derived from the available tuning
+    options in H2O. It summarizes the common parameters, but not all of them, when
+    building a deep auto-encoder network in production:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Parameter | Description | Recommended value(s) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `activation` | The differentiable activation function. | Depends on the data
+    nature. Popular functions are: `Sigmoid`, `Tanh`, `Rectifier` and `Maxout`.Each
+    function can then be mapped into the corresponding drop-out version. Refer to
+    the network design section. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| hidden | Size and number of layers. | Number of layers is always odd and
+    symmetric between encoding and decoding when the network is an autoencoder.The
+    size depends on both the network design and the regularization technique.Without
+    regularization the encoding layers should be consecutively smaller than the previous
+    layer.With regularization we can have higher capacity than the input size. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| epochs | Number of iterations over the training set. | Generally, between
+    10 and a few hundreds. Depending on the algorithm, it may require extra epochs
+    to converge.If using early stopping we don''t need to worry about having too many
+    epochs.For model selection using grid search, it is better to keep it small enough
+    (less than 100). |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `train_samples_per_iteration` | Number of training examples for Map/Reduce
+    iteration. | This parameter applies only in the case of distributed learning.This
+    strongly depends on the implementation.H2O offers an auto-tuning option.Please
+    refer to the *Distributed learning via Map/Reduce* section. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `adaptive_rate` | Enable the adaptive learning rate. | Each library may have
+    different strategies. H2O implements as default `ADADELTA`.In case of `ADADELTA`,
+    additional parameters rho (between 0.9 and 0.999) and epsilon (between 1e-10 and
+    1e-4) must be specified.Please refer to the Adaptive Learning section. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `rate`, `rate_decay` | Learning rate values and decay factor (if not adaptive
+    learning). | High values of the rate may lead to unstable models, lower values
+    will slow down the convergence. A reasonable value is 0.005.The decay factory
+    represents the Rate at which the learning rate decays across layers. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `momentum_start`, `momentum_ramp`, `momentum_stable` | Parameters of the
+    momentum technique (if not adaptive learning). | When exists a gap between the
+    momentum start and the stable value, the momentum ramp is measured in number of
+    training samples. The default is typically a large value, for example, 1e6. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `Input_dropout_ratio`, `hidden_dropout_ratio` | Fraction of input nodes for
+    each layer to omit during training. | Default values are 0 for input (all features)
+    and a value around 0.5 for hidden layers. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `l1`, `l2` | L1 and L2 regularization parameters. | High values of L1 will
+    cause many weights to go to 0 while high values of L2 will reduce but keep most
+    of the weights. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `max_w2` | Maximum value of sum of squared weights incoming for a node. |
+    A useful parameter for unbounded activation functions such as ReLU or Maxout.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `initial_weight_distribution` | The distribution of initial weights. | Typical
+    values are Uniform, Normal, or UniformAdaptive. The latter is generally preferred.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `loss` | The loss function to use during back-propagation. | It depends on
+    the problem and nature of data.Typical functions are CrossEntropy, Quadratic,
+    Absolute, Huber. Please refer to the Network design section. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `rho_sparsity`, `beta_sparsity` | Parameters of the sparse auto-encoders.
+    | Rho is the average activation frequency and beta is the weight associated to
+    the sparsity penalty. |'
+  prefs: []
+  type: TYPE_TB
+- en: These parameters can be tuned using search space optimization techniques. Two
+    of the most basic, popular and supported by H2O techniques, are grid search and
+    random search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Grid search is an exhaustive approach. Each dimension specifies a limited number
+    of possible values and the Cartesian product generates the search space. Each
+    point will be evaluated in a parallel fashion and the point that scores the lowest
+    will be selected. The scoring function is defined by the validation metric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the one hand, we have a computational cost equals to the power of the dimensionality
+    (the curse of dimensionality). On the other hand, it is embarrassingly parallel.
+    That is, each point is perfectly parallelizable and its run is independent from
+    the others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, randomly choosing points in a dense search space could be more
+    efficient and can lead to similar results with much less computation. The number
+    of wasted grid search trials is exponential in the number of search dimensions
+    that turned out to be irrelevant for a particular dataset. Not every parameter
+    has the same importance during tuning. Random search is not affected by those
+    low-importance dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In random search, each parameter must provide a distribution, continuous or
+    discrete depending on the values of the parameter. The trials are points sampled
+    independently from those distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main advantages of random search are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can fix the budget (maximum number of points to explore or maximum allowed
+    time)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can set a convergence criterion
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding parameters that do not influence the validation performance does not
+    affect the efficiency
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: During tuning, you could add extra parameters dynamically without have to adjust
+    the grid and increase the number of trials
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If one trial run fails for any reason, it could either be abandoned or restarted
+    without jeopardizing the entire tuning algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Common applications of random search are associated with early stopping. Especially
+    in high-dimensional spaces with many different models, the number of trials before
+    to converge to a global optimum can be a lot. Early stopping will stop the search
+    when the learning curve (training) or the validation curve (tuning) flattens out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because we can also constrain the computation budget we could set criteria
+    like: *stop when RMSE has improved over the moving average of the best 5 models
+    by less than 0.0001, but take no more than 1 hours*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Metric-based early stopping combined with max runtime generally gives the best
+    tradeoff.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It also common to have multi-stage tuning where, for example, you run a random
+    search to identify the sub-space where the best configuration might exist and
+    then have further tuning stages only in the selected subspace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More advanced techniques also exploit sequential, adaptive search/optimization
+    algorithms, where the result of one trial affects the choice of next trials and/or
+    the hyper-parameters are optimized jointly. There is ongoing research trying to
+    predetermine the *variable importance* of hyper-parameters. Also, domain knowledge
+    and manual fine-tuning can be valuable for those systems where automated techniques
+    struggle to converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: End-to-end evaluation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: From a business point of view what really matters is the final end-to-end performance.
+    None of your stakeholders will be interested in your training error, parameters
+    tuning, model selection, and so on. What matters is the KPIs to compute on top
+    of the final model. Evaluation can be seen as the ultimate verdict.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, as we anticipated, evaluating a product cannot be done with a single metric.
+    Generally, it is a good and effective practice to build an internal dashboard
+    that can report, or measure in real-time, a bunch of performance indicators of
+    our product in the form of aggregated numbers or easy-to-interpret visualization
+    charts. Within a single glance, we would like to understand the whole picture
+    and translate it in the value we are generating within the business.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The evaluation phase can, and generally does, include the same methodology as
+    the model validation. We have seen in previous sections a few techniques for validating
+    in case of labeled and unlabeled data. Those can be the starting points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition to those, we ought to include a few specific test scenarios. For
+    instance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Known versus unknown detection performance**: This means measuring the performance
+    of the detector for both known and unknown attacks. We can use the labels to create
+    different training sets, some of them with no attacks at all and some of them
+    with a small percentage; remember that having too many anomalies in the training
+    set would be against the definition of anomalies. We could measure the precision
+    on the top N elements in the function of the percentage of anomalies in the training
+    set. This will give us an indicator of how general the detector is with respect
+    to past anomalies and hypothetical novel ones. Depending on what we are trying
+    to build, we might be interested more on novel anomalies or more on known ones.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Relevance performance**: Just scoring enough to hit the threshold or being
+    select in the top priority queue is important but the ranking also matters. We
+    would like the most relevant anomalies to always score at the top of the queue.
+    Here we could either define the priorities of the different labels and compute
+    a ranking coefficient (for example, Spearman) or use some evaluation technique
+    used for Recommender Systems. One example of the latter is mean average precision
+    at k (MAP@k) used in Information Retrieval to score a query engine with regards
+    to the relevance of the returned documents.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Model stability**: We select the best model during validation. If we sample
+    the training data differently or use slightly different validation dataset (containing
+    different types of anomalies) we would like the best model to always be the same
+    or at least among the top selected models. We can create histogram charts showing
+    the frequency of a given model of being selected. If there is no obvious winner
+    or a subset of frequent candidates, then the model selection is a bit unstable.
+    Every day, we might select a different model that is good for reacting to new
+    attacks but at the price of instability.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Attack outcome**: If the model detects an attack with a very high score and
+    this attack is confirmed by the analysts, is the model also able to detect whether
+    the system has been compromised or returned to normalcy? One way of testing this
+    is to measure the distribution of the anomaly score right after an alert is raised.
+    Comparing the new distribution with the older one and measuring any gap. A good
+    anomaly detector should be able to tell you about the state of the system. The
+    evaluation dashboard could have this information visualized for the last or recently
+    detected anomalies.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Failure case simulations**: Security analysts can define some scenarios and
+    generate some synthetic data. One business target could be "being able to protect
+    from those future types of attacks". Dedicated performance indicators can be derived
+    from this artificial dataset. For example, an increasing ramp of network connections
+    to the same host and port could be a sign of **Denial of Service** (**DOS**) attack.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Time to detect**: The detector generally scores each point independently.
+    For contextual and time-based anomalies, the same entities might generate many
+    points. For example, if we open a new network connection, we can start scoring
+    it against the detector while it is still open and every few seconds generate
+    a new point with the features collected over a different time interval. Likely,
+    you will collect multiple sequential connections together into a single point
+    to score. We would like to measure how long it takes to react. If the first connection
+    is not considered anomalous, maybe after 10 consecutive attempts, the detector
+    will react. We can pick a known anomaly, break it down into sequentially growing
+    data points, and then report after how many of those the contextual anomaly is
+    raised.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Damage cost**: If somehow we are able to quantify the impact of attack damages
+    or savings due to the detection, we should incorporate this in the final evaluation.
+    We could use as benchmark the last past month or year and estimate the savings;
+    hopefully this balance will be positive, in case we have deployed the current
+    solution since then or the real savings if the current solution was deployed in
+    this last period.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We would like to summarize all of this information within a single dashboard
+    from where we can make statements such as: *Our anomaly detector is able to detect
+    previously seen anomalies with a precision of 76% (+- 5%) and average reacting
+    time of 10 seconds and novel anomalies with precision of 68% (+- 15%) and reaction
+    time of 14 seconds. We observed an average of 10 anomalies per day. Considering
+    the capability of 1,000 inspections per day, we can fill the 80% of the most relevant
+    detections corresponding to 6 anomalies within just 120 top elements of the queue.
+    Of these, only the 2 out of 10 that compromise the system are included in this
+    list. We can then divide the inspections in 2 tiers; the first tier will respond
+    immediately of the top 120 elements and the second tier will take care of the
+    tail. Standing to the current simulated failing scenarios, we are protected in
+    90% of them. Total saving since last year corresponds to 1.2 million dollars*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A/B Testing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: So far, we have only considered evaluation based on past historical data (retrospective
+    analysis) and/or based on simulations with synthetic dataset. The second one is
+    based on the assumption of a particular failure scenario to happen in the future.
+    Evaluating only based on historical data assumes that the system will always behave
+    under those conditions and that the current data distribution also describes the
+    stream of future data. Moreover, any KPI or performance metric should be evaluated
+    relative to a baseline. The product owner wants to justify the investment for
+    that project. What if the same problem could have been solved in a much cheaper
+    way?
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, the only truth for evaluating any machine learning system is
+    A/B testing. A/B testing is a statistical hypothesis testing with two variants
+    (the control and variation) in a controlled experiment. The goal of A/B testing
+    is to identify performance differences between the two groups. It is a technique
+    widely used in user experience design for websites or for advertising and/or marketing
+    campaigns. In the case of anomaly detection, we can use a baseline (the simplest
+    rule-based detector) as the control version and the currently selected model as
+    variation candidate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is to find a meaningful evaluation that quantifies the return
+    of investment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*"We have to find a way of making the important measurable, instead of making
+    the measurable important."*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Robert McNamara, former US Secretary of Defense*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The return of investment will be represented by the uplift defined as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A/B Testing](img/00409.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: It is the difference between the two KPIs that quantifies the effectiveness
+    of the treatment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to make the comparison fair we must ensure that the two groups share
+    the same distribution of the population. We want to remove any bias given by the
+    choice of individuals (data samples). In the case of the anomaly detector, we
+    could, in principle, apply the same stream of data to both the two models. This
+    is not recommended though. By applying one model you can influence the behavior
+    of a given process. A typical example is an intruder who is first detected by
+    a model, and as such, the system would react by dropping his open connections.
+    A smart intruder would realize that he has been discovered and would not attempt
+    to connect again. In that case, the second model may never observe a given expected
+    pattern because of the influence of the first model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By separating the two models over two disjoint subsets of data, we make sure
+    the two models cannot influence each other. Moreover, if our use case requires
+    the anomalies to be further investigated by our analysts, then they cannot be
+    duplicated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we must split according to the same criteria as we have seen in the data
+    validation: no data leakage and entity sub-sampling. The final test that can confirm
+    whether the two groups are actually identically distributed is A/A testing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the name suggests, A/A testing consists on re-using the control version on
+    both the two groups. We expect that the performance should be very similar equivalent
+    to an uplift close to 0\. It is also an indicator of the performance variance.
+    If the A/A uplift is non-zero, then we have to redesign the controlled experiment
+    to be more stable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A/B testing is great for measuring the difference in performance between the
+    two models but just the model is not the only factor that influence the final
+    performance. If we take into account the damage cost model, which is the business
+    core, the model must be accurate on generating a prioritized list of anomalies
+    to investigate but also the analysts must be good on identifying, confirming and
+    reacting upon.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hence, we have two factors: the model accuracy and the security team effectiveness.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can divide the controlled experiment into an A/B/C/D test where four independent
+    groups are created, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|   | Base model | Advanced model |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **No action from security team** | Group A | Group B |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Intervention from security team** | Group C | Group D |'
+  prefs: []
+  type: TYPE_TB
+- en: 'We can compute a bunch of uplift measures that quantify both the model accuracy
+    and security team effectiveness. In particular:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`uplift(A,B)`: The effectiveness of the advanced model alone'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`uplift(D,C)`: The effectiveness of the advanced model in case of security
+    intervention'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`uplift(D,A)`: The effectiveness of both advanced model and security intervention
+    joint together'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`uplift(C,A)`: The effectiveness of the security intervention on the low-accuracy
+    queue'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`uplift(D,B)`: The effectiveness of the security intervention on the high-accuracy
+    queue'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is just an example of meaningful experiment and evaluations you want to
+    carry out in order to quantify in numbers what the business really cares about.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, there are a bunch of advanced techniques for A/B testing. Just
+    to name a popular one, the multi-armed bandit algorithm allows you to dynamically
+    adjust the size of the different testing groups in order to adapt to the performance
+    of those and minimize the loss due to low performing groups.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A summary of testing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To summarize, for an anomaly detection system using neural networks and labeled
+    data, we can define the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model as the definition of the network topology (number and size of hidden layers),
+    activation functions, pre-processing and post-processing transformations.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model parameters as the weights of hidden units and biases of hidden layers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fitted model as the model with an estimated value of parameters and able to
+    map samples from the input layer to the output.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning algorithm (also training algorithm) as SGD or its variants (HOGWILD!,
+    adaptive learning) + the loss function + regularization.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training set, validation set and test set are three disjoint and possibly independent
+    subsets of the available data where we preserve the same distribution.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model validation as the maximum F-measure score from the ROC curve computed
+    on the validation set using model fitted on the training set.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model selection as the best validated model among a set of possible configurations
+    (1 hidden layer Vs. 3 hidden layers, 50 neurons Vs. 1000 neurons, Tanh Vs. Sigmoid,
+    Z-scaling Vs. Min/Max normalization and so on…).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hyper-parameters tuning as the extension of model selection with algorithm and
+    implementation parameters such as learning parameters (epochs, batch size, learning
+    rate, decay factor, momentum…), distributed implementation parameters (samples
+    per iteration), regularization parameters (lambda in L1 and L2, noise factor,
+    sparsity constraint…), initialization parameters (weights distribution) and so
+    on.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model evaluation, or testing, as the final business metrics and acceptance criteria
+    computed on the test set using model fitted on both training and validation set
+    merged together. Some examples are the precision and recall for just top N test
+    samples, time to detection, and so on.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A/B testing as the uplift of evaluation performances of a model with respect
+    to a baseline computed on two different, but homogeneous, subsets of the live
+    data population (the control and variation groups).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We hope that we've clarified the essential and most important steps to consider
+    when testing a production-ready deep learning intrusion detection system. These
+    techniques, metrics, or tuning parameters may not be the same for your use case,
+    but we hope that the thoughtful methodology can serve as a guideline for any data
+    product.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A great resource of guidelines and best practices for building Data Science
+    systems that are both scientifically correct and valuable for the business is
+    the Professional Data Science Manifesto: [www.datasciencemanifesto.org](http://www.datasciencemanifesto.org).
+    It is recommended the reading and reasoning around the listed principles.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deployment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At this stage, we should have done almost all of the analysis and development
+    needed for building an anomaly detector, or in general a data product using deep
+    learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are only left with final, but not less important, step: the deployment.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deployment is generally very specific of the use case and enterprise infrastructure.
+    In this section, we will cover some common approaches used in general data science
+    production systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: POJO model export
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the Testing section, we summarized all the different entities in a machine
+    learning pipeline. In particular, we have seen the definition and differences
+    of a model, a fitted model and the learning algorithm. After we have trained,
+    validated, and selected the final model, we have a final fitted version of it
+    ready to be used. During the testing phase (except in A/B testing), we have scored
+    only historical data that was generally already available in the machines where
+    we trained the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In enterprise architectures, it is common to have a Data Science cluster wherein
+    you build a model and the production environment where you deploy and use the
+    fitted model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One common way is to export a fitted model is **Plain Old Java Object** (**POJO**).
+    The main advantage of POJO is that it can be easily integrated within a Java app
+    and scheduled to run on a specific dataset or deployed to score in real-time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: H2O allows you to extract a fitted model programmatically or from the Flow Web
+    UI, which we have not covered in this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If `model` is your fitted model, you can save it as `POJO jar` in the specified
+    `path` by running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The POJO jar contains a standalone Java class of the base class `hex.genmodel.easy.EasyPredictModelWrapper`,
+    with no dependencies on the training data or the entire H2O framework but only
+    the `h2o-genmodel.jar` file, which defines the POJO interfaces. It can be read
+    and used from anything that runs in a JVM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The POJO object will contain the model class name corresponding to the model
+    id used in H2O (`model.id`) and the model category for anomaly detection will
+    be `hex.ModelCategory.AutoEncoder`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, at the time of writing this chapter, there is still an open
+    issue over implementing the Easy API for AutoEncoder: [https://0xdata.atlassian.net/browse/PUBDEV-2232](https://0xdata.atlassian.net/browse/PUBDEV-2232).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Roberto Rösler, from the h2ostream mailing list, solved this problem by implementing
+    its own version of the `AutoEncoderModelPrediction` class as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And modified the method `predictAutoEncoder` in the `EasyPredictModelWrapper`
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The custom modified API will expose a method for retrieving the reconstruction
+    error on each predicted row.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to make the POJO model to work, we must specify the same data format
+    used during training. The data should be loaded into `hex.genmodel.easy.RowData`
+    objects that are simply instances of `java.util.Hashmap<String, Object>.`
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you create a `RowData` object you must ensure these things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The same column names and types of the `H2OFrame` are used. For categorical
+    columns, you must use String. For numerical columns, you can either use Double
+    or String. Different column types are not supported.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In case of categorical features, the values must belong to the same set used
+    for training unless you explicitly set `convertUnknownCategoricalLevelsToNa` to
+    true in the model wrapper.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Additional columns can be specified but will be ignored.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Any missing column will be treated as NA.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The same pre-processing transformation should be applied to the data as well.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This last requirement is probably the trickiest one. If our machine learning
+    pipeline is made of a bunch of transformers, those must be exactly replicated
+    in the deployment. Thus, the `POJO` class is not enough and should also be accompanied
+    by all of the remaining steps in the pipeline in addition to the H2O neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is an example of a Java main method that reads some data and scores it
+    against an exported `POJO` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have seen an example of how to instantiate the POJO model as a Java class
+    and use it for scoring a mock data point. We can re-adapt this code to be integrated
+    within an existing enterprise JVM-based system. If you are integrating it in Spark,
+    you can simply wrap the logic we have implemented in the example main class within
+    a function and call it from a map method on a Spark data collection. All you need
+    is the model POJO jar to be loaded into the JVM where you want to make the predictions.
+    Alternatively, if your enterprise stack is JVM-based, there are a few util entry
+    points, such as `hex.genmodel.PredictCsv`. It allows you to specify a csv input
+    file and a path where the output will be stored. Since `AutoEncoder` is not yet
+    supported in the Easy API, you will have to modify the `PredictCsv` main class
+    according to the custom patch we have seen before. Another architecture could
+    be like this: you use Python to build the model and a JVM-based application for
+    the production deployment.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anomaly score APIs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Exporting the model as a POJO class is one way to programmatically include it
+    in an existing JVM system, pretty much like the way you import an external library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a bunch of other situations where the integration works better using
+    a self-containing API, such as in a micro-services architecture or non-JVM-based
+    systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: H2O offers the capability of wrapping the trained model in a REST API to call
+    specifying the row data to score via a JSON object attached to an HTTP request.
+    The backend implementation behind the REST API is capable of performing everything
+    you would do with the Python H2O API, included the pre and post-processing steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The REST API is accessible from:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Any browser using simple add-ons, such as Postman in Chrome
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: curl, one of the most popular tools for client-side URL transfers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Any language of your choice; REST APIs are completely language agnostic
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In spite of the POJO class, the REST API offered by H2O depends on a running
+    instance of the H2O cluster. You can access the REST API at `http://hostname:54321`
+    followed by the API version (latest is 3); and the resource path, for example,
+    `http://hostname:54321/3/Frames` will return the list of all Frames.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`REST` APIs supports five verbs or methods: `GET`, `POST`, `PUT`, `PATCH`,
+    and `DELETE`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`GET` is used to read a resource with no side-effects, `POST` to create a new
+    resource, PUT to update and replace entirely an existing resource, `PATCH` to
+    modify a part of an existing resource, and `DELETE` to delete a resource. The
+    `H2O REST` API does not support the `PATCH` method and adds a new method called
+    `HEAD`. It is like a `GET` request but returns only the `HTTP` status, useful
+    to check whether a resource exists or not without loading it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Endpoints in H2O could be Frames, Models, or Clouds, which are pieces of information
+    related to the status of nodes in the H2O cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each endpoint will specify its own payload and schema, and the documentation
+    can be found on [http://docs.h2o.ai/h2o/latest-stable/h2o-docs/rest-api-reference.html](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/rest-api-reference.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'H2O provides in the Python module a connection handler for all the REST requests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `hc` object has a method called `request` that can be used to send `REST`
+    requests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Data payloads for `POST` requests can be added using either the argument `data`
+    (x-www format) or `json` (json format) and specifying a dictionary of key-value
+    pairs. Uploading a file happens by specifying the `filename` argument mapping
+    to a local file path.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this stage, whether we use the Python module or any REST client, we must
+    do the following steps in order to upload some data and get the model scores back:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the data you want to score using the `POST /3/ImportFiles` by using
+    an `ImporFilesV3` schema, including a remote path from where to load data (via
+    http, s3, or other protocols). The corresponding destination frame name will be
+    the file path:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Guess the parameters for parsing; it will return a bunch of parameters inferred
+    from the data for the final parsing (you can skip and manually specify those):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Parse according to the parsing parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Get the job name from the response and poll for import completion:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When the returned status is DONE, you can run the model scoring as:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After parsing the results, you can delete both the input and prediction frames:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s analyze the input and output of the Predictions API. `reconstruction_error`,
+    `reconstruction_error_per_feature`, and `deep_features_hidden_layer` are specific
+    parameters for AutoEncoder models and determine what will be included in the output.
+    The output is an array of `model_metrics` where for AutoEncoder will contain:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**MSE**: Mean Squared Error of the predictions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**RMSE**: Root Mean Squared Error of the predictions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**scoring_time**: Time in mS since the epoch for the start of this scoring
+    run'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**predictions**: The frame with the all the prediction rows'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A summary of deployment
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have seen two options for exporting and deploying a trained model: exporting
+    it as a `POJO` and incorporating it into a JVM-based application or using the
+    REST API to call a model which is already loaded into a running H2O instance.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generally, using `POJO` is a better choice because it does not depend on a running
+    H2O cluster. Thus, you can use H2O for building the model and then deploy it on
+    any other system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The REST API will be useful if you want to achieve more flexibility and being
+    able to generate predictions from any client at any time as long as the H2O cluster
+    is running. The procedure, though, requires multiple steps compared to the `POJO`
+    deployment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another recommended architecture is to use the exported `POJO` and wrap it within
+    a JVM REST API using frameworks such as Jersey for Java and Play or `akka-http`
+    if you prefer Scala. Building your own API means you can define programmatically
+    the way you want to accept input data and what you want to return as output in
+    a single request, as opposed to the multiple steps in H2O. Moreover, your `REST`
+    API could be stateless. That is, you don't need to import data into frames and
+    delete them afterwards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ultimately, if you want your POJO-based REST API to be easily ported and deployed
+    everywhere, it is recommended to wrap it in a virtual container using Docker.
+    Docker is an open source framework that allows you to wrap a piece of software
+    in a complete filesystem that contains everything you need to run: code, runtime,
+    system tools, libraries and everything you need to have installed. In such a way,
+    you have a single lightweight container that can always run the same service in
+    every environment.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Dockerized API can easily be shipped and deployed to any of your production
+    servers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we went through a long journey of optimizations, tweaks, testing
+    strategies, and engineering practices to turn our neural network into an intrusion
+    detection data product.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular, we defined a data product as a system that extracts value from
+    raw data and returns actionable knowledge as output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw a few optimizations for training a deep neural network to be faster,
+    scalable, and more robust. We addressed the problem of early saturation via weights
+    initialization. Scalability using both a parallel multi-threading version of SGD
+    and a distributed implementation in Map/Reduce. We saw how the H2O framework can
+    leverage Apache Spark as the backend for computation via Sparkling Water.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We remarked the importance of testing and the difference between model validation
+    and full end-to-end evaluation. Model validation is used to reject or accept a
+    given model, or to select the best performing one. Likely, model validation metrics
+    can be used for hyper-parameter tuning. On the other hand, end-to-end evaluation
+    is what quantifies more comprehensibly how the full solution is solving real business
+    problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ultimately, we did the last step—to deploy the tested model straight into production,
+    by either exporting it as a POJO object or turning it into a service via a `REST`
+    API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We summarized a few lessons learnt in the experience of building robust machine
+    learning systems and deeper architectures. We expect the reader to use those as
+    a basis for further development and customized solutions according to each use
+    case.
+  prefs: []
+  type: TYPE_NORMAL

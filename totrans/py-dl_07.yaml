@@ -1,0 +1,1685 @@
+- en: Chapter 7. Deep Learning for Board Games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You may have read sci-fi novels from the 50's and 60's; they are full of visions
+    of what life in the 21st century would look like. They imagined a world of people
+    with personal jet packs, underwater cities, intergalactic travel, flying cars,
+    and truly intelligent robots capable of independent thought. The 21st century
+    has arrived now; sadly, we are not going to get those flying cars, but thanks
+    to deep learning, we may get that robot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What does this have to do with deep learning for board games? In the next two
+    chapters, including the current one, we will look at how to build **Artificial
+    Intelligence** (**AI**) that can learn game environments. Reality has a vast space
+    of possibilities. Doing even simple human tasks, such as getting a robot arm to
+    pick up objects, requires analyzing huge amounts of sensory data and controlling
+    many continuous response variables for the movement of the arms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Games act as a great playing field for testing general purpose learning algorithms.
+    They give you an environment of large, but manageable possibilities. Also, when
+    it comes to computer games, we know that humans can learn to play a game just
+    from the pixels visible on the screen and the most minor of instructions. If we
+    input the same pixels plus an objective into a computer agent, we know we have
+    a solvable problem, given the right algorithm. In fact, for the computer, the
+    problem is easier because a human being identifies that the things they seeing
+    in their field of vision are actually game pixels, as opposed to the area around
+    the screen. This is why so many researchers are looking at games as a great place
+    to start developing true AI's—self-learning machines that can operate independently
+    from us. Also, if you like games, it's lots of fun.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will cover the different tools used for solving board games,
+    such as checkers and chess. Eventually, we'll build up enough knowledge to be
+    able to understand and implement the kind of deep learning solution that was used
+    to build AlphaGo, the AI that defeated the greatest human Go player. We'll use
+    a variety of deep learning techniques to accomplish this. The next chapter will
+    build on this knowledge and cover how deep learning can be used to learn how to
+    play computer games, such as Pong and Breakout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full list of concepts that we will cover across both the chapters is as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The min-max algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Monte-Carlo Tree Search
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reinforcement learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Policy gradients
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Q-learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Actor-Critic
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model-based approaches
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will use a few different terms to describe tasks and their solutions. The
+    following are some of the definitions. They all use the example of a basic maze
+    game as it is a good, simple example of a reinforcement learning environment.
+    In a maze game, there are a set of locations with paths between them. There is
+    an agent in this maze that can use the paths to move between the different locations.
+    Some locations have a reward associated with them. The agent's objective is to
+    navigate their way through the maze to get the best possible reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Deep Learning for Board Games](img/00257.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Agent** is the entity for which we are trying to learn actions. In the game,
+    this is the player that will try to find its way through the maze.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Environment** is a world/level/game in which the agent operates, that is,
+    the maze itself.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Reward** is the feedback that the agent gets within the environment. In the
+    case of this example maze game, it might be the exit square or the carrots in
+    the image that the agent is trying to collect. Some mazes may also have traps
+    that give a negative reward, which the agent should try to avoid.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**State** refers to all of the information available to the agent about its
+    current environment. In a maze, the state is simply the agent''s position.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Action** is a possible response, or set of responses, that an agent can make.
+    In a maze, this is a potential path that an agent can take from one state to another.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Control policy** determines what actions the agent will take. In the context
+    of deep learning, this is the neural network that we will train. Other policies
+    might be selecting actions at random or selecting actions based on the code that
+    the programmer has written.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A lot of this chapter is code-heavy, so as an alternative to copying all the
+    samples from the book, you can find the full code in a GitHub repository at [https://github.com/DanielSlater/PythonDeepLearningSamples](https://github.com/DanielSlater/PythonDeepLearningSamples).
+    All the examples in the chapters are presented using TensorFlow, but the concepts
+    could be translated into other deep learning frameworks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Early game playing AI
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Building AI''s to play games started in the 50''s with researchers building
+    programs that played checkers and chess. These two games have a few properties
+    in common:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: They are zero-sum games. Any reward that one player receives is a corresponding
+    loss to the other player and vice versa. When one player wins, the other loses.
+    There is no possibility of cooperation. For example, consider a game such as the
+    prisoner's dilemma; here, the two players can agree to cooperate and both receive
+    a smaller reward.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: They are both games of perfect information. The entire state of the game is
+    always known to both the players unlike a game such as poker, where the exact
+    cards that your opponents are holding is unknown. This fact reduces the complexity
+    that the AI must handle. It also means that a decision about what the best move
+    can be made is based on just the current state. In poker, the hypothetical optimal
+    decision about how to play would require information that is not just on your
+    current hand and how much money is available to each player, but also about the
+    playing styles of the opponents and what they had bid in the previous positions
+    they were in.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Both games are deterministic. If a given move is made by either player, then
+    that will result in an exact next state. In some games, the play may be based
+    on a dice roll or random drawing of a card from a deck; in these cases, there
+    would be many possible next states to consider.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The combination of perfect information and determinism in chess and checkers
+    means that given the current state, we can exactly know what state we will be
+    in if the current player takes an action. This property also chains if we have
+    a state, then takes an action leading to a new state. We can again take an action
+    in this new state to keep playing as far into the future as we want.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To experiment with some of the approaches of mastering board games, we will
+    give examples using a Python implementation of the game called *Tic-Tac-Toe*.
+    Also known as *noughts and crosses,* this is a simple game where players take
+    turns making marks on a 3 by 3 grid. The first player to get three marks in a
+    row wins. *Tic-Tac-Toe* is another deterministic, zero sum, perfect information
+    game and is chosen here because a Python implementation of it is a lot simpler
+    than chess. In fact, the whole game can be done in less than a page of code, which
+    will be shown later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the min-max algorithm to value game states
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Say we want to work out the best move in a zero sum, deterministic, perfect
+    information game. How can we do this? Well, first off, given that we have perfect
+    information, we know exactly what moves are available to us. Given that the game
+    is deterministic, we know exactly what state the game will change to due to each
+    of those moves. The same is then true for the opponent's move as well; we know
+    exactly what possible moves they have and how the state would look as a result
+    of each of those moves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One approach for finding the best move would be to construct a full tree of
+    every possible move for each player at each state until we reach a state where
+    the game is over. This end state of the game is also known as the terminal state.
+    We can assign a value to this terminal state; a win could carry the value 1, a
+    draw 0, and a loss -1\. These values reflect the states'' desirability to us.
+    We would prefer a win than a draw and a draw to a loss. *Figure 2* shows an example
+    of this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using the min-max algorithm to value game states](img/00258.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 2: Tree of all the states of tic-tac-toe'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a terminal state, we can go back to the state where the player chose the
+    move that led to the terminal state. That player, whose objective is to find the
+    best possible move, can determine exactly what value they will get from the actions
+    they would take, which is the terminal state that they eventually led the game
+    to. They will obviously want to select the move that would lead to the best possible
+    value for themselves. If they have a choice of actions that would either lead
+    to winning the terminal state or losing it, they will select the one that leads
+    to a winning state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The value of the state where terminal states are selected can then be marked
+    with the value of the best possible action that the player could make. This gives
+    us the value to that player of being in this state. But we are playing a two-player
+    game here, so if we go back a state, we would be in a state where the other player
+    is due to make a move. We now on our graph have the value that this opponent will
+    get from their actions in this state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This being a zero sum game, we want our opponent to do as badly as possible,
+    so we will select the move that leads to the lowest value state for them. If we
+    keep going back through the graph of states, marking all the states with the value
+    of the best state that any action could lead to, we can determine exactly what
+    is the best action in the current state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using the min-max algorithm to value game states](img/00259.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3\. Min-max algorithm
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this way, a complete tree of the game can be constructed, showing us the
+    best move that we can make in the current state. This approach is called the min-max
+    algorithm and is what the early researchers used for their chess and checkers
+    games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Though this approach tells us the exact best move for any zero sum, deterministic,
+    perfect information game, it unfortunately has a major problem. Chess has on average
+    about 30 possible moves per turn and games last on average 40 turns. So to build
+    a graph from the first state in chess to all the terminal states would require
+    approximately 30^(40) states. Many orders of magnitude larger than this is possible
+    on the world's best hardware. When talking about games, the number of moves a
+    player can take per turn is referred to as the **breadth** and the number of moves
+    the game takes per turn as the **depth**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To make chess tractable with the Min-Max algorithm, we need to massively reduce
+    the depth of our search. Rather than calculate the whole tree through to the end
+    of the game, we can construct our tree down to a fixed depth, say six moves on
+    from the current state. At each leaf that is not an actual terminal state, we
+    can use an evaluation function to estimate how likely the player is to win in
+    that state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For chess, a good evaluation function is to do a weighted count of the number
+    of pieces available with each player. So, one point for a pawn, three for a bishop
+    or knight, five for a rook, and eight for a queen. If I have three pawns and a
+    knight, I have six points; similarly, if you have two pawns and a rook, you have
+    seven points. Therefore, you are one point ahead. A player with more pieces left
+    generally tends to win in chess. However, as any keen chess player who has played
+    against a good exchange sacrifice will know, this evaluation function has its
+    limits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a Python Tic-Tac-Toe game
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's build a basic implementation of *Tic-Tac-Toe* so we can see what an implementation
+    of the min-max algorithm looks like. If you do not feel like copying all of this,
+    you can find the full code in the GitHub repository [https://github.com/DanielSlater/PythonDeepLearningSamples](https://github.com/DanielSlater/PythonDeepLearningSamples)
+    in the `tic_tac_toe.py` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the game board, we will be represented by a 3 x 3 tuple of integers. Tuples
+    are used instead of lists so that later on, we can get equality between matching
+    board states. In this case, **0** represents a square that has not been played
+    in. The two players will be marked **1** and **-1**. If player one makes a move
+    in a square, that square will be marked with their number. So here we go:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `new_board` method will be called before the play for a fresh board, ready
+    for the players to make their moves on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `apply_move` method takes one of the 3 x 3 tuples for `board_state` and
+    returns a new `board_state` with the move by the given side applied. A move will
+    be a tuple of length 2, containing the coordinate of the space that we want to
+    move to as two integers. Side will an integer representing the player who is playing
+    the move, either 1 or -1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This method gives us the list of legal moves for a given 3 x 3 `board_state`,
+    which is simply all the non-zero squares. Now we just need a method to determine
+    whether a player has the three winning marks in a row:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `has_3_in_a_line` takes a sequence of three squares from the board. If
+    all are either 1 or -1, it means one of the players has gotten three in a row
+    and has won. We then need to run this method against each possible line on the
+    Tic-Tac-Toe board to determine whether a player has won:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With just these few functions, you can now play a game of *Tic-Tac-Toe*. Simply
+    start by getting a new board, then have the players successively choose moves
+    and apply those moves to `board_state`. If we find that there are no available
+    moves left, the game is a draw. Otherwise, if `has_winner` returns either `1`
+    or `-1`, it means one of the players has won. Let''s write a simple function for
+    running a Tic-Tac-Toe game with the moves decided by methods that we pass in,
+    which will be the control policies of the different AI players that we will try
+    out:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We declare the method and take it to the function that will choose the action
+    for each player. Each `player_func` will take two arguments: the first being the
+    current `board_state` and the second being the side that the player is playing,
+    1 or -1\. The `player_turn` variable will keep track of this for us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is the main loop of the game. First we have to check whether there are
+    any available moves left on `board_state`; if there are, the game is not over
+    and it is a draw:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Run the function associated with whichever player''s turn it is to decide a
+    move:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If either player makes an illegal move, that is an automatic loss. Agents should
+    know better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Apply the move to `board_state` and check whether we have a winner. If we do,
+    end the game; if we don't, switch `player_turn` to the other player and loop back
+    around.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is how we could write a method for a control policy that would choose
+    actions completely at random out of the available legal moves:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s run two random players against each other and check whether the output
+    might look something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we have a good way of trying out different control policies on a board game,
+    so let's go about writing something a bit better. We can start with a min-max
+    function that should play at a much higher standard than our current random players.
+    The full code for the min-max function is also available in the GitHub repo in
+    the `min_max.py` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Tic-tac-toe is a game with a small space of possibilities, so we could simply
+    run a min-max for the whole game from the board''s starting position until we
+    have gone through every possible move for every player. But it is good practice
+    to still use an evaluation function, as for most other games we might play, this
+    will not be the case. The evaluation function here will give us one point for
+    getting two in a line if the third space is empty; it''ll be the opposite if our
+    opponent achieves this. First, we will need a method for scoring each individual
+    line that we might make. The `score_line` will take sequences of length 3 and
+    score them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then the `evaluate` method simply runs through each possible line on the tic-tac-toe
+    board and sums them up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we come to the actual `min_max` algorithm method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first two arguments to the method, which we are already familiar with,
+    are `board_state` and `side`; however, `max_depth` is new. Min-max is a recursive
+    algorithm, and `max_depth` will be the maximum number of recursive calls we will
+    make before we stop going down the tree and just evaluate it to get the result.
+    Each time we call `min_max` recursively, we will reduce `max_depth` by 1, stopping
+    to evaluate when we hit 0:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If there are no moves to make, then there is no need to evaluate anything;
+    it is a draw, so let''s return with a score of 0:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we will run through each legal move and create a `new_board_state` with
+    that move applied:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Check whether the game is already won in this `new_board_state`. There is no
+    need to do any more recursive calling if the game is already won. Here, we are
+    multiplying the winner''s score by 1,000; this is just an arbitrary large number
+    so that an actual win or loss is always considered better/worse than the most
+    extreme result we might get from a call to `evaluate`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you don''t already have a winning position, then the real meat of the algorithm
+    starts. If you have reached `max_depth`, then now is the time to evaluate the
+    current `board_state` to get our heuristic for how favorable the current position
+    is to the first player. If you haven''t reached `max_depth`, then recursively
+    call `min_max` with a lower `max_depth` until you hit the bottom:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have our evaluation for the score in `new_board_state`, we want
+    either the best or worst scoring position depending on which side we are. We keep
+    track of which move leads to this in the `best_score_move` variable, which we
+    return to with the score at the end of the method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A `min_max_player` method can now be created to go to our earlier `play_game`
+    method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now if we run a series of games with `random_player` against a `min_max` player,
+    we will find that the min_max player wins almost every time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The min max algorithm, though important to understand, is never used in practice
+    because there is a better version of it: min max with alpha beta pruning. This
+    takes advantage of the fact that certain branches of the tree can be ignored or
+    pruned, without needing to be fully evaluated. Alpha beta pruning will produce
+    the same result as min max but with, on average, half as much search time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To explain the idea behind alpha beta pruning, let's consider that while building
+    our min-max tree, half of the nodes are trying to make decisions to maximize the
+    score and the other half to minimize it. As we start evaluating some of the leaves,
+    we get results that are good for both min and max decisions. If taking a certain
+    path through the tree scores, say -6, the min branch knows it can get this score
+    by following the branch. The thing that stops it from using this score is that
+    max decisions has to make the decisions, and it cannot choose a leaf favorable
+    to the min node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But as more leaves are evaluated, another might be good for the max node, with
+    a score of +5\. The max node will never choose a worse outcome than this. But
+    now that we have a score for both min and max, we know if we start going down
+    a branch where the best score for min is worse than -6 and the best score for
+    max is worse than +5, then neither min nor max will choose this branch, and we
+    can save on the evaluation of that whole branch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The alpha in alpha beta pruning stores the best result that the max decisions
+    can achieve. The beta stores the best result (lowest score) that the min decisions
+    can achieve. If alpha is ever greater than or equal to beta, we know we can skip
+    further evaluation of the current branch we are on. This is because both the decisions
+    already have better options.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 4* gives an example of this. Here see that from the very first leaf
+    itself, we can set an alpha value of 0\. This is because once the max player has
+    found a score of 0 in a branch, they need never choose a lower score. Next, in
+    the third leaf across, the score is 0 again, so the min player can set their beta
+    score to 0\. The branch that reads *branch ignored* no longer needs to be evaluated
+    because both alpha and beta are 0\.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand this, consider all the possible results that we could get from
+    evaluating the branch. If it were to result in a score of +1, then the min player
+    would simply choose an already existing branch where it had scored 0\. In this
+    case, the branch to the ignored branches left. If the score results in -1, then
+    the max player would simply choose the left most branch in the image where they
+    can get 0\. Finally, if it results in a score of 0, it means no one has improved,
+    so the evaluation of our position remains unchanged. You will never get a result
+    where evaluating a branch would change the overall evaluation of the position.
+    Here is an example of the min max method modified to use alpha beta pruning:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Implementing a Python Tic-Tac-Toe game](img/00260.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4: Min max method with alpha beta pruning'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now pass in both `alpha` and `beta` as parameters; we stop searching through
+    the branches that are either less than alpha or more than beta:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now when we recursively call `min_max_alpha_beta`, we pass in our new alpha
+    and beta values that may have been updated as part of the search:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `side > 0` expression means that we are looking to maximize our score,
+    so we will store the score in the alpha variable if it''s better than our current
+    alpha:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If `side` is < 0 we are minimizing, so store the lowest scores in the beta
+    variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If alpha is greater than beta, then this branch cannot improve the current
+    score, so we stop searching it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: In 1997, IBM created a chess program called *Deep Blue*. It was the first to
+    beat the reigning world chess champion Garry Kasparov. While an amazing achievement,
+    it would be hard to call *Deep Blue* intelligent. Though, it has huge computational
+    power, and its underlying algorithm is just the same min-max algorithm from the
+    50's. The only major difference is that *Deep Blue* took advantage of the opening
+    theory in chess.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The opening theory comprises of a sequences of moves that are from the starting
+    position and are known to lead to favorable or unfavorable positions. For example,
+    if white starts with the move pawn e4 (the pawn in front of the king moved forward
+    by two spaces), then black responds with pawn c5; this is known as the Sicilian
+    defense, and there are many books written on the sequences of play that could
+    follow from this position. Deep Blue was programmed to simply follow the best
+    moves recommended from these opening books and only start calculating the best
+    min-max move once the opening line of play reaches its end. In this way, it saves
+    on computational time, but it also takes advantage of the vast human research
+    that has gone into the working out of the best positions in the opening stages
+    of chess.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning a value function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's get a bit more details on exactly how much computation the min max algorithm
+    has to do. If we have a game of breadth *b* and depth *d*, then evaluating a complete
+    game with min-max would require the construction of a tree with eventual *d* ^(*b*)
+    leaves. If we use a max depth of *n* with an evaluation function, it would reduce
+    our tree size to *n* ^(*b*). But this is an exponential equation, and even though
+    *n* is as small as 4 and *b* as 20, you still have 1,099,511,627,776 possibilities
+    to evaluate. The tradeoff here is that as *n* gets lower, our evaluation function
+    is called at a shallower level, where it may be a lot less good than the estimated
+    quality of the position. Again, think of chess where our evaluation function is
+    simply counting the number of pieces left on the board. Stopping at a shallow
+    point may miss the fact that the last move put the queen in a position where it
+    could be taken in the following move. Greater depth always equals greater accuracy
+    of evaluation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training AI to master Go
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The number of possibilities in chess, though vast, is not so vast that with
+    a powerful computer, you can't defeat the world's greatest human player. Go, an
+    ancient Chinese game whose origin goes back to more than 5,500 years, is far more
+    complex. In Go, a piece can be placed anywhere on the 19 x 19 board. To begin
+    with, there are 361 possible moves. So to search forward *k* moves, you must consider
+    361k possibilities. To make things even more difficult, in chess, you can evaluate
+    how good a position is fairly accurately by counting the number of pieces on each
+    side, but in Go, no such simple evaluation function has been found. To know the
+    value of a position, you must calculate through to the end of the game, some 200+
+    moves later. This makes the game impossible to play to a good standard using min-max.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Training AI to master Go](img/00261.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5
+  prefs: []
+  type: TYPE_NORMAL
+- en: To get a good feel of the complexity of Go, it is worth thinking about how humans
+    learn to play Go versus Chess. When beginners starts learning Chess, they make
+    a series of moves in the direction of their opponent's side of the board. At some
+    point, they make a move that leaves one of their pieces open for capture. So the
+    opponent obliges and takes the piece. It is then that the beginner player immediately
+    understands that their last move was bad, and if they want to improve, they cannot
+    make the same mistake again. It is very easy for the player to identify what they
+    did wrong, though correcting yourselves consistently may require a lot of practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, when a beginner learns Go, it looks like a series of almost random
+    moves across the board. At a certain point, both players run out of their moves
+    and the position is counted up to see who won. The beginner finds out he has lost
+    and stares at the mass of pieces in different positions and scratches his head
+    wondering exactly what happened. For humans, Go is incredibly difficult and takes
+    a high degree of experience and skill to be able to understand where players are
+    going wrong.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, Go doesn't have anything like the opening theory books that Chess has.
+    Go's opening theory rather than being sequences of moves that a computer could
+    follow is lots of general principles instead, such as good shapes to aim for or
+    ways to take corners of the board. There is something called *Joseki* in Go, which
+    are studied sequences of moves known to lead to different advantages. But all
+    of these must be applied to that context when a player recognizes a particular
+    arrangement is possible; they are not actions that can be blindly followed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One approach for games such as Go, where evaluation is so difficult, is **Monte
+    Carlo Tree Search** (**MCTS**). If you have studied Bayesian probability, you
+    will have heard of Monte Carlo sampling. This involves sampling from a probability
+    distribution to obtain an approximation for an intractable value. MCTS is similar.
+    A single sample involves randomly selecting actions for each player until you
+    reach a terminal state. We maintain statistics for each sample so that after we
+    are done, we can select the action from the current state with the highest mean
+    success rate. Here is an example of MCTS for the tic tac toe game we spoke about.
+    The complete code can also be found in the GitHub repo in the `monte_carlo.py`
+    file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `monte_carlo_sample` method here generates a single sample from a given
+    position. Again, we have a method that has `board_state` and `side` as arguments.
+    This method will be called recursively until we reach a terminal state, so either
+    a draw because no new move can be played or a win for one player or another:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A move will be selected randomly from the legal moves in the position, and
+    we will recursively call the sample method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Take monte carlo samples from this board state and update our results based
+    on them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the move with the best average result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the method that brings it all together. We will call the `monte_carlo_smaple`
+    method `number_of_samples` times, keeping track of the result of each call. We
+    then return the move with the best average performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is good to think about how different the results obtained from MCTS will
+    be of those that involve min-max. If we go back to chess as an example, in the
+    position illustrated, white has a winning move, putting the rook on the back rank,
+    c8, to give mate. Using min-max, this position would be evaluated as a winning
+    position for white. But using MCTS, given that all other moves here lead to a
+    probable victory for black, this position will be rated as favorable to black.
+    This is why MCTS is very poor at chess and should give you a feel of why MCTS
+    should only be used when Min-Max is not viable. In Go, which falls into the other
+    category, the best AI performance was traditionally found using MCTS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Training AI to master Go](img/00262.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6:A Chess position that is badly evaluated by Monte Carlo sampling. If
+    white is to move, they have a winning move; however, if the samples randomly move,
+    black has an opportunity to win
+  prefs: []
+  type: TYPE_NORMAL
+- en: Upper confidence bounds applied to trees
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To recap, Min-Max gives us the actual best move in a position, given perfect
+    information; however, MCTS only gives an average value; though it allows us to
+    work with much larger state spaces that cannot be evaluated with Min-Max. Is there
+    a way that we could improve MCTS so it could converge to the Min-Max algorithm
+    if enough evaluations are given? Yes, Monte Carlo Tree Search with Confidence
+    bounds applied to Trees (UCT) does exactly this. The idea behind it is to treat
+    MCTS like a multiarmed bandit problem. The multiarmed bandit problem is that we
+    have a group of slot machines—one armed bandits—each of which has an undetermined
+    payout and average amount of money received per play. The payout for each machine
+    is random, but the mean payout may vary significantly. How should we determine
+    which slot machines to play?
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are two factors that need to be considered when choosing a slot machine.
+    The first is the obvious one, an exploitative value, which is the expected return
+    that the given slot machine will output. To maximize the payout, we would need
+    to always play the machine with the highest expected payout. The second is the
+    explorative value, where we want our playing machine to increase the information
+    we have about the payoffs of different machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we play machine *A* thrice, you get a payoff of 13, 10, and 7 for an average
+    payoff of 10\. We also have machine *B*; we have played it once and have gotten
+    a payoff of 9\. In this case, it might be preferable to play machine *B* because
+    though the average payoff is lower, 9 versus 10\. The fact that we have only played
+    it once means the lower payout may have just been bad luck. If we play it again
+    and get a payout of 13, our average for machine B would be 11\. Therefore, we
+    should switch to playing that machine for the best payout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The multiarmed bandit problem has been widely studied within mathematics. If
+    we can reframe our MCTS evaluation to look like a multiarmed bandit problem, we
+    can take advantage of these well-developed theories. One way of thinking about
+    it is rather than seeing the problem as one with maximizing reward, think of it
+    as a problem with minimizing regret. Regret here is defined as the difference
+    between the reward we get for the machine we play and the maximum possible reward
+    we would get if we knew the best machine from the beginning. If we follow a policy,
+    *p(a)* chooses an action that gives a reward at each time step. The regret for
+    *t* number of plays, given *r** as the reward of the best possible action, is
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00263.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: If we were to choose a policy of always picking the machine with the highest
+    reward, it may not be the true best machine. Therefore, our regret will increase
+    linearly with each play. Similarly, if we take a policy of always trying to explore
+    for finding the best machine, our regret will also increase linearly. What we
+    want is a policy for *p(a)* that increases in sublinear time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best theoretical solution is to perform the search based on confidence intervals.
+    A confidence interval is the range within which we expect the true mean, with
+    some probability. We want to be optimistic in the face of uncertainty. If we don't
+    know something, we want to find it out. The confidence interval represents our
+    uncertainty about the true mean of a given random variable. Select something based
+    on your sample mean plus the confidence interval; it will encourage you to explore
+    the space of possibilities while also exploiting it at the same time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For an i.i.d random variable *x*, in the range of 0 to 1, over n samples, the
+    probability that the true mean is greater than the sample mean—![Upper confidence
+    bounds applied to trees](img/00264.jpeg) plus constant *u*—is given by Hoeffding''s
+    inequality: Hoeffding, Wassily (1963). *Probability inequalities for sums of bounded
+    random variables*. Journal of the American Statistical Association:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00265.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We want to use this equation to find the upper bound confidence for each machine.
+    *E{x},x*, and *n* are all part of statistics we have already. We need to solve
+    it to use it for the purpose of finding a value for *u*. In order to do this,
+    reduce the left side of the equation to p and find where it equals the right side:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00266.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can rearrange it to make *u* defined in terms of *n* and *p*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00267.jpeg)![Upper confidence
+    bounds applied to trees](img/00268.jpeg)![Upper confidence bounds applied to trees](img/00269.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now we want to choose a value for *p* so that our precision increases over
+    time. If we set ![Upper confidence bounds applied to trees](img/00270.jpeg), then
+    as n approaches infinity, our regret will tend toward 0\. Substitute that in and
+    we can simplify it down to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00271.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The mean plus u is our upper confidence bounds, so we can use it to give us
+    the **UCB1** (**Upper Confidence Bounds**) algorithm. We can substitute our values
+    with the values in the multiarmed bandit problem we saw earlier, where *r* [*i*]
+    is the sum of the reward received from the machine *i*, *n* [*i*] is the number
+    of plays of machine *i*, and *n* is the sum of plays across all machines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Upper confidence bounds applied to trees](img/00272.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: We will always want to choose the machine that will give us the highest score
+    for this equation. If we do so, our regret will scale logarithmically with the
+    number of plays, which is the theoretical best we can do. Using this equation
+    for our action choice has the behavior that we will try a range of machines early
+    on, but the more we try a single machine, the more it will encourage us to eventually
+    try a different machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's also good to remember that an assumption at the beginning of this series
+    of equations was that the range, for x in early equations, and *r* for when we
+    apply it to the multiarmed bandit problem was that values were in the range of
+    0 to 1\. So if we are not working in this range, we need to scale our input. We
+    have not made any assumptions about the nature of the distribution though; it
+    could be Gaussian, binomial, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we have an optimal solution to the problem of sampling from a set of unknown
+    distributions; how do you apply it to MCTS? The simplest way to do this is to
+    only treat the first moves from the current board state as bandits or slot machines.
+    Though this would improve the estimation at the top level a little, every move
+    beneath that would be completely random, meaning the *r* [*i*] estimation would
+    be very inaccurate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we could treat every move at every branch of the tree as a multiarmed
+    bandit problem. The issue with this is that if our tree is very deep, as our evaluation
+    goes deeper, we will reach positions we have never encountered before so we would
+    have no samples for the range of moves we need to choose between. We would be
+    keeping a huge number of statistics for a huge range of positions, most of which
+    will never be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The compromise solution, known as Upper Confidence for Trees, is to do what
+    we discuss next. We will do successive rollouts from the current board state.
+    At each branch of the tree, where we have a range of actions to choose from, if
+    we have previous sample statistics for each potential move, we will use the UCB1
+    algorithm to choose which action to choose for the rollout. If we do not have
+    sample statistics for every move, we will choose the move randomly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we decide which sample statistics to keep? For each rollout, we keep
+    new statistics for the first position we encounter that we do not have previous
+    statistics for. After the rollout is complete, we update the statistics for every
+    position we are keeping track of. This way, we ignore all the positions deeper
+    down the rollout. After x evaluations, we should have exactly *x* nodes of our
+    tree, growing by one with each rollout. What's more, the nodes we keep track of
+    are likely to be around the paths we are using the most, allowing us to increase
+    our top-level evaluation accuracy by increasing the accuracy of the moves we evaluate
+    further down the tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Start a rollout from the current board state. When you select a move, do the
+    following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you have statistics for every move from the current position, use the UCB1
+    algorithm to choose the move.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Otherwise, choose the move randomly. If this is the first randomly chosen position,
+    add it to the list of positions we are keeping statistics for.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run the rollout until you hit a terminal state, which will give you the result
+    of this rollout.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the statistics for every position you are keeping statistics for, indicating
+    what you went through in the rollout.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat until you get to the maximum number of rollouts. Upper confidence bounds
+    applied to Trees, the statistics for each position, are shown in the square boxes:![Upper
+    confidence bounds applied to trees](img/00273.jpeg)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The preceding diagram illustrates how this happens. In position A, there is
+    statistics collected for all four possible moves. Because of this, the UCB1 algorithm
+    can be used to select the best move, balancing exploitative for exploitative value.
+    In the preceding diagram, the leftmost move is chosen. This leads us to **position
+    B**; here only two out of the three possible moves have statistics collected on
+    them. Because of this, the move you need to make for this rollout is selected
+    randomly. By chance, the rightmost move is selected; the remaining moves are selected
+    randomly until you reach the final **position C**, where the noughts were to win.
+    This information is then applied to a graph, as shown in the following diagram:![Upper
+    confidence bounds applied to trees](img/00274.jpeg)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We add statistics for any position that we passed through that already has statistics,
+    so 1/2 in the first diagram now becomes 2/3\. We also add statistics for the first
+    position we encounter with no stats. Here, it is the rightmost position in the
+    second row; it now has a score of 1/1 because the nought player won. If this branch
+    is selected again and you get to position D, use the UCB1 algorithm to select
+    the move, not just make a random selection as before.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Here is what this looks like in Python for our *Tic-Tac-Toe* game:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'First, we need a method that calculates UCB1; this is the UCB1 equation in
+    Python. The one difference is here we are using `log_total_samples` as input because
+    it allows us to do a small optimization later on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Declare the method and the two dictionaries, namely `state_results` and `state_samples`.
+    They will keep track of our statistics for the different board states we will
+    encounter during the rollouts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The main loop is what we go through for each rollout. At the beginning of the
+    rollout, we need to initialize the variables that will track our progress within
+    the rollout. `first_unvisited_node` will keep track of whether we have created
+    a new statistics tracking node for this rollout. On encountering the first state
+    for which we have no statistics, we create the new statistics node, adding it
+    to `state_results` and `state_samples` dictionaries and then setting the variable
+    to `False`. `rollout_path` will keep track of each node we visit in this rollout
+    that we are keeping statistics nodes for. Once we obtain the result at the end
+    of the rollout, we will update the statistics of all the states along the path:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `while result == 0` puts us into the loop for a rollout; this will run
+    until one side or the other wins. In each loop of the rollout, we first construct
+    a dictionary, `move_states`, mapping each available move to the state that move
+    will put us into. If there are no moves to make, we are in a terminal state, it
+    is a draw. So you need to record that as `result` and break out of the rollout
+    loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we need to choose which move we are going to take at this step of the rollout.
+    As specified by the MCTS-UCT algorithm, if we have statistics for every possible
+    move, we choose the move with the best `upper_confidence_bounds` score; otherwise,
+    we make the selection randomly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have selected our move, we can update `current_board_state` to
+    the state that the move puts us in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we need to check whether we have hit the end of our MCTS-UCT tree. We will
+    add every node we visit up to the first previously unvisited node to `rollout_path`.
+    We will update the statistics of all these nodes once we get our result from this
+    rollout:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are at the end of our rollout loop, so switch the sides for the next iteration
+    and check whether anyone has won in the current state. If so, it will cause us
+    to break out of the rollout loop when we pop back to the `while result == 0` statement:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we have completed a single rollout and thus left the rollout loop. We now
+    need to update our statistics with the result. `rollout_path` contains `path_board_state`
+    and `path_side` for each node we want to update, so we need to go through every
+    entry in there. The last two points to make are that the results from our game
+    are between -1 and 1\. But the UCB1 algorithm expects its payouts between 0 and
+    1; the line result `*path_side/2.+.5` does this. Second, we also need to switch
+    the results to represent the side they are for. A good move for my opponent is
+    the opposite of a good move for me:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, once we have done the required number of rollouts, we can choose the
+    best move from the current state based on the best expected payout. There is no
+    longer any need to use UCB1 to choose the best move. It's because this being the
+    final decision, there is no value in doing any extra exploration; the best move
+    is simply the best mean payout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the MCTS-UCT algorithm. There are many different variants to it with
+    different advantages in specific situations, but they all have this as core logic.
+    MCTS-UCT gives us a general way to judge moves for games, such as Go, with vast
+    search spaces. Also, it isn't limited to games of perfect information; it can
+    often perform well in games with partially observed states, such as poker. Or,
+    even more generally, any problem we might encounter that we can reconfigure to
+    fit it, for example, it was used as a basis for an automated theorem proving machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep learning in Monte Carlo Tree Search
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Even with MCTS-UCT, computers could still not even come close to beating the
+    best Go players; however, in 2016, a team from *Google Deep Mind* developed an
+    AI they called AlphaGo. It defeated Lee Sedol, the world's top Go player, over
+    a five game series, winning 4-1\. The way they did this was using three improvements
+    over the standard MCTS UCT approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we were to think about why MCTS is so inaccurate, an intuitive answer that
+    might arise is that the moves used in the evaluation are selected randomly when
+    we know that some moves are much more likelier than others. In Go, when there
+    is a battle for control of a corner, the moves around that area are much better
+    candidates for selection, as opposed to moves on the opposite side of the board.
+    If we had a good way of selecting which moves are likely to be played, we would
+    have massively reduced the breadthof our search, and by extension, increased the
+    accuracy of our MCTS evaluations. If we go back to the preceding chess position,
+    although every legal move can potentially be played, if you are playing against
+    someone who without any chess skill will only play the winning move, evaluation
+    of the other moves is simply wasted CPU cycles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where deep learning can help us. We can use the pattern recognition
+    qualities of a neural network to give us a rough estimate of the probability of
+    a move being played in the game, given a position. For AlphaGo, a 13-layer convolutional
+    network with relu activation functions was used. The input to the network was
+    the 19 x 19 board state and its output, another 19 x 19 softmax layer representing
+    the probability of a move being played in each square of the board. It was then
+    trained on a large database of expert-level human Go games. The network would
+    be given a single position as input and the move that was played from that position
+    as a target. The loss function is the mean squared error between network activation
+    and the human move made. Given plenty of training, the network learned to predict
+    human moves with 57 percent accuracy against a test set. The use of a test set
+    here is particularly important because overfitting is a big worry. Unless the
+    network can generalize its understanding of a position to a previously unseen
+    position, it is useless.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we wanted to implement something similar in our preceding Tic-tac-toe example,
+    we would simply replace the `move = random.choice(moves)` line with the `monte_carlo_sample`
+    method or the UCT version with a move chosen by a trained neural network. This
+    technique will work for any discrete game if you have a large training set of
+    example games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you do not have a database of example games, there is another approach you
+    can use. If you have an agent that plays with a tiny degree of skill, you can
+    even use that agent to generate the initial collection of example games. A good
+    approach, for instance, is to generate example positions and moves using the min-max
+    or MCTS UCT algorithms. A network can then be trained to play moves from that
+    collection. This is a good way to get a network to learn how to play a game at
+    a good enough standard so that it can at least explore the space of the game with
+    the plausible moves, as opposed to completely random moves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we implement such a neural network, use it to select which moves to use in
+    a Monte-Carlo rollout, with this, our evaluation will be much more accurate, but
+    we will still suffer from the problem that our MCTS will be evaluating averages
+    when we still care about the best outcome for us from the moves we make. This
+    is where reinforcement learning can be introduced to improve our agent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quick recap on reinforcement learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We first encountered reinforcement learning in [Chapter 1](part0016_split_000.html#F8901-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "Chapter 1. Machine Learning – An Introduction"), *Machine Learning – An Introduction*,
+    when we looked at the three different types of learning processes: supervised,
+    unsupervised, and reinforcement. In reinforcement learning, an agent receives
+    rewards within an environment. For example, the agent might be a mouse in a maze
+    and the reward might be some food somewhere in that maze. Reinforcement learning
+    can sometimes feel a bit like a supervised recurrent network problem. A network
+    is given a series of data and must learn a response.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key distinction that makes a task a reinforcement learning problem is that
+    the responses the agent gives changes the data it receives in future time steps.
+    If the mouse turns left instead of right at a *T* section of the maze, it changes
+    what its next state would be. In contrast, supervised recurrent networks simply
+    predict a series. The predictions they make do not influence the future values
+    in the series.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The AlphaGo network has already been through supervised training, but now the
+    problem can be reformatted as a reinforcement learning task to improve the agent
+    further. For AlphaGo, a new network was created that shares the structure and
+    weights with the supervised network. Its training is then continued using reinforcement
+    learning and by specifically using an approach called policy gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradients for learning policy functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The problem policy gradients aims to solve is a more general version of the
+    problem of reinforcement learning, which is how you can use backpropagation on
+    a task that has no gradient, from the reward to the output of our parameters.
+    To give a more concrete example, we have a neural network that produces the probability
+    of taking an action *a*, given a state *s* and some parameters ?, which are the
+    weights of our neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00275.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: We also have our reward signal *R*. The actions affect the reward signal we
+    take, but there is no gradient between them and the parameters. There is no equation
+    in which we can plug *R*; it is just a value we obtain from our environment in
+    response to *a*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, given that we know there is a link between the *a* we choose and *R*,
+    there are a few things we could try. We could create a range of values for our
+    ? from a Gaussian distribution and run them in the environment. We could then
+    select a percentage of the most successful group and get their mean and variance.
+    We then create a new population of ? using the new mean and variance in our Gaussian
+    distribution. We can keep doing this iteratively until we stop seeing improvements
+    in *R* and then use our final mean as the best choice for our parameters. This
+    method is known as the **Cross Entropy Method**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Though it can be quite successful, it is a hill-climbing method, which does
+    not do a good job of exploring the space of possibilities. It is very likely to
+    get stuck in local optima, which is very common in reinforcement learning. Also,
+    it still does not take advantage of gradient information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use gradients, we can take advantage of the fact that although there is
+    no mathematical relationship between *a* and *R*, there is a probabilistic one.
+    Certain *a* taken in certain *s* will tend to receive more *R* than others. We
+    can write the problem of getting the gradients of ? with respect to *R* as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00276.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *r* [*t*] is the reward at time step *t*. This can be rearranged into:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00277.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If we multiply and divide it by ![Policy gradients for learning policy functions](img/00278.jpeg),
+    we have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00279.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Use the fact ![Policy gradients for learning policy functions](img/00280.jpeg)
+    and simplify it to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00281.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'What this amounts to is if we nudge our parameters along the log of the direction
+    of the gradient of the reward at each time step, we tend to move towards the gradient
+    of the reward across all time steps. To implement this in Python, we will need
+    to take the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a neural network whose output is the probability of taking different
+    actions, given an input state. In terms of the preceding equations, it will represent
+    ![Policy gradients for learning policy functions](img/00278.jpeg).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run a batch of episodes with our agent running in its environment. Select its
+    actions randomly according to the probability distribution output of the network.
+    At every time step, record the input state, reward received, and the action you
+    actually took.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At the end of each episode of training, assign rewards to each step using the
+    sum of rewards in the episode from that point on. In the case of a game such as
+    Go, this will just be 1, 0, or -1 representing the final result applied to each
+    step. This will represent *r*[*t*] in the equations. For more dynamic games, discounted
+    rewards can be used; discounted rewards will be explained in detail in the next
+    chapter.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once we have stored a set number of states running our episodes, we train them
+    by updating our network parameters based on the log of our network output times
+    the actual move that was taken, times the reward. This is used as a loss function
+    of our neural network. We do this for each time step as a single batch update.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This is then repeated from step 2 until we hit a stopping point, either at some
+    number of iterations or some score within the environment.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The effect of this loop is that if an action is associated with positive rewards,
+    we increase the parameters that lead to this action in that state. If the reward
+    is negative, we decrease the parameters leading to the action. Note that for this
+    to work, it requires us to have some negative valued rewards; otherwise, over
+    time, all actions are simply pulled up. The best option if this does not occur
+    naturally is to normalize our rewards in each batch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The policy gradient approach has been shown to be successful at learning a range
+    of complex tasks, although it can take a very long time to train well and is very
+    sensitive to the learning rate. Too high the learning rate and the behavior will
+    oscillate wildly, never becoming stable enough to learn anything of note. Too
+    low and it will never converge. This is why in the following example, we use RMSProp
+    as the optimizer. Standard gradient descent with a fixed learning rate is often
+    a lot less successful. Also, although the example shown here is for board games,
+    policy gradients also work very well for learning more dynamic games, such as
+    Pong.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let''s create `player_func` for our tic-tac-toe''s `play_game` method;
+    it uses policy gradients to learn the optimal play. We will set up the neural
+    network that will take the nine squares of the board as input. The number 1 will
+    be a mark for the player, -1 for the opponent, and 0 an unmarked square. Here
+    the network will be set up with three hidden layers, each with 100 hidden nodes
+    and relu activation functions. The output layer will also contain nine nodes,
+    one for each board square. Because we want our final output to be the *probability*
+    of a move being the best one, we want the output of all the nodes in the final
+    layer to sum to 1\. This means using a softmax activation function is a natural
+    choice. The softmax activation function looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00282.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *x* and *y* are vectors with equal dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the code for creating the network in TensorFlow. The full code can
+    also be found in the GitHub repo in `policy_gradients.py`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'First, we import NumPy and TensorFlow, which will be used for the network,
+    and create a few constant variables, which will be used later. The 3 * 3 input
+    nodes is the size of the board:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `input_placeholder` variable is the placeholder that holds the input to
+    the neural network. In TensorFlow, placeholder objects are used for all values
+    provided to the network. When running the network, it will be set to `board_state`
+    of the game. Also, the first dimension of `input_placeholder` is `None`. This
+    is because, as mentioned a few times in this book, training mini-batching is much
+    faster. The `None` will adjust to become the size of our mini-batch of samples
+    come training time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here we create the weights we will need for the three layers of our network.
+    They will all be created with a random Xavier initialization; more on this in
+    chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Create the first hidden layer, our `hidden_weights_1` 2d tensor, and matrix
+    multiply it by `input_placeholder`. Then add the bias variable, `tf.Variable(tf.constant(0.01,
+    shape=(HIDDEN_NODES[0],)))`, which gives the network a bit more flexibility in
+    learning patterns. The output is then put through a relu activation function:
+    `tf.nn.relu`. This is how we write the basic equation for a layer of a neural
+    network in TensorFlow. The other thing to note is 0.01\. When using the `relu`
+    function, it is good practice to add a small amount of positive bias. This is
+    because the relu function is the maximum value and is 0\. This means that values
+    below 0 will have no gradient and so will not be adjusted during learning. If
+    node activation is always below zero, because of bad luck with weight initialization,
+    then it is considered a dead node and will never have an impact on the network
+    and will simply take up GPU/CPU cycles. A small amount of positive bias greatly
+    reduces the chance of having completely dead nodes in the network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next few layers are created in the same way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the `loss` function, we need two additional placeholders. One of them is
+    for the reward we receive from the environment, in this case, the result of our
+    game of tic-tac-toe. The other is meant for the actual action we will take at
+    each time step. Remember, we will choose our moves according to a stochastic policy
+    based on the output of our network. When we adjust our parameters, we need to
+    know the actual move we took so we can move the parameters towards it if we have
+    a positive reward and away from it if the reward is negative:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `actual_move_placeholder` when activated will be a one hot vector, for example,
+    `[0, 0, 0, 0, 1, 0, 0, 0, 0],` with 1 being the square in which the actual move
+    was played. This will act as a mask across `output_layer`, so that only the gradients
+    of that move are adjusted. Success or failure in moving to the first square tells
+    us nothing about the success or failure of moving to the second square. Multiplying
+    it by `reward_placeholder` tells us whether we want to increase the weights leading
+    to this move or reduce them. We then put `policy_gradient` into our optimizer;
+    we want to maximize our reward, which means minimizing the inverse of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One final point is that here we are using `RMSPropOptimizer`. As mentioned before,
+    policy gradients are very sensitive to the learning rate and type used. `RMSProp`
+    has been shown to work well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Within TensorFlow, variables also need to be initialized within a session;
+    this session will then be used to run our calculations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we need a method for running our network to choose the actions that will
+    be passed in to the `play_game` method that we created previously:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the `make_move` method, we do a few different things. First, we flatten
+    `board_state`, which starts as the second array in a one-dimensional array that
+    we need to use as input for the network. We then append that state to our `board_states`
+    list so we can later use it for training, once we have the reward for the episode.
+    We then run the network using our TensorFlow session: `probability_of_actions`.
+    There will now be an array with nine numbers that will sum up to one; these are
+    the numbers that the network will learn to have the probability where it can set
+    each move as the current most favorable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now use `probability_of_actions` as the input to a multinomial distribution.
+    The `np.random.multinomial` returns a series of values from the distribution you
+    pass. Because we gave 1 for the first argument, only a single value will be generated;
+    this is the move we will make. The `try…catch` around the multinomial call exists
+    because owing to the small rounding errors, `probability_of_actions` sometimes
+    sums up to be greater than 1\. This only happens roughly once every 10,000 calls,
+    so we will be *pythonic*; if it fails, simply adjust it by some small epsilon
+    and try again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The last bit of the `make_move` method is that we need to store the move we
+    actually used later in training. Then return the move to the format that our Tic-Tac-Toe
+    game expects it in, which is as a tuple of two integers: one for the *x* position
+    and one for the *y* position.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final step before training is that once we have a complete batch to train
+    on, we need to normalize the rewards from the batch. There are a few advantages
+    to this. First, during early training, when it is losing or winning almost all
+    games, we want to encourage the network to move towards better examples. Normalizing
+    will allow us to have that extra weight applied to the rare examples that are
+    more significant. Also, batch normalization tends to speed up training because
+    it reduces the variance in targets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We define a constant for how big our `BATCH_SIZE` is. This defines how many
+    examples go into our mini-batches for training. Many different values of this
+    work well; 100 is one of these. `episode_number` will keep track of how many game
+    loops we have done. This will track when we need to kick off a mini-batch training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`while True` puts us into the main loop. The first step we need to make here
+    is to run a game using our old friend, the `play_game` method from earlier in
+    the chapter. For simplicity''s sake, we will always have the policy gradient player,
+    using the `make_move` method as the first player and `random_player` as the second
+    player. It would not be too difficult to change it to alternate the order of moves:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the length of the game we just played and append the reward we received
+    for it to the `rewards` array so that each board state gets the same final reward
+    we received. In reality, some moves may have had more or less impact on the final
+    reward than others, but we cannot know that here. We will hope that through training,
+    with similar good states showing up with positive rewards more often, the network
+    will learn this over time. We also scale the reward by `last_game_length`, so
+    winning quickly is better than winning slowly and losing slowly is better than
+    losing quickly. Another point to note is if we were running a game with a more
+    unevenly distributed reward—such as Pong, where most frames would have 0 reward
+    with the occasional one—this is where we might apply future discounting across
+    the time steps of the episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Increment `episode_number`, and if we have a `BATCH_SIZE` set of samples, jump
+    into the training code. We start this by doing batch normalization on our rewards.
+    This is not always necessary, but it is almost always advisable because it has
+    many benefits. It tends to improve training time by reducing variance across training.
+    If we have issues with all rewards being positive/negative, this solves them without
+    you having to give it a second thought. Finally, kick off the training by running
+    the `train_step` operation through the TensorFlow session object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, clear the current mini-batch to make way for the next one. Now let''s
+    see how policy gradients perform:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients for learning policy functions](img/00283.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, it eventually achieves a respectable 85 percent winning rate.
+    With more time and tuning of hyper-parameters, it could do even better. Also,
+    note the reason that indicates why a random player who only chooses valid moves
+    has a greater than 50 percent winning rate. This is because here, the observed
+    player always goes first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradients in AlphaGo
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For AlphaGo using policy gradients, the network was set up to play games against
+    itself. It did so with a reward of 0 for every time step until the final one where
+    the game is either won or lost, giving a reward of 1 or -1\. This final reward
+    is then applied to every time step in the network, and the network is trained
+    using policy gradients in the same way as our Tic-tac-toe example. To prevent
+    overfitting, games were played against a randomly selected previous version of
+    the network. If the network constantly plays against itself, the risk is it could
+    end up with some very niche strategies, which would not work against varied opponents,
+    a local minima of sorts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the initial supervised learning network that predicted the most likely
+    moves by human players allowed AlphaGo to massively reduce the breadth of the
+    search it needs to perform in MCTS. This allowed them to get much more accurate
+    evaluation per rollout. The problem is that running a large many-layered neural
+    network is very slow, compared to just selecting a random action. In our Monte-Carlo
+    rollout, we need to select 100 moves on average and we want to do this in the
+    order of hundreds of thousands of rollouts to evaluate a position. This makes
+    using the network this way impractical. We need to find a way to reduce our computation
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we use the best moves selected by our network instead of manually selecting
+    a move with the probability of our output, then our network is deterministic.
+    Given a position on the board, the result achieved by the board will also be deterministic.
+    When evaluated using the best moves from the network, the position is either a
+    winning one for white or black or a draw. This result is the value of the position
+    under the network's optimal policy. Because the result is deterministic, we can
+    train a new deep neural network to learn the value of this position. If it performs
+    well, a position can be evaluated accurately using just one pass of the neural
+    network, rather than one for each move.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A final supervised network is created using the same structure as the previous
+    networks, except this time the final output, rather than being a probability of
+    actions across the board, is just a single node representing the expected result
+    of the game: win for white, win for black, or draw.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The loss function for this network is the mean squared error between its output
+    and the result achieved by the reinforcement learning network. It was found after
+    training that the value network could achieve a mean squared error of just 0.226
+    and 0.234 on the training and test sets, respectively. This indicated that it
+    could learn the result with good accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To recap, at this point, Alpha Go has three differently trained deep neural
+    networks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**SL**: This is a network trained using supervised learning to predict the
+    probability of a human move from a board position.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**RL**: This is a network trained that initially used the weights from the
+    SL network, but was then further trained using reinforcement learning to choose
+    the best move from a given position.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**V**: This is a network again trained with supervised learning to learn the
+    expected result of the position when played using the RL network. It provides
+    the value of the state.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'For a real game against Lee Sedol, Alpha Go used a variant on the MCTS-UCT
+    that we introduced earlier. When the rollout was simulated from the MCTS leaves,
+    rather than selecting moves randomly, they were selected using another, much smaller,
+    single layer network. This network called the fast rollout policy and used a softmax
+    classifier across all possible moves, where the input was the 3 x 3 color pattern
+    around the action and a collection of handcrafted features, such as the liberty
+    count. This is, in our example, the following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This could be replaced with something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: This small network was used to run the Monte-Carlo rollout. The SL network would
+    almost certainly have been better, but would have been prohibitively slow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When evaluating the success value of a rollout from a leaf, the score was determined
+    using a combination of the result from the fast rollout policy and the score as
+    given by the V-network. A mixing parameter ? was used to determine the relative
+    weights of these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Policy gradients in AlphaGo](img/00284.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *s* is the state of the leaf and *f* is the result of the rollout using
+    the fast rollout policy. After experimenting with a wide range of the values for
+    ?, it was found that 0.5 yielded the best results, suggesting that both methods
+    of evaluation are complementary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The five-game series between Lee Sedol and Alpha Go started on March 9, 2016,
+    in front of a large audience with a $1,000,000 prize for the winner. Lee Sedol
+    was very confident in the buildup, declaring, "I have heard that Google DeepMind's
+    AI is surprisingly strong and getting stronger, but I am confident that I can
+    win at least this time." Sadly, for him, Alpha Go proceeded to win the first three
+    games, each forcing a resignation. At this point, with the competition decided,
+    he came back to win the fourth, but lost the fifth, leaving the series at 4-1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This was very significant progress on the part of AI, marking the first time
+    that an AI had come even close to beating a top human player at such a complex
+    game. It raises all kinds of questions such as in which other domains, it might
+    be possible to develop AI that can outperform the best humans. The match's full
+    significance on humanity remains to be seen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have covered a lot in this chapter and looked at a lot of Python code. We
+    talked a bit about the theory of discrete state and zero sum games. We showed
+    how min-max can be used to evaluate the best moves in positions. We also showed
+    that evaluation functions can be used to allow min-max to operate on games where
+    the state space of possible moves and positions are too vast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For games where no good evaluation function exists, we showed how Monte-Carlo
+    Tree Search can be used to evaluate the positions and then how Monte-Carlo Tree
+    Search with Upper Confidence bounds for Trees can allow the performance of MCTS
+    to coverage toward what you would get from Min-max. This took us to the UCB1 algorithm.
+    Apart from allowing us to compute MCTS-UCT, it is also a great general purpose
+    method for choosing between collections of unknown outcomes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then looked at how reinforcement learning can be integrated into these approaches.
+    We also saw how the policy gradient can be used to train deep networks to learn
+    complex patterns and find advantages in games with difficult-to-evaluate states.
+    Finally, we looked at how these techniques were applied in AlphaGo to beat the
+    reigning human world champion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are interested in getting more involved in deep learning for board games,
+    the Alpha Toe project ([https://github.com/DanielSlater/AlphaToe](https://github.com/DanielSlater/AlphaToe))
+    has examples of running deep learning on a wider range of games, including Connect
+    Four and Tic-Tac-Toe on a 5 x 5 board.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Though these techniques have been introduced for board games, their application
+    runs a lot wider. Many problems that we encounter can be formulated, such as like
+    discrete state games, for example, optimizing routes for delivery companies, investing
+    in financial markets, and planning strategies for businesses. We've only just
+    started exploring all the possibilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at using deep learning for learning computer
+    games. This will build on our knowledge of policy gradients from this chapter
+    and introduce new techniques for dealing with the dynamic environments of computer
+    games.
+  prefs: []
+  type: TYPE_NORMAL
