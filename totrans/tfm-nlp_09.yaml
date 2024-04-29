@@ -1,8 +1,10 @@
 - en: '9'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Matching Tokenizers and Datasets
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -11,12 +13,14 @@
     fine-tuned a BERT-like model, trained a RoBERTa model, explored a GPT-3 model,
     trained a GPT-2 model, implemented a T5 model, and more. We have also gone through
     the main benchmark tasks and datasets.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
 - en: We trained a RoBERTa tokenizer and used tokenizers to encode data. However,
     we did not explore the limits of tokenizers to evaluate how they fit the models
     we build. AI is data-driven. *Raffel* et al. (2019), like all the authors cited
     in this book, spent time preparing datasets for transformer models.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
 - en: In this chapter, we will go through some of the limits of tokenizers that hinder
@@ -24,73 +28,90 @@
     at face value. You might have a specific dictionary of words you use (advanced
     medical language, for example) with words not processed by a generic pretrained
     tokenizer.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
 - en: We will start by introducing some tokenizer-agnostic best practices to measure
     the quality of a tokenizer. We will describe basic guidelines for datasets and
     tokenizers from a tokenization perspective.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
 - en: Then, we will see the limits of tokenizers with a Word2Vec tokenizer to describe
     the problems we face with any tokenizing method. The limits will be illustrated
     with a Python program.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
 - en: We will continue our investigation by running a GPT-2 model on a dataset containing
     specific vocabulary with unconditional and conditional samples.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
 - en: We will go further and see the limits of byte-level BPE methods. We will build
     a Python program that displays the results produced by a GPT-2 tokenizer and go
     through the problems that occur during the data encoding process. This will show
     that the superiority of GPT-3 is not always necessary for common NLP analysis.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
 - en: However, at the end of the chapter, we will probe a GPT-3 engine with a **Part-of-Speech**
     (**POS**) task to see how much the model understands and if a ready-to-use tokenized
     dictionary fits our needs.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
 - en: 'This chapter covers the following topics:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
 - en: Basic guidelines to control the output of tokenizers
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Raw data strategies and preprocessing data strategies
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Word2Vec tokenization problems and limits
+  id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Creating a Python program to evaluate Word2Vec tokenizers
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Building a Python program to evaluate the output of byte-level BPE algorithms
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Customizing NLP tasks with specific vocabulary
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Running unconditional and conditional samples with GPT-2
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Evaluating GPT-2 tokenizers
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Our first step will be to explore the text-to-text methodology defined by *Raffel*
     et al. (2019).
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
 - en: Matching datasets and tokenizers
+  id: totrans-20
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -98,761 +119,1125 @@
     data has been prepared, and every research lab uses the same references. Also,
     the performance of a transformer model can be compared to another model with the
     same data.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
 - en: However, more needs to be done to improve the performance of transformers. Furthermore,
     implementing a transformer model in production requires careful planning and defining
     best practices.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，还需要做更多工作来改进transformers的性能。此外，在生产中实施transformer模型需要仔细规划和定义最佳实践。
 - en: In this section, we will define some best practices to avoid critical stumbling
     blocks.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将定义一些最佳实践，以避免关键的障碍。
 - en: Then we will go through a few examples in Python using cosine similarity to
     measure the limits of tokenization and encoding datasets.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们将通过在Python中使用余弦相似度来衡量分词和编码数据集的限制的几个示例。
 - en: Let’s start with best practices.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从最佳实践开始。
 - en: Best practices
+  id: totrans-26
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 最佳实践
 - en: '*Raffel* et al. (2019) defined a standard text-to-text T5 transformer model.
     They also went further. They began destroying the myth of using raw data without
     preprocessing it first.'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '*Raffel*等人（2019）定义了一个标准的文本-文本T5 transformer模型。他们还走得更远。他们开始打破使用原始数据而不先进行预处理的神话。'
 - en: Preprocessing data reduces training time. Common Crawl, for example, contains
     unlabeled text obtained through web extraction. Non-text and markup have been
     removed from the dataset.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 预处理数据可以减少训练时间。例如，Common Crawl包含通过网页提取获得的未标记文本。数据集中的非文本和标记已被删除。
 - en: However, the Google T5 team found that much of the text obtained through Common
     Crawl did not reach the level of natural language or English. So they decided
     that datasets need to be cleaned before using them.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，Google T5团队发现，大部分通过Common Crawl获得的文本并不达到自然语言或英语的水平。因此他们决定在使用数据集之前需要对其进行清理。
 - en: We will take the recommendations *Raffel* et al. (2019) made and apply corporate
     quality control best practices to the preprocessing and quality control phases.
     Among many other rules to apply, the examples described show the tremendous work
     required to obtain acceptable real-life project datasets.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将采纳*Raffel*等人（2019）提出的建议，并将企业质量控制最佳实践应用于预处理和质量控制阶段。在许多其他要应用的规则中，所描述的示例展示了为获得可接受的真实项目数据集所需的巨大工作。
 - en: '*Figure 9.1* lists some of the key quality control processes to apply to datasets:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图9.1*列出了应用于数据集的一些关键质量控制流程：'
 - en: '![](img/B17948_09_01.png)'
+  id: totrans-32
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B17948_09_01.png)'
 - en: 'Figure 9.1: Best practices for transformer datasets'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.1：transformer数据集的最佳实践
 - en: As shown in *Figure 9.1*, quality control is divided into the preprocessing
     phase (*Step 1*) when training a transformer and quality control when the transformer
     is in production (*Step 2*).
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*图9.1*所示，在训练transformer时，质量控制分为预处理阶段（*步骤1*）和transformer投入生产后的质量控制（*步骤2*）。
 - en: Let’s go through some of the main aspects of the preprocessing phase.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们浏览一下预处理阶段的主要方面。
 - en: 'Step 1: Preprocessing'
+  id: totrans-36
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 步骤1：预处理
 - en: '*Raffel* et al. (2019) recommended preprocessing datasets before training models
     on them, and I added some extra ideas.'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '*Raffel*等人（2019）建议在训练模型之前对数据集进行预处理，我加入了一些额外的想法。'
 - en: Transformers have become language learners, and we have become their teachers.
     But to teach a machine-student a language, we must explain what proper English
     is, for example.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: Transformers已经成为语言学习者，而我们已成为他们的老师。但是要教会一台机器学生一种语言，我们必须解释什么是正确的英语，例如。
 - en: 'We need to apply some standard heuristics to datasets before using them:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在使用数据集之前，我们需要对其应用一些标准的启发式算法：
 - en: '**Sentences with punctuation marks**'
+  id: totrans-40
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**句子令牌**'
 - en: The recommendation is to select sentences that end with punctuation marks such
     as a period or a question mark.
+  id: totrans-41
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 建议选择以句号或问号结尾的句子。
 - en: '**Remove bad words**'
+  id: totrans-42
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**删除不良词汇**'
 - en: 'Bad words should be removed. Lists can be found at the following site, for
     example: [https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words).'
+  id: totrans-43
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 应该删除不良词汇。例如，可以在以下网站找到词汇列表：[https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)。
 - en: '**Remove code**'
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**删除代码**'
 - en: This is tricky because sometimes code is the content we are looking for. However,
     it is generally best to remove code from content for NLP tasks.
+  id: totrans-45
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这有点棘手，因为有时代码就是我们正在寻找的内容。但是，通常最好从NLP任务的内容中删除代码。
 - en: '**Language detection**'
+  id: totrans-46
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**语言检测**'
 - en: 'Sometimes, websites contain pages with the default “lorem ipsum” text. It is
     necessary to make sure all of a dataset’s content is in the language we wish.
     An excellent way to start is with `langdetect`, which can detect 50+ languages:
     [https://pypi.org/project/langdetect/](https://pypi.org/project/langdetect/).'
+  id: totrans-47
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '有时，网站包含带有默认“lorem ipsum”文本的页面。有必要确保数据集的所有内容都是我们所希望的语言。一个很好的开始方法是使用 `langdetect`，它可以检测
+    50 多种语言: [https://pypi.org/project/langdetect/](https://pypi.org/project/langdetect/)。'
 - en: '**Removing references to discrimination**'
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**消除歧视引用**'
 - en: This is a must. My recommendation is to build a knowledge base with everything
     you can scrape on the web or from specific datasets you can get your hands on.
     *Suppress any form of discrimination*. You certainly want your machine to be ethical!
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这是必须的。我的建议是建立一个知识库，其中包括您可以从网络上获取的所有内容或特定数据集。*压制任何形式的歧视*。您肯定希望您的机器是道德的!
 - en: '**Logic check**'
+  id: totrans-50
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**逻辑检查**'
 - en: It could be a good idea to run a trained transformer model on a dataset that
     performs **Natural Language Inferences** (**NLI**) to filter sentences that make
     no sense.
+  id: totrans-51
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 将训练过的转换器模型应用于执行 **自然语言推理** (**NLI**) 的数据集可能是个好主意，以过滤掉毫无意义的句子。
 - en: '**Bad information references**'
+  id: totrans-52
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**错误信息引用**'
 - en: Eliminate text that refers to links that do not work, unethical websites, or
     persons. This is a tough job, but certainly worthwhile.
+  id: totrans-53
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 消除指向无效链接、不道德网站或个人的文本。这是一项艰巨的工作，但肯定是值得的。
 - en: This list contains some of the primary best practices. However, more is required,
     such as filtering privacy law violations and other actions for specific projects.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个列表包含了一些主要的最佳实践。然而，还需要更多，比如过滤隐私法违规行为以及其他针对特定项目的行动。
 - en: Once a transformer is trained to learn proper English, we need to help it detect
     problems in the input texts in the production phase.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦一个转换器被训练成学习正确的英语，我们需要帮助它在生产阶段检测输入文本中的问题。
 - en: 'Step 2: Quality control'
+  id: totrans-56
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '步骤 2: 质量控制'
 - en: 'A trained model will behave like a person who learned a language. It will understand
     what it can and learn from input data. Input data should go through the same process
     as *Step 1: Preprocessing* and add new information to the training dataset. The
     training dataset, in turn, can become the knowledge base in a corporate project.
     Users will be able to run NLP tasks on the dataset and obtain reliable answers
     to questions, useful summaries of specific documents, and more.'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: '一个训练过的模型将表现得像一个学习了语言的人一样。它将理解它可以理解的内容并从输入数据中学习。输入数据应该经过与 *Step 1: Preprocessing*
+    相同的过程，并将新信息添加到训练数据集中。反过来，训练数据集可以成为公司项目中的知识库。用户将能够在数据集上运行 NLP 任务并获得可靠的答案、特定文档的有用摘要等。'
 - en: 'We should apply the best practices described in *Step 1: Preprocessing* to
     real-time input data. For example, a transformer can be running on input from
     a user or an NLP task, such as summarizing a list of documents.'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: '我们应该将 *Step 1: Preprocessing* 中描述的最佳实践应用到实时输入数据中。例如，一个转换器可以在来自用户或 NLP 任务的输入上运行，比如总结一系列文件。'
 - en: Transformers are the most powerful NLP models ever. This means that our ethical
     responsibility is heightened as well.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 转换器是有史以来最强大的 NLP 模型。这意味着我们的道德责任也增加了。
 - en: 'Let’s go through some of the best practices:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: '让我们来看一些最佳实践:'
 - en: '**Check input text in real time**'
+  id: totrans-61
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**实时检查输入文本**'
 - en: Do not accept bad information. Instead, parse the input in real time and filter
     the unacceptable data (see *Step 1*).
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 不要接受错误信息。而是实时解析输入并过滤不可接受的数据 (参见 *Step 1*)。
 - en: '**Real-time messages**'
+  id: totrans-63
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**实时消息**'
 - en: Store the rejected data along with the reason it was filtered so that users
     can consult the logs. Display real-time messages if a transformer is asked to
     answer an unfitting question.
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 将被过滤的数据与被过滤原因一起存储，以便用户可以查阅日志。如果要求转换器回答不合适的问题，则显示实时消息。
 - en: '**Language conversions**'
+  id: totrans-65
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**语言转换**'
 - en: You can convert rare vocabulary into standard vocabulary when it is possible.
     See *Case 4* of the *Word2Vec tokenization* section in this chapter. This is not
     always possible. When it is, it could represent a step forward.
+  id: totrans-66
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 当可能时，您可以将罕见的词汇转换为标准词汇。请参阅本章的 *Word2Vec 分词* 部分的 *Case 4*。这并不总是可能的。当可能时，它可能代表了一大步。
 - en: '**Privacy checks**'
+  id: totrans-67
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**隐私检查**'
 - en: Whether you are streaming data into a transformer model or analyzing user input,
     private data must be excluded from the dataset and tasks unless authorized by
     the user or country the transformer is running in. It’s a tricky topic. Consult
     a legal adviser when necessary.
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 无论您是将数据流入变压器模型还是分析用户输入，私人数据必须从数据集和任务中排除，除非经用户或所在国家授权。这是一个棘手的问题。必要时请咨询法律顾问。
 - en: We just went through some of the best practices. Let’s now see why human quality
     control is mandatory.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们刚刚浏览了一些最佳实践。现在让我们看看为什么人类质量控制是必要的。
 - en: Continuous human quality control
+  id: totrans-70
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 连续的人类质量控制
 - en: Transformers will progressively take over most of the complex NLP tasks. However,
     human intervention remains mandatory. We think social media giants have automized
     everything. Then we discover there are content managers that decide what is good
     or bad for their platform.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 变压器将逐渐接管大多数复杂的自然语言处理任务。然而，人类干预仍然是必需的。我们以为社交媒体巨头已经自动化了一切。然后我们发现有内容管理者决定了对他们平台上的内容的好坏。
 - en: The right approach is to train a transformer, implement it, control the output,
     and feed the significant results back into the training set. Thus, the training
     set will continuously improve, and the transformer will continue to learn.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 正确的方法是训练一个变压器，实现它，控制输出，并将重要结果反馈到训练集中。因此，训练集将不断改进，变压器将继续学习。
 - en: '*Figure 9.2* shows how continuous quality control will help the transformer’s
     training dataset grow and increase its performance in production:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 9.2* 显示了连续的质量控制如何帮助变压器的训练数据集增长并提高其在生产中的性能：'
 - en: '![](img/B17948_09_02.png)'
+  id: totrans-74
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B17948_09_02.png)'
 - en: 'Figure 9.2: Continuous human quality control'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.2：连续的人类质量控制
 - en: We have gone through several best practices described by *Raffel* et al. (2019),
     and I have added some guidance based on of my experience in corporate AI project
     management.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经浏览了 *Raffel* 等人（2019）描述的几种最佳实践，并根据我在企业人工智能项目管理方面的经验添加了一些指导。
 - en: Let’s go through a Python program with some examples of some of the limits encountered
     with tokenizers.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过一个 Python 程序，举例说明一些分词器遇到的限制。
 - en: Word2Vec tokenization
+  id: totrans-78
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Word2Vec 分词
 - en: As long as things go well, nobody thinks about pretrained tokenizers. It’s like
     in real life. We can drive a car for years without thinking about the engine.
     Then, one day, our car breaks down, and we try to find the reasons to explain
     the situation.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 只要一切顺利，没人会想到预训练分词器。就像在现实生活中一样。我们可以开车多年而不考虑引擎的问题。然后，有一天，我们的车抛锚了，我们试图找出原因来解释这种情况。
 - en: 'The same happens with pretrained tokenizers. Sometimes the results are not
     what we expect. For example, some word pairs just don’t fit together, as we can
     see in *Figure 9.3*:'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 预训练分词器也是如此。有时结果并不如我们所期望的那样。例如，一些词对就是不匹配，正如我们在 *图 9.3* 中看到的：
 - en: '![Diagram  Description automatically generated](img/B17948_09_03.png)'
+  id: totrans-81
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图表说明](img/B17948_09_03.png)'
 - en: 'Figure 9.3: Word pairs that tokenizers miscalculated'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.3：分词器计算错误的单词对
 - en: 'The examples shown in *Figure 9.3* are drawn from the *American Declaration
     of Independence*, the *Bill of Rights*, and the *English Magna Carta*:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 9.3* 中显示的例子来自 *美国独立宣言*、*权利法案* 和 *英国大宪章*：'
 - en: '`cake` and `chapters` do not fit together, although a tokenizer computed them
     as having a high value of cosine similarity.'
+  id: totrans-84
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`cake` 和 `chapters` 不匹配，尽管分词器将它们计算为具有较高余弦相似度值。'
 - en: '`freedom` refers to the freedom of speech, for example. `copyright` refers
     to the note written by the editor of the free ebook.'
+  id: totrans-85
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`freedom` 指的是言论自由，例如。 `copyright` 指的是免费电子书编辑的注释。'
 - en: '`pay` and `bill` fit together in everyday English. `polysemy` is when a word
     can have several meanings. For example, `Bill` means an amount to pay but also
     refers to the `Bill of Rights`. The result is acceptable, but it may be pure luck.'
+  id: totrans-86
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`pay` 和 `bill` 在日常英语中是匹配的。 `polysemy` 是指一个词可以有多个含义。例如，`Bill` 意味着要支付的金额，但也指的是
+    `权利法案`。结果是可以接受的，但这可能纯属运气。'
 - en: Before continuing, let’s take a moment to clarify some points. **QC** refers
     to **quality control**. In any strategic corporate project, QC is mandatory. The
     quality of the output will determine the survival of a critical project. If the
     project is not strategic, errors will sometimes be acceptable. In a strategic
     project, even a few errors imply a risk management audit’s intervention to see
     if the project should be continued or abandoned.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 在继续之前，让我们花点时间澄清一些问题。**QC**是指**质量控制**。在任何战略性企业项目中，质量控制都是强制性的。输出的质量将决定关键项目的生存。如果项目不是战略性的，错误有时是可以接受的。但在战略项目中，即使是少量的错误都意味着风险管理审计的介入，以确定项目是否应该继续还是放弃。
 - en: From the perspectives of quality control and risk management, tokenizing datasets
     that are irrelevant (too many useless words or critical words missing) will confuse
     the embedding algorithms and produce “poor results.” That is why in this chapter,
     I use the word “tokenizing” loosely, including some embedding because of the impact
     of one upon the other.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 从质量控制和风险管理的角度来看，标记化不相关的数据集（太多无用词或缺少关键词）将混淆嵌入算法并产生“糟糕的结果”。这就是为什么在本章中，我将“标记化”一词使用宽泛，包括一些嵌入，因为前者对后者的影响。
 - en: In a strategic AI project, “poor results” can be a single error with a dramatic
     consequence (especially in the medical sphere, airplane or rocket assembly, or
     other critical domains).
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 在战略性的AI项目中，“糟糕的结果”可能是一个单一错误，但后果严重（特别是在医疗领域、飞机或火箭装配以及其他关键领域）。
 - en: Open `Tokenizer.ipynb`, based on `positional_encoding.ipynb`, which we created
     in *Chapter 2*, *Getting Started with the Architecture of the Transformer Model*.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 打开`Tokenizer.ipynb`，基于我们在*第二章*、*开始使用Transformer模型架构*中创建的`positional_encoding.ipynb`。
 - en: Results might vary from one run to another due to the stochastic nature of Word2Vec
     algorithms.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于Word2Vec算法的随机性质，结果可能因一次运行而异。
 - en: 'The prerequisites are installed and imported first:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先安装和导入了先决条件：
 - en: '[PRE0]'
+  id: totrans-93
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: '`text.txt`, our dataset, contains the *American Declaration of Independence*,
     the *Bill of Rights*, the *Magna Carta*, the works of Immanuel Kant, and other
     texts.'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的数据集`text.txt`包含*美国独立宣言*、*权利法案*、*大宪章*、以及伊曼纽尔·康德的作品等其他文本。
 - en: 'We will now tokenize `text.txt` and train a word2vec model:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在将对`text.txt`进行标记化并训练一个word2vec模型：
 - en: '[PRE1]'
+  id: totrans-96
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: '`window = 5` is an interesting parameter. It limits the *distance* between
     the current word and the predicted word in an input sentence. `sg = 1` means a
     skip-gram training algorithm is used.'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: '`window = 5`是一个有趣的参数。它限制了输入句子中当前单词和预测单词之间的*距离*。`sg = 1`表示使用了skip-gram训练算法。'
 - en: 'The output shows that the size of the vocabulary is `10816`, the dimensionality
     of the embeddings is `512`, and the learning rate was set to `alpha=0.025`:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出显示词汇量的大小为`10816`，嵌入维度为`512`，学习速率设置为`alpha=0.025`：
 - en: '[PRE2]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: We have a word representation model with embedding and can create a cosine similarity
     function named `similarity(word1,word2)`. We will send `word1` and `word2` to
     the function, which will return a cosine similarity value between them. The higher
     the value, the higher the similarity.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们拥有一个带嵌入式的词汇表示模型，并且可以创建一个名为`similarity(word1,word2)`的余弦相似度函数。我们将`word1`和`word2`发送到该函数中，它会返回它们之间的余弦相似度值。值越高，相似度越高。
 - en: 'The function will first detect unknown words, `[unk]`, and display a message:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 该函数首先会检测未知单词`[unk]`，并显示一条消息：
 - en: '[PRE3]'
+  id: totrans-102
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Cosine similarity will only be calculated if `cosine==True`, which means that
     both `word1` and `word2` are known:'
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 只有在`cosine==True`时，才会计算余弦相似度，这意味着`word1`和`word2`都是已知的。
 - en: '[PRE4]'
+  id: totrans-104
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The function will return `cos_lib`, the computed value of cosine similarity.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 该函数将返回`cos_lib`，余弦相似度的计算值。
 - en: We will now go through six cases. We will name `text.txt` the “dataset.”
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在将讨论六种情况。我们将把“数据集”命名为`text.txt`。
 - en: Let’s begin with *Case 0*.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从*案例0*开始。
 - en: 'Case 0: Words in the dataset and the dictionary'
+  id: totrans-108
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 情况0：数据集和词典中的单词
 - en: 'The words `freedom` and `liberty` are in the dataset, and their cosine similarity
     can be computed:'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据集中有`freedom`和`liberty`两个词，并可以计算它们的余弦相似度：
 - en: '[PRE5]'
+  id: totrans-110
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'The similarity is limited to `0.79` because a lot of content was inserted from
     various texts to explore the limits of the function:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 相似性被限制为`0.79`，因为大量内容是从各种文本中插入的，以探索功能的限制：
 - en: '[PRE6]'
+  id: totrans-112
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The similarity algorithm is not an iterative deterministic calculation. This
     section’s results might change with the dataset’s content, the dataset’s size
     after another run, or the module’s versions. If you run the cell 10 times, you
     may or may not obtain different values, such as in the following 10 runs.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 相似度算法不是迭代确定性计算。这一部分的结果可能会因数据集内容、另一次运行后数据集大小或模块版本的变化而改变。如果你运行这个单元格 10 次，你可能会得到不同的值，就像以下的
+    10 次运行中一样。
 - en: 'In the following case, I obtained the same result 10 times with a Google Colab
     VM and a CPU:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 在以下情况下，我使用 Google Colab VM 和 CPU 进行了 10 次实验，结果完全相同：
 - en: '[PRE7]'
+  id: totrans-115
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'However, I did a “factory reset runtime” of the runtime menu in Google Colab.
     With a new VM and a CPU, I obtained:'
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，我在 Google Colab 的运行时菜单中做了一次“恢复出厂设置”。使用新的 VM 和 CPU，我得到了：
 - en: '[PRE8]'
+  id: totrans-117
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'I performed another “factory reset runtime” of the runtime menu in Google Colab.
     I also activated the GPU. With a new VM and GPU, I obtained:'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 我在 Google Colab 的运行时菜单中进行了另一次“恢复出厂设置”。我还激活了 GPU。使用新的 VM 和 GPU，我得到了：
 - en: '[PRE9]'
+  id: totrans-119
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: The conclusion here is that stochastic algorithms are based on probabilities.
     It is good practice to run a prediction `n` times if necessary.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的结论是，随机算法基于概率。如果需要，运行预测`n`次是个好做法。
 - en: Let’s now see what happens when a word is missing.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们看看当一个单词缺失时会发生什么。
 - en: 'Case 1: Words not in the dataset or the dictionary'
+  id: totrans-122
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 情况 1：数据集或字典中没有的单词
 - en: 'A missing word means trouble in many ways. In this case, we send `corporations`
     and `rights` to the similarity function:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 缺少单词在许多方面都会带来麻烦。在这种情况下，我们将`corporations`和`rights`发送到相似度函数中：
 - en: '[PRE10]'
+  id: totrans-124
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'The dictionary does not contain the word `corporations`:'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 字典中不包含单词`corporations`：
 - en: '[PRE11]'
+  id: totrans-126
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Dead end! The word is an unknown `[unk]` token.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 迷途！这个单词是一个未知的`[unk]`标记。
 - en: The missing word will provoke a chain of events and problems that distort the
     transformer model’s output if the word is important. We will refer to the missing
     word as `unk`.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果缺失的单词是重要的话，它将引发一系列事件和问题，扭曲变压器模型的输出。我们将这个缺失的单词称为`unk`。
 - en: 'Several possibilities need to be checked, and questions answered:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 需要检查几种可能性，并回答问题：
 - en: '`unk` was in the dataset but was not selected to be in the tokenized dictionary.'
+  id: totrans-130
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`unk`在数据集中，但没有被选中放入标记化字典中。'
 - en: '`unk` was not in the dataset, which is the case for the word `corporations`.
     This explains why it’s not in the dictionary in this case.'
+  id: totrans-131
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 数据集中没有`unk`，这也适用于单词`corporations`。这解释了为什么在这种情况下它不在字典中。
 - en: '`unk` will now appear in production if a user sends an input to the transformer
     that contains the token and it is not tokenized.'
+  id: totrans-132
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果用户发送一个包含该标记且未被标记化的输入给变压器，`unk`将会出现在生产中。
 - en: '`unk` was not an important word for the dataset but is for the usage of the
     transformer.'
+  id: totrans-133
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`unk`对于数据集来说不是一个重要的单词，但对变压器的使用是重要的。'
 - en: 'The list of problems will continue to grow if the transformer produces terrible
     results in some cases. We can consider `0.8` as excellent performance for a transformer
     model for a specific downstream task during the training phase. But in real life,
     who wants to work with a system that’s wrong 20% of the time:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果变压器在某些情况下产生糟糕的结果，问题清单将继续增长。我们可以把`0.8`视为特定下游任务训练阶段变压器模型的出色性能。但在现实生活中，谁希望与一个错误率达到20%的系统一起工作呢：
 - en: A doctor?
+  id: totrans-135
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个医生？
 - en: A lawyer?
+  id: totrans-136
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个律师？
 - en: A nuclear plant maintenance team?
+  id: totrans-137
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个核电站维护团队？
 - en: '`0.8` is satisfactory in a fuzzy environment like social media, in which many
     of the messages lack proper language structure anyway.'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: '`0.8` 在社交媒体等模糊环境中是令人满意的，因为很多消息本来就缺乏适当的语言结构。'
 - en: 'Now comes the worst part. Suppose an NLP team discovers this problem and tries
     to solve it with byte-level BPE, as we have been doing throughout this book. If
     necessary, take a few minutes and go back to *Chapter 4*, *Pretraining a RoBERTa
     Model from Scratch*, *Step 3: Training a tokenizer*.'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在是最糟糕的部分了。假设一个 NLP 团队发现了这个问题，并试图通过字节级 BPE 解决它，就像我们贯穿这本书所做的那样。如有必要，花几分钟回到*第四章*，*从头开始预训练
+    RoBERTa 模型*，*第三步：训练一个标记器*。
 - en: 'The nightmare begins if a team only uses byte-level BPE to fix the problem:'
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果一个团队只使用字节级 BPE 来解决问题，噩梦就开始出现：
 - en: '`unk` will be broken down into word pieces. For example, we could end up with
     `corporations` becoming `corp` + `o` + `ra` + `tion` + `s`. One or several of
     these tokens have a high probability of being found in the dataset.'
+  id: totrans-141
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`unk` 将会被分解成单词片段。例如，我们可能得到`corporations`变成`corp` + `o` + `ra` + `tion` + `s`。其中一个或几个这样的单词片段在数据集中有很高的概率被发现。'
 - en: '`unk` will become a set of sub-words represented by tokens that exist in the
     dataset but do not convey the original token’s meaning.'
+  id: totrans-142
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`unk` 将变成一组由数据集中存在但不传达原始标记意义的标记表示的子词。'
 - en: The transformer will train well, and nobody will notice that `unk` was broken
     into pieces and trained meaninglessly.
+  id: totrans-143
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 转换器将训练良好，没有人会注意到 `unk` 被分成片段并无意义地训练了。
 - en: The transformer might even produce excellent results and move its performance
     up from `0.8` to `0.9`.
+  id: totrans-144
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 转换器甚至可能会产生出色的结果，并将其性能从 `0.8` 提高到 `0.9`。
 - en: Everybody will be applauding until a professional user applies an erroneous
     result in a critical situation. For example, in English, `corp` can mean `corporation`
     or `corporal`. This could create confusion and bad associations between `corp`
     and other words.
+  id: totrans-145
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个人都会鼓掌，直到专业用户在关键情况下应用了错误的结果。例如，在英语中，`corp` 可能是 `corporation` 或 `corporal`。这可能会导致
+    `corp` 与其他单词之间的混淆和不良关联。
 - en: We can see that the standard of social media might be enough to use transformers
     for trivial topics. But in real-life corporate projects, it will take hard work
     to produce a pretrained tokenizer that matches the datasets. In real life, datasets
     grow every day with user inputs. User inputs become part of the datasets of models
     that should be trained and updated regularly.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，社交媒体的标准可能足以用于处理微不足道的主题的转换器。但是在现实生活中的企业项目中，将需要辛勤工作才能生成与数据集匹配的预训练标记器。在现实生活中，数据集每天都在随着用户输入而增长。用户输入成为应定期训练和更新的模型数据集的一部分。
 - en: 'For example, one way to ensure quality control can be through the following
     steps:'
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，确保质量控制的一种方法可以通过以下步骤实现：
 - en: Train a tokenizer with a byte-level BPE algorithm.
+  id: totrans-148
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用字节级 BPE 算法训练一个标记器。
 - en: Control the results with a program such as the one we will create in the *Controlling
     tokenized data* section of this chapter.
+  id: totrans-149
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用类似于本章的“控制标记化数据”部分中将创建的程序来控制结果。
 - en: Also, train a tokenizer with a Word2Vec algorithm, which will only be used for
     quality control, then parse the dataset, find the `unk` tokens, and store them
     in the database. Run queries to check if critical words are missing.
+  id: totrans-150
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 同样，训练一个使用于质量控制的 Word2Vec 算法的标记器，然后解析数据集，找到 `unk` 标记，并将其存储在数据库中。运行查询以检查是否缺少关键单词。
 - en: It might seem unnecessary to check the process in such detail, and you might
     be tempted to rely on a transformer’s ability to make inferences with unseen words.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 在如此详细地检查过程可能看起来是不必要的，并且你可能会倾向于依赖转换器对未见过的单词进行推理的能力。
 - en: However, I recommend running several different quality control methods in a
     strategic project with critical decision making. For example, in a legal summary
     of a law, one word can make the difference between losing and winning a case in
     court. In an aerospace project (airplanes, rockets), there is a `0` error tolerance
     standard.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，我建议在战略性项目中运行几种不同的质量控制方法，其中包括关键决策。例如，在法律摘要中，一个词可能是在法庭上赢得或输掉案件的区别。在航空航天项目（飞机，火箭）中，有一个
+    `0` 误差容忍标准。
 - en: The more quality control processes you run, the more reliable your transformer
     solution will be.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行越多的质量控制流程，你的转换器解决方案就会越可靠。
 - en: We can see that it takes a lot of legwork to obtain a reliable dataset! Every
     paper written on transformers refers in one way or another to the work it took
     to produce acceptable datasets.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，获得可靠的数据集需要大量的工作！每一篇关于转换器的论文都以某种方式提到了制作可接受数据集所需的工作。
 - en: Noisy relationships also cause problems.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 嘈杂的关系也会引起问题。
 - en: 'Case 2: Noisy relationships'
+  id: totrans-156
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 情况2：嘈杂的关系
 - en: 'In this case, the dataset contained the words `etext` and `declaration`:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这种情况下，数据集包含了单词 `etext` 和 `declaration`：
 - en: '[PRE12]'
+  id: totrans-158
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Furthermore, they both ended up in the tokenized dictionary:'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，它们都出现在了标记化字典中：
 - en: '[PRE13]'
+  id: totrans-160
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: Even better, their cosine similarity seems to be sure about its prediction and
     exceeds `0.5`. The stochastic nature of the algorithm might produce different
     results on various runs.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 更好的是，它们的余弦相似度似乎对其预测确信无疑，超过了 `0.5`。算法的随机性可能会导致在不同运行中产生不同的结果。
 - en: At a trivial or social media level, everything looks good.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 在微不足道的或社交媒体级别，一切看起来都很好。
 - en: However, at a professional level, the result is disastrous!
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在专业水平上，结果是灾难性的！
 - en: '`etext` refers to *Project Gutenberg*’s preface to each ebook on their site,
     as explained in the *Matching datasets and tokenizers* section of this chapter.
     What is the goal of the transformer for a specific task:'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: '`etext` 指的是 *古腾堡计划* 网站上每本电子书的前言，如本章的“匹配数据集和标记器”部分所解释的。特定任务的转换器目标是什么：'
 - en: To understand an editor’s preface?
+  id: totrans-165
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解编辑的序言吗？
 - en: Or to understand the content of the book?
+  id: totrans-166
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 或者理解书的内容呢？
 - en: It depends on the usage of the transformer and might take a few days to sort
     out. For example, suppose an editor wants to understand prefaces automatically
     and uses a transformer to generate preface text. Should we take the content out?
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 这取决于变压器的使用情况，可能需要几天的时间来解决。例如，假设编辑想要自动理解序言并使用变压器生成序言文本。我们应该将内容取出吗？
 - en: '`declaration` is a meaningful word related to the actual content of the *Declaration
     of Independence*.'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: '`declaration`是与*独立宣言*实际内容相关的有意义的词汇。'
 - en: '`etext` is part of a preface that *Project Gutenberg* adds to all of its ebooks.'
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: '`etext`是*Project Gutenberg*添加到其所有电子书中的序言的一部分。'
 - en: This might produce erroneous natural language inferences such as *etext is a
     declaration* when the transformer is asked to generate text.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可能会导致错误的自然语言推理，例如变压器被要求生成文本时产生*etext是声明*。
 - en: Let’s look into a missing word issue.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看一个缺失单词的问题。
 - en: 'Case 3: Words in the text but not in the dictionary'
+  id: totrans-172
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 情况3：文本中但不在字典中的词汇
 - en: In some cases, a word may be in a text but not in the dictionary. This will
     distort the results.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某些情况下，一个词可能在文本中但不在字典中。这将扭曲结果。
 - en: 'Let’s take the words `pie` and `logic`:'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看单词`pie`和`logic`：
 - en: '[PRE14]'
+  id: totrans-175
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'The word `pie` is not in the dictionary:'
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 单词`pie`不在字典中：
 - en: '[PRE15]'
+  id: totrans-177
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: We can assume that the word `pie` would be in a tokenized dictionary. But what
     if it isn’t or another word isn’t? The word `pie` is not in the text file.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以假设单词`pie`会在一个分词的字典中。但是如果没有或者另一个词没有呢？单词`pie`不在文本文件中。
 - en: Therefore, we should have functions in the pipeline to detect words that are
     not in the dictionary to implement corrections or alternatives. Also, we should
     have functions in the pipeline to detect words in the datasets that may be important.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们应该在流程中有函数来检测不在字典中的词汇，以实现更正或替代。此外，我们应该在流程中有函数来检测可能重要的数据集中的词汇。
 - en: Let’s see the problem we face with rare words.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看罕见词汇带来的问题。
 - en: 'Case 4: Rare words'
+  id: totrans-181
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 情况4：罕见词汇
 - en: Rare words produce devasting effects on the output of transformers for specific
     tasks that go beyond simple applications.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 罕见的词汇对超出简单应用范围的特定任务的变压器输出产生毁灭性影响。
 - en: 'Managing rare words extends to many domains of natural language. For example:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 管理罕见词汇延伸到许多自然语言的领域。例如：
 - en: Rare words can occur in datasets but go unnoticed, or models are poorly trained
     to deal with them.
+  id: totrans-184
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 罕见词汇可能出现在数据集中但被忽视，或者模型训练不足以处理它们。
 - en: Rare words can be medical, legal, engineering terms, or any other professional
     jargon.
+  id: totrans-185
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 罕见词汇可能是医学、法律、工程术语或任何其他专业行话。
 - en: Rare words can be slang.
+  id: totrans-186
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 罕见的词汇可能是俚语。
 - en: There are hundreds of variations of the English language. For example, different
     English words are used in certain parts of the United States, the United Kingdom,
     Singapore, India, Australia, and many other countries.
+  id: totrans-187
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 英语语言有数百种变体。例如，不同的英语词汇在美国、英国、新加坡、印度、澳大利亚和许多其他国家的某些地区使用。
 - en: Rare words can come from texts written centuries ago that are forgotten or that
     only specialists use.
+  id: totrans-188
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 罕见的词汇可能来自几个世纪前的文本，被遗忘或只有专家使用。
 - en: 'For example, in this case, we are using the word `justiciar`:'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，在这种情况下，我们使用了单词`justiciar`：
 - en: '[PRE16]'
+  id: totrans-190
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The similarity with `judgement` is reasonable but should be higher:'
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 与`judgement`的相似性是合理的，但应该更高：
 - en: '[PRE17]'
+  id: totrans-192
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: You might think that the word `justiciar` is far-fetched. The tokenizer extracted
     it from the *Magna Carta*, dating back to the early 13^(th) century. Unfortunately,
     the program will get confused, and we will obtain unexpected results after each
     run.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会认为单词`justiciar`有些牵强。分词器将其从*大宪章*中提取出来，可以追溯到13世纪初。不幸的是，程序会感到困惑，我们在每次运行后都会得到意外的结果。
 - en: 'Note: The predictions may vary from one run to another. However, they show
     how careful we must be in the tokenizing and embedding phases of our transformer
     model projects.'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 注：预测可能会因为每次运行而有所不同。然而，它们显示了我们在变压器模型项目的分词和嵌入阶段中需要多么谨慎。
 - en: However, several articles of the *Magna Carta* are still valid in 21^(st) century
     England! For example, clauses 1, 13, 39, and 40 are still valid!
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，*大宪章*的几条款在21世纪的英格兰仍然有效！例如，第1、13、39和40条仍然有效！
 - en: 'The most famous part of the *Magna Carta* is the following excerpt, which is
     in the dataset:'
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: '*大宪章*最著名的部分是以下摘录，它包含在数据集中：'
 - en: '[PRE18]'
+  id: totrans-197
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: If we implement a transformer model in a law firm to summarize documents or
     other tasks, we must be careful!
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们在律师事务所中实施一个变压器模型来总结文件或其他任务，我们必须小心！
 - en: Let’s now see some methods we could use to solve a rare word problem.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
 - en: 'Case 5: Replacing rare words'
+  id: totrans-200
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -861,111 +1246,145 @@
     of having a knowledge base in aeronautics, for example. In that case, it is worth
     spending the necessary time querying the tokenized directory to find words it
     missed.'
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
 - en: Problems can be grouped by topic, solved, and the knowledge base will be updated
     regularly.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
 - en: In *Case 4*, we stumbled on the word `justiciar`. If we go back to its origin,
     we can see that it comes from the French Normand language and is the root of the
     French Latin-like word `judicaire`.
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
 - en: 'We could replace the word `justiciar` with `judge`, which conveys the same
     meta-concept:'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE19]'
+  id: totrans-205
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'It produces an interesting result, but we still need to be careful because
     of the non-deterministic aspect of the algorithm:'
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE20]'
+  id: totrans-207
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'We could also keep the word `justiciar`, but try the word’s modern meaning
     and compare it to `judge`. You could try implementing `Case 5: Replacing rare
     words`:'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE21]'
+  id: totrans-209
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: In any case, some rare words need to be replaced by more mainstream words.
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
 - en: 'The result would be satisfactory:'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE22]'
+  id: totrans-212
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: We could create queries with replacement words that we run until we find correlations
     that are over `0.9`, for example. Moreover, if we are managing a critical legal
     project, we could have the essential documents that contained rare words of any
     kind translated into standard English. Thus, the transformer’s performance with
     NLP tasks would increase, and the knowledge base of the corporation would progressively
     increase.
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
 - en: Let’s now see how to use cosine similarity for entailment verification.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
 - en: 'Case 6: Entailment'
+  id: totrans-215
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: In this case, we are interested in words in the dictionary and test them in
     a fixed order.
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
 - en: 'For example, let’s see if “`pay`" + “`debt`" makes sense in our similarity
     function:'
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE23]'
+  id: totrans-218
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'The result is satisfactory:'
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE24]'
+  id: totrans-220
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: We could check the dataset with several word pairs and check if they mean something.
     These word pairs could be extracted from emails in a legal department, for example.
     If the cosine similarity is above `0.9`, then the email could be stripped of useless
     information and the content added to the knowledge base dataset of the company.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
 - en: Let’s now see how well-pretrained tokenizers match with NLP tasks.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
 - en: Standard NLP tasks with specific vocabulary
+  id: totrans-223
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'This section focuses on *Case 4: Rare words* and *Case 5: Replacing rare words*
     from the *Word2Vec tokenization* section of this chapter.'
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
 - en: We will use `Training_OpenAI_GPT_2_CH09.ipynb`, a renamed version of the notebook
     we used to train a dataset in *Chapter 7*, *The Rise of Suprahuman Transformers
     with GPT-3 Engines*.
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
 - en: 'Two changes were made to the notebook:'
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
 - en: '`dset`, the dataset, was renamed `mdset` and contains medical content'
+  id: totrans-227
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: A Python function was added to control the text that was tokenized using byte-level
     BPE
+  id: totrans-228
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -973,50 +1392,70 @@
     *Chapter 7*, *The Rise of Suprahuman Transformers with GPT-3 Engines*, and *Appendices
     III and IV*. Make sure you upload the necessary files before beginning, as explained
     in *Chapter 7*.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们不会描述*第7章*中所涵盖的`Training_OpenAI_GPT_2_CH09.ipynb`，以及*附录III和IV*。确保在开始之前上传所需的文件，就像*第7章*中所解释的那样。
 - en: There is no limit to the time you wish to train the model for. Interrupt it
     in order to save the model.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 您希望训练模型的时间没有限制。中断它以保存模型。
 - en: The files are on GitHub in the `gpt-2-train_files` directory of `Chapter09`.
     Although we are using the same notebook as in *Chapter 7*, note that the dataset,
     `dset`, is now named `mdset` in the directory and code.
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 文件位于`Chapter09`的`gpt-2-train_files`目录中的GitHub上。尽管我们使用的是*第7章*中相同的笔记本，但要注意数据集`dset`在目录和代码中现在被命名为`mdset`。
 - en: First, let’s generate an unconditional sample with a GPT-2 model trained to
     understand medical content.
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，让我们使用经过训练以理解医学内容的GPT-2模型生成一个无条件样本。
 - en: Generating unconditional samples with GPT-2
+  id: totrans-233
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用GPT-2生成无条件样本
 - en: We will get our hands dirty in this section to understand the inner workings
     of transformers. We could, of course, skip the whole chapter and simply use an
     OpenAI API. However, a 4.0 AI specialist must become an AI guru to *show*, not
     vaguely tell, Transformer models what to do through preprocessing pipelines. In
     order to *show* a transformer model what to do, it is necessary to understand
     how a transformer model works.
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一节中，我们将亲自动手来理解变换器的内部工作原理。当然，我们可以跳过整个章节，简单地使用OpenAI API。然而，一个4.0的AI专家必须成为AI大师，通过预处理管道*展示*，而不是模糊地告诉变换器模型要做什么。为了*展示*一个变换器模型要做什么，必须了解变换器模型的工作原理。
 - en: 'In *Case 4: Rare words*, and *Case 5: Replacing rare words*, we saw that rare
     words could be words used in a specific field, old English, variations of the
     English language around the world, slang, and more.'
+  id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*案例4：罕见词语*和*案例5：替换罕见词语*中，我们看到罕见词语可以是在特定领域中使用的词语，古老的英语，世界各地英语的变体，俚语等。
 - en: In 2020, the news was filled with medical terms to do with the COVID-19 outbreak.
     In this section, we will see how a GPT-2 transformer copes with medical text.
+  id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 在2020年，新闻中充斥着与COVID-19爆发有关的医学术语。在这一部分中，我们将看到一个GPT-2变换器如何处理医学文本。
 - en: The dataset to encode and train contains a paper by *Martina Conte* and *Nadia
     Loy* (2020), named *Multi-cue kinetic model with non-local sensing for cell migration
     on a fibers network with chemotaxis*.
+  id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 要编码和训练的数据集包含了*Martina Conte*和*Nadia Loy*（2020年）撰写的一篇论文，名称为*具有非局部感知的多线索动力学模型用于细胞在具有趋化作用的纤维网络上的迁移*。
 - en: The title in itself is not easy to understand and contains rare words.
+  id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 标题本身并不容易理解，包含了一些罕见的词语。
 - en: Load the files located in the `gpt-2-train_files` directory, including `mdset.txt`.
     Then run the code, as explained in *Chapter 7*, *The Rise of Suprahuman Transformers
     with GPT-3 Engines*. You can run this code cell by cell using *Chapter 7* to guide
@@ -1025,350 +1464,524 @@
     `tf 1.x` cell again before continuing. Otherwise you will get an error in the
     notebook. We are getting our hands dirty to use the low-level original GPT-2 code
     in this section and not an API.
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 加载位于`gpt-2-train_files`目录中的文件，包括`mdset.txt`。然后按照*第7章*中所述运行代码。您可以逐个单元格地运行此代码，*第7章*会给出指导。务必按照说明确保激活`tf
+    1.x`。在运行*第4步*之后，务必重新启动运行时，然后再次运行*第4步*中的`tf 1.x`单元格，然后再继续。否则，您将在笔记本中遇到错误。在本节中，我们将亲自动手使用低级别的原始GPT-2代码，而不是API。
 - en: 'After training the model on the medical dataset, you will reach the unconditional
     sample cell, *Step 11: Generating Unconditional Samples*:'
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 在对医学数据集进行训练之后，您将进入无条件抽样单元，*第11步：生成无条件样本*：
 - en: '[PRE25]'
+  id: totrans-241
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: The time it takes to run this command and the other code in this notebook depends
     on the power of your machine. This notebook and all other GPT-2 code is explained
     for educational purposes only in this book. It is recommended to use OpenAI’s
     API for GPT-3 in production. The response times are faster for transformer projects.
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 此命令以及本笔记本中的其他代码运行所需的时间取决于您的计算机性能。本书中的所有GPT-2代码都仅用于教育目的。建议在生产环境中使用OpenAI的GPT-3
+    API。对于变换器项目，响应时间更快。
 - en: 'Run the cell and stop it when you wish. It will produce a random output:'
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行单元格，并在需要时停止。它会产生一个随机输出：
 - en: '[PRE26]'
+  id: totrans-244
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'If we have a close look at the output, we notice the following points:'
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 仔细观察输出，我们注意到以下几点：
 - en: The structure of the generated sentences is relatively acceptable
+  id: totrans-246
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 生成的句子的结构相对可接受
 - en: The grammar of the output is not bad
+  id: totrans-247
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 输出的语法不错
 - en: To a non-professional, the output might seem human-like
+  id: totrans-248
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对于非专业人士来说，输出可能看起来类似于人类
 - en: 'However, the content makes no sense. The transformer was unable to produce
     real content related to the medical paper we trained. Obtaining better results
     will take hard work. Of course, we can always increase the size of the dataset.
     But will it contain what we are looking for? Could we find wrong correlations
     with more data? For example, imagine a medical project involving COVID-19 with
     a dataset containing the following sentences:'
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 但是内容毫无意义。变压器无法产生与我们训练的医学论文相关的真实内容。要获得更好的结果需要艰苦的工作。当然，我们总是可以增加数据集的规模。但它是否包含我们正在寻找的内容呢？我们是否会找到更多数据中的错误相关性呢？例如，想象一下一个涉及COVID-19的医疗项目，数据集包含以下句子：
 - en: '`COVID-19 is not a dangerous virus, but it is like ordinary flu`.'
+  id: totrans-250
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`COVID-19不是危险的病毒，而只是像普通流感一样`。'
 - en: '`COVID-19 is a very dangerous virus`.'
+  id: totrans-251
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`COVID-19是一种非常危险的病毒`。'
 - en: '`COVID-19 is not a virus but something created by a lab`.'
+  id: totrans-252
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`COVID-19不是一种病毒，而是实验室创造出的东西`。'
 - en: '`COVID-19 was certainly not created by a lab!`'
+  id: totrans-253
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`COVID-19肯定不是由实验室创造的!`'
 - en: '`Vaccines are dangerous!`'
+  id: totrans-254
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`疫苗是危险的!`'
 - en: '`Vaccines are lifesavers!`'
+  id: totrans-255
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`疫苗是救命稻草!`'
 - en: '`Governments did not manage the pandemic correctly`.'
+  id: totrans-256
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`政府没有正确管理疫情`。'
 - en: '`Governments did what was necessary`.'
+  id: totrans-257
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`政府采取了必要的措施`。'
 - en: And more contradictory sentences such as these. These discrepancies confirm
     that both datasets and tokenizers must be customized for specialized healthcare
     projects, aeronautics, transportation, and other critical domains.
+  id: totrans-258
   prefs: []
   type: TYPE_NORMAL
+  zh: 以及更多类似这样矛盾的句子。这些不一致性证实了数据集和分词器都必须为专业的医疗保健项目、航空航天、交通运输和其他关键领域进行定制。
 - en: Imagine you have a dataset with billions of words, but the content is so conflictual
     and noisy that you could never obtain a reliable result no matter what you try!
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一下，你有数十亿字的数据集，但内容如此矛盾和嘈杂，无论你如何尝试，都无法得到可靠的结果！
 - en: This could mean that the dataset would have to be smaller and limited to content
     from scientific papers. But even then, scientists often disagree with each other.
+  id: totrans-260
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可能意味着数据集必须更小，限制在科学论文的内容上。但即便如此，科学家们对彼此之间也常常意见不一。
 - en: The conclusion is that it will take a lot of hard work and a solid team to produce
     reliable results.
+  id: totrans-261
   prefs: []
   type: TYPE_NORMAL
+  zh: 结论是，要产生可靠的结果需要大量的辛勤工作和一支牢固的团队。
 - en: Let’s now try to condition the GPT-2 model.
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们尝试对GPT-2模型进行条件化设置。
 - en: Generating trained conditional samples
+  id: totrans-263
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 生成经过训练的条件样本
 - en: 'In this section, we move to the *Step 12: Interactive Context and Completion
     Examples* cell of the notebook and run it:'
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们转到笔记本的*步骤12：交互式上下文和完成示例*单元格，并运行它：
 - en: '[PRE27]'
+  id: totrans-265
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: An Industry 4.0 AI specialist will focus less on code and more on how to *show*
     a transformer model what to do. Every model requires a level of showing what to
     do and not just using unconditional data to tell it to vaguely do something.
+  id: totrans-266
   prefs: []
   type: TYPE_NORMAL
+  zh: 工业4.0人工智能专家将更少地关注代码，更多地关注如何*展示*变压器模型做什么。每个模型都需要一定程度的指导，而不仅仅是使用无条件的数据来模糊地告诉它做某事。
 - en: 'We condition the GPT-2 model by entering a part of the medical paper:'
+  id: totrans-267
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们通过输入医学论文的一部分来对GPT-2模型进行条件设定：
 - en: '[PRE28]'
+  id: totrans-268
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'We added `TL;DR`: at the end of the input text to tell the GPT-2 model to summarize
     the text we conditioned it with. The output makes sense, both grammatically and
     semantically:'
+  id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在输入文本的结尾加上`TL;DR`：告诉GPT-2模型总结我们对它进行条件化的文本。输出在语法和语义上都是有意义的：
 - en: '[PRE29]'
+  id: totrans-270
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Since the outputs are non-deterministic, we could get this response also:'
+  id: totrans-271
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于输出是非确定性的，我们也可能得到这样的回答：
 - en: '[PRE30]'
+  id: totrans-272
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: The results are better but require more research.
+  id: totrans-273
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果更好，但需要更多的研究。
 - en: The conclusion we can draw from this example and chapter is that pretraining
     transformer models on vast amounts of random web crawl data, for example, will
     teach the transformer English. However, like us, a transformer also needs to be
     trained in specific domains to become a specialist in that field.
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这个例子和章节中我们可以得出的结论是，对于预训练的变压器模型，例如在大量随机网络爬行数据上进行预训练，将教导变压器模型英语。然而，就像我们一样，变压器也需要在特定领域接受训练，才能成为该领域的专家。
 - en: Let’s take our investigation further and control the tokenized data.
+  id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们进一步调查并控制分词化的数据。
 - en: Controlling tokenized data
+  id: totrans-276
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 控制分词化的数据
 - en: This section will read the first words the GPT-2 model encoded with its pretrained
     tokenizer.
+  id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节将读取GPT-2模型使用其预训练分词器编码的前面词语。
 - en: When running the cells, stop a cell before running a subsequent one.
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行单元格时，在运行后续单元格之前停止一个单元格。
 - en: 'We will go to the `Additional Tools: Controlling Tokenized Data` cell of the
     `Training_OpenAI_GPT_2_CH09.ipynb` notebook we are using in this chapter. This
     cell was added to the notebook for this chapter.'
+  id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: '我们将转到本章中使用的 `Training_OpenAI_GPT_2_CH09.ipynb` 笔记本的 `Additional Tools: Controlling
+    Tokenized Data` 单元格。该单元格是为本章添加到笔记本中的。'
 - en: 'The cell first unzips `out.npz`, which contains the encoded medical paper that
     is in the dataset, `mdset`:'
+  id: totrans-280
   prefs: []
   type: TYPE_NORMAL
+  zh: 该单元首先解压 `out.npz`，其中包含编码的医学论文，该论文位于数据集 `mdset` 中：
 - en: '[PRE31]'
+  id: totrans-281
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: '`out.npz` is unzipped and we can read `arr_0.npy`, the `NumPy` array that contains
     the encoded dataset we are looking for:'
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
+  zh: 解压 `out.npz`，我们可以读取 `arr_0.npy`，包含我们正在寻找的编码数据集的 `NumPy` 数组：
 - en: '[PRE32]'
+  id: totrans-283
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'The output is the first few elements of the array:'
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出是数组的前几个元素：
 - en: '[PRE33]'
+  id: totrans-285
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'We will now open `encoder.json` and convert it into a Python dictionary:'
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将打开 `encoder.json` 并将其转换为 Python 字典：
 - en: '[PRE34]'
+  id: totrans-287
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Finally, we display the key and value of the first `500` tokens of our encoded
     dataset:'
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们显示了我们编码数据集的前 `500` 个标记的键和值：
 - en: '[PRE35]'
+  id: totrans-289
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'The first words of `mdset.txt` are as follows:'
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: '`mdset.txt` 的前几个单词如下：'
 - en: '[PRE36]'
+  id: totrans-291
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'I added those words to make sure the GPT-2 pretrained tokenizer would easily
     recognize them, which is the case:'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
+  zh: 我添加了这些单词以确保 GPT-2 预训练的分词器能够轻松识别它们，这也确实是这样的：
 - en: '[PRE37]'
+  id: totrans-293
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'We can easily recognize the initial tokens preceded by the initial whitespace
     characters (`Ġ`). However, let’s take the following word in the medical paper:'
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以轻松识别前导空格字符（`Ġ`）前的初始标记。然而，让我们看一下医学论文中的下一个词：
 - en: '[PRE38]'
+  id: totrans-295
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: '`amoeboid` is a rare word. We can see that the GPT-2 tokenizer broke it down
     into sub-words:'
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
+  zh: '`amoeboid` 是一个罕见的词。我们可以看到 GPT-2 的分词器将其分解为子词：'
 - en: '[PRE39]'
+  id: totrans-297
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Let’s skip the whitespace and look at what happened. `amoeboid` has become
     `am` + `o`+ `eb` + `oid.` We must agree that there are no unknown tokens: `[unk]`.
     That is due to the byte-level BPE strategy used.'
+  id: totrans-298
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们跳过空格，看看发生了什么。`amoeboid` 变成了 `am` + `o`+ `eb` + `oid`。我们必须同意，没有未知的标记：`[unk]`。这是由于使用了字节级
+    BPE 策略。
 - en: 'However, the transformer’s attention layers might associate:'
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，变压器的注意力层可能会关联：
 - en: '`am` with other sequences such as `I am`'
+  id: totrans-300
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`am` 与其他序列，如 `I am`'
 - en: '`o` with any sequence that was taken apart and contained an `o` as well'
+  id: totrans-301
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`o` 与任何包含 `o` 的序列'
 - en: '`oid` with another sequence containing `oid`, possibly `tabloid` with some
     algorithms'
+  id: totrans-302
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`oid` 与另一个包含 `oid` 的序列，可能与某些算法的 `tabloid` 相关'
 - en: 'This is not good news at all. Let’s take this further with the following words:'
+  id: totrans-303
   prefs: []
   type: TYPE_NORMAL
+  zh: 这一点一点都不好。让我们进一步看看以下单词：
 - en: '[PRE40]'
+  id: totrans-304
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'The output clearly displays `and`. As for the rest, the tokens are confusing:'
+  id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出清晰地显示了 `and`。至于其余的部分，标记令人困惑：
 - en: '[PRE41]'
+  id: totrans-306
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'You might wonder why this is a problem. The reason can be summed up in one
     word: polysemy. If we use a word2vec tokenizer, the dictionary might not contain
     rare words such as `amoeboid`, and we would come up with an unknown token.'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能想知道为什么这是个问题。原因可以用一个词来概括：多义性。如果我们使用 word2vec 分词器，词典可能不包含罕见的词语，比如 `amoeboid`，我们将得到一个未知的标记。
 - en: If we use byte-level BPE, we obtain overall better results because we exclude
     fewer variations of the same word, such as `go` and `go` + `ing`.
+  id: totrans-308
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们使用字节级 BPE，我们会得到更好的结果，因为我们排除了更少的同一单词的变体，比如 `go` 和 `go` + `ing`。
 - en: However, the `am` token in `amoeboid` brings polysemy into the problem at a
     low level. `am` can be a sort of prefix, the word `am` as in `I` + `am`, or a
     sub-word such as in `am` + `bush`. Attention layers could associate the `am` of
     one token with another `am`, creating relationships that do not exist. This defines
     the core problem of polysemy in NLU.
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，`amoeboid` 中的 `am` 标记在低级别带来了多义性的问题。`am` 可以是一种前缀，像 `I` + `am` 中的 `am`，或者像
+    `am` + `bush` 中的子词。注意层可能会将一个标记的 `am` 关联到另一个 `am`，从而创建不存在的关系。这定义了自然语言理解中多义性的核心问题。
 - en: We can say that progress is being made, but we need to work harder to improve
     NLP.
+  id: totrans-310
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以说进展正在取得，但我们需要更努力地改进自然语言处理。
 - en: We have gone through a lot of the everyday problems we face in real-life projects
     using some examples. Take some time and try some examples you think are useful.
+  id: totrans-311
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经通过一些例子了解了我们在实际项目中面临的很多日常问题。花些时间尝试一些你认为有用的例子。
 - en: Before we leave, we will use a probing task to verify the level of NLU that
     a transformer model provides.
+  id: totrans-312
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们离开之前，我们将使用一个探测任务来验证变压器模型提供的自然语言理解水平。
 - en: Exploring the scope of GPT-3
+  id: totrans-313
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 探索 GPT-3 的范围
 - en: Even the most powerful transformers such as OpenAI GPT-3 have their limits.
     Let’s see how GPT-3 reacts to the word `amoeboid`, which is closer to a medical
     term than a mainstream word. We will need technical jargon in many projects. Matching
     datasets requires quality control of how a transformer organizes its dictionary
     and embeddings.
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
 - en: We humans can detect errors and correct somebody. For example, in this chapter,
     we explored the word `amoeboid` in the *Controlling tokenized data* section of
     this chapter.
+  id: totrans-315
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s first ask GPT-3 what `amoeboid` means:'
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
 - en: '![Graphical user interface, text, application, email  Description automatically
     generated](img/B17948_09_04.png)'
+  id: totrans-317
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 9.4: Asking GPT-3 what “amoeboid” means'
+  id: totrans-318
   prefs: []
   type: TYPE_NORMAL
 - en: '`amoeboid` (resembling an amoeba) is an adjective, yet GPT-3 states that it
     is a noun in the output:'
+  id: totrans-319
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE42]'
+  id: totrans-320
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'We then ask GPT-3 a more precise question and still obtain an incorrect answer:'
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE43]'
+  id: totrans-322
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Finally, we insist and ask for a clear definition and obtain a correct answer:'
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE44]'
+  id: totrans-324
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: The definition is accurate, although the grammatical analysis isn’t.
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
 - en: What’s more important in a real-life project? To understand the definition of
     a word or to identify its role in a sentence as an adjective or a noun?
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
 - en: The definition of a word is sufficient for a medical project. In this case,
     GPT-3 might be sufficient. If the definition is sufficient, SRL wasn’t a prerequisite
     for understanding a sentence.
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
 - en: Maybe grammatical aspects are important for an educational grammar school project,
     but not for corporate supply chain, finance, and e-commerce applications.
+  id: totrans-328
   prefs: []
   type: TYPE_NORMAL
 - en: OpenAI GPT-3 can be fine-tuned in both cases, as we saw in *Chapter 7*, *The
     Rise of Suprahuman Transformers with GPT-3 Engines*.
+  id: totrans-329
   prefs: []
   type: TYPE_NORMAL
 - en: This section concludes that we have to ensure we have all the data we need in
@@ -1377,16 +1990,20 @@
     medical articles that contained that specific vocabulary. Then if the model still
     is not accurate enough, we might have to tokenize our dataset and train a model
     from scratch.
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
 - en: A 2022 developer will have less development work, but will still have to think
     and design a lot!
+  id: totrans-331
   prefs: []
   type: TYPE_NORMAL
 - en: Let’s now conclude this chapter and move on to another NLU task.
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-333
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1395,14 +2012,17 @@
     tokens from the embedding and positional encoding sub-layers of a stack. It does
     not matter if the model is an encoder-decoder, encoder-only, or decoder-only model.
     It does not matter if the dataset seems good enough to train.
+  id: totrans-334
   prefs: []
   type: TYPE_NORMAL
 - en: If the tokenization process fails, even partly, the transformer model we are
     running will miss critical tokens.
+  id: totrans-335
   prefs: []
   type: TYPE_NORMAL
 - en: We first saw that for standard language tasks, raw datasets might be enough
     to train a transformer.
+  id: totrans-336
   prefs: []
   type: TYPE_NORMAL
 - en: However, we discovered that even if a pretrained tokenizer has gone through
@@ -1411,136 +2031,177 @@
     is learning and only *remembers* the most important words if these words are also
     frequently used. This approach works well for a standard task and creates problems
     with specific tasks and vocabulary.
+  id: totrans-337
   prefs: []
   type: TYPE_NORMAL
 - en: We then looked for some ideas, among many, to work around the limits of standard
     tokenizers. We applied a language checking method to adapt the text we wish to
     process, such as how a tokenizer *thinks* and encodes data.
+  id: totrans-338
   prefs: []
   type: TYPE_NORMAL
 - en: We applied the method to unconditional and conditional tasks with GPT-2.
+  id: totrans-339
   prefs: []
   type: TYPE_NORMAL
 - en: Finally, we analyzed the limits of data tokenizing and matching datasets with
     GPT-3\. The lesson you can take away from this chapter is that AI specialists
     are here to stay for quite some time!
+  id: totrans-340
   prefs: []
   type: TYPE_NORMAL
 - en: In the next chapter, *Semantic Role Labeling with BERT-Based Transformers*,
     we will dig deep into NLU and use a BERT model to ask a transformer to explain
     the meaning of a sentence.
+  id: totrans-341
   prefs: []
   type: TYPE_NORMAL
 - en: Questions
+  id: totrans-342
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: A tokenized dictionary contains every word that exists in a language. (True/False)
+  id: totrans-343
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Pretrained tokenizers can encode any dataset. (True/False)
+  id: totrans-344
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: It is good practice to check a database before using it. (True/False)
+  id: totrans-345
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: It is good practice to eliminate obscene data from datasets. (True/False)
+  id: totrans-346
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: It is good practice to delete data containing discriminating assertions. (True/False)
+  id: totrans-347
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Raw datasets might sometimes produce relationships between noisy content and
     useful content. (True/False)
+  id: totrans-348
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: A standard pretrained tokenizer contains the English vocabulary of the past
     700 years. (True/False)
+  id: totrans-349
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Old English can create problems when encoding data with a tokenizer trained
     in modern English. (True/False)
+  id: totrans-350
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Medical and other types of jargon can create problems when encoding data with
     a tokenizer trained in modern English. (True/False)
+  id: totrans-351
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Controlling the output of the encoded data produced by a pretrained tokenizer
     is good practice. (True/False)
+  id: totrans-352
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: References
+  id: totrans-353
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: '*Colin Raffel*, *Noam Shazeer*, *Adam Roberts*, *Katherine Lee*, *Sharan Narang*,
     *Michael Matena*, *Yanqi Zhou*, *Wei Li*, and *Peter J. Liu*, 2019, *Exploring
     the Limits of Transfer Learning with a Unified Text-to-Text Transformer*: [https://arxiv.org/pdf/1910.10683.pdf](https://arxiv.org/pdf/1910.10683.pdf)'
+  id: totrans-354
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'OpenAI GPT-2 GitHub repository: [https://github.com/openai/gpt-2](https://github.com/openai/gpt-2)'
+  id: totrans-355
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'N. Shepperd GitHub repository: [https://github.com/nshepperd/gpt-2](https://github.com/nshepperd/gpt-2)'
+  id: totrans-356
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'Hugging Face framework and resources: [https://huggingface.co/](https://huggingface.co/)'
+  id: totrans-357
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'U.S. Legal, *Montana Corporate Laws*: [https://corporations.uslegal.com/state-corporation-law/montana-corporation-law/#:~:text=Montana%20Corporation%20Law,carrying%20out%20its%20business%20activities](https://corporations.uslegal.com/state-corporation-law/montana-corporation-law/#:~:text=Montana%20Corporation%20Law,carrying%20out%20its%20business%20activities)'
+  id: totrans-358
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 美国法律，*蒙大拿州企业法*：[https://corporations.uslegal.com/state-corporation-law/montana-corporation-law/#:~:text=Montana%20Corporation%20Law,carrying%20out%20its%20business%20activities](https://corporations.uslegal.com/state-corporation-law/montana-corporation-law/#:~:text=Montana%20Corporation%20Law,carrying%20out%20its%20business%20activities)
 - en: '*Martina Conte*, *Nadia Loy*, 2020, *Multi-cue kinetic model with non-local
     sensing for cell migration on a fibers network with chemotaxis*: [https://arxiv.org/abs/2006.09707](https://arxiv.org/abs/2006.09707)'
+  id: totrans-359
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*玛蒂娜·孔特*，*娜迪亚·洛伊*，2020年，《具有非局部感知的多线索动力学模型用于化学趋化作用纤维网络上的细胞迁移》：[https://arxiv.org/abs/2006.09707](https://arxiv.org/abs/2006.09707)'
 - en: '*The Declaration of Independence of the United States of America*, by *Thomas
     Jefferson*: [https://www.gutenberg.org/ebooks/1](https://www.gutenberg.org/ebooks/1)'
+  id: totrans-360
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*美利坚合众国独立宣言*，由*托马斯·杰斐逊*：[https://www.gutenberg.org/ebooks/1](https://www.gutenberg.org/ebooks/1)'
 - en: '*The United States Bill of Rights*, by the United States, and related texts:
     [https://www.gutenberg.org/ebooks/2](https://www.gutenberg.org/ebooks/2)'
+  id: totrans-361
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*美国权利法案*，由美国及相关文本：[https://www.gutenberg.org/ebooks/2](https://www.gutenberg.org/ebooks/2)'
 - en: '*The Magna Carta*: [https://www.gutenberg.org/ebooks/10000](https://www.gutenberg.org/ebooks/10000)'
+  id: totrans-362
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*大宪章*：[https://www.gutenberg.org/ebooks/10000](https://www.gutenberg.org/ebooks/10000)'
 - en: '*The Critique of Pure Reason*, *The Critique of Practical Reason*, and *Fundamental
     Principles of the Metaphysic of Moral*: [https://www.gutenberg.org](https://www.gutenberg.org)'
+  id: totrans-363
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*《纯粹理性批判》*，*《实践理性批判》*和*《道德形而上学基本原理》*：[https://www.gutenberg.org](https://www.gutenberg.org)'
 - en: Join our book’s Discord space
+  id: totrans-364
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加入我们书籍的Discord空间。
 - en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
     the authors:'
+  id: totrans-365
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入该书的Discord工作区，与作者进行每月的*问我任何*活动。
 - en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  id: totrans-366
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
 - en: '![](img/QR_Code5134042288713321484.png)'
+  id: totrans-367
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code5134042288713321484.png)'
