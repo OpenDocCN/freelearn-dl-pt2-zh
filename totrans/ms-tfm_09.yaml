@@ -1,0 +1,1319 @@
+- en: '*Chapter 7*: Text Representation'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have addressed classification and generation problems with the `transformers`
+    library. Text representation is another crucial task in modern **Natural Language
+    Processing** (**NLP**), especially for unsupervised tasks such as clustering,
+    semantic search, and topic modeling. Representing sentences by using various models
+    such as **Universal Sentence Encoder** (**USE**) and Siamese BERT (Sentence-BERT)
+    with additional libraries such as sentence transformers will be explained here.
+    Zero-shot learning using BART will also be explained, and you will learn how to
+    utilize it. Few-shot learning methodologies and unsupervised use cases such as
+    semantic text clustering and topic modeling will also be described. Finally, one-shot
+    learning use cases such as semantic search will be covered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to sentence embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Benchmarking sentence similarity models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using BART for zero-shot learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Semantic similarity experiment with FLAIR
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Text clustering with Sentence-BERT
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Semantic search with Sentence-BERT
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will be using a Jupyter notebook to run our coding exercises. For this,
+    you will need Python 3.6+ and the following packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`sklearn`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`transformers >=4.00`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`datasets`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`sentence-transformers`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tensorflow-hub`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`flair`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`umap-learn`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`bertopic`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'All the notebooks for the coding exercises in this chapter will be available
+    at the following GitHub link:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH07](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH07)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Check out the following link to see the Code in Action video: [https://bit.ly/2VcMCyI](https://bit.ly/2VcMCyI)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to sentence embeddings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Pre-trained BERT models do not produce efficient and independent sentence embeddings
+    as they always need to be fine-tuned in an end-to-end supervised setting. This
+    is because we can think of a pre-trained BERT model as an indivisible whole and
+    semantics is spread across all layers, not just the final layer. Without fine-tuning,
+    it may be ineffective to use its internal representations independently. It is
+    also hard to handle unsupervised tasks such as clustering, topic modeling, information
+    retrieval, or semantic search. Because we have to evaluate many sentence pairs
+    during clustering tasks, for instance, this causes massive computational overhead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, many modifications have been made to the original BERT model, such
+    as **Sentence-BERT** (**SBERT**), to derive semantically meaningful and independent
+    sentence embeddings. We will talk about these approaches in a moment. In the NLP
+    literature, many neural sentence embedding methods have been proposed for mapping
+    a single sentence to a common feature space (vector space model) wherein a cosine
+    function (or dot product) is usually used to measure similarity and the Euclidean
+    distance to measure dissimilarity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following are some applications that can be efficiently solved with sentence
+    embeddings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sentence-pair tasks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Information retrieval
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Question answering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Duplicate question detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Paraphrase detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Document clustering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Topic modeling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The simplest but most efficient kind of neural sentence embedding is the average-pooling
+    operation, which is performed on the embeddings of words in a sentence. To get
+    a better representation of this, some early neural methods learned sentence embeddings
+    in an unsupervised fashion, such as Doc2Vec, Skip-Thought, FastSent, and Sent2Vec.
+    Doc2Vec utilized a token-level distributional theory and an objective function
+    to predict adjacent words, similar to Word2Vec. The approach injects an additional
+    memory token (called `transformers` library. This additional token acts as a piece
+    of memory that represents the context or document embeddings. SkipThought and
+    FastSent are considered sentence-level approaches, where the objective function
+    is used to predict adjacent sentences. These models extract the sentence's meaning
+    to obtain necessary information from the adjacent sentences and their context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some other methods, such as InferSent, leveraged supervised learning and multi-task
+    transfer learning to learn generic sentence embeddings. InferSent trained various
+    supervised tasks to get more efficient embedding. RNN-based supervised models
+    such as GRU or LSTM utilize the last hidden state (or stacked entire hidden states)
+    to obtain sentence embeddings in a supervised setting. We touched on the RNN approach
+    in [*Chapter 1*](B17123_01_Epub_AM.xhtml#_idTextAnchor016), *From Bag-of-Words
+    to the Transformers.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cross-encoder versus bi-encoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: So far, we have discussed how to train Transformer-based language models and
+    fine-tune them in semi-supervised and supervised settings, respectively. As we
+    learned in the previous chapters, we got successful results thanks to the transformer
+    architectures. Once a task-specific thin linear layer has been put on top of a
+    pre-trained model, all the weights of the network (not only the last task-specific
+    thin layer) are fine-tuned with task-specific labeled data. We also experienced
+    how the BERT architecture has been fine-tuned for two different groups of tasks
+    (single-sentence or sentence-pair) without any architectural modifications being
+    required. The only difference is that for the sentence-pair tasks, the sentences
+    are concatenated and marked with a SEP token. Thus, self-attention is applied
+    to all the tokens of the concatenated sentences. This is a big advantage of the
+    BERT model, where both input sentences can get the necessary information from
+    each other at every layer. In the end, they are encoded simultaneously. This is
+    called cross-encoding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there are two disadvantages regarding the cross-encoders that were
+    addressed by the SBERT authors and *Humeau et al., 2019*, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The cross-encoder setup is not convenient for many sentence-pair tasks due to
+    too many possible combinations needing to be processed. For instance, to get the
+    two closest sentences from a list of 1,000 sentences, the cross-encoder model
+    (BERT) requires around 500,000 (*n * (n-1) /2*) inference computation. Therefore,
+    it would be very slow compared to alternative solutions such as SBERT or USE.
+    This is because these alternatives produce independent sentence embeddings wherein
+    the similarity function (cosine similarity) or dissimilarity function (Euclidean
+    or Manhattan) can easily be applied. Note that these dis/similarity functions
+    can be performed efficiently on modern architectures. Moreover, with the help
+    of an optimized index structure, we can reduce computational complexity from many
+    hours to a few minutes when comparing or clustering many documents.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Due to its supervised characteristics, the BERT model can't derive independent
+    meaningful sentence embeddings. It is hard to leverage a pre-trained BERT model
+    as is for unsupervised tasks such as clustering, semantic search, or topic modeling.
+    The BERT model produces a fixed-size vector for each token in a document. In an
+    unsupervised setting, the document-level representation may be obtained by averaging
+    or pooling token vectors, plus SEP and CLS tokens. Later, we will see that such
+    a representation of BERT produces below-average sentence embeddings, and that
+    its performance scores are usually worse than word embedding pooling techniques
+    such as Word2Vec, FastText, or GloVe.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Alternatively, bi-encoders (such as SBERT) independently map a sentence pair
+    to a semantic vector space, as shown in the following diagram. Since the representations
+    are separate, bi-encoders can cache the encoded input representation for each
+    input, resulting in fast inference time. One of the successful bi-encoder modifications
+    of BERT is SBERT. Based on the Siamese and Triplet network structures, SBERT fine-tunes
+    the BERT model to produce semantically meaningful and independent embeddings of
+    the sentences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the bi-encoder architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – Bi-encoder architecture ](img/B17123_07_001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.1 – Bi-encoder architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find hundreds of pre-trained SBERT models that have been trained with
+    different objectives at [https://public.ukp.informatik.tu-darmstadt.de/reimers/sentence-transformers/v0.2/](https://public.ukp.informatik.tu-darmstadt.de/reimers/sentence-transformers/v0.2/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use some of them in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Benchmarking sentence similarity models
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: There are many *semantic textual similarity* models available, but it is highly
+    recommended that you benchmark and understand their capabilities and differences
+    using metrics. *Papers With Code* provides a list of these datasets at [https://paperswithcode.com/task/semantic-textual-similarity](https://paperswithcode.com/task/semantic-textual-similarity).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, there are many model outputs in each dataset that are ranked by their
+    results. These results have been taken from the aforementioned article.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GLUE provides most of these datasets and tests, but it is not only for semantic
+    textual similarity. **GLUE**, which stands for **General Language Understanding
+    Evaluation**, is a general benchmark for evaluating a model with different NLP
+    characteristics. More details about the GLUE dataset and its usage was provided
+    in [*Chapter 2*](B17123_02_Epub_AM.xhtml#_idTextAnchor034), *A Hands-On Introduction
+    to the Subject*. Let''s take a look at it before we move on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To load the metrics and MRPC dataset from the GLUE benchmark, you can use the
+    following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The samples in this dataset are labeled `1` and `0`, which indicates whether
+    they are similar or dissimilar, respectively. You can use any model, regardless
+    of the architecture, to produce values for two given sentences. In other words,
+    the model should classify the two sentences as zeros and ones.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s assume the model produces values and that these values are stored in
+    an array called `predictions`. You can easily use this metric with the predictions
+    to see the F1 and accuracy values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Some semantic textual similarity datasets such as **Semantic Textual Similarity
+    Benchmark** (**STSB**) have different metrics. For example, this benchmark uses
+    Spearman and Pearson correlations because the outputs and predictions are between
+    0 and 5 and are float numbers instead of being 0s and 1s, which is a regression
+    problem. The following code shows an example of this benchmark:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The predictions and references are the same as the ones from the **Microsoft
+    Research Paraphrase Corpus** (**MRPC**); the predictions are the model outputs,
+    while the references are the dataset labels.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To get a comparative result between two models, we will use a distilled version
+    of Roberta and test these two on the STSB. To start, you must load both models.
+    The following code shows how to install the required libraries before loading
+    and using models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As we mentioned previously, the next step is to load the dataset and metric:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Afterward, we must load both models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Both of these models provide embeddings for a given sentence. To compare the
+    similarity between two sentences, we will use cosine similarity. The following
+    function takes sentences as a batch and provides cosine similarity for each pair
+    by utilizing USE:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With small modifications, the same function can be used for RoBERTa too. These
+    small modifications are only for replacing the embedding function, which is different
+    for TensorFlow Hub models and transformers. The following is the modified function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Applying these functions to the dataset will result in similarity scores for
+    each of the models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Using metrics on both results produces the Spearman and Pearson correlation
+    values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can simply use pandas to see the results as a table in a comparative fashion:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – STSB validation results on DistilRoberta and USE ](img/B17123_07_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.2 – STSB validation results on DistilRoberta and USE
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you learned about the important benchmarks of semantic textual
+    similarity. Regardless of the model, you learned how to use any of these metrics
+    to quantify model performance. In the next section, you will learn about the few-shot
+    learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using BART for zero-shot learning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the field of machine learning, zero-shot learning is referred to as models
+    that can perform a task without explicitly being trained on it. In the case of
+    NLP, it's assumed that there's a model that can predict the probability of some
+    text being assigned to classes that are given to the model. However, the interesting
+    part about this type of learning is that the model is not trained on these classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the rise of many advanced language models that can perform transfer learning,
+    zero-shot learning came to life. In the case of NLP, this kind of learning is
+    performed by NLP models at test time, where the model sees samples belonging to
+    new classes where no samples of them were seen before.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This kind of learning is usually used for classification tasks, where both the
+    classes and the text are represented and the semantic similarity of both is compared.
+    The represented form of these two is an embedding vector, while the similarity
+    metric (such as cosine similarity or a pre-trained classifier such as a dense
+    layer) outputs the probability of the sentence/text being classified as the class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many methods and schemes we can use to train such models, but one
+    of the earliest methods used crawled pages from the internet containing keyword
+    tags in the meta part. For more information, read the following article and blog
+    post at [https://amitness.com/2020/05/zero-shot-text-classification/](https://amitness.com/2020/05/zero-shot-text-classification/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of using such huge data, there are language models such as BART that
+    use the **Multi-Genre Natural Language Inference** (**MNLI**) dataset to fine-tune
+    and detect the relationship between two different sentences. Also, the HuggingFace
+    model repository contains many models that have been implemented for zero-shot
+    learning. They also provide a zero-shot learning pipeline for ease of use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, BART from **Facebook AI Research** (**FAIR**) is being used in
+    the following code to perform zero-shot text classification:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The results are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – Results of zero-shot learning using BART ](img/B17123_07_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.3 – Results of zero-shot learning using BART
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the travel and exploration labels have the highest probability,
+    but the most probable one is travel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, sometimes, one sample can belong to more than one class (multilabel).
+    HuggingFace provides a parameter called `multi_label` for this. The following
+    example uses this parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Due to this, it is changed to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.4 – Results of zero-shot learning using BART (multi_label = True)
+    ](img/B17123_07_004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.4 – Results of zero-shot learning using BART (multi_label = True)
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can test the results even further and see how the model performs if very
+    similar labels to the travel one are used. For example, you can see how it performs
+    if `moving` and `going` are added to the label list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are other models that also leverage the semantic similarity between labels
+    and the context to perform zero-shot classification. In the case of few-shot learning,
+    some samples are given to the model, but these samples are not enough to train
+    a model alone. Models can use these samples to perform tasks such as semantic
+    text clustering, which will be explained shortly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that you''ve learned how to use BART for zero-shot learning, you should
+    learn how it works. BART is fine-tuned on `travel`, for example) and the second
+    sentence to the content (`one day I will see the world`, for example). According
+    to this, if these two can come after each other, this means that the label and
+    the content are semantically related. The following code example shows how to
+    directly use the BART model without the zero-shot classification pipeline according
+    to the preceding descriptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The result is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can also call the first sentence the hypothesis and the sentence containing
+    the label the premise. According to the result, the premise can entail the hypothesis.
+    which means that the hypothesis is labeled as the premise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, you've learned how to use zero-shot learning by utilizing NLI fine-tuned
+    models. Next, you will learn how to perform few-/one-shot learning using semantic
+    text clustering and semantic search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Semantic similarity experiment with FLAIR
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this experiment, we will qualitatively evaluate the sentence representation
+    models thanks to the `flair` library, which really simplifies obtaining the document
+    embeddings for us.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will perform experiments while taking on the following approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Document average pool embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RNN-based embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: BERT embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SBERT embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We need to install these libraries before we can start the experiments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: For qualitative evaluation, we define a list of similar sentence pairs and a
+    list of dissimilar sentence pairs (five pairs for each). What we expect from the
+    embeddings models is that they should measure a high score and a low score, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sentence pairs are extracted from the SBS Benchmark dataset, which we are
+    already familiar with from the sentence-pair regression part of [*Chapter 6*](B17123_06_Epub_AM.xhtml#_idTextAnchor090),
+    *Fine-Tuning Language Models for Token Classification*. For similar pairs, two
+    sentences are completely equivalent, and they share the same meaning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The pairs with a similarity score of around 5 in the STSB dataset are randomly
+    taken, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.5 – Similar pair list ](img/B17123_07_005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.5 – Similar pair list
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the list of dissimilar sentences whose similarity scores are around
+    0, taken from the STS-B dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.6 – Dissimilar pair list ](img/B17123_07_006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.6 – Dissimilar pair list
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s prepare the necessary functions to evaluate the embeddings models.
+    The following `sim()` function computes the cosine similarity between two sentences;
+    that is, `s1`, `s2`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The document embeddings models that were used in this experiment are all pre-trained
+    models. We will pass the document embeddings model object and sentence pair list
+    (similar or dissimilar) to the following `evaluate()` function, where, once the
+    model encodes the sentence embeddings, it will compute the similarity score for
+    each pair in the list, along with the list average. The definition of the function
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, it is time to evaluate sentence embedding models. We will start with the
+    average pooling method!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Average word embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Average word embeddings (or **document pooling**) apply the mean pooling operation
+    to all the words in a sentence, where the average of all the word embeddings is
+    considered to be sentence embedding. The following execution instantiates a document
+    pool embedding based on GloVe vectors. Note that although we will use only GloVe
+    vectors here, the flair API allows us to use multiple word embeddings. Here is
+    the code definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s evaluate the GloVe pool model on similar pairs, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The results seem to be good since those resulting values are very high, which
+    is what we expect. However, the model produces high scores such as 0.94 on average
+    for the dissimilar list as well. Our expectation would be less than 0.4\. We''ll
+    talk about why we got this later in this chapter. Here is the execution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let's evaluate some RNN embeddings on the same problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNN-based document embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s instantiate a GRU model based on GloVe embeddings, where the default
+    model of `DocumentRNNEmbeddings` is a GRU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Run the evaluation method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Likewise, we get a high score for the dissimilar list. This is not what we want
+    from sentence embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer-based BERT embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following execution instantiates a `bert-base-uncased` model that pools
+    the final layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Run the evaluation, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is worse! The score of the dissimilar list is higher than that of the similar
+    list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sentence-BERT embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, let''s apply Sentence-BERT to the problem of distinguishing similar pairs
+    from dissimilar ones, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First of all, a warning: we need to ensure that the `sentence-transformers`
+    package has already been installed:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As we mentioned previously, Sentence-BERT provides a variety of pre-trained
+    models. We will pick the `bert-base-nli-mean-tokens` model for evaluation. Here
+    is the code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s evaluate the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Well done! The SBERT model produced better results. The model produced a low
+    similarity score for the dissimilar list, which is what we expect.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, we will do a harder test, where we pass contradicting sentences to the
+    models. We will define some tricky sentence pairs, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Interesting! The scores are very high since the sentence similarity model works
+    similar to topic detection and measures content similarity. When we look at the
+    sentences, they share the same content, even though they contradict each other.
+    The content is about lion and elephant or cat and mat. Therefore, the models produce
+    a high similarity score. Since the GloVe embedding method pools the average of
+    the words without caring about word order, it measures two sentences as being
+    the same. On the other hand, the GRU model produced lower values as it cares about
+    word order. Surprisingly, even the SBERT model does not produce efficient scores.
+    This may be due to the content similarity-based supervision that's used in the
+    SBERT model.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To correctly detect the semantics of two sentence pairs with three classes
+    – that is, Neutral, Contradiction, and Entailment – we must use a fine-tuned model
+    on MNLI. The following code block shows an example of using XLM-Roberta, fine-tuned
+    on XNLI with the same examples:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output will show the correct labels for each:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In some problems, In some problems, NLI is a higher priority than semantic textual
+    because it is intended to find the contradiction or entailment rather than the
+    raw similarity score. For the next sample, use two sentences for entailment and
+    contradiction at the same time. This is a bit subjective, but to the model, the
+    second sentence pair seems to be a very close call between entailment and contradiction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Text clustering with Sentence-BERT
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For clustering algorithms, we will need a model that''s suitable for textual
+    similarity. Let''s use the `paraphrase-distilroberta-base-v1` model here for a
+    change. We will start by loading the Amazon Polarity dataset for our clustering
+    experiment. This dataset includes Amazon web page reviews spanning a period of
+    18 years up to March 2013\. The original dataset includes over 35 million reviews.
+    These reviews include product information, user information, user ratings, and
+    user reviews. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, randomly select 10K reviews by shuffling, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The corpus is now ready for clustering. The following code instantiates a sentence-transformer
+    object using the pre-trained `paraphrase-distilroberta-base-v1` model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The entire corpus is encoded with the following execution, where the model
+    maps a list of sentences to a list of embedding vectors:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here, the vector size is `768`, which is the default embedding size of the
+    BERT-base model. From now on, we will proceed with traditional clustering methods.
+    We will choose *Kmeans* here since it is a fast and widely used clustering algorithm.
+    We just need to set the cluster number (*K*) to `5`. Actually, this number may
+    not be optimal. There are many techniques that can determine the optimal number
+    of clusters, such as the Elbow or Silhouette method. However, let''s leave these
+    issues aside. Here is the execution:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, we have obtained five clusters of reviews. As we can see from the output,
+    we have fairly distributed clusters. Another issue with clustering is that we
+    need to understand what these clusters mean. As a suggestion, we can apply topic
+    analysis to each cluster or check cluster-based TF-IDF to understand the content.
+    Now, let's look at another way to do this based on the cluster centers. The Kmeans
+    algorithm computes cluster centers, called centroids, that are kept in the `kmeans.cluster_centers_`
+    attribute. The centroids are simply the average of the vectors in each cluster.
+    Therefore, they are all imaginary points, not the existing data points. Let's
+    assume that the sentences closest to the centroid will be the most representative
+    example for the corresponding cluster.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s try to find only one real sentence embedding, closest to each centroid
+    point. If you like, you can capture more than one sentence. Here is the code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.7 – Centroids of the cluster ](img/B17123_07_007.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 7.7 – Centroids of the cluster
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'From these representative sentences, we can reason about the clusters. It seems
+    to be that Kmeans clusters the reviews into five distinct categories: *Electronics*,
+    *Audio Cd/Music*, *DVD Film*, *Books*, and *Furniture & Home*. Now, let''s visualize
+    both sentence points and cluster centroids in a 2D space. We will use the **Uniform
+    Manifold Approximation and Projection** (**UMAP**) library to reduce dimensionality.
+    Other widely used dimensionality reduction techniques in NLP that you can use
+    include t-SNE and PCA (see [*Chapter 1*](B17123_01_Epub_AM.xhtml#_idTextAnchor016),
+    *From Bag-of-Words to the Transformers*).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We need to install the `umap` library, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following execution reduces all the embeddings and maps them into a 2D
+    space:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.8 – Cluster points visualization ](img/B17123_07_008.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.8 – Cluster points visualization
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding output, the points have been colored according to their cluster
+    membership and centroids. It looks like we have picked the right number of clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To capture the topics and interpret the clusters, we simply located the sentences
+    (one single sentence for each cluster) close to the centroids of the clusters.
+    Now, let's look at a more accurate way of capturing the topic with topic modeling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Topic modeling with BERTopic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You may be familiar with many unsupervised topic modeling techniques that are
+    used to extract topics from documents; **Latent-Dirichlet Allocation** (**LDA**)
+    topic modeling and **Non-Negative Matrix Factorization** (**NMF**) are well-applied
+    traditional techniques in the literature. BERTopic and Top2Vec are two important
+    transformer-based topic modeling projects. In this section, we will apply the
+    BERTopic model to our Amazon corpus. It leverages BERT embeddings and the class-based
+    TF-IDF method to get easily interpretable topics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, the BERTopic model starts by encoding the sentences with sentence transformers
+    or any sentence embedding model, which is followed by the clustering step. The
+    clustering step has two phases: the embedding''s dimensionality is reduced by
+    **UMAP** and then the reduced vectors are clustered by **Hierarchical Density-Based
+    Spatial Clustering of Applications with Noise** (**HDBSCAN**), which yields groups
+    of similar documents. At the final stage, the topics are captured by cluster-wise
+    TF-IDF, where the model extracts the most important words per cluster rather than
+    per document and obtains descriptions of the topics for each cluster. Let''s get
+    started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s install the necessary library, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Important note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You may need to restart the runtime since this installation will update some
+    packages that have already been loaded. So, from the Jupyter notebook, go to **Runtime**
+    | **Restart Runtime**.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'If you want to use your own embedding model, you need to instantiate and pass
+    it through the BERTopic model. We will instantiate a Sentence Transformer model
+    and pass it to the constructor of BERTopic, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.9 – BERTopic results ](img/B17123_07_009.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.9 – BERTopic results
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Please note that different BERTopic runs with the same parameters can yield
+    different results since the UMAP model is stochastic. Now, let''s see the word
+    distribution of topic five, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.10 – The fifth topic words of the topic model ](img/B17123_07_010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.10 – The fifth topic words of the topic model
+  prefs: []
+  type: TYPE_NORMAL
+- en: The topic words are those words whose vectors are close to the topic vector
+    in the semantic space. In this experiment, we did not cluster the corpus; instead,
+    we applied the technique to the entire corpus. In our previous example, we analyzed
+    the clusters with the closest sentence. Now, we can find the topics by applying
+    the topic model separately to each cluster. This is pretty straightforward, and
+    you can run it yourself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please see the Top2Vec project for more details and interesting topic modeling
+    applications at [https://github.com/ddangelov/Top2Vec](https://github.com/ddangelov/Top2Vec).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Semantic search with Sentence-BERT
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We may already be familiar with keyword-based search (Boolean model), where,
+    for a given keyword or pattern, we can retrieve the results that match the pattern.
+    Alternatively, we can use regular expressions, where we can define advanced patterns
+    such as the lexico-syntactic pattern. These traditional approaches cannot handle
+    synonym (for example, *car* is the same as *automobile*) or word sense problems
+    (for example, *bank* as the side of a river or *bank* as a financial institute).
+    While the first synonym case causes low recall due to missing out the documents
+    that shouldn't be missed, the second causes low precision due to catching the
+    documents not to be caught. Vector-based or semantic search approaches can overcome
+    these drawbacks by building a dense numerical representation of both queries and
+    documents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's set up a case study for **Frequently Asked Questions** (**FAQs**) that
+    are idle on websites. We will exploit FAQ resources within a semantic search problem.
+    FAQs contain frequently asked questions. We will be using the FAQ from the **World
+    Wide Fund for Nature** (**WWF**), a nature non-governmental organization ([https://www.wwf.org.uk/](https://www.wwf.org.uk/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given these descriptions, it is easy to understand that performing a semantic
+    search using semantic models is very similar to a one-shot learning problem, where
+    we just have a single shot of the class (a single sample), and we want to reorder
+    the rest of the data (sentences) according to it. You can redefine the problem
+    as searching for samples that are semantically close to the given sample, or a
+    binary classification according to the sample. Your model can provide a similarity
+    metric, and the results for all the other samples will be reordered using this
+    metric. The final ordered list is the search result, which is reordered according
+    to semantic representation and the similarity metric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'WWF has 18 questions and answers on their web page. We defined them as a Python
+    list object called `wf_faq` for this experiment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: I haven't received my adoption pack. What should I do?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How quickly will I receive my adoption pack?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How can I renew my adoption?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How do I change my address or other contact details?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can I adopt an animal if I don't live in the UK?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If I adopt an animal, will I be the only person who adopts that animal?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: My pack doesn't contain a certificate?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: My adoption is a gift but won't arrive on time. What can I do?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can I pay for an adoption with a one-off payment?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can I change the delivery address for my adoption pack after I've placed my
+    order?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How long will my adoption last for?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How often will I receive updates about my adopted animal?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What animals do you have for adoption?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How can I find out more information about my adopted animal?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How is my adoption money spent?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is your refund policy?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An error has been made with my Direct Debit payment; can I receive a refund?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How do I change how you contact me?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Users are free to ask any question they want. We need to evaluate which question
+    in the FAQ is the most similar to the user''s question, which is the objective
+    of the `quora-distilbert-base` model. There are two options in the SBERT hub –
+    one is for English and another for multilingual, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`quora-distilbert-base`: This is fine-tuned for Quora Duplicate Questions detection
+    retrieval.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`quora-distilbert-multilingual`: This is a multilingual version of `quora-distilbert-base`.
+    It''s fine-tuned with parallel data for 50+ languages.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s build a semantic search model by following these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is the SBERT model''s instantiation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s encode the FAQ, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s prepare five questions so that they are similar to the first five questions
+    in the FAQ, respectively; that is, our first test question should be similar to
+    the first question in the FAQ, the second question should be similar to the second
+    question, and so on, so that we can easily follow the results. Let''s define the
+    questions in the `test_questions` list object and encode it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following code measures the similarity between each test question and each
+    question in the FAQ and then ranks them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.11 – Question-question similarity ](img/B17123_07_011.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 7.11 – Question-question similarity
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Here, we can see indexes `0`, `1`, `2`, `3`, and `4` in order, which means the
+    model successfully found the similar questions as expected.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'For the deployment, we can design the following `getBest()` function, which
+    takes a question and returns `K` most similar questions in the FAQ:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s ask a question:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.12 – Similar question similarity results ](img/B17123_07_012.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 7.12 – Similar question similarity results
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'What if a question that''s used as input is not similar to one from the FAQ?
+    Here is such a question:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.13 – Dissimilar question similarity results ](img/B17123_07_013.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.13 – Dissimilar question similarity results
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best dissimilarity score is 0.35\. So, we need to define a threshold such
+    as 0.3 so that the model ignores such questions that are higher than that threshold
+    and says `no similar answer found`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other than question-question symmetric search similarity, we can also utilize
+    SBERT's question-answer asymmetric search models, such as `msmarco-distilbert-base-v3`,
+    which is trained on a dataset of around 500K Bing search queries. It is known
+    as MSMARCO Passage Ranking. This model helps us measure how related the question
+    and context are and checks whether the answer to the question is in the passage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about text representation methods. We learned how
+    it is possible to perform tasks such as zero-/few-/one-shot learning using different
+    and diverse semantic models. We also learned about NLI and its importance in capturing
+    semantics of text. Moreover, we looked at some useful use cases such as semantic
+    search, semantic clustering, and topic modeling using Transformer-based semantic
+    models. We learned how to visualize the clustering results and understood the
+    importance of centroids in such problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn about efficient Transformer models. You
+    will learn about distillation, pruning, and quantizing Transformer-based models.
+    You will also learn about different and efficient Transformer architectures that
+    make improvements to computational and memory efficiency, as well as how to use
+    them in NLP problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Please refer to the following works/papers for more information about the topics
+    that were covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lewis, M., Liu, Y., Goyal, N., Ghazvininejad, M., Mohamed, A., Levy, O., ...
+    & Zettlemoyer, L. (2019). *Bart: Denoising sequence-to-sequence pre-training for
+    natural language generation, translation, and comprehension*. arXiv preprint arXiv:1910.13461\.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Pushp, P. K., & Srivastava, M. M. (2017). *Train once, test anywhere: Zero-shot
+    learning for text classification*. arXiv preprint arXiv:1712.05972\.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Reimers, N., & Gurevych, I. (2019). *Sentence-bert: Sentence embeddings using
+    siamese bert-networks*. arXiv preprint arXiv:1908.10084\.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., ... & Stoyanov, V.
+    (2019). *Roberta: A robustly optimized bert pretraining approach*. arXiv preprint
+    arXiv:1907.11692\.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Williams, A., Nangia, N., & Bowman, S. R. (2017). *A broad-coverage challenge
+    corpus for sentence understanding through inference*. arXiv preprint arXiv:1704.05426\.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cer, D., Yang, Y., Kong, S. Y., Hua, N., Limtiaco, N., John, R. S., ... & Kurzweil,
+    R. (2018). *Universal sentence encoder*. arXiv preprint arXiv:1803.11175\.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Yang, Y., Cer, D., Ahmad, A., Guo, M., Law, J., Constant, N., ... & Kurzweil,
+    R. (2019). *Multilingual universal sentence encoder for semantic retrieval*. arXiv
+    preprint arXiv:1907.04307\.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Humeau, S., Shuster, K., Lachaux, M. A., & Weston, J. (2019). *Poly-encoders:
+    Transformer architectures and pre-training strategies for fast and accurate multi-sentence
+    scoring.* arXiv preprint arXiv:1905.01969.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

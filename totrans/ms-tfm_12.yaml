@@ -1,0 +1,1237 @@
+- en: '*Chapter 9*:Cross-Lingual and Multilingual Language Modeling'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Up to this point, you have learned a lot about transformer-based architectures,
+    from encoder-only models to decoder-only models, from efficient transformers to
+    long-context transformers. You also learned about semantic text representation
+    based on a Siamese network. However, we discussed all these models in terms of
+    monolingual problems. We assumed that these models just understand a single language
+    and are not capable of having a general understanding of text, regardless of the
+    language itself. In fact, some of these models have multilingual variants; **Multilingual
+    Bidirectional Encoder Representations from Transformers** (**mBERT**), **Multilingual
+    Text-to-Text Transfer Transformer** (**mT5**), and **Multilingual Bidirectional
+    and Auto-Regressive Transformer** (**mBART**), to name but a few. On the other
+    hand, some models are specifically designed for multilingual purposes trained
+    with cross-lingual objectives. For example, **Cross-lingual Language Model** (**XLM**)
+    is such a method, and this will be described in detail in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, the concept of knowledge sharing between languages will be
+    presented, and the impact of **Byte-Pair Encoding** (**BPE**) on the tokenization
+    part is also another important subject to cover in order to achieve better input.
+    Cross-lingual sentence similarity using the **Cross-Lingual Natural Language Inference**
+    (**XNLI**) corpus will be detailed. Tasks such as cross-lingual classification
+    and utilization of cross-lingual sentence representation for training on one language
+    and testing on another one will be presented by concrete examples of real-life
+    problems in **Natural Language Processing** (**NLP**), such as multilingual intent
+    classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In short, you will learn the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Translation language modeling and cross-lingual knowledge sharing
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: XLM and mBERT
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cross-lingual similarity tasks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cross-lingual classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cross-lingual zero-shot learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fundamental limitations of multilingual models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The code for this chapter is found in the repo at [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH09](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH09),
+    which is in the GitHub repository for this book. We will be using Jupyter Notebook
+    to run our coding exercises that require Python 3.6.0+, and the following packages
+    will need to be installed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`tensorflow`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pytorch`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`transformers >=4.00`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`datasets`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`sentence-transformers`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`umap-learn`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`openpyxl`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Check out the following link to see the Code in Action video:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://bit.ly/3zASz7M](https://bit.ly/3zASz7M)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Translation language modeling and cross-lingual knowledge sharing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, you have learned about **Masked Language Modeling** (**MLM**) as a
+    cloze task. However, language modeling using neural networks is divided into three
+    categories based on the approach itself and its practical usage, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: MLM
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Causal Language Modeling** (**CLM**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Translation Language Modeling** (**TLM**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is also important to note that there are other pre-training approaches such
+    as **Next Sentence Prediction** (**NSP**) and **Sentence Order Prediction** (**SOP**)
+    too, but we just considered token-based language modeling. These three are the
+    main approaches that are used in the literature. **MLM**, described and detailed
+    in previous chapters, is a very close concept to a cloze task in language learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CLM** is defined by predicting the next token, which is followed by some
+    previous tokens. For example, if you see the following context, you can easily
+    predict the next token:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*<s> Transformers changed the natural language …*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you see, only the last token is masked, and the previous tokens are given
+    to the model to predict that last one. This token would be *processing* and if
+    the context with this token is given to you again, you might end it with an *"</s>"*
+    token. In order to have good training on this approach, it is required to not
+    mask the first token, because the model would have just a sentence start token
+    to make a sentence out of it. This sentence can be anything! Here''s an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*<s> …*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What would you predict out of this? It can be literally anything. To have better
+    training and better results, it is required to give at least the first token,
+    such as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*<s> Transformers …*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: And the model is required to predict the *change*; after giving it *Transformers
+    changed ...* it is required to predict *the*, and so on. This approach is very
+    similar to N-grams and `P(wn|wn-1, wn-2 ,…,w0)` where `wn` is the token to be
+    predicted and the rest is the tokens before it. The token with the maximum probability
+    is the predicted one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These are the objectives used for monolingual models. So, what can be done for
+    cross-lingual models? The answer is **TLM**, which is very similar to MLM, with
+    a few changes. Instead of giving a sentence from a single language, a sentence
+    pair is given to a model in different languages, separated by a special token.
+    The model is required to predict the masked tokens, which are randomly masked
+    in any of these languages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following sentence pair is an example of such a task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.1 – Cross-lingual relation example between Turkish and English ](img/B17123_09_001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.1 – Cross-lingual relation example between Turkish and English
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given these two masked sentences, the model is required to predict the missing
+    tokens. In this task, on some occasions, the model has access to the tokens (for
+    example, **doğal** and **language** respectively in the sentence pair in *Figure
+    9.1*) that are missing from one of the languages in the pair.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As another example, you can see the same pair from Persian and Turkish sentences.
+    In the second sentence, the **değiştirdiler** token can be attended by the multiple
+    tokens (one is masked) in the first sentence. In the following example, the word
+    **تغییر** is missing but the meaning of **değiştirdiler** is **تغییر دادند****.**
+    :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.2 – Cross-lingual relation example between Persian and Turkish ](img/B17123_09_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.2 – Cross-lingual relation example between Persian and Turkish
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accordingly, a model can learn the mapping between these meanings. Just as with
+    a translation model, our TLM must also learn these complexities between languages
+    because **Machine Translation** (**MT**) is more than a token-to-token mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: XLM and mBERT
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have picked two models to explain in this section: mBERT and XLM. We selected
+    these models because they correspond to the two best multilingual types as of
+    writing this article. mBERT is a multilingual model trained on a different corpus
+    of various languages using MLM modeling. It can operate separately for many languages.
+    On the other hand, XLM is trained on different corpora using MLM, CLM, and TLM
+    language modeling, and can solve cross-lingual tasks. For instance, it can measure
+    the similarity of the sentences in two different languages by mapping them in
+    a common vector space, which is not possible with mBERT.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: mBERT
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You are familiar with the BERT autoencoder model from [*Chapter 3*](B17123_03_Epub_AM.xhtml#_idTextAnchor050),
+    *Autoencoding Language Models*, and how to train it using MLM on a specified corpus.
+    Imagine a case where a wide and huge corpus is provided not from a single language,
+    but from 104 languages instead. Training on such a corpus would result in a multilingual
+    version of BERT. However, training on such a wide variety of languages would increase
+    the model size, and this is inevitable in the case of BERT. The vocabulary size
+    would be increased and, accordingly, the size of the embedding layer would be
+    larger because of more vocabulary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compared to a monolingual pre-trained BERT, this new version is capable of handling
+    multiple languages inside a single model. However, the downside for this kind
+    of modeling is that this model is not capable of mapping between languages. This
+    means that the model, in the pre-training phase, does not learn anything about
+    these mappings between semantic meanings of the tokens from different languages.
+    In order to provide cross-lingual mapping and understanding for this model, it
+    is necessary to train it on some of the cross-lingual supervised tasks, such as
+    those available in the `XNLI` dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using this model is as easy as working with the models you have used in the
+    previous chapters (see [https://huggingface.co/bert-base-multilingual-uncased](https://huggingface.co/bert-base-multilingual-uncased)
+    for more details). Here''s the code you''ll need to get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output will then be presented, as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, it can perform `fill-mask` for various languages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: XLM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Cross-lingual pre-training of language models, such as that shown with an XLM
+    approach, is based on three different pre-training objectives. MLM, CLM, and TLM
+    are used to pre-train the XLM model. The sequential order of this pre-training
+    is performed using a shared BPE tokenizer between all languages. The reason that
+    tokens are shared is that the shared tokens provide fewer tokens in the case of
+    languages that have similar tokens or subwords, and on the other hand, these tokens
+    can provide shared semantics in the pre-training process. For example, some tokens
+    have remarkably similar writing and meaning across many languages, and accordingly,
+    these tokens are shared by BPE for all. On the other hand, some tokens spelled
+    the same in different languages can have different meanings—for example, *was*
+    is shared in German and English contexts. Luckily, self-attention mechanisms help
+    us to disambiguate the meaning of *was* using the surrounding context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another major improvement of this cross-lingual modeling is that it is also
+    pre-trained on CLM, which makes it more reasonable for inferences where sentence
+    prediction or completion is required. In other words, this model has an understanding
+    of the languages and is capable of completing sentences, predicting missing tokens,
+    and predicting missing tokens by using the other language source.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the overall structure of cross-lingual modeling.
+    You can read more at [https://arxiv.org/pdf/1901.07291.pdf](https://arxiv.org/pdf/1901.07291.pdf):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.3 – MLM and TLM pre-training for cross-lingual modeling ](img/B17123_09_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.3 – MLM and TLM pre-training for cross-lingual modeling
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A newer version of the XLM model is also released as **XLM-R**, which has minor
+    changes in the training and corpus used. XLM-R is identical to the XLM model but
+    is trained on more languages and a much bigger corpus. The **CommonCrawl** and
+    **Wikipedia** corpus is aggregated, and the XLM-R is trained for MLM on it. However,
+    the XNLI dataset is also used for TLM. The following diagram shows the amount
+    of data used by XLM-R pre-training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.4 – Amount of data in gigabytes (GB) (log-scale) ](img/B17123_09_004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.4 – Amount of data in gigabytes (GB) (log-scale)
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many upsides and downsides when adding new languages for training
+    data— for example, adding new languages may not always improve the overall model
+    of **Natural Language Inference** (**NLI**). The **XNLI dataset** is usually used
+    for multilingual and cross-lingual NLI. From previous chapters, you have seen
+    the **Multi-Genre NLI** (**MNLI**) dataset for English; the XNLI dataset is almost
+    identical to it but has more languages, and it also has sentence pairs. However,
+    training only on this task is not enough, and it will not cover TLM pre-training.
+    For TLM pre-training, much broader datasets such as the parallel corpus of **OPUS**
+    (short for **Open Source Parallel Corpus**) are used. This dataset contains subtitles
+    from different languages, aligned and cleaned, with the translations provided
+    by many software sources such as Ubuntu, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows OPUS ([https://opus.nlpl.eu/trac/](https://opus.nlpl.eu/trac/))
+    and its components for searching and getting information about the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.5 – OPUS ](img/B17123_09_005(new).jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.5 – OPUS
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The steps for using cross-lingual models are described here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Simple changes to the previous code can show you how XLM-R performs mask filling.
+    First, you must change the model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Afterward, you need to change the mask token from `[MASK]` to `<mask>`, which
+    is a special token for XLM-R (or simply call `tokenizer.mask_token`). Here''s
+    the code to accomplish this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, you can run the same code, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The results will appear, like so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'But as you see from the Turkish and Persian examples, the model still made
+    mistakes; for example, in the Persian text, it just added `ی`, and in the Turkish
+    version, it added `,`. For the English sentence, it added `human`, which is not
+    what was expected. The sentences are not wrong, but not what we expected. However,
+    this time, we have a cross-lingual model that is trained using TLM; so, let''s
+    use it by concatenating two sentences and giving the model some extra hints. Here
+    we go:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The results will be shown, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That''s it! The model has now made the right choice. Let''s play with it a
+    bit more and see how it performs, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here is the result:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Well done! So far, you have learned about multilingual and cross-lingual models
+    such as mBERT and XLM. In the next section, you will learn how to use such models
+    for multilingual text similarity. You will also see some use cases, such as multilingual
+    plagiarism detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cross-lingual similarity tasks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Cross-lingual models are capable of representing text in a unified form, where
+    sentences are from different languages but those with close meaning are mapped
+    to similar vectors in vector space. XLM-R, as was detailed in the previous section,
+    is one of the successful models in this scope. Now, let's look at some applications
+    on this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cross-lingual text similarity
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the following example, you will see how it is possible to use a cross-lingual
+    language model pre-trained on the XNLI dataset to find similar texts from different
+    languages. A use-case scenario is where a plagiarism detection system is required
+    for this task. We will use sentences from the Azerbaijani language and see whether
+    XLM-R finds similar sentences from English—if there are any. The sentences from
+    both languages are identical. Here are the steps to take:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, you need to load a model for this task, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Afterward, we assume that we have sentences ready in the form of two separate
+    lists, as illustrated in the following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And the next step is to represent these sentences in vector space by using
+    the XLM-R model. You can do this by simply using the `encode` function of the
+    model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'At the final step, we will search for semantically similar sentences of the
+    first language on the other language''s representations, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In order to see a clear form of these results, you can use a pandas DataFrame,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And you will see the results with their matching score, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.6 – Plagiarism detection results (XLM-R) ](img/B17123_09_006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.6 – Plagiarism detection results (XLM-R)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model made mistakes in one case (row number *4*) if we accept the maximum
+    scored sentence to be paraphrased or translated, but it is useful to have a threshold
+    and accept values higher than it. We will show more comprehensive experimentation
+    in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, there are alternative bi-encoders available too. Such approaches
+    provide a pair encoding of two sentences and classify the result to train the
+    model. In such cases, **Language-Agnostic BERT Sentence Embedding** (**LaBSE**)
+    may be a good choice too, and it is available in the **sentence-transformers**
+    library and in **TensorFlow Hub** too. LaBSE is a dual encoder based on Transformers,
+    which is similar to Sentence-BERT, where two encoders that have the same parameters
+    are combined with a loss function based on the dual similarity of two sentences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the same example, you can change the model to LaBSE in a very simple
+    way and rerun the previous code (*Step 1*), as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The results are shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.7 – Plagiarism detection results (LaBSE) ](img/B17123_09_007.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.7 – Plagiarism detection results (LaBSE)
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you see, LaBSE performs better in this case, and the result in row number
+    *4* is correct this time. LaBSE authors claim that it works very well in finding
+    translations of sentences, but it is not so good at finding sentences that are
+    not completely identical. For this purpose, it is a very useful tool for finding
+    plagiarism in cases where a translation is used to steal intellectual material.
+    However, there are many other factors that change the results too—for example,
+    the resource size for the pre-trained model in each language and the nature of
+    the language pairs is also important. For a reasonable comparison, we need a more
+    comprehensive experiment, and we should consider many factors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing cross-lingual textual similarity
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, we will measure and visualize the degree of textual similarity between
+    two sentences, one of which is a translation of the other. **Tatoeba** is a free
+    collection of such sentences and translations, and it is part of the XTREME benchmark.
+    The community aims to get high-quality sentence translation with the support of
+    many participants. We''ll now take the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will get Russian and English sentences out of this collection. Make sure
+    the following libraries are installed before you start working:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the sentence pairs, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s look at the output, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.8 – Russian-English sentence pairs ](img/B17123_09_008.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 9.8 – Russian-English sentence pairs
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'First, we will take the first *K=30* sentence pairs for visualization, and
+    later, we will run an experiment for the entire set. Now, we will encode them
+    with sentence transformers that we already used for the previous example. Here
+    is the execution of the code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We now have 60 vectors of length 768\. We will reduce the dimensionality to
+    2 with `id 12`) insist on not getting close.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For a comprehensive analysis, let''s now measure the entire dataset. We encode
+    all of the source and target sentences—1K pairs—as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We calculate the cosine similarity between all pairs, save them in the `sims`
+    variable, and plot a histogram, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here is the output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.10 – Similarity histogram for the English and Russian sentence pairs
+    ](img/B17123_09_010.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 9.10 – Similarity histogram for the English and Russian sentence pairs
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'As can be seen, the scores are very close to 1\. This is what we expect from
+    a good cross-lingual model. The mean and standard deviation of all similarity
+    measurements also support the cross-lingual model performance, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can run the same code yourself for languages other than Russian. As you
+    run it with `fra`), `tam`), and so on, you will get the following resulting table.
+    The table indicates that you will see in your experiment that the model works
+    well in many languages but fails in others, such as **Afrikaans** or **Tamil**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Table 1 – Cross-lingual model performance for other languages  ](img/B17123_09_Table_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Table 1 – Cross-lingual model performance for other languages
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we applied cross-lingual models to measure similarity between
+    different languages. In the next section, we'll make use of cross-lingual models
+    in a supervised way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cross-lingual classification
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, you have learned that cross-lingual models are capable of understanding
+    different languages in semantic vector space where similar sentences, regardless
+    of their language, are close in terms of vector distance. But how it is possible
+    to use this capability in use cases where we have few samples available?
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, you are trying to develop an intent classification for a chatbot
+    in which there are few samples or no samples available for the second language;
+    but for the first language—let's say English—you do have enough samples. In such
+    cases, it is possible to freeze the cross-lingual model itself and just train
+    a classifier for the task. A trained classifier can be tested on a second language
+    instead of the language it is trained on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you will learn how to train a cross-lingual model in English
+    for text classification and test it in other languages. We have selected a very
+    low-resource language known as **Khmer** ([https://en.wikipedia.org/wiki/Khmer_language](https://en.wikipedia.org/wiki/Khmer_language)),
+    which is spoken by 16 million people in Cambodia, Thailand, and Vietnam. It has
+    few resources on the internet, and it is hard to find good datasets to train your
+    model on it. However, we have access to a good **Internet Movie Database** (**IMDb**)
+    sentiment dataset of movie reviews for sentiment analysis. We will use that dataset
+    to find out how our model performs on the language it is not trained on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram nicely depicts the kind of flow we will follow. The model
+    is trained with train data on the left, and this model is applied to the test
+    sets on the right. Please notice that MT and sentence-encoder mappings play a
+    significant role in the flow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.11 – Flow of cross-lingual classification ](img/B17123_09_011.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.11 – Flow of cross-lingual classification
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The required steps to load and train a model for cross-lingual testing are
+    outlined here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to load the dataset, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You need to shuffle the dataset to shuffle the samples before using them, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next step is to make a good test split out of this dataset, which is in
+    the Khmer language. In order to do so, you can use a translation service such
+    as Google Translate. First, you should save this dataset in Excel format, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Afterward, you can upload it to Google Translate and get the Khmer translation
+    of this dataset ([https://translate.google.com/?sl=en&tl=km&op=docs](https://translate.google.com/?sl=en&tl=km&op=docs)),
+    as illustrated in the following screenshot:![Figure 9.12 – Google document translator
+    ](img/B17123_09_012.jpg)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Figure 9.12 – Google document translator
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After selecting and uploading the document, it will give you the translated
+    version in Khmer, which you can copy and paste into an Excel file. It is also
+    required to save it in Excel format again. The result would be an Excel document
+    that is a translation of the original spam/ham English dataset. You can read it
+    using pandas by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And the result will be seen, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.13 – IMDB dataset in KHMER language. ](img/B17123_09_013.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 9.13 – IMDB dataset in KHMER language.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'However, it is required to get only text, so you should use the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now that you have text for both languages and the labels, you can split the
+    train and test validations, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next step is to provide the representation of these sentences using the
+    XLM-R cross-lingual model. First, you should load the model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And now, you can get the representations, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'But you should not forget to convert the labels to `numpy` format because TensorFlow
+    and Keras only deal with `numpy` arrays when using the `fit` function of the Keras
+    models. Here''s how to do it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now that everything is ready, let''s make a very simple model for classifying
+    the representations, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can fit your model using the following function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: And the results for `20` epochs of training are shown, as follows:![Figure 9.14
+    – Training results on the English version of the IMDb dataset ](img/B17123_09_014.jpg)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Figure 9.14 – Training results on the English version of the IMDb dataset
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'As you have seen, we used an English test set to see the model performance
+    across epochs, and it is reported as follows in the final epoch:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now we have trained our model and tested it on English, let''s test it on the
+    Khmer test set, as our model never saw any of the samples either in English or
+    in Khmer. Here''s the code to accomplish this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here are the results:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: So far, you have learned how it is possible to leverage the capabilities of
+    cross-lingual models in low-resource languages. It makes a huge impact and difference
+    when you can use such a capability in cases where there are very few samples or
+    no samples to train the model on. In the next section, you will learn how it is
+    possible to use zero-shot learning where there are no samples available, even
+    for high-resource languages such as English.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cross-lingual zero-shot learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In previous sections, you learned how to perform zero-shot text classification
+    using monolingual models. Using XLM-R for multilingual and cross-lingual zero-shot
+    classification is identical to the approach and code used previously, so we will
+    use **mT5** here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: mT5, which is a massively multilingual pre-trained language model, is based
+    on the encoder-decoder architecture of Transformers and is also identical to **T5**.
+    T5 is pre-trained on English and mT5 is trained on 101 languages from **Multilingual
+    Common Crawl** (**mC4**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The fine-tuned version of mT5 on the XNLI dataset is available from the HuggingFace
+    repository ([https://huggingface.co/alan-turing-institute/mt5-large-finetuned-mnli-xtreme-xnli](https://huggingface.co/alan-turing-institute/mt5-large-finetuned-mnli-xtreme-xnli)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The T5 model and its variant, mT5, is a completely text-to-text model, which
+    means it will produce text for any task it is given, even if the task is classification
+    or NLI. So, in the case of inferring this model, extra steps are required. We''ll
+    take the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to load the model and the tokenizer, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the next step, let''s provide samples to be used in zero-shot classification—a
+    sentence and labels, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As you see, the sequence itself is in German (`"Who will you vote for in the
+    next election?"`) but the labels are written in Turkish (`"spor"`, `"ekonomi"`,
+    `"politika"`). The `hypothesis_template` says: `"this example is ..."` in German.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The next step is to set the label `IDs`) of the entailment, `CONTRADICTS`,
+    and `NEUTRAL`, which will be used later in inferring the generated results. Here''s
+    the code you''ll need to do this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As you''ll recall, the T5 model uses prefixes to know the task that it is supposed
+    to perform. The following function provides the XNLI prefix, along with the premise
+    and hypothesis in the proper format:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the next step, for each label, a sentence will be generated, as illustrated
+    in the following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can see the resulting sequences by printing them, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: These sequences simply say that the task is XNLI-coded by `xnli:`; the premise
+    sentence is `"Who will you vote for in the next election?"` (in German) and the
+    hypothesis is `"this example is politics"`, `"this example is a sport"`, or `"this
+    example is economy"`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In the next step, you can tokenize the sequences and give them to the model
+    to generate the text according to it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The generated text actually gives scores for each token in the vocabulary,
+    and what we are looking for is the entailment, contradiction, and neutral scores.
+    You can get their score using their token IDs, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can see these scores by printing them, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The neutral score is not required for our purpose, and we only need contradiction
+    compared to entailment. So, you can use the following code to get only these scores:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now that you have these scores for each sequence of the samples, you can apply
+    a `softmax` layer on it to get the probabilities, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To see these probabilities, you can use `print`, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, you can compare the entailment probability of these three samples by selecting
+    them and applying a `softmax` layer over them, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And to see the values, use `print`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The result means the highest probability belongs to the third sequence. In
+    order to see it in a better shape, use the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The whole process can be summarized as follows: each label is given to the
+    model with the premise, and the model generates scores for each token in the vocabulary.
+    We use these scores to find out how much the entailment token scores over the
+    contradiction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fundamental limitations of multilingual models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Although the multilingual and cross-lingual models are promising and will affect
+    the direction of NLP work, they still have some limitations. Many recent works
+    addressed these limitations. Currently, the mBERT model slightly underperforms
+    in many tasks compared with its monolingual counterparts and may not be a potential
+    substitute for a well-trained monolingual model, which is why monolingual models
+    are still widely used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Studies in the field indicate that multilingual models suffer from the so-called
+    *curse of multilingualism* as they seek to appropriately represent all languages.
+    Adding new languages to a multilingual model improves its performance, up to a
+    certain point. However, it is also seen that adding it after this point degrades
+    performance, which may be due to shared vocabulary. Compared to monolingual models,
+    multilingual models are significantly more limited in terms of the parameter budget.
+    They need to allocate their vocabulary to each one of more than 100 languages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The existing performance differences between mono- and multilingual models can
+    be attributed to the capability of the designated tokenizer. The study *How Good
+    is Your Tokenizer? On the Monolingual Performance of Multilingual Language Models*
+    (2021) by Rust et al. ([https://arxiv.org/abs/2012.15613](https://arxiv.org/abs/2012.15613))
+    showed that when a dedicated language-specific tokenizer rather than a general-purpose
+    one (a shared multilingual tokenizer) is attached to a multilingual model, it
+    improves the performance for that language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some other findings indicate that it is not currently possible to represent
+    all the world's languages in a single model due to an imbalance in resource distribution
+    of different languages. As a solution, low-resource languages can be oversampled,
+    while high-resource languages can be undersampled. Another observation is that
+    knowledge transfer between two languages can be more efficient if those languages
+    are close. If they are distant languages, this transfer may have little effect.
+    This observation may explain why we got worse results for Afrikaans and Tamil
+    languages in the previous cross-lingual sentence-pair experiment part.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there is a lot of work on this subject, and these limitations may be
+    overcome at any time. As of writing this article, the team of XML-R recently proposed
+    two new models—namely, XLM-R XL and XLM-R XXL—that outperform the original XLM-R
+    model by 1.8% and 2.4% average accuracies respectively on XNLI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning the performance of multilingual models
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, let''s check whether the fine-tuned performance of the multilingual models
+    is actually worse than the monolingual models or not. As an example, let''s recall
+    the example of Turkish text classification with seven classes in [*Chapter 5*](B17123_05_Epub_AM.xhtml#_idTextAnchor081),
+    *Fine-Tuning Language Models for Text Classification*. In that experiment, we
+    fine-tuned a Turkish-specific monolingual model and achieved a good result. We
+    will repeat the same experiment, keeping everything as-is but replacing the Turkish
+    monolingual model with the mBERT and XLM-R models, respectively. Here''s how we''ll
+    do this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s recall the codes in that example again. We had fine-tuned the `"dbmdz/bert-base-turkish-uncased"`
+    model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the monolingual model, we got the following performance values:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.15 – Monolingual text classification performance (from Chapter 5,
+    Fine-Tuning Language Models for Text Classification) ](img/B17123_09_015.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 9.15 – Monolingual text classification performance (from Chapter 5, Fine-Tuning
+    Language Models for Text Classification)
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To fine-tune with mBERT, we need to only replace the preceding model instantiation
+    lines. Now, we will use the `"bert-base-multilingual-uncased"` multilingual model.
+    We instantiate it like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: There is not much difference in coding. When we run the experiment keeping all
+    other parameters and settings the same, we get the following performance values:![Figure
+    9.16 – mBERT fine-tuned performance ](img/B17123_09_016.jpg)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Figure 9.16 – mBERT fine-tuned performance
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Hmm! The multilingual model underperforms compared with its monolingual counterpart
+    roughly by 2.2% on all metrics.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s fine-tune the `"xlm-roberta-base"` XLM-R model for the same problem.
+    We''ll execute the XLM-R model initialization code, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Again, we keep all other settings exactly the same. We get the following performance
+    values with the XML-R model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 9.17 – XLM-R fine-tuned performance ](img/B17123_09_017.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.17 – XLM-R fine-tuned performance
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Not bad! The XLM model did give comparable results. The obtained results are
+    quite close to the monolingual model, with a roughly 1.0% difference. Therefore,
+    although monolingual results can be better than multilingual models in certain
+    tasks, we can achieve promising results with multilingual models. Think of it
+    this way: we may not want to train a whole monolingual model for a 1% performance
+    that lasts 10 days and more. Such small performance differences may be negligible
+    for us.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about multilingual and cross-lingual language model
+    pre-training and the difference between monolingual and multilingual pre-training.
+    CLM and TLM were also covered, and you gained knowledge about them. You learned
+    how it is possible to use cross-lingual models on various use cases, such as semantic
+    search, plagiarism, and zero-shot text classification. You also learned how it
+    is possible to train on a dataset from a language and test on a completely different
+    language using cross-lingual models. Fine-tuning the performance of multilingual
+    models was evaluated, and we concluded that some multilingual models can be a
+    substitute for monolingual models, remarkably keeping performance loss to a minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn how to deploy transformer models for real
+    problems and train them for production at an industrial scale.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Conneau, A., Lample, G., Rinott, R., Williams, A., Bowman, S. R., Schwenk,
+    H. and Stoyanov, V. (2018). XNLI: Evaluating cross-lingual sentence representations.
+    arXiv preprint arXiv:1809.05053.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Xue, L., Constant, N., Roberts, A., Kale, M., Al-Rfou, R., Siddhant, A. and
+    Raffel, C. (2020). mT5: A massively multilingual pre-trained text-to-text transformer.
+    arXiv preprint arXiv:2010.11934.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Lample, G. and Conneau, A. (2019). Cross-lingual language model pretraining.
+    arXiv preprint arXiv:1901.07291.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Conneau, A., Khandelwal, K., Goyal, N., Chaudhary, V., Wenzek, G., Guzmán,
+    F. and Stoyanov, V. (2019). Unsupervised cross-lingual representation learning
+    at scale. arXiv preprint arXiv:1911.02116.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Feng, F., Yang, Y., Cer, D., Arivazhagan, N. and Wang, W. (2020). Language-agnostic
+    bert sentence embedding. arXiv preprint arXiv:2007.01852.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Rust, P., Pfeiffer, J., Vulić, I., Ruder, S. and Gurevych, I. (2020). How
+    Good is Your Tokenizer? On the Monolingual Performance of Multilingual Language
+    Models. arXiv preprint arXiv:2012.15613.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Goyal, N., Du, J., Ott, M., Anantharaman, G. and Conneau, A. (2021). Larger-Scale
+    Transformers for Multilingual Masked Language Modeling. arXiv preprint arXiv:2105.00572.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

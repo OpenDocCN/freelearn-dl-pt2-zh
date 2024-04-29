@@ -1,0 +1,1104 @@
+- en: '*Chapter 4*:Autoregressive and Other Language Models'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We looked at details of `text2tex`t applications, such as summarization, paraphrasing,
+    and MT.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with AR language models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working with **Sequence-to-Sequence** (**Seq2Seq**) models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AR language model training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NLG using AR models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Summarization and MT fine-tuning using `simpletransformers`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following libraries/packages are required to successfully complete this
+    chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anaconda
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`transformers 4.0.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pytorch 1.0.2`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tensorflow 2.4.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`datasets 1.4.1`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tokenizers`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`simpletransformers 0.61`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'All notebooks with coding exercises will be available at the following GitHub
+    link: [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH04).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Check out the following link to see the Code in Action: [https://bit.ly/3yjn55X](https://bit.ly/3yjn55X)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with AR language models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The Transformer architecture was originally intended to be effective for Seq2Seq
+    tasks such as MT or summarization, but it has since been used in diverse NLP problems
+    ranging from token classification to coreference resolution. Subsequent works
+    began to use separately and more creatively the left and right parts of the architecture.
+    The objective, also known as `[MASK]` symbols that are used during the pre-training
+    phase are absent from the data during the fine-tuning phase, leading to a pre-training-fine-tuning
+    discrepancy. Secondly, the BERT model arguably assumes that the masked tokens
+    are independent of each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, AR models keep away from such assumptions regarding independence
+    and do not naturally suffer from the pre-train-fine-tuning discrepancy because
+    they rely on the objective predicting the next token conditioned on the previous
+    tokens without masking them. They merely utilize the decoder part of the transformer
+    with masked self-attention. They prevent the model from accessing words to the
+    right of the current word in a forward direction (or to the left of the current
+    word in a backward direction), which is called **unidirectionality**. They are
+    also called **Causal Language Models** (**CLMs**) due to their unidirectionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The difference between AE and AR models is simply depicted here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.1 – AE versus AR language model ](img/B17123_04_001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.1 – AE versus AR language model
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT and its two successors (GPT-2, GPT-3), **Transformer-XL**, and **XLNet**
+    are among the popular AR models in the literature. Even though XLNet is based
+    on autoregression, it somehow managed to make use of both contextual sides of
+    the word in a bidirectional fashion, with the help of the permutation-based language
+    objective. Now, we start introducing them and show how to train the models with
+    a variety of experiments. Let's look at GPTs first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction and training models with GPT
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: AR models are made up of multiple transformer blocks. Each block contains a
+    masked multi-head self-attention layer along with a pointwise feed-forward layer.
+    The activation in the final transformer block is fed into a softmax function that
+    produces the word-probability distributions over an entire vocabulary of words
+    to predict the next word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the original GPT paper *Improving Language Understanding by Generative Pre-Training*
+    (2018), the authors addressed several bottlenecks that traditional **Machine Learning**
+    (**ML**)-based **Natural Language Processing** (**NLP**) pipelines are subject
+    to. For example, these pipelines firstly require both a massive amount of task-specific
+    data and task-specific architecture. Secondly, it is hard to apply task-aware
+    input transformations with minimal changes to the architecture of the pre-trained
+    model. The original GPT and its successors (GPT-2 and GPT-3), designed by the
+    OpenAI team, have focused on solutions to alleviate these bottlenecks. The major
+    contribution of the original GPT study is that the pre-trained model achieved
+    satisfactory results, not only for a single task but a diversity of tasks. Having
+    learned the generative model from unlabeled data, which is called unsupervised
+    pre-training, the model is simply fine-tuned to a downstream task by a relatively
+    small amount of task-specific data, which is called **supervised fine-tuning**.
+    This two-stage scheme is widely used in other transformer models, where unsupervised
+    pre-training is followed by supervised fine-tuning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To keep the GPT architecture as generic as possible, only the inputs are transformed
+    into a task-specific manner, while the entire architecture is kept almost the
+    same. This traversal-style approach converts the textual input into an ordered
+    sequence according to the task so that the pre-trained model can understand the
+    task from it. The left part of *Figure 4.2* (inspired from the original paper)
+    illustrates the transformer architecture and training objectives used in the original
+    GPT work. The right part shows how to transform input for fine-tuning on several
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To put it simply, for a single-sequence task such as text classification, the
+    input is passed through the network as-is, and the linear layer takes the last
+    activations to make a decision. For sentence-pair tasks such as textual entailment,
+    the input that is made up of two sequences is marked with a delimiter, shown as
+    the second example in *Figure 4.2*. In both scenarios, the architecture sees uniform
+    token sequences be processed by the pre-trained model. The delimiter used in this
+    transformation helps the pre-trained model to know which part is premise or hypothesis
+    in the case of textual entailment. Thanks to input transformation, we do not have
+    to make substantial changes in the architecture across the tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can see a representation of input transformation here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![ Figure 4.2 – Input transformation (inspired from the paper) ](img/B17123_04_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.2 – Input transformation (inspired from the paper)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GPT and its two successors mostly focused on seeking a particular architectural
+    design where the fine-tuning phase was not required. It is based on the idea that
+    a model can be very skilled in the sense that it can learn much of the information
+    about a language during the pre-training phase, with little work left for the
+    fine-tuning phase. Thus, the fine-tuning process can be completed within three
+    epochs and with relatively small examples for most of the tasks. In an extreme
+    case, zero-shot learning aims to disable the fine-tuning phase. The underlying
+    idea is that the model can learn much information about the language during pre-training.
+    This is especially true for all transformer-based models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Successors of the original GPTs
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: GPT-2 (see the paper *Language Models are Unsupervised Multitask Learners* (2019)),
+    a successor to the original GPT-1, is a larger model trained on much more training
+    data, called WebText, than the original one. It achieved state-of-the-art results
+    on seven out of the eight tasks in a zero-shot setting in which there is no fine-tuning
+    applied but had limited success in some tasks. It achieved comparable results
+    on smaller datasets for measuring long-range dependency. The GPT-2 authors argued
+    that language models do not necessarily need explicit supervision to learn a task.
+    Instead, they can learn these tasks when trained on a huge and diverse dataset
+    of web pages. It is considered a general system replacing the learning objective
+    *P(output|input)* in the original GPT with *P(output|input, task-i)*, where the
+    model produces the different output for the same input, conditioned on a specific
+    task—that is, GPT-2 learns multiple tasks by training the same unsupervised model.
+    One single pre-trained model learns different abilities just through the learning
+    objective. We see similar formulations in multi-task and meta-task settings in
+    other studies as well. Such a shift to **Multi-Task Learning** (**MTL**) makes
+    it possible to perform many different tasks for the same input. But how do the
+    models determine which task to perform? They do this through zero-shot task transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compared to the original GPT, GPT-2 has no task-specific fine-tuning and is
+    able to work in a zero-shot-task-transfer setting, where all the downstream tasks
+    are part of predicting conditional probabilities. The task is somehow formulated
+    within the input, and the model is expected to understand the nature of downstream
+    tasks and provide answers accordingly. For example, for an English-to-Turkish
+    MT task, it is conditioned not only on the input but also on the task. The input
+    is arranged so that an English sentence is followed by a Turkish sentence, with
+    a delimiter from which the model understands that the task is an English-to-Turkish
+    translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The OpenAI team trained the GPT-3 model (see the paper *Language models are
+    few-shot learners* (2020)) with 175 billion parameters, which is 100 times bigger
+    than GPT-2\. The architecture of GPT-2 and GPT-3 is similar, with the main differences
+    usually being in the model size and the dataset quantity/quality. Due to the massive
+    amount of data in the dataset and the large number of parameters it is trained
+    on, it achieved better results on many downstream tasks in zero-shot, one-shot,
+    and few-shot (*K=32*) settings without any gradient-based fine-tuning. The team
+    showed that the model performance increased as the parameter size and the number
+    of examples increased for many tasks, including translation, **Question Answering**
+    (**QA**), and masked-token tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer-XL
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Transformer models suffer from the fixed-length context due to a lack of recurrence
+    in the initial design and context fragmentation, although they are capable of
+    learning long-term dependency. Most of the transformers break the documents into
+    a list of fixed-length (mostly 512) segments, where any information flow across
+    segments is not possible. Consequently, the language models are not able to capture
+    long-term dependencies beyond this fixed-length limit. Moreover, the segmentation
+    procedure builds the segments without paying attention to sentence boundaries.
+    A segment can be absurdly made up of the second half of a sentence and the first
+    half of its successor, hence the language models can miss the necessary contextual
+    information when predicting the next token. This problem is referred to as *context
+    fragmentation* problem by the studies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To address and overcome these issues, the Transformer-XL authors (see the paper
+    *Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context* (2019))
+    proposed a new transformer architecture, including a segment-level recurrence
+    mechanism and a new positional encoding scheme. This approach inspired many subsequent
+    models. It is not limited to two consecutive segments since the effective context
+    can extend beyond the two segments. The recurrence mechanism works between every
+    two consecutive segments, leading to spanning the several segments to a certain
+    degree. The largest possible dependency length that the model can attend is limited
+    by the number of layers and segment lengths.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: XLNet
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Masked Language Modeling** (**MLM**) dominated the pre-training phase of
+    transformer-based architectures. However, it has faced criticism in the past since
+    the masked tokens are present in the pre-training phase but are absent during
+    the fine-tuning phase, which leads to a discrepancy between pre-training and fine-tuning.
+    Because of this absence, the model may not be able to use all of the information
+    learned during the pre-training phase. XLNet (see the paper *XLNet: Generalized
+    Autoregressive Pretraining for Language Understanding* (2019)) replaces MLM with
+    **Permuted Language Modeling** (**PLM**), which is a random permutation of the
+    input tokens to overcome this bottleneck. The permutation language modeling makes
+    each token position utilize contextual information from all positions, leading
+    to capturing bidirectional context. The objective function only permutes the factorization
+    order and defines the order of token predictions, but doesn''t change the natural
+    positions of sequences. Briefly, the model chooses some tokens as a target after
+    permutation, and it further tries to predict them conditioned on the remaining
+    tokens and the natural positions of the target. It makes it possible to use an
+    AR model in a bidirectional fashion.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'XLNet takes advantage of both AE and AR models. It is, indeed, a generalized
+    AR model; however, it can attend the tokens from both left and right contexts,
+    thanks to permutation-based language modeling. Besides its objective function,
+    XLNet is made up of two important mechanisms: it integrates the segment-level
+    recurrence mechanism of Transformer-XL into its framework, and it includes the
+    careful design of the two-stream attention mechanism for target-aware representations.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's discuss the models, using both parts of the Transformers in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with Seq2Seq models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The left encoder and the right decoder part of the transformer are connected
+    with cross-attention, which helps each decoder layer attend over the final encoder
+    layer. This naturally pushes models toward producing output that closely ties
+    to the original input. A Seq2Seq model, which is the original transformer, achieves
+    this by using the following scheme:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Input tokens-> embeddings-> encoder-> decoder-> output tokens*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seq2Seq models keep the encoder and decoder part of the transformer. T5, **Bidirectional
+    and Auto-Regressive Transformer** (**BART**), and **Pre-training with Extracted
+    Gap-sentences for Abstractive Summarization Sequence-to-Sequence models** (**PEGASUS**)
+    are among the popular Seq2Seq models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: T5
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Most NLP architectures, ranging from Word2Vec to transformers learn embeddings
+    and other parameters by predicting the masked words using context (neighbor) words.
+    We treat NLP problems as word prediction problems. Some studies cast almost all
+    NLP problems as QA or token classification. Likewise, T5 (see the paper *Exploring
+    the Limits of Transfer Learning with a Unified Text-to-Text Transformer* (2019))
+    proposed a unifying framework to solve many tasks by casting them to a text-to-text
+    problem. The idea underlying T5 is to cast all NLP tasks to a text-to-text (Seq2Seq)
+    problem where both input and output are a list of tokens because the text-to-text
+    framework has been found to be beneficial in applying the same model to diverse
+    NLP tasks from QA to text summarization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram, which is inspired from the original paper, shows how
+    T5 solves four different NLP problems—MT, linguistic acceptability, semantic similarity,
+    and summarization—within a unified framework:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.3 – Diagram of the T5 framework ](img/B17123_04_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.3 – Diagram of the T5 framework
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The T5 model roughly follows the original encoder-decoder transformer model.
+    The modifications are done in the layer normalization and position embeddings
+    scheme. Instead of using sinusoidal positional embedding or learned embedding,
+    T5 uses relative positional embedding, which is becoming more common in transformer
+    architectures. T5 is a single model that can work on a diverse set of tasks such
+    as language generation. More importantly, it casts tasks into a text-to-text format.
+    The model is fed with text that is made up of a task prefix and the input attached
+    to it. We convert a labeled textual dataset to a `{''inputs'': ''....'', ''targets'':
+    ...''}` format, where we insert the purpose in the input as a prefix. Then, we
+    train the model with labeled data so that it learns what to do and how to do it.
+    As shown in the preceding diagram, for the English-German translation task, the
+    `"translate English to German: That is good."` input is going to produce `"das
+    is gut."`. Likewise, any input with a `"summarize:"` prefix will be summarized
+    by the model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing BART
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As with XLNet, the BART model (see the paper *BART: Denoising Sequence-to-Sequence
+    Pre-training for Natural Language Generation, Translation, and Comprehension*
+    (2019)) takes advantage of the schemes of AE and AR models. It uses standard Seq2Seq
+    transformer architecture, with a small modification. BART is a pre-trained model
+    using a variety of noising approaches that corrupt documents. The major contribution
+    of the study to the field is that it allows us to apply several types of creative
+    corruption schemes, as shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.4 – Diagram inspired by the original BART paper ](img/B17123_04_004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.4 – Diagram inspired by the original BART paper
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will look at each scheme in detail, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`[MASK]` symbol, the same as with the BERT model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Token Deletion**: Tokens are randomly removed from the documents. The model
+    is forced to determine which positions are removed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`[MASK]` token. There is also `[MASK]` token insertion.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Sentence Permutation**: The sentences in the input are segmented and shuffled
+    in random order.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Document Rotation**: The document is rotated so that it begins with a randomly
+    selected token, **C** in the case in the preceding diagram. The objective is to
+    find the start position of a document.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The BART model can be fine-tuned in several ways for downstream applications
+    such as BERT. For the task of sequence classification, the input is passed through
+    encoder and decoder, and the final hidden state of the decoder is considered the
+    learned representation. Then, a simple linear classifier can make predictions.
+    Likewise, for token classification tasks, the entire document is fed into the
+    encoder and decoder, and the last state of the final decoder is the representation
+    for each token. Based on these representations, we can solve the token classification
+    problem, which we will discuss in [*Chapter 6*](B17123_06_Epub_AM.xhtml#_idTextAnchor090),
+    *Fine-Tuning Language Models for Token Classification*. **Named-Entity Recognition**
+    (**NER**) and **Part-Of-Speech** (**POS**) tasks can be solved using this final
+    representation, where NER identifies entities such as person and organization
+    in a text and POS associates each token with their lexical categories, such as
+    noun, adjective, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For sequence generation, the decoder block of the BART model, which is an AR
+    decoder, can be directly fine-tuned for sequence-generation tasks such as abstractive
+    QA or summarization. The BART authors (Lewis, Mike, et al.) trained the models
+    using two standard summarization datasets: CNN/DailyMail and XSum. The authors
+    also showed that it is possible to use both the encoder part—which consumes a
+    source language—and the decoder part, which produces the words in the target language
+    as a single pre-trained decoder for MT. They replaced the encoder embedding layer
+    with a new randomly initialized encoder in order to learn words in the source
+    language. Then, the model is trained in an end-to-end fashion, which trains the
+    new encoder to map foreign words into an input that BART can denoise to the target
+    language. The new encoder can use a separate vocabulary, including foreign language,
+    from the original BART model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the HuggingFace platform, we can access the original pre-trained BART model
+    with the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we call the standard `summarization` pipeline of the `transformers` library,
+    as shown in the following line of code, a distilled pre-trained BART model is
+    loaded. This call implicitly loads the `"sshleifer/distilbart-cnn-12-6"` model
+    and the corresponding tokenizers, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following code explicitly loads the same model and the corresponding tokenizer.
+    The code example takes a text to be summarized and outputs the results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we get our hands dirty and learn how to train such models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: AR language model training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, you will learn how it is possible to train your own AR language
+    models. We will start with GPT-2 and get a deeper look inside its different functions
+    for training, using the `transformers` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find any specific corpus to train your own GPT-2, but for this example,
+    we used *Emma* by Jane Austen, which is a romantic novel. Training on a much bigger
+    corpus is highly recommended to have a more general language generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we start, it''s good to note that we used TensorFlow''s native training
+    functionality to show that all Hugging Face models can be directly trained on
+    TensorFlow or PyTorch if you wish to. Follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can download the *Emma* novel raw text by using the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The first step is to train the `BytePairEncoding` tokenizer for GPT-2 on a
+    corpus that you intend to train your GPT-2 on. The following code will import
+    the `BPE` tokenizer from the `tokenizers` library:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As you see, in this example, we intend to train a more advanced tokenizer by
+    adding more functionality, such as the `Lowercase` normalization. To make a `tokenizer`
+    object, you can use the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The first line makes a tokenizer from the `BPE` tokenizer class. For the normalization
+    part, `Lowercase` has been added, and the `pre_tokenizer` attribute is set to
+    be as `ByteLevel` to ensure we have bytes as our input. The `decoder` attribute
+    must be also set to `ByteLevelDecoder` to be able to decode correctly.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, the tokenizer will be trained using a `50000` maximum vocabulary size
+    and an initial alphabet from `ByteLevel`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It is also necessary to add special tokens to be considered. To save the tokenizer,
+    you are required to create a directory, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can save the tokenizer by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now that the tokenizer is saved, it''s time to preprocess the corpus and make
+    it ready for GPT-2 training using the saved tokenizer, but first, important imports
+    must not be forgotten. The code to do the imports is illustrated in the following
+    snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And the tokenizer can be loaded by using `GPT2TokenizerFast`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It is also essential to add special tokens with their marks, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can also double-check to see if everything is correct or not by running
+    the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This code will output the `2` for the current tokenizer.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'You can also test it for a sentence by executing the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: For this output, `0` is the beginning of the sentence, `265`, `157`, and `56`
+    are related to the sentence itself, and the EOS is marked as `2`, which is `</s>`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'These settings must be used when creating a configuration object. The following
+    code will create a `config` object and the TensorFlow version of the GPT-2 model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'On running the `config` object, you can see the configuration in dictionary
+    format, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see, other settings are not touched, and the interesting part is
+    that `vocab_size` is set to `11750`. The reason behind this is that we set the
+    maximum vocabulary size to be `50000`, but the corpus had less, and its `11750`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, you can get your corpus ready for pre-training, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The content will now include all raw text from the raw file, but it is required
+    to remove `''\n''` from each line and drop lines with fewer than `10` characters,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Dropping short lines will ensure that the model is trained on long sequences,
+    to be able to generate longer sequences. At the end of the preceding snippet,
+    `content_p` has the concatenated raw file with `eos_token` added to the end. But
+    you can follow different strategies too—for example, you can separate each line
+    by adding `</s>` to each line, which will help the model to recognize when the
+    sentence ends. However, we intend to make it work for much longer sequences without
+    encountering EOS. The code is illustrated in the following snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The GPT tokenizer from the preceding code snippet will tokenize the whole text
+    and make it one whole, long sequence of token IDs.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, it''s time to make the samples for training, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code makes `examples` a size of `100` for each one starting from
+    a given part of text and ending at `100` tokens later:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In `train_data`, there will be a sequence of size `99` from start to the 99th
+    token, and the labels will have a token sequence from `1` to `100`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'For faster training, it is required to make the data in the form of a TensorFlow
+    dataset, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`buffer` is the buffer size used for shuffling data, and `batch_size` is the
+    batch size for training. `drop_remainder` is used to drop the remainder if it
+    is less than `16`.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, you can specify your `optimizer`, `loss`, and `metrics` properties, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'And the model is compiled and ready to be trained with the number of epochs
+    you wish, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You will see an output that looks something like this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.5 – GPT-2 training using TensorFlow/Keras ](img/B17123_04_005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.5 – GPT-2 training using TensorFlow/Keras
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now look at NLG using AR models. Now that you have saved the model,
+    it will be used for generating sentences in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Up until this point, you have learned how it is possible to train your own model
+    for NLG. In the next section, we describe how to utilize NLG models for language
+    generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NLG using AR models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous section, you have learned how it is possible to train an AR
+    model on your own corpus. As a result, you have trained the GPT-2 version of your
+    own. But the missing answer to the question *How can I use it?* remains. To answer
+    that, let''s proceed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start generating sentences from the model you have just trained, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `generate` function that is defined in the preceding code snippet takes
+    a `start` string and generates sequences following that string. You can change
+    parameters such as `max_length` to be set to a smaller sequence size or `num_return_sequences`
+    to have different generations.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s just try it with an empty string, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We get the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.6 – GPT-2 text-generation example ](img/B17123_04_006.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 4.6 – GPT-2 text-generation example
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As you can see from the preceding output, a long text is generated, even if
+    the semantics of the text is not very pleasing, but the syntax is almost correct
+    in many cases.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, let''s try different starts, with `max_length` set to a lower value such
+    as `30`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you recall `weston` is one of the characters from the novel.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To save the model, you can use the following code to make it reusable for publishing
+    or different applications:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To make sure your model is saved correctly, you can try loading it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Two files are saved—a `config` file and a `model.h5` file, which is for the
+    TensorFlow version. We can see both of these files in the following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.7 – Language model save_pretrained output ](img/B17123_04_007.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 4.7 – Language model save_pretrained output
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Hugging Face also has a standard for filenames that must be used—these standard
+    filenames are available by using the following import:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: However, when using the `save_pretrained` function, it is not required to put
+    the filenames—just the directory will suffice.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Hugging Face also has `AutoModel` and `AutoTokenizer` classes, as you have
+    seen from the previous sections. You can also use this functionality to save the
+    model, but before doing that there are still a few configurations that need to
+    be done manually. The first thing is to save the tokenizer in the proper format
+    to be used by `AutoTokenizer`. You can do this by using `save_pretrained`, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This is the output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.8 – Tokenizer save_pretrained output ](img/B17123_04_008.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 4.8 – Tokenizer save_pretrained output
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The file list is shown in the directory you specified, but `tokenizer_config`
+    must be manually changed to be usable. First, you should rename it as `config.json`,
+    and secondly, you should add a property in `model_type` property is `gpt2`, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, everything is ready, and you can simply use these two lines of code to
+    load `model` and `tokenizer`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: However, do not forget to set `from_tf` to `True` because your model is saved
+    in TensorFlow format.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Up to this point, you have learned how you can pre-train and save your own text-generation
+    model using `tensorflow` and `transformers`. You also learned how it is possible
+    to save a pre-trained model and prepare it to be used as an auto model. In the
+    next section, you will learn the basics of using other models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summarization and MT fine-tuning using simpletransformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Up to now, you have learned the basics and advanced methods of training language
+    models, but it is not always feasible to train your own language model from scratch
+    because there are sometimes impediments such as low computational power. In this
+    section, you will look at how to fine-tune language models on your own datasets
+    for specific tasks of MT and summarization. Follow these next steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To start, you need to install the `simpletransformers` library, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The next step is to download the dataset that contains your parallel corpus.
+    This parallel corpus can be of any type of Seq2Seq task. For this example, we
+    are going to use the MT example, but you can use any other dataset for other tasks
+    such as paraphrasing, summarization, or even for converting text to **Structured
+    Query Language** (**SQL**).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can download the dataset from [https://www.kaggle.com/seymasa/turkish-to-english-translation-dataset/version/1](https://www.kaggle.com/seymasa/turkish-to-english-translation-dataset/version/1).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After you have downloaded and unpacked the data, it is necessary to add `EN`
+    and `TR` for column headers, for easier use. You can load the dataset using `pandas`,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It is required to add T5-specific commands to the dataset to make it understand
+    the command it is dealing with. You can do this with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Afterward, you can reform the DataFrame, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The result is shown in the following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.9 – English-Turkish MT parallel corpus ](img/B17123_04_009.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 4.9 – English-Turkish MT parallel corpus
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, run the following code to import the required classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Defining arguments for training is accomplished using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'At the end, you can load any model you wish to fine-tune. Here''s the one we''ve
+    chosen:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Don't forget to set `use_cuda` to `False` if you do not have enough **Compute
+    Unified Device Architecture** (**CUDA**) memory for mT5.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Splitting the `train` and `eval` DataFrames can be done using the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The last step is to use the following code to start training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The result of the training will be shown, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 4.10 – mT5 model evaluation results ](img/B17123_04_010.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: Figure 4.10 – mT5 model evaluation results
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: This indicates evaluation and training loss.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'You can simply load and use the model with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `model_predict` function can be used now for the translation from English
+    to Turkish.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The Simple Transformers library (`simpletransformers`) makes training many models,
+    from sequence labeling to Seq2Seq models, very easy and usable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well done! We have learned how to train our own AR models and have come to the
+    end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have learned various aspects of AR language models, from
+    pre-training to fine-tuning. We looked at the best features of such models by
+    training generative language models and fine-tuning on tasks such as MT. We understood
+    the basics of more complex models such as T5 and used this kind of model to perform
+    MT. We also used the `simpletransformers` library. We trained GPT-2 on our own
+    corpus and generated text using it. We learned how to save it and use it with
+    `AutoModel`. We also had a deeper look into how BPE can be trained and used, using
+    the `tokenizers` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will see how to fine-tune models for text classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are a few references that you can use to expand on what we learned in
+    this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Radford, A.*, *Wu, J.*, *Child, R.*, *Luan, D.*, *Amodei, D.* and *Sutskever,
+    I.* (*2019*). *Language Models are Unsupervised Multitask Learners*. *OpenAI blog*,
+    *1(8)*, *9*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Lewis, M.*, *Liu, Y.*, *Goyal, N.*, *Ghazvininejad, M.*, *Mohamed, A*., *Levy,
+    O.* and *Zettlemoyer, L.* (*2019*). *BART: Denoising Sequence-to-Sequence Pre-training
+    for Natural Language Generation, Translation, and Comprehension*. *arXiv preprint
+    arXiv:1910.13461*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Xue, L.*, *Constant, N.*, *Roberts, A.*, *Kale, M.*, *Al-Rfou, R*., *Siddhant,
+    A.* and *Raffel, C.* (*2020*). *mT5: A massively multilingual pre-trained text-to-text
+    transformer*. *arXiv preprint arXiv:2010.11934*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Raffel, C.* , *Shazeer, N.* , *Roberts, A.* , *Lee, K.* , *Narang, S.* , *Matena,
+    M*. and *Liu, P. J.* (*2019*). *Exploring the Limits of Transfer Learning with
+    a Unified Text-to-Text Transformer*. *arXiv preprint arXiv:1910.10683*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Yang, Z.*, *Dai, Z.*, *Yang, Y.*, *Carbonell, J.*, *Salakhutdinov, R.* and
+    *Le, Q. V.* (*2019*). *XLNet: Generalized Autoregressive Pretraining for Language
+    Understanding*. *arXiv preprint arXiv:1906.08237*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Dai, Z.*, *Yang, Z.*, *Yang, Y.*, *Carbonell, J*., *Le, Q. V.* and *Salakhutdinov,
+    R.* (*2019*). *Transformer-xl: Attentive Language Models Beyond a Fixed-Length
+    Context*. *arXiv preprint arXiv:1901.02860*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
