@@ -1,113 +1,162 @@
 - en: Appendix II — Hardware Constraints for Transformer Models
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 附录 II —— 对变压器模型的硬件约束
 - en: Transformer models could not exist without optimized hardware. Memory and disk
     management design remain critical components. However, computing power remains
     a prerequisite. It would be nearly impossible to train the original Transformer
     described in *Chapter 2*, *Getting Started with the Architecture of the Transformer
     Model*, without GPUs. GPUs are at the center of the battle for efficient transformer
     models.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: Transformer 模型无法没有优化的硬件存在。内存和硬盘管理设计仍然是关键组成部分。然而，计算能力仍然是先决条件。要训练*第二章*中描述的原始 Transformer
+    几乎是不可能的，*开始使用 Transformer 模型架构*，没有 GPU。GPU 处于高效变压器模型的战斗的中心。
 - en: 'This appendix to *Chapter 3*, *Fine-Tuning BERT Models*, will take you through
     the importance of GPUs in three steps:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个附录将引导您在三个步骤中了解 GPU 的重要性：
 - en: The architecture and scale of transformers
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 变压器的架构和规模
 - en: CPUs versus GPUs
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: CPU 与 GPU
 - en: Implementing GPUs in PyTorch as an example of how any other optimized language
     optimizes
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在 PyTorch 中实现 GPU，作为任何其他优化语言优化的示例
 - en: The Architecture and Scale of Transformers
+  id: totrans-6
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 变压器的架构和规模
 - en: 'A hint about hardware-driven design appears in the *The architecture of multi-head
     attention* section of *Chapter 2*, *Getting Started with the Architecture of the
     Transformer Model*:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于硬件驱动设计的线索出现在*第二章*的*开始使用 Transformer 模型架构*的*多头关注的架构*部分中：
 - en: “However, we would only get one point of view at a time by analyzing the sequence
     with one *d*[model] block. Furthermore, it would take quite some calculation time
     to find other perspectives.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: “然而，通过分析具有一个 *d*[model] 块的序列，我们只会一次得到一个观点。此外，要找到其他观点需要相当长的计算时间。
 - en: A better way is to divide the *d*[model] = 512 dimensions of each word *x*[n]
     of *x* (all the words of a sequence) into 8 *d*[k] = 64 dimensions.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个更好的方法是将每个单词 *x*（一个序列的所有单词）的 *d*[model] = 512 维分成 8 个 *d*[k] = 64 维。
 - en: 'We then can run the 8 “heads” in parallel to speed up the training and obtain
     8 different representation subspaces of how each word relates to another:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们可以并行运行这 8 个“头部”，加快训练速度，并获得关于每个单词如何与另一个单词相关的 8 个不同的表示子空间：
 - en: '![Une image contenant table  Description générée automatiquement](img/B17948_Appendix_II_01.png)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![包含表格描述的图像](img/B17948_Appendix_II_01.png)'
 - en: 'Figure II.1: Multi-head representations'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.1：多头表示
 - en: You can see that there are now 8 heads running in parallel.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 您现在可以看到有 8 个头并行运行。
 - en: We can easily see the motivation for forcing the attention heads to learn 8
     different perspectives. However, digging deeper into the motivations of the original
     8 attention heads performing different calculations in parallel led us directly
     to hardware optimization.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以很容易地看出，强迫注意力头学习 8 种不同角度的动机。然而，深入挖掘原始 8 个注意力头并行执行不同计算的动机直接导致硬件优化。
 - en: '*Brown* et al. (2020), in *Language Models* *are Few-Shot Learners*, [https://arxiv.org/abs/2005.14165](https://arxiv.org/abs/2005.14165),
     describe how they designed GPT models. They confirm that transformer architectures
     are hardware-driven.'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: '*Brown*等人（2020年）在*语言模型*——*少量训练者*中，[https://arxiv.org/abs/2005.14165](https://arxiv.org/abs/2005.14165)，描述了他们如何设计
+    GPT 模型。他们证实变压器架构是硬件驱动的。'
 - en: We partition the model across GPUs along with both the depth and width dimension
     to minimize data-transfer between nodes. The precise architectural parameters
     for each model are chosen based on computational efficiency and load-balancing
     in the layout of models across GPUs.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将模型跨 GPUs 进行分区，同时沿深度和宽度维度，以最小化节点间的数据传输。每个模型的精确结构参数基于跨 GPU 模型布局中的计算效率和负载平衡而选择。
 - en: Transformers differ in their construction (encoders and decoders) and size.
     But they all have hardware constraints that require parallel processing. We need
     to take this a step further and see why GPUs are so special.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: Transformer 在构造（编码器和解码器）和大小上有所不同。但它们都有需要并行处理的硬件约束。我们需要进一步了解为什么 GPU 如此特殊。
 - en: Why GPUs are so special
+  id: totrans-18
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 为什么 GPU 如此特殊
 - en: A clue to GPU-driven design emerges in the *The architecture of multi-head attention*
     section of *Chapter 2*, *Getting Started with the Architecture of the Transformer
     Model*.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*第二章*的*开始使用 Transformer 模型架构*的*多头关注的架构*部分中出现了 GPU 驱动设计的线索。
 - en: 'Attention is defined as “Scaled Dot-Product Attention,” which is represented
     in the following equation into which we plug *Q*, *K*, and *V*:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意力被定义为“缩放点积注意力”，用以下方程表示，我们将 *Q*、*K* 和 *V* 带入其中：
 - en: '![](img/Appendix_II_001.png)'
+  id: totrans-21
   prefs: []
   type: TYPE_IMG
 - en: 'We can now conclude the following:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
 - en: Attention heads are designed for parallel computing
+  id: totrans-23
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Attention heads are based on *matmul*, matrix multiplication
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: GPUs are designed for parallel computing
+  id: totrans-25
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -115,14 +164,17 @@
     But if we run the attention heads through serial processing, it would take far
     longer to train an efficient transformer model. Very small educational transformers
     can run on CPUs. However, they do not qualify as state-of-the-art models.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
 - en: A **GPU** (**graphics processing unit**) is designed for *parallel processing*.
     Transformer models were designed for *parallel processing (GPUs)*, not *serial
     processing (CPUs)*.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
 - en: GPUs are also designed for matrix multiplication
+  id: totrans-28
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -130,39 +182,48 @@
     A significant proportion of artificial intelligence algorithms use matrix operations,
     including transformer models. NVIDIA GPUs contain a goldmine of hardware optimization
     for matrix operations. The following links provide more information:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
 - en: '[https://blogs.nvidia.com/blog/2009/12/16/whats-the-difference-between-a-cpu-and-a-gpu/](https://blogs.nvidia.com/blog/2009/12/16/whats-the-difference-between-a-cpu-and-a-gpu/)'
+  id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[https://www.nvidia.com/en-us/data-center/tesla-p100/](https://www.nvidia.com/en-us/data-center/tesla-p100/)'
+  id: totrans-31
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Google’s **Tensor Processing Unit** (**TPU**) is the equivalent of NVIDIA’s
     GPUs. TensorFlow will optimize the use of tensors when using TPUs.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
 - en: For more on TPUs, see [https://cloud.google.com/tpu/docs/tpus](https://cloud.google.com/tpu/docs/tpus).
+  id: totrans-33
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: For more on tensors in TensorFlow, see [https://www.tensorflow.org/guide/tensor](https://www.tensorflow.org/guide/tensor).
+  id: totrans-34
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: BERT[BASE] (110M parameters) was initially trained with 16 TPU chips. BERT[LARGE]
     (340M parameters) was trained with 64 TPU chips. For more on training BERT, see
     [https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805).
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
 - en: We have established that the architecture of the transformer perfectly fits
     the constraints of parallel hardware. We still need to address the issue of implementing
     source code that runs on GPUs.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
 - en: Implementing GPUs in code
+  id: totrans-37
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -170,225 +231,311 @@
     tensors just as TensorFlow does. A tensor may look like NumPy `np.arrays()`. However,
     NumPy is not fit for parallel processing. Tensors use the parallel processing
     features of GPUs.'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
 - en: 'Tensors open the doors to distributed data over GPUs in PyTorch, among other
     frameworks: [https://pytorch.org/tutorials/intermediate/ddp_tutorial.html](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html)'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
 - en: In the `Chapter03` notebook, `BERT_Fine_Tuning_Sentence_Classification_GPU.ipynb`,
     we used **CUDA** (**Compute Unified Device Architecture**) to communicate with
     NVIDIA GPUs. CUDA is an NVIDIA platform for general computing on GPUs. Specific
     instructions can be added to our source code. For more, see [https://developer.nvidia.com/cuda-zone](https://developer.nvidia.com/cuda-zone).
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
 - en: 'In the `Chapter03` notebook, we used CUDA instructions to transfer our model
     and data to NVIDIA GPUs. `PyTorch` has an instruction to specify the device we
     wish to use: `torch.device`.'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
 - en: For more, see [https://pytorch.org/docs/stable/notes/cuda.html](https://pytorch.org/docs/stable/notes/cuda.html).
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
 - en: 'We will explain `device` to illustrate the implementation of GPUs in PyTorch
     and programs in general. Let’s focus on selecting a device, data parallelism,
     loading a model to a device, and adding batch data to the device. Each bullet
     point contains the way device is used and the cell number in `BERT_Fine_Tuning_Sentence_Classification_GPU.ipynb`:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
 - en: '**Select device (Cell 3)**'
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'The program checks to see if CUDA is available on an NVIDIA GPU. If not, the
     device will be CPU:'
+  id: totrans-45
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '[PRE0]'
+  id: totrans-46
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: '**Data parallelism (Cell 16)**'
+  id: totrans-47
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'The model can be distributed for parallel computing over several GPUs if more
     than one GPU is available:'
+  id: totrans-48
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '[PRE1]'
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: '**Loading the model to the device (cell 16)**'
+  id: totrans-50
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'The model is sent to the device:'
+  id: totrans-51
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '[PRE2]'
+  id: totrans-52
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: '**Add batch to device (cell 20) for training and validation data**'
+  id: totrans-53
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'Batches of data are added to the GPUs available (`1` to `n`):'
+  id: totrans-54
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '[PRE3]'
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: In the following section, I describe tests I made to illustrate the use of GPUs
     for transformer models by running a notebook of the chapter with three runtime
     configurations.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
 - en: Testing GPUs with Google Colab
+  id: totrans-57
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'In this section, I describe informal tests I ran to illustrate the potential
     of GPUs. We’ll use the same `Chapter03` notebook: `BERT_Fine_Tuning_Sentence_Classification_GPU.ipynb`.'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
 - en: 'I ran the notebook on three scenarios:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
 - en: Google Colab Free with a CPU
+  id: totrans-60
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Google Colab Free with a GPU
+  id: totrans-61
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Google Colab Pro
+  id: totrans-62
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Google Colab Free with a CPU
+  id: totrans-63
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: It is nearly impossible to fine-tune or train a transformer model with millions
     or billions of parameters on a CPU. CPUs are mostly sequential. Transformer models
     are designed for parallel processing.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
 - en: 'In the **Runtime** menu and **Change Runtime Type** submenu, you can select
     a hardware accelerator: **None (CPU)**, **GPU**, or **TPU**.'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
 - en: 'This test was run with **None (CPU)**, as shown in *Figure II.2*:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
 - en: '![Graphical user interface, text, application, chat or text message  Description
     automatically generated](img/B17948_Appendix_II_02.png)'
+  id: totrans-67
   prefs: []
   type: TYPE_IMG
 - en: 'Figure II.2: Selecting a hardware accelerator'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
 - en: 'When the notebook reaches the training loop, it slows down right from the start:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/B17948_Appendix_II_03.png)'
+  id: totrans-70
   prefs: []
   type: TYPE_IMG
 - en: 'Figure II.3: Training loop'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
 - en: After 15 minutes, nothing has really happened.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
 - en: CPUs are not designed for parallel processing. Transformer models are designed
     for parallel processing, so part from toy models, they require GPUs.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
 - en: Google Colab Free with a GPU
+  id: totrans-74
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: Let’s go back to the notebook settings to select a **GPU**.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们回到笔记本设置中选择一个**GPU**。
 - en: '![Une image contenant texte  Description générée automatiquement](img/B17948_Appendix_II_04.png)'
+  id: totrans-76
   prefs: []
   type: TYPE_IMG
+  zh: '![包含文本描述的图像](img/B17948_Appendix_II_04.png)'
 - en: Figure II.4 Selecting a GPU
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.4 选择 GPU
 - en: 'At the time of writing, I tested Google Colab, and an NVIDIA K80 was attributed
     to the VM with CUDA 11.2:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 在写作时，我测试了 Google Colab，并且VM 配备了带有 CUDA 11.2 的 NVIDIA K80：
 - en: '![Table  Description automatically generated](img/B17948_Appendix_II_05.png)'
+  id: totrans-79
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的表格描述](img/B17948_Appendix_II_05.png)'
 - en: 'Figure II.5: NVIDIA K80 GPU activated'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.5：激活了 NVIDIA K80 GPU
 - en: 'The training loop advanced normally and lasted about 20 minutes. However, Google
     Colab VMs, at the time of these tests (November 2021), do not provide more than
     one GPU. GPUs are expensive. In any case, *Figure II.6*, shows that the training
     loop was performed in a reasonable time:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练循环正常进行，持续约 20 分钟。然而，截至测试时（2021 年 11 月），Google Colab VMs 并不提供多于一个 GPU。GPU 价格昂贵。无论如何，*图
+    II.6*显示，训练循环在合理的时间内完成：
 - en: '![Text  Description automatically generated](img/B17948_Appendix_II_06.png)'
+  id: totrans-82
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的文本描述](img/B17948_Appendix_II_06.png)'
 - en: 'Figure II.6: Training loop with a K80 GPU'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.6：配备 K80 GPU 的训练循环
 - en: I found it interesting to see whether Google Colab Pro provides faster GPUs.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 我发现测试 Google Colab Pro 是否提供更快的 GPU 很有趣。
 - en: Google Colab Pro with a GPU
+  id: totrans-85
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Google Colab Pro 配备了 GPU
 - en: 'The VM activated with Google Colab provided an NVIDIA P100 GPU, as shown in
     *Figure II.7*. That was interesting because the original Transformer was trained
     with 8 NVIDIA P100s as stated in *Vaswani* et al.(2017), *Attention is All you
     Need*. It took 12 hours to train the base models with 10⁶×65 parameters and with
     8 GPUs:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过 Google Colab 提供的 VM 配备了 NVIDIA P100 GPU，如*图 II.7*所示。这很有趣，因为原始 Transformer
+    训练时，根据 *Vaswani* 等人（2017）*《关注力就是你所需的一切》*，用了 8 个 NVIDIA P100s，用了 12 小时来训练具有 10⁶×65
+    个参数的基础模型，并且使用了 8 个 GPU：
 - en: '![Table  Description automatically generated with medium confidence](img/B17948_Appendix_II_07.png)'
+  id: totrans-87
   prefs: []
   type: TYPE_IMG
+  zh: '![具有中等置信度自动生成的表描述](img/B17948_Appendix_II_07.png)'
 - en: 'Figure II.7: The Google Colab Pro VM was provided with a P100 GPU'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.7：Google Colab Pro VM 配备了 P100 GPU
 - en: 'The training loop time was considerably reduced and lasted less than 10 minutes,
     as shown in *Figure II.8*:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练循环时间大大缩短，持续时间不到 10 分钟，如*图 II.8*所示：
 - en: '![Text  Description automatically generated](img/B17948_Appendix_II_08.png)'
+  id: totrans-90
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的文本描述](img/B17948_Appendix_II_08.png)'
 - en: 'Figure II.8: Training loop with a P100 GPU'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 II.8：配备 P100 GPU 的训练循环
 - en: Join our book’s Discord space
+  id: totrans-92
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加入我们书籍的 Discord 空间
 - en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
     the authors:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入该书的 Discord 空间，与作者进行每月的 *问我任何事* 专题讨论会：
 - en: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://www.packt.link/Transformers](https://www.packt.link/Transformers)'
 - en: '![](img/QR_Code5134042288713321484.png)'
+  id: totrans-95
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code5134042288713321484.png)'
