@@ -3,6 +3,7 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第11章*：注意力可视化和实验跟踪'
 - en: In this chapter, we will cover two different technical concepts, **attention
     visualization** and **experiment tracking**, and we will practice them through
     sophisticated tools such as **exBERT** and **BertViz**. These tools provide important
@@ -20,25 +21,33 @@
   id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将涵盖两个不同的技术概念，**注意力可视化** 和 **实验跟踪**，并通过诸如 **exBERT** 和 **BertViz** 等复杂工具来实践它们。这些工具提供了重要的可解释性和可解释性功能。首先，我们将讨论如何利用这些工具来可视化注意力的内部部分。解释所学的表示是很重要的，也要理解
+    Transformer 中自注意力头所编码的信息。我们将看到某些头部对应于语法或语义的某个方面。其次，我们将学习如何通过记录和使用 **TensorBoard**
+    和 **Weights & Biases**（**W&B**）来监视实验。这些工具使我们能够高效地托管和跟踪实验结果，例如损失或其他指标，这有助于我们优化模型训练。通过本章的学习，您将学会如何使用
+    exBERT 和 BertViz 查看自己模型的内部部分，并最终能够利用 TensorBoard 和 W&B 监视和优化模型。
 - en: 'We will cover the following topics in this chapter:'
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在本章中涵盖以下主题：
 - en: Interpreting attention heads
   id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 解释注意力头
 - en: Tracking model metrics
   id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 跟踪模型指标
 - en: Technical requirements
   id: totrans-5
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The code for this chapter is found at [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11),
     which is the GitHub repository for this book. We will be using Jupyter Notebook
     to run our coding exercises that require Python 3.6.0 or above, and the following
@@ -46,54 +55,66 @@
   id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的代码可在 [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11)
+    找到，这是本书的 GitHub 代码库。我们将使用 Jupyter Notebook 运行需要 Python 3.6.0 或更高版本的编码练习，并且需要安装以下包：
 - en: '`tensorflow`'
   id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`tensorflow`'
 - en: '`pytorch`'
   id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`pytorch`'
 - en: '`Transformers >=4.00`'
   id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`Transformers >=4.00`'
 - en: '`tensorboard`'
   id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`tensorboard`'
 - en: '`wandb`'
   id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`wandb`'
 - en: '`bertviz`'
   id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`bertviz`'
 - en: '`ipywidgets`'
   id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`ipywidgets`'
 - en: 'Check out the following link to see Code in Action Video:'
   id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 查看以下链接以查看代码演示视频：
 - en: '[https://bit.ly/3iM4Y1F](https://bit.ly/3iM4Y1F)'
   id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://bit.ly/3iM4Y1F](https://bit.ly/3iM4Y1F)'
 - en: Interpreting attention heads
   id: totrans-16
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 解释注意力头
 - en: As with most **Deep Learning** (**DL**) architectures, both the success of the
     Transformer models and how they learn have been not fully understood, but we know
     that the Transformers—remarkably—learn many linguistic features of the language.
@@ -104,6 +125,8 @@
   id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 与大多数**深度学习**（**DL**）架构一样，Transformer 模型的成功以及它们如何学习尚未完全理解，但我们知道，Transformer ——
+    令人惊讶地 —— 学到了许多语言特征。大量的学到的语言知识分布在预训练模型的隐藏状态和自注意头中。已经发表了大量的最新研究，并开发了许多工具，以理解和更好地解释这些现象。
 - en: Thanks to some **Natural Language Processing** (**NLP**) community tools, we
     are able to interpret the information learned by the self-attention heads in a
     Transformer model. The heads can be interpreted naturally, thanks to the weights
@@ -113,6 +136,7 @@
   id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 感谢一些**自然语言处理**（**NLP**）社区工具，我们能够解释 Transformer 模型中自注意力头所学到的信息。由于令牌之间的权重，头部可以被自然地解释。我们很快会在本节的进一步实验中看到，某些头对应于语法或语义的某个方面。我们还可以观察到表面级模式和许多其他语言特征。
 - en: 'In this section, we will conduct some experiments using community tools to
     observe these patterns and features in the attention heads. Recent studies have
     already revealed many of the features of self-attention. Let''s highlight some
@@ -248,6 +272,7 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在上面的屏幕截图中，左侧的标记关注右侧的标记。线条的厚度代表权重的值。由于CLS和SEP标记具有非常频繁和密集的连接，我们简化起见切断了与它们相关的链接。请参阅**隐藏特殊标记**切换按钮。现在我们看到的是第1层的关注映射，其中线条对应于所有头部上权重的总和。这被称为**多头注意力机制**，其中12个头部并行工作。这个机制可以让我们捕捉比单头注意力更广泛的关系。这就是为什么我们在*图11.1*中看到一个广泛的关注模式。我们还可以通过点击**头部**列观察任何特定的头部。
 - en: 'If you hover over a token at the left, you will see the specific weights of
     that token connecting to the right ones. For more detailed information on using
     the interface, read the paper *exBERT: A Visual Analysis Tool to Explore Learned
@@ -257,6 +282,7 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如果您在左侧悬停在一个标记上，您将看到将它连接到右侧的具体权重。有关使用界面的更详细信息，请阅读文章*exBERT：一个用于探索变压器模型中学到表示的可视分析工具*，作者*本杰明·胡佛*，*亨德里克·施特罗贝尔特*，*塞巴斯蒂安·格赫尔曼*，*2019年*，或观看以下链接的视频：[https://exbert.net/](https://exbert.net/)。
 - en: Now, we will try to support the findings of other researchers addressed in the
     introductory part of this section. Let's take the *some heads specialize in only
     attending the next or previous tokens, especially in earlier layers* pattern,
@@ -265,6 +291,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们将尝试支持本节介绍部分中其他研究人员的发现。让我们以*某些头部专门关注下一个或前一个标记，尤其是在较早的层*模式为例，看是否有一个头部支持这一点。
 - en: We will use **<Layer-No, Head-No>** notation to denote a certain self-attention
     head for the rest of the chapter, where the indices start at 1 for exBERT and
     start at 0 for BertViz—for example, *<3,7>* denotes the seventh head at the third
@@ -275,11 +302,14 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在本章的其余部分中，我们将使用**<层编号，头部编号>**符号来表示特定的自注意头部，在这里，指数从exBERT的1开始，从BertViz的0开始。例如，*<3,7>*表示exBERT第三层的第七个头部。当您选择**<2,5>（或<4,12>或<6,2>）**头部时，您将得到以下输出，其中每个标记只关注前一个标记：![图11.2
+    – 上一个标记关注模式](img/B17123_11_002.jpg)
 - en: Figure 11.2 – Previous-token attention pattern
   id: totrans-40
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图11.2 – 上一个标记关注模式
 - en: For the **<2, 12>** and **<3, 4>** heads, you will get a pattern whereby each
     token attends to the next token, as follows:![Figure 11.3 – Next-token attention
     pattern ](img/B17123_11_003.jpg)
@@ -287,17 +317,20 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对于**<2, 12>**和**<3, 4>**头部，您将得到一个模式，其中每个标记都与下一个标记关联，如下所示：![图11.3 – 下一个标记关注模式](img/B17123_11_003.jpg)
 - en: Figure 11.3 – Next-token attention pattern
   id: totrans-42
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图11.3 – 下一个标记关注模式
 - en: These heads serve the same functionality for other input sentences—that is,
     they work independently of the input. You can try different sentences yourself.
   id: totrans-43
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这些头部对其他输入句子具有相同的功能，即它们独立于输入工作。您可以自己尝试不同的句子。
 - en: We can use an attention head for advanced semantic tasks such as pronoun resolution
     using a **probing classifier**. First, we will qualitatively check if the internal
     representation has such a capacity for pronoun resolution (or coreference resolution)
@@ -307,6 +340,7 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们可以使用注意力头部进行先进的语义任务，例如使用**探测分类器**进行代词消解。首先，我们将从定性上检查内部表示是否具有代词消解（或核指代消解）的能力。代词消解被认为是一项具有挑战性的语义关系任务，因为代词与其先行词之间的距离通常非常大。
 - en: Now, we take the sentence *The cat is very sad. Because it could not find food
     to eat.* When you check each head, you will notice that the *<9,9>* and *<9,12>*
     heads encode the pronoun relation. When hovering over **it** at the *<9,9>* head,
@@ -316,27 +350,33 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们拿句子*The cat is very sad. Because it could not find food to eat.* 作为例子。当你检查每个头部时，你会注意到*<9,9>*和*<9,12>*头部编码了代词关系。当你悬停在*<9,9>*头上的**it**时，我们会得到以下输出：![图
+    11.4 – <9,9>头部的指代模式](img/B17123_11_004.jpg)
 - en: Figure 11.4 – The coreference pattern at the <9,9> head
   id: totrans-46
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.4 – <9,9>头部的指代模式
 - en: 'The *<9,12>* head also works for pronoun relation. Again, on hovering over
     **it**, we get the following output:'
   id: totrans-47
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '*<9,12>*头也用于代词关系。同样，在悬停在**it**上时，我们得到以下输出：'
 - en: '![Figure 11.5 – The coreference pattern at the <9,12> head ](img/B17123_11_005.jpg)'
   id: totrans-48
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 11.5 – <9,12>头部的指代模式](img/B17123_11_005.jpg)'
 - en: Figure 11.5 – The coreference pattern at the <9,12> head
   id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.5 – <9,12>头部的指代模式
 - en: 'From the preceding screenshot, we see that the **it** pronoun strongly attends
     to its antecedent, **cat**. We change the sentence a bit so that the **it** pronoun
     now refers to the **food** token instead of **cat**, as in **the cat did not eat
@@ -347,16 +387,20 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 从上述截图中，我们看到**it**代词强烈关注它的先行词**cat**。我们稍微改变一下句子，让**it**代词现在指代**food**标记而不是**cat**，就像**the
+    cat did not eat the food because it was not fresh**中一样。如下截图所示，与*<9,9>*头相关的截图中，**it**正确地关注了它的先行词**food**，如预期所示：
 - en: '![Figure 11.6 – The pattern at the <9,9> head for the second example ](img/B17123_11_006.jpg)'
   id: totrans-51
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 11.6 – 第二个例子的<9,9>头部的模式](img/B17123_11_006.jpg)'
 - en: Figure 11.6 – The pattern at the <9,9> head for the second example
   id: totrans-52
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.6 – 第二个例子的<9,9>头部的模式
 - en: Let's take another run, where the pronoun refers to **cat**, as in **The cat
     did not eat the food because it was very angry**. In the *<9,9>* head, the **it**
     token mostly attends to the **cat** token, as shown in the following screenshot:![Figure
@@ -365,11 +409,14 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们再做一次运行，这次代词指代的是**cat**，就像**The cat did not eat the food because it was very
+    angry**中一样。在*<9,9>*头中，**it** 标记大部分关注**cat**标记，如下截图所示：![图 11.7 – 第二个输入的<9,9>头部的模式](img/B17123_11_007.jpg)
 - en: Figure 11.7 – The pattern at the <9,9> head for the second input
   id: totrans-54
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.7 – 第二个输入的<9,9>头部的模式
 - en: 'I think those are enough examples. Now, we will use the exBERT model differently
     to evaluate the model capacity. Let''s restart the exBERT interface, select the
     last layer (*layer 12*), and keep all heads. Then, enter the sentence **the cat
@@ -379,14 +426,18 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我觉得这些例子已经足够了。现在，我们将以不同的方式使用 exBERT 模型来评估模型的容量。让我们重新启动 exBERT 界面，选择最后一层（*第 12
+    层*），并保留所有头部。然后，输入句子**the cat did not eat the food.**并将**food**标记掩码。双击掩码掩码了**food**标记，如下所示：
 - en: '![Figure 11.8 – Evaluating the model by masking ](img/B17123_11_008.jpg)'
   id: totrans-56
   prefs: []
   type: TYPE_IMG
+  zh: '![图 11.8 – 通过掩码评估模型](img/B17123_11_008.jpg)'
 - en: Figure 11.8 – Evaluating the model by masking
   id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.8 – 通过掩码评估模型
 - en: When you hover on that masked token, you can see the prediction distribution
     of the *Bert-base-cased* model, as shown in the preceding screenshot. The first
     prediction is **food**, which is expected. For more detailed information about
@@ -394,16 +445,20 @@
   id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你悬停在那个被掩码的标记上时，你可以看到*Bert-base-cased*模型的预测分布，如上述截图所示。第一个预测是**food**，这是预期的。有关工具的更详细信息，你可以使用
+    exBERT 的网页，位于[https://exbert.net/](https://exbert.net/)。
 - en: Well done! In the next section, we will work with BertViz and write some Python
     code to access the attention heads.
   id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 干得好！在下一节中，我们将使用 BertViz 并编写一些 Python 代码来访问注意力头。
 - en: Multiscale visualization of attention heads with BertViz
   id: totrans-60
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 BertViz 进行多尺度注意力头的可视化
 - en: 'Now, we will write some code to visualize heads with BertViz, which is a tool
     to visualize attention in the Transformer model, as is exBERT. It was developed
     by Jesse Vig in 2019 (*A Multiscale Visualization of Attention in the Transformer
@@ -420,6 +475,11 @@
   id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将编写一些代码来使用 BertViz 可视化头，这是一个可视化 Transformer 模型中注意力的工具，就像 exBERT 一样。它是由
+    Jesse Vig 在 2019 年开发的（*Transformer 模型中注意力的多尺度可视化*，*Jesse Vig*，*2019*）。它是 Tensor2Tensor
+    可视化工具（Jones, 2017）工作的延伸。我们可以通过 Python **应用程序编程接口**（**API**）监视模型的内部部分进行多尺度定性分析。BertViz
+    的优点在于，我们可以通过 Python **应用程序编程接口**（**API**）使用大多数 Hugging Face 托管的模型（如**双向编码器转换器表示**（**BERT**）、**生成的预训练转换器**（**GPT**）和**跨语言语言模型**（**XLM**））。因此，我们也将能够使用非英语模型或任何预训练模型。我们将很快一起检查这样的示例。您可以从以下
+    GitHub 链接访问 BertViz 资源和其他信息：[https://github.com/jessevig/bertviz](https://github.com/jessevig/bertviz)。
 - en: 'As with exBERT, BertViz visualizes attention heads in a single interface. Additionally,
     it supports a **bird''s eye view** and a low-level **neuron view**, where we observe
     how individual neurons interact to build attention weights. A useful demonstration
@@ -427,10 +487,12 @@
   id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 exBERT 类似，BertViz 在一个界面中可视化注意力头。此外，它支持**鸟瞰视角**和低级别的**神经元视角**，我们可以观察个别神经元如何相互作用以构建注意力权重。一个有用的演示视频可在以下链接找到：[https://vimeo.com/340841955](https://vimeo.com/340841955)。
 - en: 'Before starting, we need to install the necessary libraries, as follows:'
   id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始之前，我们需要安装必要的库，如下所示：
 - en: '[PRE0]'
   id: totrans-64
   prefs: []
@@ -440,6 +502,7 @@
   id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们导入以下模块：
 - en: '[PRE1]'
   id: totrans-66
   prefs: []
@@ -453,21 +516,27 @@
   id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: BertViz 支持三种视图：**头视图**、**模型视图**和**神经元视图**。让我们逐一检查这些视图。不过，首先需要指出的是，在 exBERT 中，我们从
+    1 开始索引层和头。但在 BertViz 中，我们从 0 开始索引，与 Python 编程相同。如果我说 exBERT 中的一个 *<9,9>* 头，它的
+    BertViz 对应物是 *<8,8>*。
 - en: Let's start with the head view.
   id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从头视图开始。
 - en: Attention head view
   id: totrans-69
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 注意力头视图
 - en: 'The head view is the BertViz equivalent of what we have experienced so far
     with exBERT in the previous section. The **attention head view** visualizes the
     attention patterns based on one or more attention heads in a selected layer:'
   id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 头视图是 BertViz 中我们在前一节中使用 exBERT 已经体验过的等价物。**注意力头视图**可视化基于一个或多个注意力头的注意力模式在所选层中：
 - en: 'First, we define a `get_bert_attentions()` function to retrieve attentions
     and tokens for a given model and a given pair of sentences. The function definition
     is shown in the following code block:'
@@ -475,6 +544,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们定义一个`get_bert_attentions()`函数，用于检索给定模型和给定句对的注意力和标记。函数定义如下代码块所示：
 - en: '[PRE2]'
   id: totrans-72
   prefs:
@@ -489,6 +559,8 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在下面的代码片段中，我们加载了 `bert-base-cased` 模型，并检索了给定两个句子的标记和相应的注意力。然后我们在最后调用了 `head_view()`
+    函数来可视化注意力。以下是代码执行：
 - en: '[PRE3]'
   id: totrans-74
   prefs:
@@ -500,16 +572,19 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 代码输出是一个界面，如下所示：
 - en: '![Figure 11.9 – Head-view output of BertViz ](img/B17123_11_009.jpg)'
   id: totrans-76
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 11.9 - BertViz 的头视图输出](img/B17123_11_009.jpg)'
 - en: Figure 11.9 – Head-view output of BertViz
   id: totrans-77
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.9 - BertViz 的头视图输出
 - en: The interface on the left of *Figure 11.9* comes first. Hovering over any token
     on the left will show the attention going from that token. The colored tiles at
     the top correspond to the attention head. Double-clicking on any of them will
@@ -634,11 +709,13 @@
   id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，BertViz的模型视图功能让我们基本了解所有头一次看到。 让我们在下一节中看一下。
 - en: Model view
   id: totrans-94
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 模型视图
 - en: '**Model view** allows us to have a bird''s-eye view of attentions across all
     heads and layers. Self-attention heads are shown in tabular form, with rows and
     columns corresponding to layers and heads, respectively. Each head is visualized
@@ -647,6 +724,7 @@
   id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: '**模型视图**允许我们全面查看所有头和层的注意力。 自注意力头以表格形式显示，行和列分别对应层和头。 每个头以可点击的缩略图形式呈现，其中包括注意力模型的总体形状。'
 - en: 'The view can tell us how BERT works and makes it easier to interpret. Many
     recent studies, such as *A Primer in BERTology: What We Know About How BERT Works*,
     *Anna Rogers*, *Olga Kovaleva*, *Anna Rumshisky*, *2021*, found some clues about
@@ -656,15 +734,20 @@
   id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个视图可以告诉我们BERT是如何工作的，并且更容易解释。 许多最近的研究，比如*BERTology初级入门：我们知道BERT如何工作*，*Anna Rogers*，*Olga
+    Kovaleva*，*Anna Rumshisky*，*2021*，找到了一些关于层行为的线索并达成了共识。 我们已经在*解释注意头*部分列出了其中一些。
+    您可以使用BertViz的模型视图自行测试这些事实。
 - en: 'Let''s view the German language model that we just used, as follows:'
   id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们查看一下我们刚刚使用的德语语言模型，如下：
 - en: 'First, import the following modules:'
   id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，导入以下模块：
 - en: '[PRE6]'
   id: totrans-99
   prefs:
@@ -677,12 +760,15 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们将使用 Jesse Vig 开发的`show_model_view()`包装函数。 您可以在以下链接找到原始代码：[https://github.com/jessevig/bertviz/blob/master/notebooks/model_view_bert.ipynb](https://github.com/jessevig/bertviz/blob/master/notebooks/model_view_bert.ipynb)。
 - en: 'You can also find the function definition in our book''s GitHub link, at [https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11).
     We are just dropping the function header here:'
   id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 您还可以在我们书本的GitHub链接中找到函数定义，链接地址为[https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11](https://github.com/PacktPublishing/Mastering-Transformers/tree/main/CH11)。
+    这里只是放出函数头部：
 - en: '[PRE7]'
   id: totrans-102
   prefs:
@@ -695,6 +781,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们再次加载德语模型。 如果您已经加载了它，可以跳过前五行。 这是您需要的代码：
 - en: '[PRE8]'
   id: totrans-104
   prefs:
@@ -706,16 +793,19 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这是输出结果：
 - en: '![Figure 11.12 – The model view of the German language model ](img/B17123_11_012.jpg)'
   id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图11.12 – 德语语言模型的模型视图](img/B17123_11_012.jpg)'
 - en: Figure 11.12 – The model view of the German language model
   id: totrans-107
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图11.12 – 德语语言模型的模型视图
 - en: This view helps us easily observe many patterns such as next-token (or previous-token)
     attention patterns. As we mentioned earlier in the *Interpreting attention heads*
     section, tokens often tend to attend to delimiters—specifically, CLS delimiters
@@ -729,6 +819,8 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这个视图帮助我们轻松观察到许多模式，比如下一个令牌（或上一个令牌）的注意力模式。 正如我们在*解释注意头*部分中提到的，令牌通常倾向于关注定界符，具体来说是在下层关注CLS定界符，在上层关注SEP定界符。
+    因为这些令牌未被屏蔽，它们可以促进信息的流动。 在最后的层中，我们只观察到 SEP 定界符为中心的注意力模式。 可以推测，SEP 用于收集段级信息，然后用于跨句任务，比如**下一句预测**（**NSP**）或编码句级含义。
 - en: On the other hand, we observe that coreference relation patterns are mostly
     encoded in the *<8,1>, <8,11>, <10,1>, and <10,7>* heads. Again, it can be clearly
     said that the *<8, 11>* head is the strongest head that encodes the coreference
@@ -737,11 +829,14 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 另一方面，我们观察到指代关系模式主要编码在 *<8,1>, <8,11>, <10,1>, and <10,7>* 头部。 再次可以明确说，*<8, 11>*
+    头部是编码德语模型中指代关系的最强头部，我们已经讨论过。
 - en: 'When you click on that thumbnail, you will see the same output, as follows:'
   id: totrans-110
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当您点击该缩略图时，您将看到相同的输出，如下：
 - en: '![Figure 11.13 – Close-up of the <8,11> head in model view  ](img/B17123_11_013.jpg)'
   id: totrans-111
   prefs: []
@@ -873,6 +968,9 @@
   id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: DL 学到的内容的不透明性导致了许多关于这些模型解释的研究。我们试图回答这样的问题：Transformer 模型的哪些部分负责某些语言特征，或者输入的哪些部分导致模型做出特定的决定。为了做到这一点，除了可视化内部表示之外，我们还可以对表示进行分类器训练，以预测一些外部形态、句法或语义属性。因此，我们可以确定是否将内部
+    *表示* 与外部 *属性* 关联起来。模型的成功训练将是这种关联的定量证据——即，语言模型已经学会了与外部属性相关的信息。这种方法称为 **探测分类器**
+    方法，是自然语言处理和其他 DL 研究中的一种重要分析技术。基于注意力的探测分类器以注意力映射作为输入，并预测外部属性，如共指关系或头部修饰关系。
 - en: As seen in the preceding experiments, we get the self-attention weights for
     a given input with the `get_bert_attention()` function. Instead of visualizing
     these weights, we can directly transfer them to a classification pipeline. So,
@@ -882,16 +980,19 @@
   id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前面的实验所示，我们可以使用`get_bert_attention()`函数获取给定输入的自注意权重。我们可以直接将这些权重传递到分类管道中，而不是将它们可视化。因此，在监督下，我们可以确定哪个头适合哪个语义特征——例如，我们可以通过标记数据找出哪些头适合共指。
 - en: Now, let's move on to the model-tracking part, which is crucial for building
     efficient models.
   id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们转向模型跟踪部分，这对于构建高效的模型至关重要。
 - en: Tracking model metrics
   id: totrans-132
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 跟踪模型指标
 - en: So far, we have trained language models and simply analyzed the final results.
     We have not observed the training process or made a comparison of training using
     different options. In this section, we will briefly discuss how to monitor model
@@ -901,6 +1002,8 @@
   id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经训练了语言模型，并简单分析了最终结果。我们还没有观察训练过程或比较使用不同选项进行训练。在本节中，我们将简要讨论如何监视模型训练。为此，我们将处理如何跟踪之前在[*第
+    5 章*](B17123_05_Epub_AM.xhtml#_idTextAnchor081)中开发的模型的训练，*文本分类的语言模型微调*。
 - en: There are two important tools developed in this area—one is TensorBoard, and
     the other is W&B. With the former, we save the training results to a local drive
     and visualize them at the end of the experiment. With the latter, we are able
@@ -908,20 +1011,24 @@
   id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个领域开发了两个重要的工具——一个是 TensorBoard，另一个是 W&B。前者可以将训练结果保存到本地驱动器，并在实验结束时将其可视化。后者则可以在云平台上实时监视模型训练进度。
 - en: This section will be a short introduction to these tools without going into
     much detail about them, as this is beyond the scope of this chapter.
   id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节将是对这些工具的简要介绍，不会详细讨论它们，因为这超出了本章的范围。
 - en: Let's start with TensorBoard.
   id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从 TensorBoard 开始。
 - en: Tracking model training with TensorBoard
   id: totrans-137
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 TensorBoard 跟踪模型训练
 - en: TensorBoard is a visualization tool specifically for DL experiments. It has
     many features such as tracking, training, projecting embeddings to a lower space,
     and visualizing model graphs. We mostly use it for tracking and visualizing metrics
@@ -931,6 +1038,8 @@
   id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: TensorBoard 是专门用于 DL 实验的可视化工具。它有许多功能，如跟踪、训练、将嵌入投射到较低的空间和可视化模型图。我们主要用它来跟踪和可视化诸如损失之类的指标。对于
+    Transformers 来说，使用 TensorBoard 跟踪指标是如此容易，只需在模型训练代码中添加几行就足够了。一切几乎保持不变。
 - en: Now, we will repeat the **Internet Movie Database** (**IMDb**) sentiment fine-tuning
     experiment we did in [*Chapter 5*](B17123_05_Epub_AM.xhtml#_idTextAnchor081),
     *Fine-Tuning Language Models for Text Classification*, and will track the metrics.
@@ -941,15 +1050,20 @@
   id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将重复[*第 5 章*](B17123_05_Epub_AM.xhtml#_idTextAnchor081)中进行的**互联网电影数据库**（**IMDb**）情感微调实验，*对文本分类进行语言模型微调*，并将跟踪指标。在该章节中，我们已经使用由**4
+    千**（**4K**）个训练数据集、1 千验证集和 1 千测试集组成的 IMDb 数据集训练了一个情感模型。现在，我们将其调整为适用于 TensorBoard。有关
+    TensorBoard 的更多详细信息，请访问 [https://www.tensorflow.org/tensorboard](https://www.tensorflow.org/tensorboard)。
 - en: 'Let''s begin:'
   id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们开始：
 - en: 'First, we install TensorBoard if it is not already installed, like this:'
   id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，如果尚未安装 TensorBoard，我们要这样安装：
 - en: '[PRE10]'
   id: totrans-142
   prefs:
@@ -963,6 +1077,8 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从[*第 5 章*](B17123_05_Epub_AM.xhtml#_idTextAnchor081)，*对文本分类进行语言模型微调*，保持 IMDb
+    情感分析的其他代码行不变，我们将训练参数设置如下：
 - en: '[PRE11]'
   id: totrans-144
   prefs:
@@ -977,6 +1093,8 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在上述代码片段中，`logging_dir` 的值将很快作为参数传递给 TensorBoard。由于训练数据集大小为 4K，训练批大小为 16，每个时期有
+    250 步（4K/16），意味着三个时期有 750 步。
 - en: We set `logging_steps` to 50, which is a sampling interval. As the interval
     is decreased, more details about where model performance rises or falls are recorded.
     We'll do another experiment later on, reducing this sampling interval at step
@@ -985,6 +1103,8 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将 `logging_steps` 设置为 50，这是一个采样间隔。随着间隔的减小，记录了有关模型性能上升或下降的更多细节。稍后我们将做另一个实验，在第
+    27 步降低这个采样间隔。
 - en: Now, at every 50 steps, the model performance is measured in terms of the metrics
     that we define in `compute_metrics()`. The metrics to be measured are Accuracy,
     F1, Precision, and Recall. As a result, we will have 15 (750/50) performance measurements
@@ -994,6 +1114,9 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，每隔 50 步，模型性能将根据我们在 `compute_metrics()` 中定义的指标进行测量。所要测量的指标包括准确率、F1 值、精确率和召回率。因此，我们将记录
+    15 次（750/50）性能测量。当我们运行 `trainer.train()` 时，这将开始训练过程，并在 `logging_dir='./logs'`
+    目录下记录日志。
 - en: We set `load_best_model_at_end` to `True` so that the pipeline loads whichever
     checkpoint has the best performance in terms of loss. Once the training is completed,
     you will notice that the best model is loaded from `checkpoint-250` with a loss
@@ -1002,11 +1125,14 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将 `load_best_model_at_end` 设置为 `True`，以便管道加载在损失方面表现最佳的任何检查点。一旦训练完成，您将注意到最佳模型从
+    `checkpoint-250` 加载，其损失得分为 `0.263`。
 - en: 'Now, the only thing we need to do is to call the following code to launch TensorBoard:'
   id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们唯一需要做的就是调用以下代码来启动 TensorBoard：
 - en: '[PRE12]'
   id: totrans-150
   prefs:
@@ -1018,16 +1144,19 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这是输出：
 - en: '![Figure 11.16 – TensorBoard visualization for training history ](img/B17123_11_016.jpg)'
   id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 11.16 – TensorBoard 训练历史可视化](img/B17123_11_016.jpg)'
 - en: Figure 11.16 – TensorBoard visualization for training history
   id: totrans-153
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.16 – TensorBoard 训练历史可视化
 - en: 'As you may have noticed, we can trace the metrics that we defined before. The
     horizontal axis goes from 0 to 750 steps, which is what we calculated before.
     We will not discuss TensorBoard in detail here. Let''s just look at the **eval/loss**
@@ -1037,16 +1166,20 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 您可能已经注意到，我们可以跟踪之前定义的指标。水平轴从 0 到 750 步，这是我们之前计算的步数。我们不会在这里详细讨论 TensorBoard。让我们只看一下**eval/loss**
+    图表。当您点击左下角的最大化图标时，您将会看到以下图表：
 - en: '![Figure 11.17 – TensorBoard eval/loss chart for logging steps of 50  ](img/B17123_11_017.jpg)'
   id: totrans-155
   prefs:
   - PREF_IND
   type: TYPE_IMG
+  zh: '![图 11.17 – TensorBoard eval/loss 图表，记录步长为50](img/B17123_11_017.jpg)'
 - en: Figure 11.17 – TensorBoard eval/loss chart for logging steps of 50
   id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 11.17 – TensorBoard eval/loss 图表，记录步长为50
 - en: In the preceding screenshot, we set the smoothing to 0 with the slider control
     on the left of the TensorBoard dashboard to see scores more precisely and focus
     on the global minimum. If your experiment has very high volatility, the smoothing
@@ -1057,6 +1190,7 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在前面的截图中，我们将TensorBoard仪表板左侧的滑块控制器的平滑度设置为0，以更精确地查看分数并关注全局最小值。如果你的实验波动性很高，平滑功能可以很好地显示整体趋势。它的功能类似于**滑动平均**（**MA**）。这张图表支持我们之前的观察，最佳损失测量值为**0.2658**，在第**250**步时获得。
 - en: 'As `logging_steps` is set to **10**, we get a high resolution, as in the following
     screenshot. As a result, we will have 75 (750 steps/10 steps) performance measurements
     to be recorded. When we rerun the entire flow with this resolution, we get the
@@ -1067,24 +1201,29 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 由于`logging_steps`设置为**10**，我们获得了高分辨率，如下面的截图所示。因此，我们将记录75（750步/10步）个性能测量值。当我们以这个分辨率重新运行整个流程时，我们在第220步获得了最佳模型，损失得分为0.238，比之前的实验更好。结果可以在下面的截图中看到。由于分辨率更高，我们自然会观察到更多的波动：
 - en: '![Figure 11.18 – Higher-resolution eval/loss chart for logging steps of 10
     ](img/B17123_11_018.jpg)'
   id: totrans-159
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.18 - 记录步骤为10的更高分辨率eval/loss图表](img/B17123_11_018.jpg)'
 - en: Figure 11.18 – Higher-resolution eval/loss chart for logging steps of 10
   id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.18 - 记录步骤为10的更高分辨率eval/loss图表
 - en: We are done with TensorBoard for now. Let's work with W&B!
   id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前我们不再使用TensorBoard。让我们开始使用W&B！
 - en: Tracking model training live with W&B
   id: totrans-162
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用W&B实时跟踪模型训练
 - en: W&B, unlike TensorBoard, provides a dashboard in a cloud platform, and we can
     trace and back up all experiments in a single hub. It also allows us to work with
     a team for development and sharing. The training code is run on our local machine,
@@ -1093,17 +1232,20 @@
   id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 与TensorBoard不同，W&B在云平台提供了一个仪表板，我们可以在一个单一的中心追踪和备份所有实验。它还允许我们与团队进行开发和共享。训练代码在我们的本地机器上运行，而日志保存在W&B云中。最重要的是，我们可以实时跟踪训练过程并立即与社区或团队分享结果。
 - en: 'We can enable W&B for our experiments by making very small changes to our existing
     code:'
   id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过对现有代码进行非常小的更改来为我们的实验启用W&B：
 - en: 'First of all, we need to create an account in `wandb.ai`, then install the
     Python library, as follows:'
   id: totrans-165
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们需要在`wandb.ai`创建一个帐户，然后安装Python库，如下所示：
 - en: '[PRE13]'
   id: totrans-166
   prefs:
@@ -1116,6 +1258,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 再次，我们将采用IMDb情感分析代码并进行微小的更改。首先，让我们导入库并登录到`wandB`，如下所示：
 - en: '[PRE14]'
   id: totrans-168
   prefs:
@@ -1128,12 +1271,14 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`wandb`请求一个API密钥，你可以很容易地在以下链接找到：[https://wandb.ai/authorize](https://wandb.ai/authorize)。'
 - en: 'Alternatively, you can set the `WANDB_API_KEY` environment variable to your
     API key, as follows:'
   id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 或者，你可以将`WANDB_API_KEY`环境变量设置为你的API密钥，如下所示：
 - en: '[PRE15]'
   id: totrans-171
   prefs:
@@ -1147,6 +1292,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 再次保持整个代码不变，我们只需向`TrainingArguments`添加两个参数，`report_to="wandb"`和`run_name="..."`，即可在W&B中启用日志记录，如下所示：
 - en: '[PRE16]'
   id: totrans-173
   prefs:
@@ -1161,6 +1307,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当你调用`trainer.train()`后，日志将开始记录在云端。调用后，请检查云端仪表板并查看其变化。一旦`trainer.train()`调用成功完成，我们执行以下代码告诉`wandB`我们已完成：
 - en: '[PRE17]'
   id: totrans-175
   prefs:
@@ -1172,48 +1319,58 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 执行还会在本地输出运行历史，如下所示：
 - en: '![Figure 11.19 – The local output of W&B ](img/B17123_11_019.jpg)'
   id: totrans-177
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.19 - W&B的本地输出](img/B17123_11_019.jpg)'
 - en: Figure 11.19 – The local output of W&B
   id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.19 - W&B的本地输出
 - en: 'When you connect to the link provided by W&B, you will get to an interface
     that looks something like this:'
   id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你连接到W&B提供的链接时，你将进入一个看起来类似于这样的界面：
 - en: '![Figure 11.20 – The online visualization of a single run on the W&B dashboard
     ](img/B17123_11_020.jpg)'
   id: totrans-180
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.20 - W&B仪表板上单个运行的在线可视化](img/B17123_11_020.jpg)'
 - en: Figure 11.20 – The online visualization of a single run on the W&B dashboard
   id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.20 – 在W&B仪表板上单次运行的在线可视化
 - en: This visualization gives us a summarized performance result for a single run.
     As you see, we can trace the metrics that we defined in the `compute_metric()`
     function.
   id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 该可视化为单次运行的结果提供了一个总结的性能结果。正如您所看到的，我们可以追踪在`compute_metric()`函数中定义的指标。
 - en: 'Now, let''s take a look at the evaluation loss. The following screenshot shows
     exactly the same plot that TensorBoard provided, where the minimum loss is around
     0.2658, occurring at step 250:'
   id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们来看一下评估损失。下面的截图显示了与TensorBoard提供的完全相同的绘图，其中最小损失约为0.2658，在第250步发生：
 - en: '![Figure 11.21 – The eval/loss plot of IMDb experiment on the W&B dashboard  ](img/B17123_11_021.jpg)'
   id: totrans-184
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.21 – 在W&B仪表板上IMDb实验的eval/loss绘图](img/B17123_11_021.jpg)'
 - en: Figure 11.21 – The eval/loss plot of IMDb experiment on the W&B dashboard
   id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.21 – 在W&B仪表板上IMDb实验的eval/loss绘图
 - en: We have only visualized a single run so far. W&B allows us to explore the results
     dynamically across lots of runs at once—for example, we can visualize the results
     of models using different hyperparameters such as learning rate or batch size.
@@ -1222,21 +1379,25 @@
   id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们只对单次运行进行了可视化。W&B允许我们跨多次运行动态地探索结果—例如，我们可以可视化使用不同超参数的模型的结果，如学习率或批量大小。为此，我们适当地实例化一个`TrainingArguments`对象，并为每次运行相应地更改`run_name="..."`。
 - en: 'The following screenshot shows our several IMDb sentiment-analysis runs using
     different hyperparameters. We can also see the batch size and learning rate that
     we changed:'
   id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的截图显示了我们使用不同超参数进行的几个IMDb情感分析运行。我们还可以看到我们更改的批量大小和学习率：
 - en: '![Figure 11.22 – Exploring the results across several runs on the W&B dashboard
     ](img/B17123_11_022.jpg)'
   id: totrans-188
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.22 – 在W&B仪表板上探索多次运行的结果](img/B17123_11_022.jpg)'
 - en: Figure 11.22 – Exploring the results across several runs on the W&B dashboard
   id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.22 – 在W&B仪表板上探索多次运行的结果
 - en: 'W&B provides useful functionality—for instance, it automates hyperparameter
     optimization and searching the space of possible models, called W&B Sweeps. Other
     than that, it also provides system logs relating to **Graphics Processing Unit**
@@ -1245,16 +1406,19 @@
   id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: W&B提供了有用的功能—例如，它自动化了超参数优化和搜索可能模型的空间，称为W&B Sweeps。除此之外，它还提供了与**图形处理单元**(**GPU**)消耗有关的系统日志，**中央处理单元**(**CPU**)利用率等等。更详细的信息，请查看以下网站：[https://wandb.ai/home](https://wandb.ai/home)。
 - en: Well done! In the last section, *References*, we will focus more on technical
     tools, since it's crucial to use such utility tools to develop better models.
   id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 干得好！在最后一节*参考资料*中，我们将更多关注技术工具，因为使用这样的实用工具对于开发更好的模型至关重要。
 - en: Summary
   id: totrans-192
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: 'In this chapter, we introduced two different technical concepts: attention
     visualization and experiment tracking. We visualized attention heads with the
     exBERT online interface first. Then, we studied BertViz, where we wrote Python
@@ -1269,6 +1433,7 @@
   id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们介绍了两个不同的技术概念：注意力可视化和实验跟踪。我们首先使用exBERT在线界面可视化了注意力头。然后，我们研究了BertViz，我们编写Python代码来查看三个BertViz可视化：头部视图，模型视图和神经元视图。BertViz界面给了我们更多控制，以便我们可以使用不同的语言模型。此外，我们还能观察到如何计算tokens之间的注意权重。这些工具为我们提供了解释性和利用性的重要功能。我们还学会了如何跟踪我们的实验以获得更高质量的模型和进行错误分析。我们利用了两种工具来监视训练：TensorBoard和W&B。这些工具用来有效地跟踪实验并优化模型训练。
 - en: Congratulations! You've finished reading this book by demonstrating great perseverance
     and persistence throughout this journey. You can now feel confident as you are
     well equipped with the tools you need, and you are prepared for developing and
@@ -1276,35 +1441,42 @@
   id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 恭喜！你通过展现出的极大毅力和坚持不懈完成了这本书的阅读之旅。现在你可以放心了，因为你已经装备好了需要的工具，并且准备好开发和实现高级自然语言处理应用。
 - en: References
   id: totrans-195
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 参考文献
 - en: '*exBERT: A Visual Analysis Tool to Explore Learned Representations in Transformer
     Models*, *Benjamin Hoover*, *Hendrik Strobelt*, *Sebastian Gehrmann*, *2019*.'
   id: totrans-196
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*exBERT：一种用于探索Transformer模型中学习表示的视觉分析工具*，*本杰明·胡佛*，*亨德里克·斯特罗贝尔特*，*塞巴斯蒂安·盖尔曼*，*2019*。'
 - en: '*Vig, J.*, *2019*. *A multiscale visualization of attention in the Transformer
     model*. *arXiv preprint arXiv:1906.05714*.'
   id: totrans-197
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*Vig, J.*, *2019*. *Transformer模型中的多尺度注意力可视化*。*arXiv预印本 arXiv:1906.05714*。'
 - en: '*Clark, K.*, *Khandelwal, U.*, *Levy, O.* and *Manning, C.D.*, *2019*. *What
     does bert look at? An analysis of bert''s attention*. *arXiv preprint arXiv:1906.04341.7*'
   id: totrans-198
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*Clark, K.*, *Khandelwal, U.*, *Levy, O.* 和 *Manning, C.D.*, *2019*. *BERT看什么？BERT注意力分析*。*arXiv预印本
+    arXiv:1906.04341.7*'
 - en: '*Biewald, L.*, *Experiment tracking with weights and biases*, *2020*. Software
     available from `wandb.com`, *2(5)*.'
   id: totrans-199
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*Biewald, L.*, *权重与偏差的实验追踪*, *2020*。软件可在 `wandb.com` 获得，*2(5)*。'
 - en: '*Rogers, A.*, *Kovaleva, O.* and *Rumshisky, A.*,*2020*. *A primer in BERTology:
     What we know about how BERT works*. *Transactions of the Association for Computational
     Linguistics*, *8*, *pp.842-866*.'
@@ -1312,23 +1484,29 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*Rogers, A.*, *Kovaleva, O.* 和 *Rumshisky, A.*, *2020*. *BERT学习入门：我们对BERT如何工作的了解*.
+    *计算语言学协会交易*, *8*, *pp.842-866*。'
 - en: '*W&B*: [https://wandb.ai](https://wandb.ai)'
   id: totrans-201
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*W&B*：[https://wandb.ai](https://wandb.ai)'
 - en: '*TensorBoard*: [https://www.tensorflow.org/tensorboard](https://www.tensorflow.org/tensorboard)'
   id: totrans-202
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*TensorBoard*：[https://www.tensorflow.org/tensorboard](https://www.tensorflow.org/tensorboard)'
 - en: '*exBert—Hugging Face*: [https://huggingface.co/exbert](https://huggingface.co/exbert)'
   id: totrans-203
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*exBert—Hugging Face*：[https://huggingface.co/exbert](https://huggingface.co/exbert)'
 - en: '*exBERT*: [https://exbert.net/](https://exbert.net/)'
   id: totrans-204
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*exBERT*：[https://exbert.net/](https://exbert.net/)'
