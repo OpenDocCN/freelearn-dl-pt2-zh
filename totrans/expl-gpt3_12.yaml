@@ -1,0 +1,1076 @@
+- en: '*Chapter 9*: Building a GPT-3-Powered Question-Answering App'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Up to this point, we've looked at (and written) a lot of code. But we haven't
+    actually created a fully functional app. Well, that's what we're going to do now.
+    In this chapter, we're going to build a simple but powerful web app that lets
+    users ask questions that GPT-3 will answer from a knowledge base we will provide.
+    The app could be used to answer any kind of questions, but we're going to use
+    it to answer questions people might have about us – an *ask me anything* app.
+    So, imagine a website that recruiters or a potential employer could use to ask
+    questions about your skills, accomplishments, and experience. Not looking for
+    a new job? No problem. Again, this app can be used for just about any question-answering
+    application – so maybe a GPT-3-powered product FAQ, or a GPT-3-powered teaching
+    assistant – it's completely up to you. We'll start with a quick overview of how
+    the app will work, then we'll step through the process of building it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The topics we''ll cover are the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing GPT Answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing the Answers endpoint
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up and testing Express
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating the API endpoint for GPT Answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating the GPT Answers user interface
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Integrating the Answers endpoint
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating relevant and factual answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using files with the Answers endpoint
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter requires that you have access to the OpenAI API. You can request
+    access by visiting [https://openapi.com](https://openapi.com).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing GPT Answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we're going to be building a GPT-3-powered web app that lets
+    users ask any questions and get back answers from a knowledge base of data that
+    we'll provide. We will call the app **GPT Answers**. Yes, the name is underwhelming,
+    but we can always use GPT-3 to help us brainstorm a better name later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following is a screenshot of what the app will look like when it's completed.
+    Sure, the user interface might be as underwhelming as the name, but the power
+    behind it is sure to impress!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.1 – GPT Answers user interface'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_001.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.1 – GPT Answers user interface
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let's get into what's behind the UI and how the app will be built.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT Answers technical overview
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: GPT Answers will be built using Node.js, JavaScript, and HTML. We'll also be
+    using a web framework called Express, to simplify the development.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: This app could also be built using Python but for this chapter, unlike the previous
+    chapters, we'll only be covering the steps to create the app using Node.js/JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions will be submitted through a simple web form that will use JavaScript
+    to make requests to an API endpoint that the app will also expose. The app API
+    will primarily act as a proxy for interacting with the OpenAI API, but it will
+    also provide exception handling and response formatting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hosting the app
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Up to this point, we've only used [replit.com](http://replit.com) for writing
+    and testing code. However, [replit.com](http://replit.com) also supports hosting
+    apps and it's surprisingly easy to work with. For web apps, you can even use your
+    own domain name. So, [replit.com](http://replit.com) is going to be our hosting
+    environment as well as our development environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT-3-powered apps need to be approved by OpenAI before they can be public-facing.
+    We won't get into that in this chapter, but we'll cover the app approval process
+    in [*Chapter 10*](B16854_10_ePub_AM.xhtml#_idTextAnchor187), *Going Live with
+    OpenAI-Powered Apps*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main OpenAI endpoint the app will use is the Answers endpoint. But since
+    we have not covered the Answers endpoint yet, let's do a quick introduction before
+    we start coding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing the Answers endpoint
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The OpenAI Answers endpoint is specifically designed for question-answering
+    tasks. It provides more control than the Completions endpoint by enabling the
+    use of a source of truth for the answers. For our GPT Answers app, that source
+    of truth will be a knowledge base that will be used for answering questions. The
+    knowledge base (that is, documents) can be provided along with the endpoint request
+    or by referencing a pre-uploaded file containing the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The URL for the Answers endpoint is [https://api.openai.com/v1/answers](https://api.openai.com/v1/answers)
+    and the endpoint accepts an HTTP POST request and a number of input parameters.
+    The following is a brief description of the available input parameters, but for
+    more complete details, see the OpenAI docs for the Answers endpoint located at
+    [https://beta.openai.com/docs/api-reference/answers](https://beta.openai.com/docs/api-reference/answers).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are the required parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`model` (required, string) – The ID of the model that will be used for completions.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`question` (required, string) – The question to be answered.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`examples` (required, array) – A list of questions with answers to help steer
+    the model toward the tone and answer format for the answer.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`examples_context` (required, string) – A text snippet containing the contextual
+    information used to generate the answers for the examples you provide.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`documents` (array) – A list of documents from which the answer for the input
+    question should be derived. If the `documents` parameter is an empty list, the
+    question will be answered based on the question-answer examples. Also, the `documents`
+    parameter is only required if the `file` parameter is not used.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`file` (string) – The ID of an uploaded file containing documents to derive
+    the answer from. The `file` parameter is only required if the `documents` parameter
+    is not used.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The optional parameters are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`search_model` (string) – The engine to use for search. This defaults to `ada`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`max_rerank` (integer) – The maximum number of documents to be. A higher value
+    can improve accuracy but will increase the latency and cost. This defaults to
+    `200`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`temperature` (number) – Defaults to `0`, which is best for well-defined answers,
+    but a higher value can be used for less deterministic answers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`logprobs` (integer) – Defaults to `null`. The number of likely probable tokens
+    to return.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`max_tokens` (integer) – The maximum number of tokens that will be used to
+    generate an answer. Defaults to `16`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stop` (string or array) – An optional sequence of up to four patterns that
+    will cause the API to stop generating a completion. This defaults to `null`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`n` (integer) – The number of answers to generate for each question. This defaults
+    to `1`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`logit_bias` (map) – Can be used to control the likelihood of specified tokens
+    appearing in the completion.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`return_metadata` (Boolean) – If the `file` parameter is used and the file
+    referenced includes metadata, this will cause the response to include the metadata
+    from the file.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`return_prompt` (Boolean) – Causes the prompt text to be returned with the
+    response. This defaults to `false`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`expand` (array) – Causes the response to include details about the completion
+    or file. The value of `expand` can currently include `completion` and `file`.
+    This defaults to an empty array.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Important note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We won't be using all of the available parameters for our GPTAMA app.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now that we've done a quick introduction to the Answers endpoint, let's get
+    to coding up our GPTAMA app!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up and testing Express
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Express is a lightweight but flexible web application framework for Node.js
+    that we'll be using for the app. It's pretty easy to get it up and running, especially
+    with Replit.com. So, the first thing we'll do is get Express set up on Replit.com
+    and test it out. We'll be starting from scratch, so we'll be creating a new repl
+    for GPTAMA.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To create a new Node.js REPL and set up Express, complete the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Log in at [replit.com](http://replit.com).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new Node.js REPL named **gptanswers-node**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the output pane, click on the **Shell** tab and enter this command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Run the previous command by pressing the *Enter* key and you should see a result
+    that looks like the following screenshot:![Figure 9.2 – Output from express-generator
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_002.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.2 – Output from express-generator
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Important note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `npx` command is included with NPM, which is installed with Node.js. It
+    is used to run `express-generator`, which creates a basic Express app as a starting
+    point. The command ends with a period to instruct `express-generator` to add files
+    to the current directory. The `--no-view` switch tells the generator we're just
+    using plain HTML for our UI and the `--force` switch tells the generator to overwrite
+    any existing files in the current directory.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After `express-generator` completes, run the following command in the shell:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now create a file named `.replit` and add the following `Run` command to it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, click the **Run** button to start the Express server. If all went
+    well, you should see a browser window open in the Replit.com editor with a welcome
+    message from Express. It should look like the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 9.3 – Express server running in Replit.com'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_003.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.3 – Express server running in Replit.com
+  prefs: []
+  type: TYPE_NORMAL
+- en: Two things to note are the URL in the browser pane and that the **Run** button
+    became a **Stop** button. This is because Express is running an HTTP server that
+    will continue running until it's stopped. So, the app is available on the web
+    and is accessible via the URL in the browser pane while the Express server is
+    running. Also, when you make changes, you'll need to stop and restart Express
+    by clicking the **Stop** button and then the **Run** button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you run into any issues and don't see the Express page, you can go through
+    the steps in this section again without hurting anything. When you see the Express
+    welcome page, you're all set to move on. Next, we'll create an API endpoint for
+    our GPT Answers app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the API endpoint for GPT Answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When our app is complete, we'll have a fully functional API endpoint that can
+    return answers generated by the OpenAI API. But for now, we'll just create an
+    endpoint that returns a placeholder response. Then, we'll test the endpoint using
+    Postman and we'll come back later and finish coding it up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the API endpoint
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To create the API endpoint, do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `app.js` file that was created by `express-generator`. The file should
+    look like the following screenshot:![Figure 9.4 – Default app.js created by express-generator
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_004.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.4 – Default app.js created by express-generator
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Edit *line 7* and change `var usersRouter = require(''./routes/users'')` to
+    the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit *line 18* and change `app.use(''/users'', usersRouter);` to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After editing lines *7* and *18*, the `app.js` file should look like the following
+    screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.5 – Edited app.js file'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_005.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.5 – Edited app.js file
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Delete the `routes/users.js` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new file, `routes/answer.js`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Add the following code to the `answers.js` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Click the **Stop** button and then **Start**. You should see the **Welcome to
+    E****xpress** message again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The API endpoint we created accepts an HTTP `/answer`. But since it accepts
+    an HTTP POST, we'll need to test it by making a POST request. To do that, we'll
+    use Postman.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing our API with Postman
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'At this point, we should be able to make an HTTP POST request to our `/answer`
+    endpoint and get a response. To complete the test, copy the app URL from the [Replit.com](http://Replit.com)
+    browser (the one showing the Express welcome message) to your clipboard:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open a new browser tab and log in to [https://postman.com](https://postman.com).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new collection named `gptanswers-node`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Create a new request named `test-answer-api` in the `answer` (`/answer`). The
+    format of the endpoint URL is as follows but where `{username}` is your Replit.com
+    username (assuming you named the repl `gptanswers-node`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Below the endpoint URL input, select the **Body** tab, choose the **Raw** radio
+    button, and choose **JSON** from the dropdown for the content type.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Finally, add the following JSON for the request body:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After setting up the request in Postman, it should look something like the
+    following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.6 – Postman request to test the GPT-CV app API endpoint'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_006.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.6 – Postman request to test the GPT-CV app API endpoint
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Click the blue **Send** button to submit the request and review the response,
+    which should be the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Okay, now that we have our API endpoint responding, we'll move on to creating
+    a web form to call the API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the GPT Answers user interface
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now let's create a simple web form interface that will let users submit a question
+    to get an answer from our API. We'll start by adding **UIkit** – a popular lightweight
+    frontend framework that you can learn more about at [https://getuikit.com/](https://getuikit.com/).
+    We'll also use **Axios** to make HTTP calls to the app API using a bit of JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: UIkit will make it easy to create a simple but clean and modern look for our
+    app. You can download UIkit for free from [https://getuikit.com](https://getuikit.com).
+    Or you can use a hosted version that is available from [https://jsdeliver.com](https://jsdeliver.com),
+    a free **Content Delivery Network** (**CDN**) for open source projects, and that's
+    what we'll be using.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To add UIkit, do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `public/index.html` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Replace the URL for the style sheet with [https://cdn.jsdelivr.net/npm/uikit@3.6.22/dist/css/uikit.min.css](https://cdn.jsdelivr.net/npm/uikit@3.6.22/dist/css/uikit.min.css).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Replace everything between the `<body>` tag and the `</body>` tag with the
+    following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the following code above the `</body>` tag. This will add references to
+    JavaScript files the page will use. Three of the scripts we''ll get from a CDN
+    and one, the `/javascripts/script.js` file, we''ll create in the next step:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'At this point, the code in `public/index.html` should look like the following
+    screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.7 – Completed index.html code'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_007.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.7 – Completed index.html code
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'If you stop and restart the Express server by clicking the **Stop** button
+    followed by clicking the **Run** button, you should see the home screen updated
+    to look like the following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.8 – Question input form'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_008.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.8 – Question input form
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now we need to add some JavaScript to make the call to the app API.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Create the `javascripts/script.js` file and add the following code.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'First, we''ll add two variables to hold the HTML form and answer `div`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we''ll add code that will fire when the form is submitted:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following code will append the text to the answer `div`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we''ll add a function to call the app API endpoint using Axios:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now we can test it by clicking the **Stop** button and then the **Start** button.
+    Then, in the browser pane, enter a question into the textbox and click the **GET
+    ANSWER** button. You should see the API respond back with **placeholder for the
+    answer** as shown in the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 9.9 – Testing the web UI with the placeholder API code'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_009.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.9 – Testing the web UI with the placeholder API code
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, we have the basic framework for our application in place. What
+    we need to do next is write a bit of code to pass the question on to the OpenAI
+    API Answers endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating the Answers endpoint
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now we''ll go back and add some code to our `routes/answer.js` file so that
+    it calls the OpenAI Answers endpoint to answer the user''s question, rather than
+    returning the placeholder text:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `routes/answer.js` file and do the following.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Delete all of the code after *line 5*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Starting on *line 5*, add the following code followed by a line return:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, add the following code with a line return after it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the following code starting on *line 16* followed by a line return:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, beginning on *line 18*, add the following to complete the code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When you''re done editing `routes/answer.js`, the file will look like the following
+    screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.10 – Edited routes/answer.js file'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_010.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.10 – Edited routes/answer.js file
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We're just about done. The final step before testing is to add our OpenAI API
+    key as an environment variable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Add your OpenAI API key as a secret for the REPL by clicking the padlock icon
+    and adding a key with the name `OPENAI_API_KEY` and the value of your OpenAI API
+    key, like the example in the following screenshot:![Figure 9.11 – Add a secret
+    for your OpenAI API key
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_011.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.11 – Add a secret for your OpenAI API key
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Click the **Stop** button followed by **Run** to restart Express and then enter
+    **What is your favorite food?** into the question text field and click the **GET
+    ANSWER** button. You should see something like the following screenshot – an answer
+    coming from GPT-3:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 9.12 – Answer from GPT-3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_012.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.12 – Answer from GPT-3
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now have a simple but functional GPT-3-powered question-answering app. However,
+    you might be wondering why we're getting a response (an answer) for **What is
+    your favorite food?** when we haven't provided an answer for that. We'll discuss
+    that next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating relevant and factual answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: GPT-3 is a language model – it predicts the statistical likelihood of the text
+    that should follow the prompt text it was provided. It's not a knowledge base
+    in the sense that it's concerned much with the factual accuracy of the responses
+    it generates. That doesn't mean it won't generate factual answers; it just means
+    you can't count on the answers being accurate all of the time. But the Answers
+    endpoint can provide a lot of control over the accuracy or relevancy of the answers
+    that will get generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we discussed earlier in *Introducing the Answers endpoint*, answers will
+    be generated from the documents we provide. At this point, we're providing documents
+    as part of the endpoint request. Using that method, if the answer can't be derived
+    from the documents, the engine defined by the `routes/answer.js` file – we used
+    the `Curie` engine. But let's say we only want answers to be derived from our
+    documents and we don't want to return answers otherwise. While we don't have 100%
+    control over that, we can use a pre-uploaded file to get us pretty close.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When pre-uploaded files are used with the Answers endpoint, you're not limited
+    to just 200 documents like you are when you provide documents with the HTTP request.
+    In fact, a pre-uploaded file might contain a very large number of documents because
+    you can have up to 1 GB of file space per organization. Because a file might contain
+    a very large number of documents, a keyword filter is applied to the documents
+    in the file to narrow the possible documents that could be used for the answer.
+    From there, the documents are ranked and then used by the engine defined by the
+    model parameter to generate the answer. When you send documents with a request
+    parameter, the keyword filtering is skipped because the number of documents you
+    can send is limited to 200\. For our GPT Answers app, keyword filtering will help
+    us decrease the chances that irrelevant questions will be answered. So, let's
+    take a look at using files with the Answers endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using files with the Answers endpoint
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To use documents from a file, the first thing we''ll need to do is get the
+    file uploaded to OpenAI so it can be used by the Answers endpoint. The process
+    involves creating a file containing our documents, then using the **files endpoint**
+    to upload the file and get a file ID that can be used when we make requests to
+    the Answers endpoint. To create and upload the answer file, complete the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a new `jsonl` file named `answers.jsonl` and some answers for the file
+    in the following format:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Create another new file named `files-upload.js`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Add the following code in `file-upload.js`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Require a few modules that will be used:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, add the following code to read in the `jsonl` data for the request:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add a variable for the HTTP request parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, add code to make the HTTP request and log results:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When you''re done editing `files-upload.js`, it should look like the code in
+    the following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.13 – Completed code for file-upload.js'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_013.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.13 – Completed code for file-upload.js
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In the output pane, click on the **Shell** tab.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'At the `~/gptanswers-node` prompt, enter the following command with your OpenAI
+    API key:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, enter the following command in the shell:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After running the previous shell commands, you should see a result like the
+    output in the following screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.14 – Shell output from files-upload.js'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_014.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.14 – Shell output from files-upload.js
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Copy the `id` value from the JSON results (the value that begins with `file-`)
+    to your clipboard.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click on the padlock icon and create a new secret/environment variable named
+    `ANSWERS_FILE` and paste the ID value you copied in the last step into the value
+    input, then click the **Add new secret** button.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open `routes/answer.js` and rename the `documents` parameter on *line 20* to
+    `file`. Then replace the `documents` value with `process.env.ANSWERS_FILE`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'After the previous update, *line 20* should look like *line 20* in the following
+    screenshot:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 9.15 – The Answers endpoint parameters using the file parameter'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_015.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 9.15 – The Answers endpoint parameters using the file parameter
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: At this point, you are ready to test.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Click the **Run** button, then enter **What is your favorite food?** in the
+    question input followed by clicking the **GET ANSWER** button. This time you''ll
+    notice that the answer was generated from our answers file, as the following screenshot
+    shows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 9.16 – An answer generated from the answers file'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_016.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.16 – An answer generated from the answers file
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But now if you enter a question that''s not related at all to the data in your
+    file, the response will be **Sorry, I don''t have an answer**. You can test this
+    by asking something such as **Do you sell this one in red?** You should see a
+    result like the one shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.17 – A question that can''t be answered'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_017.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.17 – A question that can't be answered
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An important thing to keep in mind is that both the answers file and the completion
+    engine (`Curie` in our case) are used to generate the answer. So, it''s possible
+    to get an answer that isn''t represented in your file. However, the more data
+    you have in your answers file, the less likely that will be. But because we just
+    have three documents in our answers file now, if you ask a question such as **What
+    is your favorite vacation spot?**, you might see a response with an answer that
+    isn''t defined in your answers file, as the following screenshot shows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.18 – An answer that isn''t from the answers file'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_09_018.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.18 – An answer that isn't from the answers file
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, even though we're providing answers in our answers file, that doesn't guarantee
+    GPT-3 won't generate an answer that isn't accurate. But we'll discuss this more
+    later in this chapter and in [*Chapter 10*](B16854_10_ePub_AM.xhtml#_idTextAnchor187),
+    *Going Live with OpenAI-Powered Apps*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, we have a fully functional app. Of course, there is a lot more
+    we could add to polish our app, but the core functionality is in place. The main
+    thing you''ll need to do is add more documents to the answers file. To do that,
+    complete the following steps each time you want to add new data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Add new documents to the `answers.jsonl` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open the shell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Run the following shell command to set your API key as an environment variable
+    that the shell can access:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Run the following command in the shell to execute `files-upload.js`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Copy the file `ANSWERS_FILE` environment variable by clicking the padlock icon
+    and replacing the value with the **ANSWERS_FILE** secret.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click the **Stop** button and then the **Run** button to restart Express.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Again, more data in your answers file will minimize the chances of non-factual
+    answers. But it's still possible that GPT-3 will generate answers that clearly
+    aren't from your answers file. So, it's still important to consider content filtering,
+    which is why we'll be covering that more in the next chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we introduced the Answers endpoint and used Node.js/JavaScript
+    to build a simple but functional web application that can answer questions from
+    documents we provide. For our applications, we created an API that acts as a proxy
+    to the OpenAI API and an HTML page that provides the user interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will discuss the OpenAI app review process and implement
+    a few modifications to our application based on recommendations from OpenAI. Then,
+    we'll cover the steps necessary for going live!
+  prefs: []
+  type: TYPE_NORMAL

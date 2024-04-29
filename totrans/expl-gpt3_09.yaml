@@ -1,0 +1,902 @@
+- en: '*Chapter 6*: Content Filtering'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [*Chapter 1*](B16854_01_ePub_AM.xhtml#_idTextAnchor016), *Introducing GPT-3
+    and the OpenAI API*, we briefly mentioned that a content filtering model is available
+    to recognize potentially offensive or harmful language. We also discussed the
+    fact that GPT-3 will, at times, generate completions that some may find inappropriate
+    or hurtful. In this chapter, you will learn how to implement content filtering
+    to prevent users of your application from seeing offensive or potentially harmful
+    completions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The topics we will be covering in this chapter are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preventing inappropriate and offensive results
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding content filtering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing the content filtering process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Filtering content with JavaScript
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Filtering content with Python
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter requires that you have access to the **OpenAI API**. You can request
+    access by visiting [https://openapi.com](https://openapi.com).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preventing inappropriate and offensive results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: GPT-3 will, at times, generate text that could be considered inappropriate to
+    some users. This could be profanity, text with inappropriate racial, religious,
+    or political language, or sexually inappropriate/explicit content, or text that
+    is dark or violent in nature. This is not because GPT-3 is trying to be mean or
+    hurtful – it's just a language model that generates text based on a statistical
+    probability – it has no concept of *mean* or *inappropriate*. But GPT-3 was trained
+    using data from the internet, which unfortunately contains plenty of offensive
+    content. So, as a result, there will be times that the model generates inappropriate
+    content in a completion. Thankfully, as developers, there are things we can do
+    to prevent users from seeing potentially inappropriate responses from GPT-3.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The simplest way to avoid inappropriate content is to use your prompt text to
+    steer the model away from generating potentially offensive results. Generally,
+    GPT-3 will mirror the structure and content of the prompt. So, you can steer the
+    model away from potentially offensive results by telling the model that the completion
+    should be friendly, or polite, for example. But you'll need to test regardless.
+    Words such as "friendly" can also result in sexual content. So, use the prompt
+    to guide the model and refine the wording based on the results you're seeing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To illustrate, here are two example prompts and associated completions for
+    a hypothetical customer service question. In the example, **#$%@!** is used in
+    place of the expletives (swear words) that were used in the original prompts and
+    completions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Example 1:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Prompt:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Completion:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Example 2:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Prompt:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Completion:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The only difference between the two prompts is that the second example contains
+    *Polite Response:* at the end rather than just *Response:*. This is enough to
+    guide the model to generate a response with more appropriate language. To guide
+    the model further, you could also provide one or more samples with polite responses
+    to examples of aggressive or impolite customer questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main point here is that the prompt is the first, and easiest, way to minimize
+    inappropriate responses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another way to prevent inappropriate completions is to limit what can be returned
+    for a completion. For example, if you're classifying or summarizing text, the
+    model will be limited in terms of what could be included in the results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In cases where completions aren't constrained, for example, if you're generating
+    a response for a chatbot, you'll want to use content filtering, which we'll discuss
+    next. Also, Zero-Shot prompts, without examples, are more likely to result in
+    unpredictable completions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding content filtering
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Content filtering is about blocking or hiding content that may be deemed offensive,
+    inappropriate, or even dangerous. In our case, we're talking about content that
+    GPT-3 generates that we don't want users of our application to see.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To filter potentially offensive or unsafe text, we'll need to write a little
+    bit of code to evaluate text that GPT-3 generates and classify it as safe, sensitive,
+    or unsafe. The cool part is that we can use GPT-3 to do the classifications. So,
+    it's kind of like self-policing but with a bit of help from our code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At a high level, here is how we make it work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPT-3 generates a completion to a prompt.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The completion text is submitted back to a GPT-3 filter engine.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The filter engine returns a classification (safe, sensitive, unsafe).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The original completion text is blocked or sent back to the user based on the
+    classification.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optionally, if the completion text is sensitive, or unsafe, a new safe completion
+    could be generated and sent without the user knowing that some content was blocked.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Content filtering is done using the completions endpoint. However, a specialized
+    content filter engine is used along with some specific settings, and a specially
+    formatted prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As this is being written, the available content filtering engine is **content-filter-alpha-c4**.
+    So, the URL we'd use for the completions endpoint with that engine would be [https://api.openai.com/v1/engines/content-filter-alpha-c4/completions](https://api.openai.com/v1/engines/content-filter-alpha-c4/completions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, there are some specific requirements for parameters that need to be
+    included with the API request. Specifically, we need to include the following
+    parameters and associated values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`1`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`0.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, the prompt for content filtering must be formatted in a specific way.
+    The prompt format is `"<|endoftext|>[prompt]\n--\nLabel:"`. The `[prompt]` part
+    would just be replaced with the text we want the content filter to evaluate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Content filtering is in beta at the time of publishing. There is a good chance
+    that the engine ID may have changed by the time you're reading this. For that
+    reason, be sure to review the OpenAI content filter documents located at [https://beta.openai.com/docs/engines/content-filter](https://beta.openai.com/docs/engines/content-filter).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, here is an example of the JSON we''d post to the completions endpoint.
+    In this example, the text we''re evaluating is *Once upon a time*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It''s pretty safe to assume that *Once upon a time* would be considered safe.
+    So, if that was the text we were applying the filter to, we could expect a response
+    that would look something like the following example, showing the text is 0 –
+    safe:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that in the JSON response object, there is an element named **choices**.
+    This element contains a JSON array of objects. Each object contains a text property
+    that will represent the content filter classification for one completion. The
+    value will always be one of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**0 – Safe**: Nothing about the text seems potentially offensive or unsafe.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**1 – Sensitive**: Sensitive topics may include text with political, religious,
+    racial, or nationality-related content.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**2 – Unsafe**: The text contains language that some would consider mean, hurtful,
+    explicit, offensive, profane, prejudiced, or hateful, or language that most would
+    consider **Not Safe for Work** (**NSFW**), or language that might portray certain
+    groups/people in a harmful manner.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'An array is sent back for the choices element because it''s possible to send
+    multiple prompts with one request. For example, if you wanted to see whether any
+    individual words in a sentence were unsafe, you might split the sentence into
+    an array of words and send each word as a prompt. Here is an example of a request
+    that sends *Oh hi* as two prompts – one word for each:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given the previous example with an array of prompts, you''ll see a response
+    that looks something like the following. Note now that there are multiple objects
+    in the choices array – one for each word/prompt:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The choices array has a zero-based index value that corresponds to the index
+    of the item in the prompt array that was passed in, meaning that the choices object
+    for the first prompt/word (which was "*Oh"* in our example) has an index value
+    of 0\. In this example, we just sent two words (*"Oh"* and *"hi"*), and both got
+    classified as a 0 (safe). However, if you were to change one of the words to your
+    favorite (or least favorite) swear word, you'd see the classification change to
+    2 (unsafe) for the item with the index that corresponds to the word you changed
+    (assuming you use a swear word that most English-speaking people would find offensive).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Something else to keep in mind is that the filter engine is not 100% accurate
+    and will err on the side of caution. So, you'll likely see false positives – words
+    being classified as sensitive or unsafe that are actually safe. This is something
+    you might have already seen in the Playground. Even topics that mention politics
+    or religion, for example, usually get flagged. It's always better to be safe than
+    sorry, but you'll want to consider how this might potentially impact your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, to recap, you can use the OpenAI API completions endpoint to classify potentially
+    sensitive or unsafe text. You just need to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use a content filter engine.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set `max_tokens` to `1`, `temperature` to `0.0`, and `top_p` to `0`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Format your prompt as `"<|endoftext|>your text here\n--\nLabel:"`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Alright, let's use Postman to get familiar with how content filtering works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing the content filtering process
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Later in this chapter, we''re going to create a simple content filter in code.
+    But before we do, let''s use Postman to test the general content filtering approach:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Log in to [Postman.com](http://Postman.com).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open the Exploring GPT-3 workspace that we created in [*Chapter 4*](B16854_04_ePub_AM.xhtml#_idTextAnchor074),
+    *Working with the OpenAI API*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new Postman collection named **Chapter 06**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new request named **Content Filter - Example 1**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set the request type to **POST**, and the request URL to [https://api.openai.com/v1/engines/content-filter-alpha-c4/completions](https://api.openai.com/v1/engines/content-filter-alpha-c4/completions),
+    as shown in the following screenshot:![Figure 6.1 – Setting the filter endpoint
+    in Postman
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_001.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.1 – Setting the filter endpoint in Postman
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Set the request body to **raw** and the body type to **JSON**, as in the following
+    screenshot:![Figure 6.2 – Filter parameters in Postman
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_002.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.2 – Filter parameters in Postman
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Add the following JSON object to the request body:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Click the send button and review the JSON response. The response will look
+    something like the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 6.3 – Postman filter results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_003.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.3 – Postman filter results
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the response, you should notice that the text value is **1** (sensitive)
+    for the choices item with an index of **0**. As you might guess, that's likely
+    because the text *Are you religious*? could be considered a sensitive topic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before moving on, try changing the prompt text to something that you suspect
+    might be considered sensitive or unsafe and see how it gets classified. After
+    getting familiar with the content filtering process, move on to the next section
+    to try it out in JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Filtering content with JavaScript
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll look at a simple content filtering code example using
+    JavaScript. We could write all the code ourselves, but there is a cool feature
+    in Postman that generates code snippets for the requests we create. So, let''s
+    give that a try:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To see Postman-generated code snippets, click on the **code** button on the
+    right-side menu. The arrow in the following screenshot is pointing to the **</>**
+    icon, which is the button to click:![Figure 6.4 – Code button to open the code
+    pane
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_004.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.4 – Code button to open the code pane
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: After clicking the code button, a code snippet pane will open in Postman. Change
+    the code snippet type to **NodeJs – Axios** by selecting it from the drop-down
+    list. Then, click the copy button shown in the following screenshot. This will
+    copy the code snippet to your clipboard:![Figure 6.5 – Postman code snippet for
+    Node.js – Axios
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_005.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.5 – Postman code snippet for Node.js – Axios
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After copying the code snippet to the clipboard, perform the following steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: a) Log in to [replit.com](http://replit.com) and open your `chapter06`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: c) Create a file in the `chapter06` folder named `filter.js`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: d) Paste the code snippet from Postman into the `filter.js` file.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The resulting code should look like the following screenshot. However, there
+    is one small change we need to make before we can run the file:![Figure 6.6 –
+    Code copied from the Postman snippet to the replit.com file
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_006.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'So, after updating the authorization line, the final code should be the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following screenshot shows the preceding code in [replit.com](http://replit.com):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 6.7 – Postman code snippet modified for replit.com'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_007.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.7 – Postman code snippet modified for replit.com
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, the code is very similar to the code we wrote in [*Chapter 5*](B16854_05_ePub_AM.xhtml#_idTextAnchor098),
+    *Using the OpenAI API in Code*, when we discussed calling the completions endpoint.
+    We just need to edit the `run` command in the `.replit` file to run the code in
+    our `chapter06/filter.js` file. Then we can carry out a test:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, update the `.replit` file to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After updating the `.replit` file, click the green **Run** button and you should
+    see results in the console window that are similar to the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 6.8 – Results from running chapter06/filter.js'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_008.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.8 – Results from running chapter06/filter.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a simple example that classifies all of the text in a single prompt.
+    Let's take a look at another example that classifies each word in a string and
+    classifies each word as safe, sensitive, or unsafe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Flagging unsafe words with Node.js/JavaScript
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For this example, we''ll start by creating a new file named `chapter06/flag.js`
+    and copying in the code from `chapter06/filter.js` as a starting point. From there,
+    we''re going to modify the code in `chapter06/flag.js` to list each word with
+    a classification value (0 = safe, 1 = sensitive, 2 = unsafe). To begin, perform
+    the following steps to create our starting point:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Log in to [replit.com](http://replit.com) and open your **exploring-gpt3-node**
+    repl.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a file in the `chapter06` folder named `flag.js`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Copy and paste the entire contents of `chapter06/filter.js` into `chapter06/flag.js`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Edit the `.replit` file to run `chapter06/flag.js` by using the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We''ll start by adding a variable to hold the text we want to filter. We''ll
+    add this code just under the first line. So, the first two lines will be as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we''ll add a variable to hold an array of prompts and set the initial
+    value to an empty array. This will get populated with a prompt for each word from
+    our text input:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we''ll split our `textInput` into an array of words and populate the `prompts`
+    array with a prompt for each word. Since we''re sending the prompts to the filter
+    engine, we''ll also need to format each prompt item properly. So, we''ll add the
+    following code after our `prompts` variable. This code splits the text input into
+    individual words, loops through each word to create a prompt item, and then adds
+    the prompt item to the `prompts` array:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now we will update the data variable that was created by Postman. We''ll use
+    our `prompts` array as the prompt value rather than the hardcoded value from Postman.
+    So, we''ll change the data variable to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we''ll modify the output with code that loops through the word array
+    and classifies each word using the results from the filter. To do that, replace
+    the line that contains `console.log(JSON.stringify(response.data));` with the
+    following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After making that last code edit, we can run the code again and this time we''ll
+    see a response like the following:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 6.9 – Content filter results for each word in a text input'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_009.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.9 – Content filter results for each word in a text input
+  prefs: []
+  type: TYPE_NORMAL
+- en: You'll notice now that the word (`religion`) has a text value of *1* (sensitive).
+    If you change the `textInput` value with text that contains the more offensive
+    word, you can run the code again to see how each word is classified. In a real-world
+    implementation, you might replace or redact words that are sensitive or unsafe,
+    which could now easily be done with the results from the API using a similar approach.
+    We'll look at doing that in [*Chapter 7*](B16854_07_ePub_AM.xhtml#_idTextAnchor136),
+    *Generating and Transforming Text*, but for now, let's look at content filtering
+    with Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Filtering content with Python
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now let''s see how to implement content filtering with Python. Unless you skipped
+    over *Filtering content with JavaScript*, you can probably guess how we''re going
+    to get started with a Python content filtering example – we''re going to use a
+    code snippet generated by Postman:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, start by opening the code snippet pane in Postman. Then, click the code
+    button in the right-hand menu. The code button is where the arrow in the following
+    screenshot is pointing:![Figure 6.10 – Code button to open the code pane
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_010.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.10 – Code button to open the code pane
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: After clicking the code button, the code snippet pane will open. Change the
+    code snippet type to **Python – Requests** by selecting it from the drop-down
+    list. Then, click the copy button shown in the following screenshot. This will
+    copy the code snippet to your clipboard:![Figure 6.11 – Postman code snippet for
+    Python – requests
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_011.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.11 – Postman code snippet for Python – requests
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After copying the code snippet to the clipboard, perform the following steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: a) Log in to [replit.com](http://replit.com) and open your `chapter06`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: c) Create a file in the `chapter06` folder named `filter.py`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: d) Paste the snippet from Postman into the `filter.py` file.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The resulting code should look like the following screenshot. But you will see
+    that your API key is hardcoded – it is blurred in the screenshot. The hardcoded
+    API key is the first thing we will change:![Figure 6.12 – Code copied from the
+    Postman snippet to the repl.it file
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_012.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.12 – Code copied from the Postman snippet to the repl.it file
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To remove the hardcoded API key from our code file, we will import the Python
+    `os` library first so we can read the `OPENAI_API_KEY` environment variable that
+    we set in the `.env` file in [*Chapter 5*](B16854_05_ePub_AM.xhtml#_idTextAnchor098),
+    *Using the OpenAI API in Code*. So, we''ll add the following code to the first
+    line of our `filter.py` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After importing the Python `os` library, we can get the API key value for the
+    authorization header from our environment variable. In the preceding *Figure 6.12*,
+    you would be editing *line 7* to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After updating the authorization line, the final code should be the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The following screenshot shows the preceding code in [replit.com](http://replit.com):![Figure
+    6.13 – Postman Python code snippet modified for replit.com
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_013.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 6.13 – Postman Python code snippet modified for replit.com
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'At this point, the code is very similar to the code we wrote in [*Chapter 5*](B16854_05_ePub_AM.xhtml#_idTextAnchor098),
+    *Using the OpenAI API in Code*, when we discussed calling the completions endpoint
+    using Python. We just need to edit the `run` command in the `.replit` file to
+    run the code in our `chapter06/filter.py` file. Then we can carry out a test.
+    So, update the `.replit` file to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After updating the `.replit` file, click the green **Run** button and you should
+    see results in the console window that are similar to the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 6.14 – Results from running chapter06/filter.py'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_014.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.14 – Results from running chapter06/filter.py
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a simple example that classifies all of the text in a single prompt.
+    Let's now take a look at another example that classifies each word in a string
+    and replaces unsafe words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Flagging unsafe words with Python
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For this example, we''ll start by creating a new file named `chapter06/flag.py`
+    and copying in the code from `chapter06/filter.py` as a starting point. From there,
+    we''re going to modify the code in `chapter06/flag.py` to list each word with
+    a classification value (0 = safe, 1 = sensitive, 2 = unsafe). To begin, perform
+    the following steps to create our starting point:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Log in to replit.com and open `your exploring-gpt3-python` repl.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a file in the `chapter06` folder named `flag.py`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Copy and paste the entire contents of `chapter06/filter.py` into `chapter06/flag.py`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Edit the `.replit` file to run `chapter06/flag.py` using the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the `chapter06/flag.py` file, we''ll add a variable to hold the text we
+    want to filter. We''ll add the following code just under the third line (after
+    the last line that starts with `import`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we''ll add a variable to hold an array of prompts and set the initial
+    value to an empty array. This will get populated with a prompt for each word from
+    our text input:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we''ll split our `textInput` into an array of words and populate the `prompts`
+    array with a prompt for each word. Since we''re sending the prompts to the filter
+    engine, we''ll also need to format each prompt item properly. So, we''ll add the
+    following code after our `prompts` variable. This code splits the text input into
+    individual words, loops through each word to create a prompt item, and adds the
+    prompt item to the `prompts` array:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now we will update the payload variable that was created by Postman to a Python
+    object rather than a string. This makes it a little more readable and easier to
+    include our `prompts` array. So, replace the payload variable with the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we''ll replace the last line of code, `print(response.text)`, with
+    the following code that loops through the results and adds a classification (0
+    = safe, 1 = sensitive, 2 = unsafe) for each word:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After making that final code edit, we can click the **Run** button and this
+    time we''ll see a response like the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 6.15 – Content filter results for each word in a text input using
+    Python'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B16854_06_015.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 6.15 – Content filter results for each word in a text input using Python
+  prefs: []
+  type: TYPE_NORMAL
+- en: You'll notice in the console that the word (`religion`) has a text value of
+    **1** (sensitive). In a real-world application, you'd use a similar approach to
+    redact or replace unsafe and sensitive words. But keep in mind that no content
+    filtering process is perfect. Language is constantly evolving, and the context
+    of words can change meanings, which might cause the content filter to miss or
+    falsely flag content. So, it's important to consider this in the design of your
+    filtering approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we discussed how GPT-3 might, at times, generate inappropriate
+    content. We also discussed what we can do to prevent and detect inappropriate
+    content. You learned how prompts can be used to prevent the likelihood that inappropriate
+    content is generated, and how content filtering can be used to classify content
+    as safe, sensitive, or unsafe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We reviewed how the completions endpoint can be used for content filtering and
+    how to implement content filtering using both JavaScript and Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will take what we learned in this chapter, along with
+    what we learned in [*Chapter 5*](B16854_05_ePub_AM.xhtml#_idTextAnchor098), *Calling
+    the OpenAI API in Code*, and use that knowledge to build a GPT-3 powered chatbot.
+  prefs: []
+  type: TYPE_NORMAL
