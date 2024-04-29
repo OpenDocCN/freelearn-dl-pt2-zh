@@ -1,7 +1,9 @@
 - en: Chapter 6. Recurrent Neural Networks and Language Models
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 第6章 递归神经网络和语言模型
 - en: The neural network architectures we discussed in the previous chapters take
     in fixed sized input and provide fixed sized output. Even the convolutional networks
     used in image recognition ([Chapter 5](part0030_split_000.html#SJGS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
@@ -9,8 +11,11 @@
     output vector. This chapter will lift us from this constraint by introducing **Recurrent
     Neural Networks** (**RNNs**). RNNs help us deal with sequences of variable length
     by defining a recurrence relation over these sequences, hence the name.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在前几章讨论的神经网络架构接受固定大小的输入并提供固定大小的输出。即使在图像识别中使用的卷积网络（[第5章](part0030_split_000.html#SJGS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第5章 图像识别")，“图像识别”）也被展平成一个固定输出向量。本章将通过引入**递归神经网络**（**RNNs**）来摆脱这一限制。RNN通过在这些序列上定义递推关系来帮助我们处理可变长度的序列，因此得名。
 - en: The ability to process arbitrary sequences of input makes RNNs applicable for
     tasks such as language modeling (see section on *Language Modelling*) or speech
     recognition (see section on *Speech Recognition*). In fact, in theory, RNNs can
@@ -19,200 +24,289 @@
     computer would not be able to compute. As an example of this, Google DeepMind
     has proposed a model named "Neural Turing Machines", which can learn how to execute
     simple algorithms, such as sorting [2].
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 处理任意输入序列的能力使得RNN可用于诸如语言建模（参见*语言建模*部分）或语音识别（参见*语音识别*部分）等任务。事实上，理论上，RNN可以应用于任何问题，因为已经证明它们是图灵完备的
+    [1]。这意味着在理论上，它们可以模拟任何常规计算机无法计算的程序。作为这一点的例证，Google DeepMind 提出了一个名为“神经图灵机”的模型，该模型可以学习执行简单的算法，比如排序
+    [2]。
 - en: 'In this chapter, we will cover the following topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将涵盖以下主题：
 - en: How to build and train a simple RNN, based on a toy problem
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何构建和训练一个简单的RNN，基于一个简单的问题
 - en: The problem of vanishing and exploding gradients in RNN training and how to
     solve them
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: RNN训练中消失和爆炸梯度的问题以及解决方法
 - en: The LSTM model for long-term memory learning
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 用于长期记忆学习的LSTM模型
 - en: Language modeling and how RNNs can be applied to this problem
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 语言建模以及RNN如何应用于这个问题
 - en: A brief introduction to applying deep learning to speech recognition
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 应用深度学习于语音识别的简要介绍
 - en: Recurrent neural networks
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 递归神经网络
 - en: 'RNNs get their name because they recurrently apply the same function over a
     sequence. An RNN can be written as a recurrence relation defined by this function:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 'RNN之所以得名，是因为它们在序列上重复应用相同的函数。可以通过下面的函数将RNN写成递推关系:'
 - en: '![Recurrent neural networks](img/00220.jpeg)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![递归神经网络](img/00220.jpeg)'
 - en: 'Here *S*[t] —the state at step *t*—is computed by the function *f* from the
     state in the previous step, that is *t-1*, and an input *X*[t] at the current
     step. This recurrence relation defines how the state evolves step by step over
     the sequence via a feedback loop over previous states, as illustrated in the following
     figure:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的 *S*[t] —第 *t* 步的状态—是由函数 *f* 从前一步的状态，即 *t-1*，和当前步骤的输入 *X*[t] 计算得出。这种递推关系通过在先前状态上的反馈循环来定义状态如何逐步在序列中演变，如下图所示：
 - en: '![Recurrent neural networks](img/00221.jpeg)'
+  id: totrans-13
   prefs: []
   type: TYPE_IMG
+  zh: '![递归神经网络](img/00221.jpeg)'
 - en: Figure from [3]
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 图来自[3]
 - en: 'Left: Visual illustration of the RNN recurrence relation: *S* *[t]* *= S* *[t-1]*
     ** W + X* *[t]* ** U*. The final output will be *o* *[t]* *= V*S* *[t]*'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 左：RNN递推关系的可视化示例：*S* *[t]* *= S* *[t-1]* ** W + X* *[t]* ** U*。最终输出将是 *o* *[t]*
+    *= V*S* *[t]*
 - en: 'Right: RNN states recurrently unfolded over the sequence *t-* *1, t, t+1*.
     Note that the parameters U, V, and W are shared between all the steps.'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 右：RNN状态在序列 *t-1, t, t+1* 上递归展开。注意参数U、V和W在所有步骤之间共享。
 - en: 'Here *f* can be any differentiable function. For example, a basic RNN is defined
     by the following recurrence relation:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: '这里 *f* 可以是任何可微分函数。例如，一个基本的RNN定义如下递推关系:'
 - en: '![Recurrent neural networks](img/00222.jpeg)'
+  id: totrans-18
   prefs: []
   type: TYPE_IMG
+  zh: '![递归神经网络](img/00222.jpeg)'
 - en: Here *W* defines a linear transformation from state to state, and *U* is a linear
     transformation from input to state. The *tanh* function can be replaced by other
     transformations, such as logit, tanh, or ReLU. This relation is illustrated in
     the following figure where *O*[t] is the output generated by the network.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里*W*定义了从状态到状态的线性变换，*U*是从输入到状态的线性变换。*tanh*函数可以被其他变换替代，比如logit，tanh或者ReLU。这个关系可以在下图中进行解释，*O*[t]是网络生成的输出。
 - en: For example, in word-level language modeling, the input *X* will be a sequence
     of words encoded in input vectors *(X* *[1]* *… X* *[t]* *…)*. The state *S* will
     be a sequence of state vectors *(S* *[1]* *… S* *[t]* *… )*. And the output *O*
     will be a sequence of probability vectors *(O* *[1]* *… O* *[t]* *… )* of the
     next words in the sequence.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，在词级语言建模中，输入*X*将是一个序列的单词编码的输入向量*(X*[1]*…X*[t]*…)*。状态*S*将会是一个状态向量的序列*(S*[1]*…S*[t]*…)*。输出*O*将是下一个序列中的单词的概率向量的序列*(O*[1]*…O*[t]*…)*。
 - en: Notice that in an RNN, each state is dependent on all previous computations
     via this recurrence relation. An important implication of this is that RNNs have
     memory over time because the states *S* contain information based on the previous
     steps. In theory, RNNs can remember information for an arbitrarily long period
     of time, but in practice, they are limited to look back only a few steps. We will
     address this issue in more detail in section on *Vanishing* *and exploding gradients*.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 需要注意的是，在RNN中，每个状态都依赖于其之前的所有计算，通过这种循环关系。这个关系的一个重要含义是，RNN在时间上有记忆，因为状态*S*包含了基于先前步骤的信息。理论上，RNN可以记住任意长时间的信息，但在实践中，它们只能回顾几个步骤。我们将在*消失*和*爆炸梯度*部分更详细地讨论这个问题。
 - en: 'Because RNNs are not limited to processing input of fixed size, they really
     expand the possibilities of what we can compute with neural networks, such as
     sequences of different lengths or images of varied sizes. The next figure visually
     illustrates some combinations of sequences we can make. Here''s a brief note on
     these combinations:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为RNN不限于处理固定大小的输入，它们确实扩展了我们可以使用神经网络进行计算的可能性，比如不同长度的序列或不同大小的图像。下图直观地说明了我们可以制作的一些序列的组合。以下是这些组合的简要说明：
 - en: '**One-to****-one**: This is non-sequential processing, such as feedforward
     neural networks and convolutional neural networks. Note that there isn''t much
     difference between a feedforward network and applying an RNN to a single time
     step. An example of one-to-one processing is the image classification from chapter
     (See [Chapter 5](part0030_split_000.html#SJGS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
     "Chapter 5. Image Recognition"), *Image Recognition*).'
+  id: totrans-23
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**一对一**：这是非顺序处理，比如前馈神经网络和卷积神经网络。请注意，一个前馈网络和RNN应用在一个时间步骤上没有太大的区别。一个一对一处理的例子是来自章节的图像分类（参见[第5章](part0030_split_000.html#SJGS1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第5章。图像识别")，*图像识别*）。'
 - en: '**One-to-many**: This generates a sequence based on a single input, for example,
     caption generation from an image [4].'
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**一对多**：这基于单一的输入生成一个序列，例如，来自图像的标题生成[4]。'
 - en: '**Many-to-one**: This outputs a single result based on a sequence, for example,
     sentiment classification from text.'
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**多对一**：这基于一个序列输出一个单一的结果，例如，文本的情感分类。'
 - en: '**Many-to****-many indirect**: A sequence is encoded into a state vector, after
     which this state vector is decoded into a new sequence, for example, language
     translation [5], [6].'
+  id: totrans-26
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**多对多间接**：一个序列被编码成一个状态向量，之后这个状态向量被解码成一个新的序列，例如，语言翻译[5]，[6]。'
 - en: '**Many-to-many direct**: This outputs a result for each input step, for example,
     frame phoneme labeling in speech recognition (see the *Speech recognition* section).![Recurrent
     neural networks](img/00223.jpeg)'
+  id: totrans-27
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**多对多直接**：这对每个输入步骤输出一个结果，例如，语音识别中的帧语素标记（见*语音识别*部分）。'
 - en: Image from [7]
+  id: totrans-28
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 来自[7]的图片
 - en: 'RNNs expand the possibilities of what we can compute with neural networks—Red:
     input X, Green: states S, Blue: outputs O.'
+  id: totrans-29
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: RNN扩展了我们可以使用神经网络进行计算的可能性—红色：输入X，绿色：状态S，蓝色：输出O。![递归神经网络](img/00223.jpeg)
 - en: RNN — how to implement and train
+  id: totrans-30
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: RNN — 如何实现和训练
 - en: 'In the previous section, we briefly discussed what RNNs are and what problems
     they can solve. Let''s dive into the details of an RNN and how to train it with
     the help of a very simple toy example: counting ones in a sequence.'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的部分，我们简要讨论了RNN是什么以及它们可以解决的问题。让我们深入了解RNN的细节，以及如何通过一个非常简单的玩具例子来训练它：在一个序列中计算“1”的个数。
 - en: 'In this problem, we will teach the most basic RNN how to count the number of
     ones in the input and output the result at the end of the sequence. We will show
     an implementation of this network in Python and NumPy. An example of input and
     output is as follows:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个问题中，我们要教会最基本的递归神经网络如何计算输入中1的个数，并且在序列结束时输出结果。我们将在 Python 和 NumPy 中展示这个网络的实现。输入和输出的一个示例如下：
 - en: '[PRE0]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'The network we are going to train is a very basic one and is illustrated in
     the following figure:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们要训练的网络是一个非常基本的网络，如下图所示：
 - en: '![RNN — how to implement and train](img/00224.jpeg)'
+  id: totrans-35
   prefs: []
   type: TYPE_IMG
+  zh: '![RNN — 如何实现和训练](img/00224.jpeg)'
 - en: Basic RNN for counting ones in the input
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 基本的递归神经网络用于计算输入中的1的个数
 - en: 'The network will have only two parameters: an input weight *U* and a recurrence
     weight *W*. The output weight *V* is set to 1 so we just read out the last state
     as the output *y*. The recurrence relation defined by this network is *S* *[t]*
     *= S* *[t-1]* ** W + X* *[t]* ** U*. Note that this is a linear model since we
     don''t apply a nonlinear function in this formula. This function can be defined
     in terms of code as follows:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 网络只有两个参数：一个输入权重 *U* 和一个循环权重 *W*。输出权重 *V* 设为1，所以我们只需读取最后一个状态作为输出 *y*。这个网络定义的循环关系是
+    *S* *[t]* *= S* *[t-1]* ** W + X* *[t]* ** U*。请注意，这是一个线性模型，因为在这个公式中我们没有应用非线性函数。这个函数的代码定义如下：
 - en: '[PRE1]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Because 3 is the number we want to output and there are three ones, a good
     solution to this is to just get the sum of the input across the sequence. If we
     set *U=1*, then whenever an input is received, we will get its full value. If
     we set *W=1*, then the value we would accumulate will never decay. So for this
     example, we would get the desired output: 3.'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为3是我们想要输出的数字，而且有三个1，这个问题的一个很好的解决方案就是简单地对整个序列进行求和。如果我们设置 *U=1*，那么每当接收到一个输入，我们将得到它的完整值。如果我们设置
+    *W=1*，那么我们累积的值将永远不会衰减。所以，对于这个例子，我们会得到期望的输出：3。
 - en: Nevertheless, the training and implementation of this neural network will be
     interesting, as we will see in the rest of this section. So let's see how we could
     get this result through backpropagation.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管，这个神经网络的训练和实现将会很有趣，正如我们将在本节的其余部分中看到的。所以让我们看看我们如何通过反向传播来得到这个结果。
 - en: Backpropagation through time
+  id: totrans-41
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 通过时间的反向传播
 - en: The backpropagation through time algorithm is the typical algorithm we use to
     train recurrent networks [8]. The name already implies that it is based on the
     backpropagation algorithm we discussed in [Chapter 2](part0019_split_000.html#I3QM1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
     "Chapter 2. Neural Networks"), *Neural Networks*.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过时间的反向传播算法是我们用来训练递归网络的典型算法[8]。这个名字已经暗示了它是基于我们在 [第2章](part0019_split_000.html#I3QM1-c1ed1b54ca0b4e9fbb9fe2b2431d634f
+    "第2章. 神经网络") 讨论的反向传播算法，*神经网络*。
 - en: If you understand regular back-propagation, then backpropagation through time
     is not too difficult to understand. The main difference is that the recurrent
     network needs to be unfolded through time for a certain number of time steps.
@@ -222,59 +316,89 @@
     are that each layer has multiple input (the previous state, which is *S* *[t-1]*),
     and the current input (*X* *[t]*) and the parameters (here *U* and *W*) are shared
     between each layer.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你了解常规的反向传播，那么通过时间的反向传播就不难理解。主要区别在于，递归网络需要在一定数量的时间步长内进行展开。这个展开如前图所示（*基本的递归神经网络用于计算输入中的1的个数*）。展开完成后，我们得到一个与常规的多层前馈网络非常相似的模型。唯一的区别在于，每层都有多个输入（上一个状态，即
+    *S* *[t-1]*），和当前输入（*X* *[t]*），以及参数（这里的 *U* 和 *W*）在每层之间是共享的。
 - en: 'The forward pass unwraps the RNN along the sequence and builds up a stack of
     activities for each step. The forward step with a batch of input sequences *X*
     can be implemented as follows:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 前向传播将 RNN 沿着序列展开，并为每个步骤构建一个活动堆栈。批处理输入序列 *X* 的前向步骤可实现如下：
 - en: '[PRE2]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'After this forward step, we have the resulting activations, represented by
     *S*, for each step and each sample in the batch. Because we want to output more
     or less continuous output (sum of all ones), we use the mean squared error cost
     function to define our output cost with respect to the targets and output `y`,
     as follows:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 在进行这个前向步骤之后，我们有了每一步和每个样本在批处理中的激活，由 *S* 表示。因为我们想输出更多或更少连续的输出（全部为1的总和），我们使用均方误差代价函数来定义我们的输出成本与目标和输出
+    `y`，如下：
 - en: '[PRE3]'
+  id: totrans-47
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Now that we have our forward step and cost function, we can define how the gradient
     is propagated backward. First, we need to get the gradient of the output `y` with
     respect to the cost function (*??/?y*).
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了前向步骤和成本函数，我们可以定义梯度如何向后传播。首先，我们需要得到输出`y`相对于成本函数的梯度（*??/?y*）。
 - en: 'Once we have this gradient, we can propagate it backward through the stack
     of activities we built during the forward step. This backward pass pops activities
     off the stack to accumulate the error derivatives at each time step. The recurrence
     relation to propagate this gradient through the network can be written as follows:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们有了这个梯度，我们可以通过向后传播堆栈中构建的活动来将其传播到每个时间步长处的误差导数。传播该梯度通过网络的循环关系可以写成以下形式：
 - en: '![Backpropagation through time](img/00225.jpeg)'
+  id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![反向传播通过时间](img/00225.jpeg)'
 - en: 'The gradients of the parameters are accumulated with this:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 参数的梯度通过以下方式累积：
 - en: '![Backpropagation through time](img/00226.jpeg)![Backpropagation through time](img/00227.jpeg)'
+  id: totrans-52
   prefs: []
   type: TYPE_IMG
+  zh: '![反向传播通过时间](img/00226.jpeg)![反向传播通过时间](img/00227.jpeg)'
 - en: 'In the following implementation, the gradients for `U` and `W` are accumulated
     during `gU` and `gW`, respectively, during the backward step:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的实现中，在反向步骤中，分别通过`gU`和`gW`累积`U`和`W`的梯度：
 - en: '[PRE4]'
+  id: totrans-54
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'We can now try to use gradient descent to optimize our network:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以尝试使用梯度下降优化我们的网络：
 - en: '[PRE5]'
+  id: totrans-56
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: There is an issue though. Notice that if you try to run this code, the final
     parameters *U* and *W* tend to end up as **Not a Number** (**NaN**). Let's try
     to investigate what happened by plotting the parameter updates over an error surface,
@@ -283,24 +407,34 @@
     At this point, the gradient values just blow up and make the parameter values
     jump outside the plot. This problem is known as exploding gradients. The next
     section will explain why this happens in detail and how to prevent it.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 不过存在一个问题。注意，如果尝试运行此代码，最终参数*U*和*W*往往会变为**不是一个数字**（**NaN**）。让我们尝试通过在错误曲面上绘制参数更新来调查发生了什么，如下图所示。注意，参数慢慢朝着最佳值（*U=W=1*）移动，直到超过并达到大约（*U=W=1.5*）。此时，梯度值突然爆炸，使参数值跳出图表。这个问题被称为梯度爆炸。下一节将详细解释为什么会发生这种情况以及如何预防。
 - en: '![Backpropagation through time](img/00228.jpeg)'
+  id: totrans-58
   prefs: []
   type: TYPE_IMG
+  zh: '![反向传播通过时间](img/00228.jpeg)'
 - en: Parameter updates plotted on an error surface via a gradient descent. The error
     surface is plotted on a logarithmic color scale
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 参数更新通过梯度下降在错误曲面上绘制。错误曲面以对数颜色比例尺绘制。
 - en: Vanishing and exploding gradients
+  id: totrans-60
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 梯度消失和梯度爆炸
 - en: RNNs can be harder to train than feedforward or convolutional networks. Some
     difficulties arise due to the recurrent nature of the RNN where the same weight
     matrix is used to compute all the state updates [9], [10].
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: RNN相对于前馈或卷积网络更难训练。一些困难源于RNN的循环性质，其中同一权重矩阵用于计算所有状态更新[9]，[10]。
 - en: The end of the last section, the preceding figure, illustrated the exploding
     gradient, which brings RNN training to an unstable state due to the blowing up
     of long-term components. Besides the exploding gradient problem, there is also
@@ -308,16 +442,22 @@
     go to zero exponentially fast, and the model is unable to learn from temporally
     distant events. In this section, we will explain both the problems in detail and
     also how to deal with them.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 上一节的结尾，前面的图示了梯度爆炸，由于长期组件的膨胀导致RNN训练进入不稳定状态。除了梯度爆炸问题，还存在梯度消失问题，即相反的情况发生。长期组件以指数速度趋于零，模型无法从时间上遥远的事件中学习。在本节中，我们将详细解释这两个问题以及如何应对它们。
 - en: 'Both exploding and vanishing gradients arise from the fact that the recurrence
     relation that propagates the gradient backward through time forms a geometric
     sequence:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 爆炸和消失梯度都源于通过时间向后传播梯度的循环关系形成了一个几何序列：
 - en: '![Vanishing and exploding gradients](img/00229.jpeg)'
+  id: totrans-64
   prefs: []
   type: TYPE_IMG
+  zh: '![梯度消失和梯度爆炸](img/00229.jpeg)'
 - en: In our simple linear RNN, the gradient grows exponentially if *|W| > 1*.This
     is known as the exploding gradient (for example, 50 time steps over W=1.5 is *W**[50]*
     *= 1.5**^(50)* *˜≈6 * 10**⁸*). The gradient shrinks exponentially if *|W**| <
@@ -327,8 +467,12 @@
     the largest eigenvalue (ρ) of *W* (also known as a spectral radius). It is sufficient
     for ρ < *1* for the gradients to vanish, and it is necessary for ρ > *1* for them
     to explode.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们简单的线性RNN中，如果*|W| > 1*，梯度会呈指数增长。这就是所谓的梯度爆炸（例如，50个时间步长下的*W=1.5*为*W**[50]**=1.5*˜≈6
+    * 10**⁸*）。如果*|W**| < 1*，梯度会呈指数衰减；这就是所谓的梯度消失（例如，20个时间步长下的*W=0.6*为*W**[20]**=0.6*˜≈3*10**^(-5)*）。如果权重参数*W*是矩阵而不是标量，则这种爆炸或消失的梯度与*W*的最大特征值（ρ）有关（也称为谱半径）。对于梯度消失，ρ
+    < *1*足够，使得梯度消失，对于梯度爆炸，ρ > *1*是必要的。
 - en: The following figure visually illustrates the concept of exploding gradients.
     What happens is that the cost surface we are training on is highly unstable. Using
     small steps, we might move to a stable part of the cost function, where the gradient
@@ -337,34 +481,48 @@
     They will end up in a place on the cost surface that is far from where they originally
     were. This makes gradient descent learning unstable and even impossible in some
     cases.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下图形直观地说明了梯度爆炸的概念。发生的情况是我们正在训练的成本表面非常不稳定。使用小步，我们可能会移动到成本函数的稳定部分，梯度很低，并突然遇到成本的跳跃和相应的巨大梯度。因为这个梯度非常巨大，它将对我们的参数产生很大影响。它们最终会落在成本表面上离它们最初的位置很远的地方。这使得梯度下降学习不稳定，甚至在某些情况下是不可能的。
 - en: '![Vanishing and exploding gradients](img/00230.jpeg)'
+  id: totrans-67
   prefs: []
   type: TYPE_IMG
+  zh: '![梯度消失和爆炸](img/00230.jpeg)'
 - en: Illustration of an exploding gradient [11]
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 梯度爆炸的插图[11]
 - en: 'We can counter the effects of exploding gradients by controlling the size our
     gradients can grow to. Some examples of solutions are:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过控制梯度的大小来对抗梯度爆炸的效果。一些解决方案的例子有：
 - en: Gradient clipping, where we threshold the maximum value a gradient can get [11].
+  id: totrans-70
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 梯度截断，我们将梯度能获得的最大值设定为阈值[11]。
 - en: Second order optimization (Newton's method), where we model the curvature of
     the cost function. Modeling the curvature allows us to take big steps in low-curvature
     scenarios and small steps in high-curvature scenarios. For computational reasons,
     typically only an approximation of the second order gradient is used [12].
+  id: totrans-71
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 二阶优化（牛顿法），我们模拟成本函数的曲率。模拟曲率使我们能够在低曲率情况下迈出大步，在高曲率情况下迈出小步。出于计算原因，通常只使用二阶梯度的近似值[12]。
 - en: Optimization methods, such as momentum [13] or RmsProp that rely less on the
     local gradient [14].
+  id: totrans-72
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 依赖于局部梯度较少的优化方法，例如动量[13]或RmsProp [14]。
 - en: For example, we can retrain our network that wasn't able to converge (refer
     the preceding figure of *Illustration of an exploding gradient*) with the help
     of Rprop [15]. Rprop is a momentum-like method that only uses the sign of the
@@ -372,15 +530,21 @@
     gradients. If we run Rprop optimization, we can see that the training converges
     in the following figure. Notice that while the training starts in a high gradient
     region (*U=-1.5, W=2*), it converges fast until it finds the optimum at (*U* *=W=1*).
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，我们可以利用Rprop [15]重新训练我们无法收敛的网络（参见*梯度爆炸的插图*）。 Rprop是一种类似于动量法的方法，仅使用梯度的符号来更新动量参数，因此不受梯度爆炸的影响。如果我们运行Rprop优化，可以看到训练收敛于下图。请注意，尽管训练开始于一个高梯度区域（*U=-1.5，W=2*），但它很快收敛直到找到最佳点（*U=W=1*）。
 - en: '![Vanishing and exploding gradients](img/00231.jpeg)'
+  id: totrans-74
   prefs: []
   type: TYPE_IMG
+  zh: '![梯度消失和爆炸](img/00231.jpeg)'
 - en: Parameter updates via Rprop plotted on an error surface. Error surface is plotted
     on a logarithmic scale.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过Rprop在误差表面绘制的参数更新。误差表面是以对数刻度绘制的。
 - en: 'The vanishing gradient problem is the inverse of the exploding gradient problem.
     The gradient decays exponentially over the number of steps. This means that the
     gradients in earlier states become extremely small, and the ability to retain
@@ -388,8 +552,11 @@
     are outcompeted by the larger gradients from more recent time steps. Hochreiter
     and Schmidhuber [16] describe this as follows: *Backpropagation through time is
     too sensitive to recent* *distractions*.'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 消失梯度问题是爆炸梯度问题的逆问题。梯度在步数上呈指数衰减。这意味着早期状态的梯度变得非常小，保留这些状态历史的能力消失了。较早时间步的小梯度被较近时间步的较大梯度所淘汰。Hochreiter
+    和 Schmidhuber [16] 将其描述如下：*通过时间的反向传播对最近的干扰过于敏感*。
 - en: This problem is more difficult to detect because the network will still learn
     and output something (unlike in the exploding gradients case). It just won't be
     able to learn long-term dependencies. People have tried to tackle this problem
@@ -399,12 +566,17 @@
     is a clever solution to the vanishing gradient problem that uses a special architecture
     made up of memory cells. We will discuss this architecture in detail in the next
     section.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个问题更难以检测，因为网络仍然会学习和输出一些东西（不像爆炸梯度的情况）。它只是无法学习长期依赖性。人们已经尝试用类似于我们用于爆炸梯度的解决方案来解决这个问题，例如二阶优化或动量。这些解决方案远非完美，使用简单
+    RNN 学习长期依赖性仍然非常困难。幸运的是，有一种聪明的解决方案可以解决消失梯度问题，它使用由记忆单元组成的特殊架构。我们将在下一节详细讨论这个架构。
 - en: Long short term memory
+  id: totrans-78
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 长短期记忆
 - en: In theory, simple RNNs are capable of learning long-term dependencies, but in
     practice, due to the vanishing gradient problem, they only seem to limit themselves
     to learning short-term dependencies. Hochreiter and Schmidhuber studied this problem
@@ -414,14 +586,20 @@
     RNNs on a variety of problems are due to the use of LSTMs. In this section, we
     will explore how this memory cell works and how it solves the vanishing gradient
     issue.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 在理论上，简单的 RNN 能够学习长期依赖性，但在实践中，由于消失梯度问题，它们似乎只限于学习短期依赖性。Hochreiter 和 Schmidhuber
+    对这个问题进行了广泛的研究，并提出了一种解决方案，称为**长短期记忆**（**LSTM**）[16]。由于特别设计的记忆单元，LSTM 可以处理长期依赖性。它们工作得非常好，以至于目前在各种问题上训练
+    RNN 的大部分成就都归功于使用 LSTM。在本节中，我们将探讨这个记忆单元的工作原理以及它是如何解决消失梯度问题的。
 - en: The key idea of LSTM is the cell state, of which the information can only be
     explicitly written in or removed so that the cell state stays constant if there
     is no outside interference. This cell state for time t is illustrated as *c* *[t]*
     in the next figure.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 的关键思想是单元状态，其中的信息只能明确地写入或删除，以使单元状态在没有外部干扰的情况下保持恒定。下图中时间 t 的单元状态表示为 *c* *[t]*。
 - en: 'The LSTM cell state can only be altered by specific gates, which are a way
     to let information pass through. These gates are composed of a logistic sigmoid
     function and element-wise multiplication. Because the logistic function only outputs
@@ -431,18 +609,28 @@
     figure. Note that the cell state, input, and output are all vectors, so the LSTM
     can hold a combination of different information blocks at each time step. Next,
     we will describe the workings of each gate in more detail.'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 单元状态只能通过特定的门来改变，这些门是让信息通过的一种方式。这些门由 logistic sigmoid 函数和逐元素乘法组成。因为 logistic
+    函数只输出介于 0 和 1 之间的值，所以乘法只能减小通过门的值。典型的 LSTM 由三个门组成：遗忘门、输入门和输出门。这些在下图中都表示为 *f*、*i*
+    和 *o*。请注意，单元状态、输入和输出都是向量，因此 LSTM 可以在每个时间步骤保存不同信息块的组合。接下来，我们将更详细地描述每个门的工作原理。
 - en: '![Long short term memory](img/00232.jpeg)![Long short term memory](img/00233.jpeg)'
+  id: totrans-82
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆](img/00232.jpeg)![长短期记忆](img/00233.jpeg)'
 - en: LSTM cell
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 单元
 - en: '*x**[t]**, c**[t]**, h**[t]* are the input, cell state, and LSTM output at
     time *t*, respectively.'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: '*x**[t]**、c**[t]**、h**[t]* 分别是时间 *t* 的输入、细胞状态和LSTM输出。'
 - en: The first gate in LSTM is the forget gate; it is called so because it decides
     whether we want to erase the cell state or not. This gate was not in the original
     LSTM proposed by Hochreiter; it was proposed by Gers and others [17]. The forget
@@ -453,11 +641,16 @@
     cell block completely and an output of 1 leaves all of the information in that
     cell blocked. This means that the LSTM can get rid of irrelevant information in
     its cell state vector.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 中的第一个门是遗忘门；因为它决定我们是否要擦除细胞状态，所以被称为遗忘门。这个门不在Hochreiter最初提出的LSTM中；而是由Gers等人提出[17]的。遗忘门基于先前的输出
+    *h* *[t-1]* 和当前的输入 *x**[t]* *.* 它将这些信息组合在一起，并通过逻辑函数压缩它们，以便为细胞的矢量块输出介于0和1之间的数字。由于与细胞的逐元素乘法，一个输出为0的完全擦除特定的细胞块，而输出为1会保留该细胞块中的所有信息。这意味着LSTM可以清除其细胞状态向量中的不相关信息。
 - en: '![Long short term memory](img/00234.jpeg)'
+  id: totrans-86
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00234.jpeg)'
 - en: 'The next gate decides what new information is going to be added to the memory
     cell. This is done in two parts. The first part decides whether information is
     going to be added. As in the input gate, its bases it decision on *h**[t-1]* and
@@ -465,81 +658,119 @@
     block of the cell''s vector. An output of 0 means that no information is added
     to that cell block''s memory. As a result, the LSTM can store specific pieces
     of information in its cell state vector:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来的门决定要添加到内存单元的新信息。这分为两部分进行。第一部分决定是否添加信息。与输入门类似，它基于 *h**[t-1]* 和 *x**[t]* 进行决策，并通过每个细胞块的矢量的逻辑函数输出
+    0 或 1。输出为 0 意味着不向该细胞块的内存中添加任何信息。因此，LSTM 可以在其细胞状态向量中存储特定的信息片段：
 - en: '![Long short term memory](img/00235.jpeg)'
+  id: totrans-88
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00235.jpeg)'
 - en: 'The input to be added, *a* *[t]*, is derived from the previous output (*h*
     *[t-1]*) and the current input (*x**[t]*) and is transformed via a *tanh* function:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 要添加的输入 *a* *[t]* 是由先前的输出 (*h* *[t-1]*) 和当前的输入 (*x**[t]*) 派生，并通过 *tanh* 函数变换：
 - en: '![Long short term memory](img/00236.jpeg)'
+  id: totrans-90
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00236.jpeg)'
 - en: 'The forget and input gates completely decide the new cell by adding the old
     cell state with the new information to add:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 遗忘门和输入门完全决定了通过将旧的细胞状态与新的信息相加来确定新细胞：
 - en: '![Long short term memory](img/00237.jpeg)'
+  id: totrans-92
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00237.jpeg)'
 - en: 'The last gate decides what the output is going to be. The output gate takes
     *h* *[t-1]* and *x**[t]* as input and outputs 0 or 1 through the logistic function
     available for each cell block''s memory. An output of 0 means that the cell block
     doesn''t output any information, while an output of 1 means that the full cell
     block''s memory is transferred to the output of the cell. The LSTM can thus output
     specific blocks of information from its cell state vector:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一个门决定输出结果。输出门将 *h* *[t-1]* 和 *x**[t]* 作为输入，并通过逻辑函数输出 0 或 1，在每个单元块的内存中均可用。输出为
+    0 表示该单元块不输出任何信息，而输出为 1 表示整个单元块的内存传递到细胞的输出。因此，LSTM 可以从其细胞状态向量中输出特定的信息块：
 - en: '![Long short term memory](img/00238.jpeg)'
+  id: totrans-94
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00238.jpeg)'
 - en: 'The final value outputted is the cell''s memory transferred by a *tanh* function:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 最终输出的值是通过 *tanh* 函数传递的细胞内存：
 - en: '![Long short term memory](img/00239.jpeg)'
+  id: totrans-96
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00239.jpeg)'
 - en: Because all these formulas are derivable, we can chain LSTM cells together just
     like we chain simple RNN states together and train the network via backpropagation
     through time.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为所有这些公式是可导的，我们可以像连接简单的RNN状态一样连接 LSTM 单元，并通过时间反向传播来训练网络。
 - en: Now how does the LSTM protect us from vanishing gradients? Notice that the cell
     state is copied identically from step to step if the forget gate is 1 and the
     input gate is 0\. Only the forget gate can completely erase the cell's memory.
     As a result, memory can remain unchanged over a long period of time. Also, notice
     that the input is a tanh activation added to the current cell's memory; this means
     that the cell memory doesn't blow up and is quite stable.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在问题是LSTM如何保护我们免受梯度消失的影响？请注意，如果遗忘门为1且输入门为0，则细胞状态会被逐步地从步骤复制。只有遗忘门才能完全清除细胞的记忆。因此，记忆可以长时间保持不变。还要注意，输入是添加到当前细胞记忆的tanh激活；这意味着细胞记忆不会爆炸，并且非常稳定。
 - en: How the LSTM is unrolled in practice is illustrated in the following figure.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上，以下图示了LSTM如何展开。
 - en: Initially, the value of 4.2 is given to the network as input; the input gate
     is set to 1 so the complete value is stored. Then for the next two time steps,
     the forget gate is set to 1\. So the entire information is kept throughout these
     steps and no new information is being added because the input gates are set to
     0\. Finally, the output gate is set to 1, and 4.2 is outputted and remains unchanged.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 初始时，网络的输入被赋值为4.2；输入门被设置为1，所以完整的值被存储。接下来的两个时间步骤中，遗忘门被设置为1。所以在这些步骤中保留了全部信息，并且没有添加新的信息，因为输入门被设置为0。最后，输出门被设置为1，4.2被输出并保持不变。
 - en: '![Long short term memory](img/00240.jpeg)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![长短期记忆网络](img/00240.jpeg)'
 - en: Unrolling LSTM through time [18]
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM通过时间展开[18]
 - en: While the LSTM network described in the preceding diagram is a typical LSTM
     version used in most applications, there are many variants of LSTM networks that
     combine different gates in different orders [19]. Getting into all these different
     architectures is out of the scope of this book.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管在前面的图示中描述的LSTM网络是大多数应用中使用的典型LSTM版本，但有许多变体的LSTM网络，它们以不同的顺序组合不同的门[19]。深入了解所有这些不同的架构超出了本书的范围。
 - en: Language modeling
+  id: totrans-104
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 语言建模
 - en: The goal of language models is to compute a probability of a sequence of words.
     They are crucial to a lot of different applications, such as speech recognition,
     optical character recognition, machine translation, and spelling correction. For
@@ -549,97 +780,143 @@
     phrase is most likely correct, based on the context of the conversation. This
     section will provide an overview of word- and character-level language models
     and how RNNs can be used to build them.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 语言模型的目标是计算单词序列的概率。它们对于许多不同的应用非常关键，例如语音识别、光学字符识别、机器翻译和拼写校正。例如，在美式英语中，短语"wreck
+    a nice beach"和"recognize speech"在发音上几乎相同，但它们的含义完全不同。一个好的语言模型可以根据对话的上下文区分哪个短语最有可能是正确的。本节将概述基于单词和字符的语言模型以及如何使用循环神经网络来构建它们。
 - en: Word-based models
+  id: totrans-106
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基于单词的模型
 - en: A word-based language model defines a probability distribution over sequences
     of words. Given a sequence of words of length *m*, it assigns a probability *P(w*
     *[1]* *, ... , w* *[m]* *)* to the full sequence of words. The application of
     these probabilities are two-fold. We can use them to estimate the likelihood of
     different phrases in natural language processing applications. Or, we can use
     them generatively to generate new text.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 基于单词的语言模型定义了一个对单词序列的概率分布。给定长度为*m*的单词序列，它为完整的单词序列赋予了概率*P(w* *[1]* *, ... , w*
+    *[m]* *)*。这些概率的应用有两个方面。我们可以用它们来估计自然语言处理应用中不同短语的可能性。或者，我们可以用它们来生成新的文本。
 - en: N-grams
+  id: totrans-108
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: N-gram模型
 - en: 'The inference of the probability of a long sequence, say *w* *[1]* *, ...,
     w* *[m]*, is typically infeasible. Calculating the joint probability of *P(w*
     *[1]* *, ... , w* *[m]* *)* would be done by applying the following chain rule:'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 推断一个长序列（如*w* *[1]* *, ..., w* *[m]*）的概率通常是不可行的。通过应用以下链式法则可以计算出*P(w* *[1]* *,
+    ... , w* *[m]* *)*的联合概率：
 - en: '![N-grams](img/00241.jpeg)'
+  id: totrans-110
   prefs: []
   type: TYPE_IMG
+  zh: '![N-gram模型](img/00241.jpeg)'
 - en: Especially the probability of the later words given the earlier words would
     be difficult to estimate from the data. This is why this joint probability is
     typically approximated by an independence assumption that the *i*^(th) word is
     only dependent on the *n-1* previous words. We only model the joint probabilities
     of *n* sequential words called n-grams. Note that n-grams can be used to refer
     to other sequences of length *n*, such as *n* characters.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 特别是基于前面的单词给出后面单词的概率将很难从数据中估计出来。这就是为什么这个联合概率通常被一个独立假设近似，即第*i*个单词只依赖于前*n-1*个单词。我们只建模*n*个连续单词称为n-grams的联合概率。注意，n-grams可以用来指代其他长度为*n*的序列，例如*n*个字符。
 - en: 'The inference of the joint distribution is approximated via n-gram models that
     split up the joint distribution in multiple independent parts. Note that n-grams
     are combinations of multiple sequential words, where *n* is the number of sequential
     words. For example, in the phrase *the quick brown fox*, we have the following
     n-grams:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 联合分布的推断通过n-gram模型进行近似，将联合分布拆分为多个独立部分。注意，n-grams是多个连续单词的组合，其中*n*是连续单词的数量。例如，在短语*the
+    quick brown fox*中，我们有以下n-grams：
 - en: '**1-gram**: "The," "quick," "brown," and "fox" (also known as unigram)'
+  id: totrans-113
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**1-gram**："The," "quick," "brown," 和 "fox"（也称为unigram）'
 - en: '**2-grams**: "The quick," "quick brown," and "brown fox" (also known as bigram)'
+  id: totrans-114
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**2-grams**："The quick," "quick brown," 和 "brown fox"（也称为bigram）'
 - en: '**3-grams**: "The quick brown" and "quick brown fox" (also known as trigram)'
+  id: totrans-115
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**3-grams**："The quick brown" 和 "quick brown fox"（也称为trigram）'
 - en: '**4-grams**: "The quick brown fox"'
+  id: totrans-116
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**4-grams**："The quick brown fox"'
 - en: 'Now if we have a huge corpus of text, we can find all the n-grams up until
     a certain *n* (typically 2 to 4) and count the occurrence of each n-gram in that
     corpus. From these counts, we can estimate the probabilities of the last word
     of each n-gram, given the previous *n-1* words:'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，如果我们有一个庞大的文本语料库，我们可以找到直到某个*n*（通常为2到4）的所有n-grams，并计算该语料库中每个n-gram的出现次数。从这些计数中，我们可以估计每个n-gram的最后一个单词在给定前*n-1*个单词的情况下的概率：
 - en: '**1-gram**:![N-grams](img/00242.jpeg)'
+  id: totrans-118
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**1-gram**：![N-grams](img/00242.jpeg)'
 - en: '**2-gram**: ![N-grams](img/00243.jpeg)'
+  id: totrans-119
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**2-gram**：![N-grams](img/00243.jpeg)'
 - en: '**n-gram**: ![N-grams](img/00244.jpeg)'
+  id: totrans-120
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**n-gram**：![N-grams](img/00244.jpeg)'
 - en: The independence assumption that the *i*^(th) word is only dependent on the
     previous *n**-1* words can now be used to approximate the joint distribution.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在可以使用第*i*个单词仅依赖于前*n**-1*个单词的独立假设来近似联合分布。
 - en: 'For example, for a unigram, we can approximate the joint distribution by:'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，对于一个unigram，我们可以通过以下方式近似联合分布：
 - en: '![N-grams](img/00245.jpeg)'
+  id: totrans-123
   prefs: []
   type: TYPE_IMG
+  zh: '![N-grams](img/00245.jpeg)'
 - en: 'For a trigram, we can approximate the joint distribution by:'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于trigram，我们可以通过以下方式近似联合分布：
 - en: '![N-grams](img/00246.jpeg)'
+  id: totrans-125
   prefs: []
   type: TYPE_IMG
+  zh: '![N-grams](img/00246.jpeg)'
 - en: We can see that based on the vocabulary size, the number of n-grams grows exponentially
     with *n*. For example, if a small vocabulary contains 100 words, then the number
     of possible 5-grams would be *100**⁵* *= 10,000,000,000* different 5-grams. In
@@ -654,12 +931,17 @@
     of values, which is the case in n-gram modeling. The larger our *n*, the better
     we can approximate the original distribution and the more data we would need to
     make good estimations of the n-gram probabilities.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，基于词汇量，随着*n*的增加，n-grams的数量呈指数增长。例如，如果一个小词汇表包含100个单词，那么可能的5-grams的数量将是*100**⁵*
+    *= 10,000,000,000*个不同的5-grams。相比之下，莎士比亚的整个作品包含大约*30,000*个不同的单词，说明使用具有大*n*值的n-grams是不可行的。不仅需要存储所有概率，我们还需要一个非常庞大的文本语料库来为较大的*n*值创建良好的n-gram概率估计。这个问题就是所谓的维度灾难。当可能的输入变量（单词）数量增加时，这些输入值的不同组合数量呈指数增长。当学习算法需要至少一个与相关值组合的示例时，就会出现这种维度灾难，这在n-gram建模中是这样的情况。我们的*n*越大，我们就越能近似原始分布，并且我们需要更多的数据来对n-gram概率进行良好的估计。
 - en: Neural language models
+  id: totrans-127
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 神经语言模型
 - en: 'In the previous section, we illustrated the curse of dimensionality when modeling
     text with n-grams. The number of n-grams we need to count grows exponentially
     with *n* and with the number of words in the vocabulary. One way to overcome this
@@ -667,16 +949,22 @@
     [20]. This distributed representation is created by learning an embedding function
     that transforms the space of words into a lower dimensional space of word embeddings,
     as follows:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的部分中，我们用n-grams建模文本时展示了维度灾难。我们需要计算的n-grams数量随着*n*和词汇表中的单词数量呈指数增长。克服这个问题的一种方法是通过学习单词的较低维度、分布式表示来学习一个嵌入函数[20]。这个分布式表示是通过学习一个嵌入函数将单词空间转换为较低维度的单词嵌入空间而创建的，具体如下：
 - en: '![Neural language models](img/00247.jpeg)'
+  id: totrans-129
   prefs: []
   type: TYPE_IMG
+  zh: '![神经语言模型](img/00247.jpeg)'
 - en: V-words from the vocabulary are transformed into one-hot encoding vectors of
     size V (each word is encoded uniquely). The embedding function then transforms
     this V-dimensional space into a distributed representation of size D (here D=4).
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 从词汇表中取出的单词被转换为大小为V的独热编码向量(V中的每个单词都被唯一编码)。然后，嵌入函数将这个V维空间转换为大小为D的分布式表示（这里D=4）。
 - en: The idea is that the learned embedding function learns semantic information
     about the words. It associates each word in the vocabulary with a continuous-valued
     vector representation, the word embedding. Each word corresponds to a point in
@@ -688,15 +976,20 @@
     related and that both "the quick brown fox" and "the quick brown cat" are valid
     phrases. A sequence of words can then be transformed into a sequence of embedding
     vectors that capture the characteristics of these words.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个想法是，学习的嵌入函数会学习关于单词的语义信息。它将词汇表中的每个单词与一个连续值向量表示相关联，即单词嵌入。在这个嵌入空间中，每个单词对应一个点，其中不同的维度对应于这些单词的语法或语义属性。目标是确保在这个嵌入空间中彼此接近的单词应具有相似的含义。这样，一些单词语义上相似的信息可以被语言模型利用。例如，它可能会学习到“fox”和“cat”在语义上相关，并且“the
+    quick brown fox”和“the quick brown cat”都是有效的短语。然后，一系列单词可以转换为一系列捕捉到这些单词特征的嵌入向量。
 - en: It is possible to model the language model via a neural network and learn this
     embedding function implicitly. We can learn a neural network that given a sequence
     of *n-1* words (*w**[t-n+1]* *, …, w**[t-1]*) tries to output the probability
     distribution of the next word, that is, *w**[t]*. The network is made up of different
     parts.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以通过神经网络对语言模型进行建模，并隐式地学习这个嵌入函数。我们可以学习一个神经网络，给定一个*n-1*个单词的序列(*w**[t-n+1]*，…，*w**[t-1]*)，试图输出下一个单词的概率分布，即*w**[t]*。网络由不同部分组成。
 - en: 'The embedding layer takes the one-hot representation of the word *w* *[i]*
     and converts it into its embedding by multiplying it with the embedding matrix
     *C*. This computation can be efficiently implemented by a table lookup. The embedding
@@ -711,36 +1004,53 @@
     a bias *b* and applying the softmax function to get a probability distribution.
     The final layer computes *softmax(z*U +b)*. This network is illustrated in the
     following figure:'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 嵌入层接受单词*w* *[i]*的独热表示，并通过与嵌入矩阵*C*相乘将其转换为其嵌入。这种计算可以通过表查找有效地实现。嵌入矩阵*C*在所有单词上共享，因此所有单词使用相同的嵌入函数。*C*由一个*V
+    * D*矩阵表示，其中*V*是词汇量的大小，*D*是嵌入的大小。得到的嵌入被连接成一个隐藏层；之后，可以应用一个偏置*b*和一个非线性函数，比如*tanh*。隐藏层的输出因此由函数*z
+    = tanh(concat(w* *[t-n+1]* *, …, w* *[t-1]* *) + b)*表示。从隐藏层，我们现在可以通过将隐藏层与*U*相乘来输出下一个单词*w*
+    *[t]*的概率分布。这将隐藏层映射到单词空间，添加一个偏置*b*并应用softmax函数以获得概率分布。最终层计算*softmax(z*U +b)*。这个网络如下图所示：
 - en: '![Neural language models](img/00248.jpeg)'
+  id: totrans-134
   prefs: []
   type: TYPE_IMG
+  zh: '![神经语言模型](img/00248.jpeg)'
 - en: A neural network language model that outputs the probability distribution of
     the word w[t], given the words *w**[t-1]* *... w**[t-n+1]*. *C* is the embedding
     matrix.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 给定单词*w**[t-1]* *... w**[t-n+1]*，输出单词*w[t]*的概率分布的神经网络语言模型。*C*是嵌入矩阵。
 - en: This model simultaneously learns an embedding of all the words in the vocabulary
     and a model of the probability function for sequences of words. It is able to
     generalize this probability function to sequences of words not seen during training,
     thanks to these distributed representations. A specific combination of words in
     the test set might not be seen in the training set, but a sequence with similar
     embedding features is much more likely to be seen during training.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个模型同时学习词汇表中所有单词的嵌入以及单词序列的概率函数模型。由于这些分布式表示，它能够将这个概率函数推广到在训练过程中没有看到的单词序列。测试集中特定的单词组合在训练集中可能没有出现，但是具有类似嵌入特征的序列更有可能在训练过程中出现。
 - en: A 2D projection of some word embeddings is illustrated in the following figure.
     It can be seen that words that are semantically close are also close to each other
     in the embedding space.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 下图展示了一些词嵌入的二维投影。可以看到，在嵌入空间中，语义上接近的单词也彼此接近。
 - en: '![Neural language models](img/00249.jpeg)'
+  id: totrans-138
   prefs: []
   type: TYPE_IMG
+  zh: '![神经语言模型](img/00249.jpeg)'
 - en: Related words in a 2D embedding space are close to each other in this space
     [21]
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个空间中，二维嵌入空间中相关的单词彼此接近 [21]。
 - en: Word embeddings can be trained unsupervised on a large corpus of text data.
     This way, they are able to capture general semantic information between words.
     The resulting embeddings can now be used to improve the performance of other tasks
@@ -751,34 +1061,50 @@
     Because of this, a lot of research has gone into creating better word embeddings
     without focusing on learning a probability function over sequences of words. For
     example, a popular word embedding model is word2vec [22], [23].
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 单词嵌入可以在大型文本数据语料库上无监督地训练。这样，它们能够捕捉单词之间的一般语义信息。得到的嵌入现在可以用于改进其他任务的性能，其中可能没有大量标记的数据可用。例如，试图对文章的情感进行分类的分类器可能是在使用先前学习的单词嵌入而不是独热编码向量进行训练的。这样，单词的语义信息就变得对情感分类器可用了。因此，许多研究致力于创建更好的单词嵌入，而不是专注于学习单词序列上的概率函数。例如，一种流行的单词嵌入模型是word2vec
+    [22]，[23]。
 - en: A surprising result is that these word embeddings can capture analogies between
     words as differences. It might, for example, capture that the difference between
     the embedding of "woman" and "man" encodes the gender and that this difference
     is the same in other gender-related words such as "queen" and "king."
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 令人惊讶的是，这些词嵌入可以捕捉单词之间的类比作为差异。例如，它可能捕捉到"女人"和"男人"的嵌入之间的差异编码了性别，并且这个差异在其他与性别相关的单词，如"皇后"和"国王"中是相同的。
 - en: '![Neural language models](img/00250.jpeg)'
+  id: totrans-142
   prefs: []
   type: TYPE_IMG
+  zh: '![神经语言模型](img/00250.jpeg)'
 - en: Word embeddings can capture semantic differences between words [24]
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 词嵌入可以捕捉单词之间的语义差异 [24]。
 - en: embed(woman) - embed(man) ? embed(aunt) - embed(uncle)
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: embed(女人) - embed(男人) ? embed(姑妈) - embed(叔叔)
 - en: embed(woman) - embed(man) ? embed(queen) - embed(king)
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: embed(女人) - embed(男人) ? embed(皇后) - embed(国王)
 - en: While the previous feedforward network language model can overcome the curse
     of dimensionality of modeling a large vocabulary input, it is still limited to
     only modeling fixed length word sequences. To overcome this issue, we can use
     RNNs to build an RNN language model that is not limited by fixed length word sequences
     [25]. These RNN-based models can then not only cluster similar words in the input
     embedding, but can also cluster similar histories in the recurrent state vector.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然之前的前馈网络语言模型可以克服模拟大词汇输入的维度诅咒，但仍然仅限于建模固定长度的单词序列。为了克服这个问题，我们可以使用RNN来构建一个不受固定长度单词序列限制的RNN语言模型
+    [25]。这些基于RNN的模型不仅可以在输入嵌入中聚类相似的单词，还可以在循环状态向量中聚类相似的历史。
 - en: One issue with these word-based models is computing the output probabilities,
     *P(w* *[i]* *| context)*, of each word in the vocabulary. We get these output
     probabilities by using a softmax over all word activations. For a small vocabulary
@@ -790,21 +1116,30 @@
     word. Both illustrate the difficulty of computing the softmax over a large vocabulary;
     a lot of parameters are needed to model the linear transformation before the softmax,
     and the softmax itself is computationally intensive.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些基于单词的模型的一个问题是计算每个单词在词汇表中的输出概率 *P(w* *[i]* *| context)*。我们通过对所有单词激活进行softmax来获得这些输出概率。对于一个包含*50,000*个单词的小词汇表
+    *V*，这将需要一个*|S| * |V|*的输出矩阵，其中*|V|*是词汇表的大小，*|S|*是状态向量的大小。这个矩阵非常庞大，在增加词汇量时会变得更大。由于softmax通过所有其他激活的组合来归一化单个单词的激活，我们需要计算每个激活以获得单个单词的概率。这两者都说明了在大词汇表上计算softmax的困难性；在softmax之前需要大量参数来建模线性转换，并且softmax本身计算量很大。
 - en: There are ways to overcome this issue, for example, by modeling the softmax
     function as a binary tree, essentially only needing *log(|V|)* computations the
     calculate to final output probability of a single word [26].
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 有一些方法可以克服这个问题，例如，通过将softmax函数建模为一个二叉树，从而只需要 *log(|V|)* 计算来计算单个单词的最终输出概率 [26]。
 - en: Instead of going into these workarounds in detail, let's check out another variant
     of language modeling that is not affected by these large vocabulary issues.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 不详细介绍这些解决方法，让我们看看另一种语言建模的变体，它不受这些大词汇量问题的影响。
 - en: Character-based model
+  id: totrans-150
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基于字符的模型
 - en: In most cases, language modeling is performed at the word level, where the distribution
     is over a fixed vocabulary of *|* *V|* words. Vocabularies in realistic tasks,
     such as the language models used in speech recognition, often exceed *100,000*
@@ -812,8 +1147,10 @@
     Furthermore, these word level models are quite limited when it comes to modeling
     text data that contains non-word strings, such as multidigit numbers or words
     that were never part of the training data (out-of-vocabulary words).
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 在大多数情况下，语言建模是在单词级别进行的，其中分布是在一个固定词汇量为*|V|*的词汇表上。在实际任务中，如语音识别中使用的语言模型，词汇表通常超过*100,000*个单词。这个巨大的维度使得建模输出分布非常具有挑战性。此外，这些单词级别的模型在建模包含非单词字符串的文本数据时受到相当大的限制，比如多位数字或从未出现在训练数据中的单词（词汇外单词）。
 - en: A class of models that can overcome these issues is called a character-level
     language model [27]. These models model the distribution over sequences of characters
     instead of words, thus allowing you to compute probabilities over a much smaller
@@ -822,14 +1159,20 @@
     of characters instead of words, we need to model much longer sequences to capture
     the same information over time. To capture these long-term dependencies, let's
     use an LSTM RNN language model.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以克服这些问题的一类模型称为字符级语言模型[27]。这些模型对字符序列的分布建模，而不是单词，从而使您可以计算一个更小的词汇表上的概率。这里的词汇表包括文本语料库中所有可能的字符。然而，这些模型也有一个缺点。通过对字符序列而不是单词进行建模，我们需要对更长的序列进行建模，以在时间上捕获相同的信息。为了捕获这些长期依赖关系，让我们使用
+    LSTM RNN 语言模型。
 - en: 'The following part of this section will go into detail on how to implement
     a character-level LSTM in Tensorflow and how to train it on Leo Tolstoy''s *War
     and Peace*. This LSTM will model the probability of the next character, given
     the previously seen characters: *P(c* *[t]* *| c* *[t-1]* *... c* *[t-n]* *)*.'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节的后续部分将详细介绍如何在Tensorflow中实现字符级LSTM以及如何在列夫·托尔斯泰的《战争与和平》上进行训练。这个LSTM将建模下一个字符的概率，给定先前看到的字符：*P(c*
+    *[t]* *| c* *[t-1]* *... c* *[t-n]* *)*。
 - en: Because the full text is too long to train a network with **back-propagation**
     **through time** (**BPTT**), we will use a batched variant called truncated BPTT.
     In this method, we will divide the training data into batches of fixed sequence
@@ -838,12 +1181,16 @@
     in the next batch. This way, we can exploit the information stored in the state
     without having to do a full backpropagation through the full input text. Next,
     we will describe how to read these batches and feed them into the network.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为完整文本太长，无法使用**时间反向传播**（**BPTT**）训练网络，我们将使用一种批量变体，称为截断的BPTT。在这种方法中，我们将训练数据分成固定序列长度的批次，并逐批次训练网络。由于批次将相互跟随，我们可以使用最后一批的最终状态作为下一批的初始状态。这样，我们可以利用状态中存储的信息，而无需对完整输入文本进行完整的反向传播。接下来，我们将描述如何读取这些批次并将其馈送到网络中。
 - en: Preprocessing and reading data
+  id: totrans-155
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 预处理和读取数据
 - en: To train a good language model, we need a lot of data. For our example, we will
     learn about a model based on the English translation of Leo Tolstoy's "War and
     peace." This book contains more than *500,000* words, making it the perfect candidate
@@ -852,8 +1199,10 @@
     we will remove the Gutenberg license, book information, and table of contents.
     Next, we will strip out newlines in the middle of sentences and reduce the maximum
     number of consecutive newlines allowed to two.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 要训练一个好的语言模型，我们需要大量的数据。在我们的示例中，我们将了解基于列夫·托尔斯泰的《战争与和平》的英文译本的模型。这本书包含超过*500,000*个单词，使其成为我们小范例的完美候选者。由于它是公有领域的作品，因此《战争与和平》可以从古腾堡计划免费下载为纯文本。作为预处理的一部分，我们将删除古腾堡许可证、书籍信息和目录。接下来，我们将去除句子中间的换行符，并将允许的最大连续换行数减少到两个。
 - en: 'To feed the data into the network, we will have to convert it into a numerical
     format. Each character will be associated with an integer. In our example, we
     will extract a total of 98 different characters from the text corpus. Next, we
@@ -862,117 +1211,172 @@
     the batches follow up on each other to exploit the continuity of the sequence.
     The process of converting the text into a list of indices and splitting it up
     in to batches of input and targets is illustrated in the following figure:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将数据馈送到网络中，我们必须将其转换为数字格式。每个字符将与一个整数相关联。在我们的示例中，我们将从文本语料库中提取总共 98 个不同的字符。接下来，我们将提取输入和目标。对于每个输入字符，我们将预测下一个字符。由于我们使用截断的BPTT进行训练，我们将使所有批次相互跟随，以利用序列的连续性。将文本转换为索引列表并将其分成输入和目标批次的过程如下图所示：
 - en: '![Preprocessing and reading data](img/00251.jpeg)'
+  id: totrans-158
   prefs: []
   type: TYPE_IMG
+  zh: '![预处理和读取数据](img/00251.jpeg)'
 - en: Converting text into input and target batches of integer labels with length
     5\. Note that batches follow on to each other.
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 将文本转换为长度为 5 的整数标签的输入和目标批次。请注意，批次彼此相继。
 - en: LSTM network
+  id: totrans-160
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: LSTM网络
 - en: The network we will train will be a two-layer LSTM network with 512 cells in
     each layer. We will train this network with truncated BPTT, so we will need to
     store the state between batches.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们要训练的网络将是一个具有512个单元的两层LSTM网络。我们将使用截断的BPTT来训练这个网络，因此我们需要在批处理之间存储状态。
 - en: 'First, we need to define placeholders for our input and targets. The first
     dimension of both the input and targets is the batch size, the number of examples
     processed in parallel. The second dimension will be the dimension along the text
     sequence. Both these placeholders take batches of sequences where the characters
     are represented by their index:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要为输入和目标定义占位符。输入和目标的第一维是批处理大小，即并行处理的示例数。第二维将沿着文本序列的维度。这些占位符接受包含字符索引的序列批次：
 - en: '[PRE6]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'To feed the characters to the network, we need to transform them into a vector.
     We will transform them into one-hot encoding, which means that each character
     is going to be transformed into a vector with length equal to the size of the
     number of different characters in the dataset. This vector will be all zeros,
     except the cell that corresponds to its index, which will be set to 1\. This can
     be done easily in TensorFlow with the following line of code:'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将字符馈送到网络，我们需要将它们转换成向量。我们将它们转换为独热编码，这意味着每个字符将被转换为一个长度等于数据集中不同字符数量的向量。这个向量将全为零，除了与其索引对应的单元，该单元将被设置为1。在TensorFlow中，可以轻松完成以下代码行：
 - en: '[PRE7]'
+  id: totrans-165
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Next, we will define our multilayer LSTM architecture. First we need to define
     the LSTM cells for each layer (`lstm_sizes` is a list of sizes for each layer,
     for example (512, 512), in our case):'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将定义我们的多层LSTM架构。首先，我们需要为每一层定义LSTM单元（`lstm_sizes`是每一层大小的列表，例如(512, 512)，在我们的情况下）：
 - en: '[PRE8]'
+  id: totrans-167
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Then, we wrap these cells in a single multilayer RNN cell using this:'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，使用以下方法将这些单元包装在单个多层RNN单元中：
 - en: '[PRE9]'
+  id: totrans-169
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'To store the state between the batches, we need to get the initial state of
     the network and wrap it in the variable to be stored. Note that for computational
     reasons, TensorFlow stores LSTM states in a tuple of two separate tensors (`c`
     and `h` from the *Long Short Term* *Memory* section ). We can flatten this nested
     data structure with the `flatten` method, wrap each tensor in a variable, and
     repack it as the original structure with the `pack_sequence``_as` method:'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了在批处理之间存储状态，我们需要获取网络的初始状态，并将其包装在要存储的变量中。请注意，出于计算原因，TensorFlow会将LSTM状态存储在两个单独张量的元组中（来自*长短期记忆*部分的`c`和`h`）。我们可以使用`flatten`方法展平这个嵌套数据结构，将每个张量包装在变量中，并使用`pack_sequence``_as`方法重新打包成原始结构：
 - en: '[PRE10]'
+  id: totrans-171
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Now that we have the initial state defined as a variable, we can start unrolling
     the network through time. TensorFlow provides the `dynamic_rnn` method that does
     this unrolling dynamically as per the sequence length of the input. This method
     will return a tuple consisting of a tensor representing the LSTM output and the
     final state:'
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经将初始状态定义为一个变量，我们可以开始通过时间展开网络。TensorFlow提供了`dynamic_rnn`方法，根据输入的序列长度动态展开网络。该方法将返回一个包含表示LSTM输出和最终状态的张量的元组：
 - en: '[PRE11]'
+  id: totrans-173
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Next, we need to store the final state as the initial state for the next batch.
     We use the variable `assign` method to store each final state in the right initial
     state variable. The `control_dependencies` method is used to force that the state
     update to run before we return the LSTM output:'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们需要将最终状态存储为下一批处理的初始状态。我们使用变量的`assign`方法将每个最终状态存储在正确的初始状态变量中。`control_dependencies`方法用于强制状态更新在返回LSTM输出之前运行：
 - en: '[PRE12]'
+  id: totrans-175
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'To get the logit output from the final LSTM output, we need to apply a linear
     transformation to the output so it can have *batch* *size * sequence length *
     number of symbols* as its dimensions. Before we apply this linear transformation,
     we need to flatten the output to a matrix of the size number of *outputs ** *number
     of output features*:'
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 要从最终LSTM输出中获得logit输出，我们需要对输出应用线性变换，这样它就可以将*batch* *size * sequence length *
+    number of symbols*作为其维度。在应用这个线性变换之前，我们需要将输出展平成大小为*number of outputs ** *number
+    of output features*的矩阵：
 - en: '[PRE13]'
+  id: totrans-177
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'We can then define and apply the linear transformation with a weight matrix
     *W* and bias *b* to get the logits, apply the softmax function, and reshape it
     to a tensor of the size *batch size ** *sequence length * number of characters*:'
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们可以定义并应用线性变换，使用权重矩阵*W*和偏差*b*来获得logits，应用softmax函数，并将其重塑为一个尺寸为*batch size
+    ** *sequence length * number of characters*的张量：
 - en: '[PRE14]'
+  id: totrans-179
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '![LSTM network](img/00252.jpeg)'
+  id: totrans-180
   prefs: []
   type: TYPE_IMG
+  zh: '![LSTM网络](img/00252.jpeg)'
 - en: LSTM character language model unfolded
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 字符语言模型展开
 - en: Training
+  id: totrans-182
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 训练
 - en: Now that we have defined the input, targets, and architecture of our network,
     let's define how to train it. The first step in training is defining a loss function
     that we want to minimize. This loss function describes the cost of outputting
@@ -984,26 +1388,38 @@
     the cross-entropy loss of each output with respect to its target. To reduce the
     loss over the full sequence and all the batches, we take the mean value of all
     of them.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了网络的输入、目标和架构，让我们来定义如何训练它。训练的第一步是定义我们要最小化的损失函数。这个损失函数描述了在给定输入和目标的情况下输出错误序列的成本。因为我们是在考虑前面的字符来预测下一个字符，所以这是一个分类问题，我们将使用交叉熵损失。我们通过使用`sparse_softmax_cross_`
+    `entropy_with_logits` TensorFlow 函数来实现这一点。该函数将网络的 logits 输出（softmax 之前）和目标作为类标签，计算每个输出与其目标的交叉熵损失。为了减少整个序列和所有批次的损失，我们取所有损失的均值。
 - en: 'Note that we flatten the targets to a one-dimensional vector first to make
     them compatible with the flattened logit output from our network:'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们首先将目标扁平化为一个一维向量，以使它们与网络的扁平化 logits 输出兼容：
 - en: '[PRE15]'
+  id: totrans-185
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Now that we have this loss function defined, it is possible to define the training
     operation in TensorFlow that will optimize our network of input and target batches.
     To execute the optimization, we will use the Adam optimizer; this helps stabilize
     gradient updates. The Adam optimizer is just a specific way of performing gradient
     descent in a more controlled way [28]. We will also clip the gradients to prevent
     exploding gradients:'
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了这个损失函数，可以在 TensorFlow 中定义训练操作，来优化我们的输入和目标批次的网络。为了执行优化，我们将使用 Adam 优化器；这有助于稳定梯度更新。Adam
+    优化器只是在更受控制的方式下执行梯度下降的特定方式 [28]。我们还会裁剪梯度，以防止梯度爆炸：
 - en: '[PRE16]'
+  id: totrans-187
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Having defined all the TensorFlow operations required for training, we can
     now start with the optimization in mini batches. If `data_feeder` is a generator
     that returns consecutive batches of input and targets, then we can train these
@@ -1011,15 +1427,22 @@
     state every 100 mini batches so that the network learns how to deal with the initial
     states in the beginning of sequences. You can save the model with a TensorFlow
     saver to reload it for sampling later:'
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 已经定义了训练所需的所有 TensorFlow 操作，现在我们可以开始用小批量进行优化。如果`data_feeder`是一个生成器，返回连续的输入和目标批次，那么我们可以通过迭代地提供输入和目标批次来训练这些批次。我们每100个小批量重置一次初始状态，这样网络就能学习如何处理序列开头的初始状态。你可以使用
+    TensorFlow saver 来保存模型，以便稍后进行采样：
 - en: '[PRE17]'
+  id: totrans-189
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: Sampling
+  id: totrans-190
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 采样
 - en: 'Once our model is trained, we might want to sample the sequences from this
     model to generate text. We can initialize our sampling architecture with the same
     code we used for training the model, but we''d need to set `batch_size` to `1`
@@ -1031,25 +1454,34 @@
     distribution of the softmax function. We can then feed in this sampled character
     and get the output distribution for the next one. This process can be continued
     for a number of steps until a string of a specified size is generated:'
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们的模型训练完成，我们可能想要从该模型中对序列进行采样以生成文本。我们可以使用与训练模型相同的代码初始化我们的采样架构，但我们需要将`batch_size`设置为`1`，`sequence_length`设置为`None`。这样，我们可以生成单个字符串并对不同长度的序列进行采样。然后，我们可以使用训练后保存的参数初始化模型的参数。为了开始采样，我们将一个初始字符串(`prime_string`)输入网络的状态。输入这个字符串后，我们可以根据
+    softmax 函数的输出分布对下一个字符进行采样。然后我们可以输入这个采样的字符并获取下一个字符的输出分布。这个过程可以继续进行一定数量的步骤，直到生成指定大小的字符串：
 - en: '[PRE18]'
+  id: totrans-192
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: Example training
+  id: totrans-193
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 示例训练
 - en: Now that we have our code for training and sampling, we can train the network
     on Leo Tolstoy's *War and Peace* and sample what the network has learned every
     couple of batch iterations. Let's prime the network with the phrase "*She was
     born in the year*" and see how it completes it during training.
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
 - en: 'After 500 batches, we get this result: *She was born in the year sive but*
     *us eret tuke Toffhin e feale shoud pille saky doctonas* *laft the comssing hinder
     to gam the droved at ay* *vime*. The network has already picked up some distribution
     of characters and has come up with things that look like words.'
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
 - en: 'After 5,000 batches, the network picks up a lot of different words and names:
@@ -1057,6 +1489,7 @@
     crownchy-destruction, eccention, was formed a wolf of Veakov* *one also because
     he was congrary, that he suddenly had* *first did not reply."* It still invents
     plausible looking words likes "congrary" and "eccention".'
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
 - en: 'After 50,000 batches, the network outputs the following text: *She was born
@@ -1066,6 +1499,7 @@
     that a year number is a very plausible words to follow up our prime string. Short
     strings of words seem to make sense, but the sentences on their own don''t make
     sense yet.'
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
 - en: 'After 500,000 batches, we stop the training and the network outputs this: "*She
@@ -1075,6 +1509,7 @@
     but the sentences are not coherent with each other. What is remarkable is that
     it models small conversations in full sentences at the end, including quotes and
     punctuation.'
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
 - en: While not perfect, it is remarkable how the RNN language model is able to generate
@@ -1082,6 +1517,7 @@
     with different architectures, increase the size of the LSTM layers, put a third
     LSTM layer in the network, download more text data from the Internet, and see
     how much you can improve the current model.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
 - en: The language models we have discussed so far are used in many different applications,
@@ -1089,9 +1525,11 @@
     to build a conversation with a user. In the next section, we will briefly discuss
     deep learning speech recognition models in which language models play an important
     part.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
 - en: Speech recognition
+  id: totrans-201
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1102,41 +1540,51 @@
     of how we can use neural networks in each part of the pipeline. In order to know
     more about the methods discussed in this section, we would like you to refer to
     the references.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
 - en: Speech recognition pipeline
+  id: totrans-203
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'Speech recognition tries to find a transcription of the most probable word
     sequence considering the acoustic observations provided; this is represented by
     the following:'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
 - en: '*transcription = argmax(* *P(words | audio features))*'
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
 - en: 'This probability function is typically modeled in different parts (note that
     the normalizing term P (audio features) is usually ignored):'
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
 - en: '*P (words | audio features) = P (audio* *features | words) * P (words)*'
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
 - en: '*= P (audio features | phonemes) * P (phonemes* *| words) * P (words)*'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-209
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: '**What are phonemes?**'
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
 - en: Phonemes are a basic unit of sound that define the pronunciation of words. For
     example, the word "bat" is composed of three phonemes `/b/`, `/ae/`, and `/t/`.
     Each phoneme is tied to a specific sound. Spoken English consists of around 44
     phonemes.
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
 - en: 'Each of these probability functions will be modeled by different parts of the
@@ -1150,12 +1598,15 @@
     likely sequence is then found via a decoding search step that searches for the
     most likely sequence(see *Decoding* section). A high-level overview of this speech
     recognition pipeline is described in the following figure:'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
 - en: '![Speech recognition pipeline](img/00253.jpeg)'
+  id: totrans-213
   prefs: []
   type: TYPE_IMG
 - en: Overview of a typical speech recognition pipeline
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
 - en: Large, real-world vocabulary speech recognition pipelines are based on this
@@ -1163,13 +1614,16 @@
     make the problem tractable. While these details are out of the scope of this section,
     there is open source software available—Kaldi [29]—that allows you to train a
     speech recognition system with advanced pipelines.
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
 - en: In the next sections, we will briefly describe each of the steps in this standard
     pipeline and how deep learning can help improve these steps.
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
 - en: Speech as input data
+  id: totrans-217
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1183,15 +1637,19 @@
     per second. Note that this is around twice the maximum human hearing frequency.
     A sampled recording of someone saying "hello world" is plotted in the following
     figure:'
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
 - en: '![Speech as input data](img/00254.jpeg)'
+  id: totrans-219
   prefs: []
   type: TYPE_IMG
 - en: Speech signal of someone saying "hello world" in the time domain
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
 - en: Preprocessing
+  id: totrans-221
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1199,6 +1657,7 @@
     seconds. To digitize the audio, it is sampled 44,100 times per second (44.1 kHz).
     This means that roughly 50,000 amplitude samples were taken for this 1.2-second
     audio signal.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
 - en: For only a small example, these are a lot of points over the time dimension.
@@ -1207,6 +1666,7 @@
     algorithms. A typical transformation transforms a signal to a spectrogram, which
     is a representation of how the frequencies in the signal change over time, see
     the next figure.
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
 - en: This spectral transformation is done by dividing the time signal in overlapping
@@ -1216,6 +1676,7 @@
     bins. This array of frequency bins is also known as a filter banks. A filter bank
     is a collection of filters that separate out the signal in multiple frequency
     bands.
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
 - en: Say the previous "hello world" recording is divided into overlapping windows
@@ -1227,12 +1688,15 @@
     spectrogram is shown in the following figure . This transformation resulted in
     reducing the time dimension from 50,000 to 118 samples, where each sample is a
     vector of size 40.
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
 - en: '![Preprocessing](img/00255.jpeg)'
+  id: totrans-226
   prefs: []
   type: TYPE_IMG
 - en: Mel spectrum of speech signal from the previous figure
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
 - en: Especially in older speech recognition systems, these Mel-scale filter banks
@@ -1240,27 +1704,38 @@
     this is done by taking a **discrete** **cosine transform** (**DCT**) of the logarithm
     of the filter banks. This DCT is a variant of the Fourier transform. This signal
     transformation is also known as **Mel Frequency Cepstral** **Coefficients** (**MFCC**).
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 特别是在较旧的语音识别系统中，这些 Mel-scale 滤波器组会通过去相关处理来消除线性依赖关系。通常，这是通过对滤波器组的对数进行**离散** **余弦变换**
+    (**DCT**)来完成的。这个 DCT 是傅立叶变换的一种变体。这种信号转换也被称为**梅尔频率倒谱系数** (**MFCC**)。
 - en: More recently, deep learning methods, such as convolutional neural networks,
     have learned some of these preprocessing steps [31], [32].
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 更近期，深度学习方法，如卷积神经网络，已学习了一些这些预处理步骤 [31], [32]。
 - en: Acoustic model
+  id: totrans-230
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 声学模型
 - en: In speech recognition, we want to output the words being spoken as text. This
     can be done by learning a time-dependent model that takes in a sequence of audio
     features, as described in the previous section, and outputs a sequential distribution
     of possible words being spoken. This model is called the acoustic model.
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 在语音识别中，我们希望将口语变成文本输出。这可以通过学习一个依赖时间的模型来实现，该模型接收一系列音频特征（如前一节所述），并输出可能的被说出的单词的序列分布。这个模型称为声学模型。
 - en: 'The acoustic model tries to model the likelihood that a sequence of audio features
     was generated by a sequence of words or phonemes: *P (audio* *features | words)
     = P (audio features | phonemes) * P (phonemes | words)*.'
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 声学模型试图模拟一系列音频特征由一系列单词或音素生成的可能性：*P (音频* *特征 | 单词) = P (音频特征 | 音素) * P (音素 | 单词)*。
 - en: A typical speech recognition acoustic model, before deep learning became popular,
     would use **hidden Markov models** (**HMMs**) to model the temporal variability
     of speech signals [33], [34]. Each HMM state emits a mixture of Gaussians to model
@@ -1268,23 +1743,33 @@
     mixture model** (**GMM**), and they determine how well each HMM state fits in
     a short window of acoustic features. HMMs are used to model the sequential structure
     of data, while GMMs model the local structure of the signal.
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 在深度学习变得流行之前，典型的语音识别声学模型将使用**隐马尔可夫模型** (**HMMs**) 来模拟语音信号的时间变化性 [33], [34]。每个HMM状态发射一组高斯混合以模拟音频信号的频谱特征。发射的高斯混合构成**高斯混合模型**
+    (**GMM**)，它们确定每个HMM状态在短时间段内的声学特征拟合程度。HMMs被用来模拟数据的序列结构，而GMMs则模拟信号的局部结构。
 - en: The HMM assumes that successive frames are independent given the hidden state
     of the HMM. Because of this strong conditional independence assumption, the acoustic
     features are typically decorrelated.
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: HMM假设连续帧在给定HMM的隐藏状态的情况下是独立的。由于这种强条件独立假设，声学特征通常是去相关的。
 - en: Deep belief networks
+  id: totrans-235
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 深信度网络
 - en: 'The first step in using deep learning in speech recognition is to replace GMMs
     with **deep neural networks** (**DNN**) [35]. DNNs take a window of feature vectors
     as input and output the posterior probabilities of the HMM states: *P (HMM state
     | audio features)*.'
+  id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 在语音识别中使用深度学习的第一步是用**深度神经网络** (**DNN**) 替代GMMs [35]。DNNs将一组特征向量作为输入，并输出HMM状态的后验概率：*P
+    (HMM状态 | 音频特征)*。
 - en: The networks used in this step are typically pretrained as a general model on
     a window of spectral features. Usually, **deep** **belief networks** (**DBN**)
     are used to pretrain these networks. The generative pretraining creates many layers
@@ -1294,12 +1779,17 @@
     the segment classifications provided by the DNNs to a temporal classification
     of the full label sequence. These DNN-HMM models have been shown to achieve better
     phone recognition than GMM-HMM models [36].
+  id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一步中使用的网络通常是在一组频谱特征上以一个通用模型进行预训练的。通常，**深度信度网络** (**DBN**) 用于预训练这些网络。生成式预训练会创建多层逐渐复杂的特征检测器。一旦生成式预训练完成，网络会被判别性地微调以分类正确的HMM状态，基于声学特征。这些混合模型中的HMMs用于将由DNNs提供的段分类与完整标签序列的时间分类对齐。已经证明这些DNN-HMM模型比GMM-HMM模型具有更好的电话识别性能
+    [36]。
 - en: Recurrent neural networks
+  id: totrans-238
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 递归神经网络
 - en: This section describes how RNNs can be used to model sequential data. The problem
     with the straightforward application of RNNs on speech recognition is that the
     labels of the training data need to be perfectly aligned with the input. If the
@@ -1308,20 +1798,29 @@
     the sequential context of the acoustic features by using hybrid RNN-HMM models,
     where the RNNs would model the emission probabilities of the HMM models, much
     in the same way that DBNs are used [37].
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节描述了如何使用RNN模型来对序列数据进行建模。直接应用RNN在语音识别上的问题在于训练数据的标签需要与输入完全对齐。如果数据对齐不好，那么输入到输出的映射将包含太多噪音，网络无法学到任何东西。一些早期的尝试试图通过使用混合RNN-HMM模型来建模声学特征的序列上下文，其中RNN将模拟HMM模型的发射概率，很类似DBNs的使用
+    [37] 。
 - en: Later experiments tried to train LSTMs (see section on *Long* *Short Term Memory*)
     to output the posterior probability of the phonemes at a given frame [38].
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 后来的实验尝试训练LSTM（见*长* *短期记忆*一节）输出给定帧的音素后验概率 [38]。
 - en: The next step in speech recognition would be to get rid of the necessity of
     having aligned labeled data and removing the need for hybrid HMM models.
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 语音识别的下一步将是摆脱需要对齐标记数据的必要性，并消除混合HMM模型的需要。
 - en: CTC
+  id: totrans-242
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: CTC
 - en: Standard RNN objective functions are defined independently for each sequence
     step, each step outputs its own independent label classification. This means that
     training data must be perfectly aligned with the target labels. However, a global
@@ -1330,16 +1829,20 @@
     distribution over all possible labeling sequences, given the full input sequence.
     The network can then be used as a classifier by searching for the most probable
     labeling given the input sequence.
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 标准RNN目标函数独立定义了每个序列步骤，每个步骤输出自己独立的标签分类。这意味着训练数据必须与目标标签完全对齐。然而，可以制定一个全局目标函数，最大化完全正确标记的概率。其思想是将网络输出解释为给定完整输入序列的所有可能标记序列的条件概率分布。然后可以通过搜索给定输入序列的最可能标记来将网络用作分类器。
 - en: '**Connectionist** **Temporal Classification** (**CTC**) is an objective function
     that defines a distribution over all the alignments with all the output sequences
     [39]. It tries to optimize the overall edit distance between the output sequence
     and the target sequence. This edit distance is the minimum number of insertions,
     substitutions, and deletions required to change the output labeling to target
     labeling.'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: '**连接主义** **时间分类** (**CTC**) 是一种优化函数，它定义了所有输出序列与所有输出对齐的分布 [39]。它试图优化输出序列与目标序列之间的整体编辑距离。这种编辑距离是将输出标签更改为目标标签所需的最小插入、替换和删除次数。'
 - en: A CTC network has a softmax output layer for each step. This softmax function
     outputs label distributions for each possible label plus an extra blank symbol
     (Ø). This extra blank symbol represents that there is no relevant label at that
@@ -1350,12 +1853,15 @@
     a label or from predicting one label to another. For example, "ØaaØabØØ" gets
     translated into "aab". This has as effect that only the overall sequence of labels
     has to be correct, thus removing the need for aligned data.
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: CTC网络在每个步骤都有一个softmax输出层。这个softmax函数输出每个可能标签的标签分布，还有一个额外的空白符（Ø）。这个额外的空白符表示该时间步没有相关标签。因此，CTC网络将在输入序列的任何点输出标签预测。然后通过从路径中删除所有空白和重复标签，将输出转换为序列标记。这相当于在网络从预测无标签到预测标签，或者从预测一个标签到另一个标签时输出一个新的标签。例如，“ØaaØabØØ”被转换为“aab”。这样做的效果是只需要确保整体标签序列正确，从而消除了对齐数据的需要。
 - en: Doing this reduction means that multiple output sequences can be reduced to
     the same output labeling. To find the most likely output labeling, we have to
     add all the paths that correspond to that labeling. The task of searching for
     this most probable output labeling is known as decoding (see the *Decoding* section).
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
 - en: An example of such a labeling in speech recognition could be outputting a sequence
@@ -1363,9 +1869,11 @@
     built on top of an LSTM, has been to give state-of-the-art results on acoustic
     modeling and to remove the need of using HMMs to model temporal variability [40],
     [41].
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
 - en: Attention-based models
+  id: totrans-248
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1374,6 +1882,7 @@
     to parts of the input sequence. This allows them to automatically search for relevant
     parts of the input signal to predict the right phoneme, without having to have
     an explicit segmentation of the parts.
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
 - en: These attention-based sequence models are made up of an RNN that decodes a representation
@@ -1381,6 +1890,7 @@
     the input representation will be generated by a model that encodes the input sequence
     into a suitable representation. The first network is called the decoder network,
     while the latter is called the encoder network [43].
+  id: totrans-250
   prefs: []
   type: TYPE_NORMAL
 - en: The decoder is guided by an attention model that focuses each step of the decoder
@@ -1388,9 +1898,11 @@
     a combination of context (what it is focusing on) or location-based information
     (where it is focusing on). The decoder can then use the previous information and
     the information from the attention window to output the next label (phoneme).
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
 - en: Decoding
+  id: totrans-252
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1398,22 +1910,27 @@
     language model (see the *Language Modelling* section), we can combine them together
     with a pronunciation dictionary to get a probability function of words over audio
     features:'
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
 - en: '*P (words | audio features) = P (audio features | phonemes* *) * P (phonemes
     | words) * P (words)*'
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
 - en: 'This probability function doesn''t give us the final transcript yet; we still
     need to perform a search over the distribution of the word sequence to find the
     most likely transcription. This search process is called decoding. All possible
     paths of decoding can be illustrated in a lattice data structure:'
+  id: totrans-255
   prefs: []
   type: TYPE_NORMAL
 - en: '![Decoding](img/00256.jpeg)'
+  id: totrans-256
   prefs: []
   type: TYPE_IMG
 - en: A pruned word lattice [44]
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
 - en: The most likely word sequence, given a sequence of audio features, is found
@@ -1422,6 +1939,7 @@
     is the Viterbi algorithm [45]. This algorithm is a breadth-first search algorithm
     that is mostly associated with finding the most likely sequence of states in an
     HMM.
+  id: totrans-258
   prefs: []
   type: TYPE_NORMAL
 - en: For large vocabulary speech recognition, the Viterbi algorithm becomes intractable
@@ -1429,13 +1947,16 @@
     are used to try and find the most likely sequence. The beam search heuristic only
     keeps the n-best solutions during the search and assumes that all the rest don't
     lead to the most likely sequence.
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
 - en: Many different decoding algorithms exist [46] and the problem of finding the
     best transcription from the probability function is mostly seen as unsolved.
+  id: totrans-260
   prefs: []
   type: TYPE_NORMAL
 - en: End-to-end models
+  id: totrans-261
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1448,9 +1969,11 @@
     by combining everything in one model; with this, the model becomes conceptually
     easier to understand. We speculate that this will lead to speech recognition being
     recognized as a solved problem in the next few years.
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-263
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1462,255 +1985,332 @@
     character-level language model to generate text based on Leo Tolstoy's *War and*
     *Peace*. The last section gave a brief overview of how deep learning, and especially
     RNNs, can be applied to the problem of speech recognition.
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
 - en: The RNNs discussed in this chapter are very powerful methods that have been
     very promising when it comes to a lot of tasks, such as language modeling and
     speech recognition. They are especially suited for modeling sequential problems
     where they could discover patterns over sequences.
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
 - en: Bibliography
+  id: totrans-266
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: '[1] Siegelmann, H.T. (1995). "Computation Beyond the Turing Limit". Science.
     238 (28): 632–637\. URL: [http://binds.cs.umass.edu/papers/1995_Siegelmann_Science.pdf](http://binds.cs.umass.edu/papers/1995_Siegelmann_Science.pdf)'
+  id: totrans-267
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[2] Alex Graves and Greg Wayne and Ivo Danihelka (2014). "Neural Turing Machines".
     CoRR URL: [https://arxiv.org/pdf/1410.5401v2.pdf](https://arxiv.org/pdf/1410.5401v2.pdf)'
+  id: totrans-268
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[3] Yann LeCun, Yoshua Bengio & Geoffrey Hinton (2015). "Deep Learning". Nature
     521\. URL: [http://www.nature.com/nature/journal/v521/n7553/full/nature14539.html](http://www.nature.com/nature/journal/v521/n7553/full/nature14539.html)'
+  id: totrans-269
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[4] Oriol Vinyals and Alexander Toshev and Samy Bengio and Dumitru Erhan (2014).
     "Show and Tell: {A} Neural Image Caption Generator". CoRR. URL: [https://arxiv.org/pdf/1411.4555v2.pdf](https://arxiv.org/pdf/1411.4555v2.pdf)'
+  id: totrans-270
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[4] Oriol Vinyals和Alexander Toshev和Samy Bengio和Dumitru Erhan (2014). "Show
+    and Tell: {A} Neural Image Caption Generator". CoRR. URL: [https://arxiv.org/pdf/1411.4555v2.pdf](https://arxiv.org/pdf/1411.4555v2.pdf)'
 - en: '[5] Kyunghyun Cho et al. (2014). "Learning Phrase Representations using RNN
     Encoder-Decoder for Statistical Machine Translation". CoRR. URL: [https://arxiv.org/pdf/1406.1078v3.pdf](https://arxiv.org/pdf/1406.1078v3.pdf)'
+  id: totrans-271
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[5] Kyunghyun Cho等人 (2014). "Learning Phrase Representations using RNN Encoder-Decoder
+    for Statistical Machine Translation". CoRR. URL: [https://arxiv.org/pdf/1406.1078v3.pdf](https://arxiv.org/pdf/1406.1078v3.pdf)'
 - en: '[6] Ilya Sutskever et al. (2014). "Sequence to Sequence Learning with Neural
     Networks". NIPS''14\. URL: [http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf](http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf)'
+  id: totrans-272
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[6] Ilya Sutskever等人 (2014). "Sequence to Sequence Learning with Neural Networks".
+    NIPS''14. URL: [http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf](http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf)'
 - en: '[7] Andrej Karpathy (2015). "The Unreasonable Effectiveness of Recurrent Neural
     Networks". URL: [http://karpathy.github.io/2015/05/21/rnn-effectiveness/](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)'
+  id: totrans-273
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[7] Andrej Karpathy (2015). "The Unreasonable Effectiveness of Recurrent Neural
+    Networks". URL: [http://karpathy.github.io/2015/05/21/rnn-effectiveness/](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)'
 - en: '[8] Paul J. Werbos (1990). "Backpropagation Through Time: What It Does and
     How to Do It" Proceedings of the IEEE. URL: [http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf](http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf)'
+  id: totrans-274
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[8] Paul J. Werbos (1990). "Backpropagation Through Time: What It Does and
+    How to Do It" Proceedings of the IEEE. URL: [http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf](http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf)'
 - en: '[9] Razvan Pascanu and Tomas Mikolov and Yoshua Bengio. (2012). "Understanding
     the exploding gradient problem". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
+  id: totrans-275
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[9] Razvan Pascanu和Tomas Mikolov和Yoshua Bengio. (2012). "Understanding the
+    exploding gradient problem". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
 - en: '[10] Yoshua Bengio et al. (1994). "Learning long-term dependencies with gradient
     descent is difficult". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
+  id: totrans-276
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[10] Yoshua Bengio等人 (1994). "Learning long-term dependencies with gradient
+    descent is difficult". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
 - en: '[11] Razvan Pascanu and Tomas Mikolov and Yoshua Bengio. (2012). "Understanding
     the exploding gradient problem". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
+  id: totrans-277
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[11] Razvan Pascanu和Tomas Mikolov和Yoshua Bengio. (2012). "Understanding the
+    exploding gradient problem". URL: [http://proceedings.mlr.press/v28/pascanu13.pdf](http://proceedings.mlr.press/v28/pascanu13.pdf)'
 - en: '[12] James Martens, Ilya Sutskever. (2011). "Learning Recurrent Neural Networks
     with Hessian-Free Optimization". URL: [http://www.icml-2011.org/papers/532_icmlpaper.pdf](http://www.icml-2011.org/papers/532_icmlpaper.pdf)'
+  id: totrans-278
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[12] James Martens, Ilya Sutskever. (2011). "Learning Recurrent Neural Networks
+    with Hessian-Free Optimization". URL: [http://www.icml-2011.org/papers/532_icmlpaper.pdf](http://www.icml-2011.org/papers/532_icmlpaper.pdf)'
 - en: '[13] Ilya Sutskever et al. (2013). "On the importance of initialization and
     momentum in deep learning". URL: [http://proceedings.mlr.press/v28/sutskever13.pdf](http://proceedings.mlr.press/v28/sutskever13.pdf)'
+  id: totrans-279
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[13] Ilya Sutskever等人 (2013). "On the importance of initialization and momentum
+    in deep learning". URL: [http://proceedings.mlr.press/v28/sutskever13.pdf](http://proceedings.mlr.press/v28/sutskever13.pdf)'
 - en: '[14] Geoffrey Hinton & Tijmen Tieleman. (2014) "Neural Networks for Machine
     Learning - Lecture 6a - Overview of mini-batch gradient descent". URL: [http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)'
+  id: totrans-280
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[14] Geoffrey Hinton & Tijmen Tieleman. (2014) "Neural Networks for Machine
+    Learning - Lecture 6a - Overview of mini-batch gradient descent". URL: [http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)'
 - en: '[15] Martin Riedmiller und Heinrich Braun (1992). "Rprop - A Fast Adaptive
     Learning Algorithm" URL: [http://axon.cs.byu.edu/~martinez/classes/678/Papers/riedmiller92rprop.pdf](http://axon.cs.byu.edu/~martinez/classes/678/Papers/riedmiller92rprop.pdf)'
+  id: totrans-281
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[15] Martin Riedmiller和Heinrich Braun (1992). "Rprop - 一种快速自适应学习算法" URL: [http://axon.cs.byu.edu/~martinez/classes/678/Papers/riedmiller92rprop.pdf](http://axon.cs.byu.edu/~martinez/classes/678/Papers/riedmiller92rprop.pdf)'
 - en: '[16] Sepp Hochreiter and Jurgen Schmidhuber (1997). "Long Short-Term Memory".
     URL: [http://www.bioinf.jku.at/publications/older/2604.pdf](http://www.bioinf.jku.at/publications/older/2604.pdf)'
+  id: totrans-282
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[16] Sepp Hochreiter和Jurgen Schmidhuber (1997). "Long Short-Term Memory". URL:
+    [http://www.bioinf.jku.at/publications/older/2604.pdf](http://www.bioinf.jku.at/publications/older/2604.pdf)'
 - en: '[17] Gers et al. (2000) "Learning to Forget: Continual Prediction with LSTM"
     URL: [https://pdfs.semanticscholar.org/1154/0131eae85b2e11d53df7f1360eeb6476e7f4.pdf](https://pdfs.semanticscholar.org/1154/0131eae85b2e11d53df7f1360eeb6476e7f4.pdf)'
+  id: totrans-283
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[18] Nikhil Buduma (2015) "A Deep Dive into Recurrent Neural Nets" URL: [http://nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/](http://nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/)'
+  id: totrans-284
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[19] Klaus Greff et al. (2015). "LSTM: A Search Space Odyssey". URL: [https://arxiv.org/pdf/1503.04069v1.pdf](https://arxiv.org/pdf/1503.04069v1.pdf)'
+  id: totrans-285
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[20] Yoshua Bengio et al. (2003). "A Neural Probabilistic Language Model".
     URL: [https://papers.nips.cc/paper/1839-a-neural-probabilistic-language-model.pdf](https://papers.nips.cc/paper/1839-a-neural-probabilistic-language-model.pdf)'
+  id: totrans-286
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[21] Christopher Olah (2014) "Deep Learning, NLP, and Representations". URL:
     [http://colah.github.io/posts/2014-07-NLP-RNNs-Representations/](http://colah.github.io/posts/2014-07-NLP-RNNs-Representations/)'
+  id: totrans-287
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[22] Tomas Mikolov et al. (2013) "Distributed Representations of Words and
     Phrases and their Compositionality". URL: [http://papers.nips.cc/paper/5021-distributedrepresentations-of-words-and-phrases-and-theircompositionality.pdf](http://papers.nips.cc/paper/5021-distributedrepresentations-of-words-and-phrases-and-theircompositionality.pdf)'
+  id: totrans-288
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[23] Tomas Mikolov et al. (2013). "Efficient Estimation of Word Representations
     in Vector Space". URL: [https://arxiv.org/pdf/1301.3781.pdf](https://arxiv.org/pdf/1301.3781.pdf)'
+  id: totrans-289
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[24] Tomas Mikolov et al. (2013). "Linguistic Regularities in Continuous Space
     Word Representations". URL: [https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/rvecs.pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/rvecs.pdf)'
+  id: totrans-290
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[25] Thomas Mikolov et al. (2010) "Recurrent neural network based language
     model". URL: [http://www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf](http://www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf)'
+  id: totrans-291
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[26] Frederic Morin and Yoshua Bengio (2005). "Hierarchical probabilistic neural
     network language model". URL: [http://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf](http://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf)'
+  id: totrans-292
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[27] Alex Graves (2013). "Generating Sequences With Recurrent Neural Networks".
     URL: [https://arxiv.org/pdf/1308.0850.pdf](https://arxiv.org/pdf/1308.0850.pdf)'
+  id: totrans-293
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[28] Diederik P. Kingma and Jimmy Ba (2014). "Adam: A Method for Stochastic
     Optimization". URL: [https://arxiv.org/pdf/1412.6980.pdf](https://arxiv.org/pdf/1412.6980.pdf)'
+  id: totrans-294
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[29] Daniel Povey et al. (2011) "The Kaldi Speech Recognition Toolkit". URL:
     [http://kaldi-asr.org/](http://kaldi-asr.org/)'
+  id: totrans-295
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[30] Hagit Shatkay. (1995). "The Fourier Transform - A Primer". URL: [https://pdfs.semanticscholar.org/fe79/085198a13f7bd7ee95393dcb82e715537add.pdf](https://pdfs.semanticscholar.org/fe79/085198a13f7bd7ee95393dcb82e715537add.pdf)'
+  id: totrans-296
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[31] Dimitri Palaz et al. (2015). "Analysis of CNN-based Speech Recognition
     System using Raw Speech as Input". URL: [https://ronan.collobert.com/pub/matos/2015_cnnspeech_interspeech](https://ronan.collobert.com/pub/matos/2015_cnnspeech_interspeech)'
+  id: totrans-297
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[32] Yedid Hoshen et al. (2015) "Speech Acoustic Modeling from Raw Multichannel
     Waveforms". URL: [https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/43290.pdf](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/43290.pdf)'
+  id: totrans-298
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[33] Mark Gales and Steve Young. (2007). "The Application of Hidden Markov
     Models in Speech Recognition". URL: [http://mi.eng.cam.ac.uk/~mjfg/mjfg_NOW.pdf](http://mi.eng.cam.ac.uk/~mjfg/mjfg_NOW.pdf)'
+  id: totrans-299
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[34] L.R. Rabiner. (1989). "A tutorial on hidden Markov models and selected
     applications in speech recognition". URL: [http://www.cs.ubc.ca/~murphyk/Bayes/rabiner.pdf](http://www.cs.ubc.ca/~murphyk/Bayes/rabiner.pdf)'
+  id: totrans-300
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[35] Abdel-rahman Mohamed et al. (2011). "Acoustic Modeling Using Deep Belief
     Networks". URL: [http://www.cs.toronto.edu/~asamir/papers/speechDBN_jrnl.pdf](http://www.cs.toronto.edu/~asamir/papers/speechDBN_jrnl.pdf)'
+  id: totrans-301
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[36] Geoffrey Hinton et al. (2012) "Deep Neural Networks for Acoustic Modeling
     in Speech Recognition". URL: [https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/HintonDengYuEtAl-SPM2012.pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/HintonDengYuEtAl-SPM2012.pdf)'
+  id: totrans-302
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[37] Tony Robinson et al. (1996) "The Use of Recurrent Neural Networks in Continuous
     Speech Recognition". URL: [http://www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf](http://www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf)'
+  id: totrans-303
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[38] Graves A, Schmidhuber J. (2005) "Framewise phoneme classification with
     bidirectional LSTM and other neural network architectures.". URL: [https://www.cs.toronto.edu/~graves/nn_2005.pdf](https://www.cs.toronto.edu/~graves/nn_2005.pdf)'
+  id: totrans-304
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[39] Alex Graves et al. (2006). "Connectionist Temporal Classification: Labelling
     Unsegmented Sequence Data with Recurrent Neural Networks". URL: [http://www.cs.toronto.edu/~graves/icml_2006.pdf](http://www.cs.toronto.edu/~graves/icml_2006.pdf)'
+  id: totrans-305
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[40] Alex Graves et al. (2013) "Speech Recognition with Deep Recurrent Neural
     Networks". URL: [https://arxiv.org/pdf/1303.5778.pdf](https://arxiv.org/pdf/1303.5778.pdf)'
+  id: totrans-306
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[41] Dario Amodei et al. (2015). "Deep Speech 2: End-to-End Speech Recognition
     in English and Mandarin". URL: [https://arxiv.org/pdf/1512.02595.pdf](https://arxiv.org/pdf/1512.02595.pdf)'
+  id: totrans-307
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[42] Jan Chorowski et al. (2015). "Attention-Based Models for Speech Recognition",
     URL: [https://arxiv.org/pdf/1506.07503.pdf](https://arxiv.org/pdf/1506.07503.pdf)'
+  id: totrans-308
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[43] Dzmitry Bahdanau et al. (2015) "Neural Machine Translation by Jointly
     Learning to Align and Translate" URL: [https://arxiv.org/pdf/1409.0473.pdf](https://arxiv.org/pdf/1409.0473.pdf)'
+  id: totrans-309
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[44] The Institute for Signal and Information Processing. "Lattice tools".
     URL: [https://www.isip.piconepress.com/projects/speech/software/legacy/lattice_tools/](https://www.isip.piconepress.com/projects/speech/software/legacy/lattice_tools/)'
+  id: totrans-310
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[45] G.D. Forney. (1973). "The viterbi algorithm". URL: [http://www.systems.caltech.edu/EE/Courses/EE127/EE127A/handout/ForneyViterbi.pdf](http://www.systems.caltech.edu/EE/Courses/EE127/EE127A/handout/ForneyViterbi.pdf)'
+  id: totrans-311
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[46] Xavier L. Aubert (2002). "An overview of decoding techniques for large
     vocabulary continuous speech recognition". URL: [http://www.cs.cmu.edu/afs/cs/user/tbergkir/www/11711fa16/aubert_asr_decoding.pdf](http://www.cs.cmu.edu/afs/cs/user/tbergkir/www/11711fa16/aubert_asr_decoding.pdf)'
+  id: totrans-312
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[47] Alex Graves and Navdeep Jaitly. (2014). "Towards End-To-End Speech Recognition
     with Recurrent Neural Networks" URL: [http://proceedings.mlr.press/v32/graves14.pdf](http://proceedings.mlr.press/v32/graves14.pdf)'
+  id: totrans-313
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[48] Awni Hannun. (2014) "Deep Speech: Scaling up end-to-end speech recognition".
     URL: [https://arxiv.org/pdf/1412.5567.pdf](https://arxiv.org/pdf/1412.5567.pdf)'
+  id: totrans-314
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[49] William Chan (2015). "Listen, Attend and Spell" URL: [https://arxiv.org/pdf/1508.01211.pdf](https://arxiv.org/pdf/1508.01211.pdf)'
+  id: totrans-315
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
