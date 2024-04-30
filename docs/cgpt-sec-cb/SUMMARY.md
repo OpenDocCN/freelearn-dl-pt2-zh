@@ -1,3 +1,4 @@
++   [ChatGPT 网络安全秘籍](README.md)
 +   [前言](cgpt-sec-cb_00.md)
 +   [第一章：入门指南：ChatGPT、OpenAI API 和提示工程](cgpt-sec-cb_01.md)
 +   [第二章：漏洞评估](cgpt-sec-cb_02.md)

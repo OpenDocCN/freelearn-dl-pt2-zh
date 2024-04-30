@@ -1,4 +1,4 @@
-+   [ChatGPT 与 OpenAI 的现代生成式 AI](README.md)
++   [Go 分布式计算](README.md)
 +   [序言](mdn-genai-cgpt-oai_01.md)
 +   [第一部分：生成式人工智能和 GPT 模型的基础知识](mdn-genai-cgpt-oai_02.md)
 +   [一、生成式人工智能简介](mdn-genai-cgpt-oai_03.md)

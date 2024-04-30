@@ -1,3 +1,4 @@
++   [生成式 AI 与 LangCHain](README.md)
 +   [第一章：什么是生成模型？](genai-lngch_002.md)
 +   [第二章：LangChain 简介](genai-lngch_003.md)
 +   [第三章：使用 LangChain 入门](genai-lngch_004.md)

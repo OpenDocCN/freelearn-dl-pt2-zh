@@ -1,3 +1,4 @@
++   [Python 与 TensorFlow2 生成式 AI](README.md)
 +   [序言](genai-py-tf2_00.md)
 +   [第一章：生成人工智能简介：“从模型中“勾画”数据](genai-py-tf2_01.md)
 +   [第二章：设置 TensorFlow 实验室](genai-py-tf2_02.md)

@@ -1,3 +1,4 @@
++   [GPT3 终极指南](README.md)
 +   [前言](gpt3-ult-gd_04.md)
 +   [第一章：大型语言模型革命](gpt3-ult-gd_06.md)
 +   [第二章：开始使用 OpenAI API](gpt3-ult-gd_07.md)

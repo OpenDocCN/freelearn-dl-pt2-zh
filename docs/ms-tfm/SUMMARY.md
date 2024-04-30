@@ -1,3 +1,4 @@
++   [精通 Transformers](README.md)
 +   [序言](ms-tfm_00.md)
 +   [第一部分：介绍 - 领域内的最新发展，安装和 Hello World 应用程序](ms-tfm_01.md)
 +   [第一章：从词袋模型到 Transformer](ms-tfm_02.md)

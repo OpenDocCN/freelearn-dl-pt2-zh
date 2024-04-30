@@ -1,3 +1,4 @@
++   [GPT3 探索指南](README.md)
 +   [序言](expl-gpt3_00.md)
 +   [第一部分：理解 GPT-3 和 OpenAI API](expl-gpt3_01.md)
 +   [第一章：介绍 GPT-3 和 OpenAI API](expl-gpt3_02.md)
