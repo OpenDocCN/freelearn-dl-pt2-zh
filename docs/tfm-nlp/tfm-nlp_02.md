@@ -817,7 +817,7 @@ Step 7: summed the results to create the first line of the output matrix
 
 #### 步骤 8：所有输入的步骤 1 至步骤 7
 
-现在，变压器可以使用与步骤 1 到步骤 7 描述的相同方法产生输入＃2 和输入＃3 的注意力值，用于一个注意力头。
+现在，Transformers可以使用与步骤 1 到步骤 7 描述的相同方法产生输入＃2 和输入＃3 的注意力值，用于一个注意力头。
 
 从这一步开始，我们假设有 3 个学习权重的注意力值，*d*[model] = 64。现在我们想看到这些原始维度在达到子层输出时是什么样子的。
 
@@ -842,11 +842,11 @@ Step 8: Step 1 to 7 for inputs 1 to 3
 
 运行笔记本时，由于向量生成的随机性质，结果将有所不同。
 
-现在，变压器有一个头的输入的输出向量。下一步是生成 8 个头的输出，以创建注意力子层的最终输出。
+现在，Transformers有一个头的输入的输出向量。下一步是生成 8 个头的输出，以创建注意力子层的最终输出。
 
 #### 步骤 9：注意力子层的头部输出
 
-我们假设我们已经训练了注意力子层的 8 个头。现在，变压器有 3 个输出向量（3 个输入向量，即单词或词片段）每个*d*[model] = 64 维：
+我们假设我们已经训练了注意力子层的 8 个头。现在，Transformers有 3 个输出向量（3 个输入向量，即单词或词片段）每个*d*[model] = 64 维：
 
 ```py
 print("Step 9: We assume we have trained the 8 heads of the attention sublayer")
@@ -872,11 +872,11 @@ shape of one head (3, 64) dimension of 8 heads 512
 
 *Z* = (*Z*[0], *Z*[1], *Z*[2], *Z*[3], *Z*[4], *Z*[5], *Z*[6], *Z*[7])
 
-变压器将现在连接*Z*的 8 个元素以产生多头注意力子层的最终输出。
+Transformers将现在连接*Z*的 8 个元素以产生多头注意力子层的最终输出。
 
 #### 步骤 10：连接头部的输出
 
-变压器连接了*Z*的 8 个元素：
+Transformers连接了*Z*的 8 个元素：
 
 *MultiHead*(*Output*) = *Concat* (*Z*[0], *Z*[1], *Z*[2], *Z*[3], *Z*[4], *Z*[5], *Z*[6], *Z*[7]) *W*⁰ = *x*，*d*[model]
 
@@ -915,7 +915,7 @@ Step 10: Concatenation of heads 1 to 8 to obtain the original 8x64=512 output di
 
 #### 后层归一化
 
-每个变压器的注意力子层和每个前馈子层之后都跟随**后层归一化**（**Post-LN**）：
+每个Transformers的注意力子层和每个前馈子层之后都跟随**后层归一化**（**Post-LN**）：
 
 ![](img/B17948_02_20.png)
 

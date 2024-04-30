@@ -1,18 +1,18 @@
 # 第三章：微调 BERT 模型
 
-在*第二章*，*开始使用变压器模型的架构*中，我们定义了原始 Transformer 架构的构建块。 将原始 Transformer 想象成用乐高^® 砖块构建的模型。 构建套件包含编码器、解码器、嵌入层、位置编码方法、多头注意力层、掩码多头注意力层、后层规范化、前馈子层和线性输出层等砖块。
+在*第二章*，*开始使用Transformers模型的架构*中，我们定义了原始 Transformer 架构的构建块。 将原始 Transformer 想象成用乐高^® 砖块构建的模型。 构建套件包含编码器、解码器、嵌入层、位置编码方法、多头注意力层、掩码多头注意力层、后层规范化、前馈子层和线性输出层等砖块。
 
 砖块有各种大小和形状。你可以花几个小时使用相同的建筑套件构建各种模型！一些构建只需要一些砖块。其他构建将添加一个新的部件，就像我们使用乐高^® 组件构建模型时获得额外的砖块一样。
 
 BERT 向 Transformer 构建套件添加了一个新部件：双向多头注意力子层。 当我们人类在理解一个句子时遇到问题时，我们不仅仅查看过去的单词。 BERT 像我们一样，同时查看同一句子中的所有单词。
 
-本章将首先探讨**来自变压器的双向编码表示**（**BERT**）的架构。 BERT 以一种新颖的方式仅使用变压器的编码器块，并且不使用解码器堆栈。
+本章将首先探讨**来自Transformers的双向编码表示**（**BERT**）的架构。 BERT 以一种新颖的方式仅使用Transformers的编码器块，并且不使用解码器堆栈。
 
-然后，我们将对预训练的 BERT 模型进行微调。 我们将对将进行微调的 BERT 模型进行预训练，该模型由第三方训练并上传到 Hugging Face。 变压器可以进行预训练。 然后，例如，可以在几个 NLP 任务上对预训练的 BERT 进行微调。 我们将通过使用 Hugging Face 模块进行下游 Transformer 使用的这种迷人经历。
+然后，我们将对预训练的 BERT 模型进行微调。 我们将对将进行微调的 BERT 模型进行预训练，该模型由第三方训练并上传到 Hugging Face。 Transformers可以进行预训练。 然后，例如，可以在几个 NLP 任务上对预训练的 BERT 进行微调。 我们将通过使用 Hugging Face 模块进行下游 Transformer 使用的这种迷人经历。
 
 本章涵盖以下主题：
 
-+   来自变压器的双向编码表示（BERT）
++   来自Transformers的双向编码表示（BERT）
 
 +   BERT 的架构
 
@@ -40,9 +40,9 @@ BERT 向 Transformer 构建套件添加了一个新部件：双向多头注意�
 
 # BERT 的架构
 
-BERT 将双向注意引入了变压器模型。 双向注意需要对原始 Transformer 模型进行许多其他更改。
+BERT 将双向注意引入了Transformers模型。 双向注意需要对原始 Transformer 模型进行许多其他更改。
 
-我们将不会讨论*第二章*，*开始使用变压器模型的架构*中描述的变压器构建块。 您可以随时查阅*第二章*，以查看有关变压器构建块的某个方面的评论。 在本节中，我们将重点关注 BERT 模型的特定方面。
+我们将不会讨论*第二章*，*开始使用Transformers模型的架构*中描述的Transformers构建块。 您可以随时查阅*第二章*，以查看有关Transformers构建块的某个方面的评论。 在本节中，我们将重点关注 BERT 模型的特定方面。
 
 我们将重点关注*Devlin*等人（2018）设计的演进，描述了编码器堆栈。 我们将首先通过编码器堆栈，然后通过预训练输入环境的准备来描述 BERT 的两步框架：预训练和微调。
 
@@ -1303,7 +1303,7 @@ BERT 为 transformers 引入了双向关注。 从左到右预测序列并屏蔽
 
 # 问题
 
-1.  BERT 代表双向编码器来自变压器。 (True/False)
+1.  BERT 代表双向编码器来自Transformers。 (True/False)
 
 1.  BERT 是一个两步框架。 *步骤 1* 是预训练。 *步骤 2* 是微调。 (True/False)
 
@@ -1327,7 +1327,7 @@ BERT 为 transformers 引入了双向关注。 从左到右预测序列并屏蔽
 
 +   *Ashish Vaswani*, *Noam Shazeer*, *Niki Parmar*, *Jakob Uszkoreit*, *Llion Jones*, *Aidan N. Gomez*, *Lukasz Kaiser*, *Illia Polosukhin*, 2017, *注意力全靠你*: [`arxiv.org/abs/1706.03762`](https://arxiv.org/abs/1706.03762)
 
-+   *Jacob Devlin*, *Ming-Wei Chang*, *Kenton Lee*, 和 *Kristina Toutanova*, *2018*, *BERT：为语言理解预训练的深度双向变压器*: [`arxiv.org/abs/1810.04805`](https://arxiv.org/abs/1810.04805)
++   *Jacob Devlin*, *Ming-Wei Chang*, *Kenton Lee*, 和 *Kristina Toutanova*, *2018*, *BERT：为语言理解预训练的深度双向Transformers*: [`arxiv.org/abs/1810.04805`](https://arxiv.org/abs/1810.04805)
 
 +   *Alex Warstadt*, *Amanpreet Singh*, 和 *Samuel R. Bowman*, 2018, *神经网络可接受性判断*: [`arxiv.org/abs/1805.12471`](https://arxiv.org/abs/1805.12471)
 

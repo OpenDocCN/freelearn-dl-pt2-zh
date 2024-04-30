@@ -1,4 +1,4 @@
-# 第五章：使用 OpenAI API
+# 第四章：使用 OpenAI API
 
 到目前为止，我们用 GPT-3 所做的一切都是通过 Playground 完成的。虽然 Playground 是学习和测试的好地方，但是当你构建包含 GPT-3 的应用程序时，你也需要理解如何直接使用 OpenAI API。因此，在本章中，我们将通过发出 HTTP 请求来直接使用 OpenAI API。我们将首先对 API 和 HTTP 协议进行一般介绍。然后我们将看一下一些用于处理 API 请求和 JSON 数据交换格式的开发人员工具。
 

@@ -2,15 +2,15 @@
 
 阅读理解需要许多技能。当我们阅读一段文字时，我们注意关键词和主要事件，并创造内容的心理表征。然后我们可以利用我们对内容和表征的知识来回答问题。我们还会检查每个问题，以避免陷阱和错误。
 
-无论它们变得多么强大，变压器都不能轻松回答开放式问题。开放环境意味着有人可以就任何主题提出任何问题，而变压器会正确回答。这对于某种程度的 GPT-3 来说是困难的，正如我们将在本章中看到的那样。然而，变压器通常在封闭的问答环境中使用通用领域训练数据集。例如，在医疗保健和法律解释中的关键性答案通常需要额外的 NLP 功能。
+无论它们变得多么强大，Transformers都不能轻松回答开放式问题。开放环境意味着有人可以就任何主题提出任何问题，而Transformers会正确回答。这对于某种程度的 GPT-3 来说是困难的，正如我们将在本章中看到的那样。然而，Transformers通常在封闭的问答环境中使用通用领域训练数据集。例如，在医疗保健和法律解释中的关键性答案通常需要额外的 NLP 功能。
 
-然而，变压器不能无论训练环境是否闭合都正确回答任何问题。如果一个序列包含多个主语和复合命题，变压器模型有时会做出错误的预测。
+然而，Transformers不能无论训练环境是否闭合都正确回答任何问题。如果一个序列包含多个主语和复合命题，Transformers模型有时会做出错误的预测。
 
 本章将重点介绍构建问题生成器的方法，该生成器利用其他 NLP 任务帮助在文本中找到明确的内容。问题生成器将展示一些应用于实现问答的思想。
 
-我们将首先展示问随机问题并期望变压器每次都能良好响应的困难程度。
+我们将首先展示问随机问题并期望Transformers每次都能良好响应的困难程度。
 
-我们将通过引入**命名实体识别**（**NER**）功能来帮助`DistilBERT`模型回答问题，该功能建议合理的问题。此外，我们还将为变压器的问题生成器奠定基础。
+我们将通过引入**命名实体识别**（**NER**）功能来帮助`DistilBERT`模型回答问题，该功能建议合理的问题。此外，我们还将为Transformers的问题生成器奠定基础。
 
 我们将把一个预训练为鉴别器的 ELECTRA 模型添加到我们的问答工具箱中。
 
@@ -28,7 +28,7 @@
 
 +   利用命名实体识别根据实体识别创建有意义的问题
 
-+   开始设计变压器问题生成器的蓝图
++   开始设计Transformers问题生成器的蓝图
 
 +   测试使用 NER 找到的问题
 
@@ -38,11 +38,11 @@
 
 +   利用语义角色标注根据谓词识别创建有意义的问题
 
-+   实施问答变压器的项目管理指南
++   实施问答Transformers的项目管理指南
 
 +   分析如何利用 SRL 生成问题
 
-+   利用 NER 和 SRL 的输出来定义变压器问题生成器的蓝图
++   利用 NER 和 SRL 的输出来定义Transformers问题生成器的蓝图
 
 +   使用 RoBERTa 探索 Haystack 的问答框架
 
@@ -52,13 +52,13 @@
 
 # 方法论
 
-问答主要是作为一个涉及变压器和包含准备提问和回答这些问题的数据集的 NLP 练习。变压器被训练来回答在这个封闭环境中提出的问题。
+问答主要是作为一个涉及Transformers和包含准备提问和回答这些问题的数据集的 NLP 练习。Transformers被训练来回答在这个封闭环境中提出的问题。
 
-然而，在更复杂的情况下，可靠的变压器模型实现需要定制方法。
+然而，在更复杂的情况下，可靠的Transformers模型实现需要定制方法。
 
-## 变压器和方法
+## Transformers和方法
 
-完美和高效的通用变压器模型，无论是用于问答还是其他 NLP 任务，都不存在。对于一个特定的数据集和任务来说，最适合的模型是产生最佳输出的模型。
+完美和高效的通用Transformers模型，无论是用于问答还是其他 NLP 任务，都不存在。对于一个特定的数据集和任务来说，最适合的模型是产生最佳输出的模型。
 
 *该方法在许多情况下优于模型*。例如，一个适当的方法通常会比一个优秀模型但有缺陷的方法产生更高效的结果。
 
@@ -70,21 +70,21 @@
 
 假设用户需要在一个关于火箭再生式冷却喷嘴和燃烧室状态的一百页报告中提出问题。问题可能很具体，比如`冷却状态可靠吗？`这是用户从 NLP 机器人那里想要得到的底线信息。
 
-简而言之，让 NLP 机器人、变压器模型或其他任何东西做一个没有质量和认知控制的统计答案是太冒险了，也不会发生。可信赖的 NLP 机器人将连接到一个包含数据和规则的知识库，以在后台运行基于规则的专家系统来检查 NLP 机器人的答案。NLP 变压器模型机器人将产生一个流畅、可靠的自然语言答案，可能还是人声。
+简而言之，让 NLP 机器人、Transformers模型或其他任何东西做一个没有质量和认知控制的统计答案是太冒险了，也不会发生。可信赖的 NLP 机器人将连接到一个包含数据和规则的知识库，以在后台运行基于规则的专家系统来检查 NLP 机器人的答案。NLP Transformers模型机器人将产生一个流畅、可靠的自然语言答案，可能还是人声。
 
-适用于所有需求的通用变压器*模型*和*方法*并不存在。每个项目都需要特定的功能和定制的方法，这取决于用户的期望值，变化将是巨大的。
+适用于所有需求的通用Transformers*模型*和*方法*并不存在。每个项目都需要特定的功能和定制的方法，这取决于用户的期望值，变化将是巨大的。
 
-本章将着眼于超出特定变压器模型选择范围的问答的一般约束。本章不是一个问答项目指南，而是介绍了变压器如何用于问答。
+本章将着眼于超出特定Transformers模型选择范围的问答的一般约束。本章不是一个问答项目指南，而是介绍了Transformers如何用于问答。
 
-我们将专注于在没有事先准备的情况下使用问答在开放环境中。变压器模型需要其他 NLP 任务和经典程序的帮助。我们将探索一些方法，以提供如何组合任务以达到项目目标的想法：
+我们将专注于在没有事先准备的情况下使用问答在开放环境中。Transformers模型需要其他 NLP 任务和经典程序的帮助。我们将探索一些方法，以提供如何组合任务以达到项目目标的想法：
 
 +   *Method 0* 探索了随机提问的试错方法。
 
 +   *Method 1* 引入 NER 来帮助准备问答任务。
 
-+   *Method 2* 尝试使用 ELECTRA 变压器模型来帮助默认变压器。它还引入了 SRL 来帮助变压器准备问题。
++   *Method 2* 尝试使用 ELECTRA Transformers模型来帮助默认Transformers。它还引入了 SRL 来帮助Transformers准备问题。
 
-这三种方法的介绍表明，单一的问答方法对于高调的公司项目不起作用。添加 NER 和 SRL 将提高变压器代理解决方案的语言智能。
+这三种方法的介绍表明，单一的问答方法对于高调的公司项目不起作用。添加 NER 和 SRL 将提高Transformers代理解决方案的语言智能。
 
 例如，在我最早的一个 AI NLP 项目中，为航空航天公司的防御项目实施问答功能，我结合了不同的 NLP 方法，以确保提供的答案是`100%`可靠的。
 
@@ -106,7 +106,7 @@
 
 注意：Hugging Face transformers 不断发展，更新库和模块以适应市场。如果默认版本不起作用，您可能需要使用`!pip install transformers==[与笔记本中的其他函数兼容的版本]`来固定一个版本。
 
-我们现在将导入 Hugging Face 的 pipeline，其中包含许多即用型变压器资源。它们为 Hugging Face 库资源提供高级抽象函数，以执行各种任务。我们可以通过一个简单的 API 访问这些 NLP 任务。该程序是在 Google Colab 上创建的。建议使用免费的 Gmail 帐户在 Google Colab VM 上运行它。
+我们现在将导入 Hugging Face 的 pipeline，其中包含许多即用型Transformers资源。它们为 Hugging Face 库资源提供高级抽象函数，以执行各种任务。我们可以通过一个简单的 API 访问这些 NLP 任务。该程序是在 Google Colab 上创建的。建议使用免费的 Gmail 帐户在 Google Colab VM 上运行它。
 
 通过一行代码导入`pipeline`：
 
@@ -114,7 +114,7 @@
 from transformers import pipeline 
 ```
 
-一旦完成，我们有一行选项来实例化变压器模型和任务：
+一旦完成，我们有一行选项来实例化Transformers模型和任务：
 
 1.  使用默认的`model`和默认的`tokenizer`执行一个 NLP 任务：
 
@@ -140,7 +140,7 @@ from transformers import pipeline
 nlp_qa = pipeline('question-answering') 
 ```
 
-现在，我们只需要提供一段文本，然后我们将使用它来向变压器提交问题：
+现在，我们只需要提供一段文本，然后我们将使用它来向Transformers提交问题：
 
 ```py
 sequence = "The traffic began to slow down on Pioneer Boulevard in Los Angeles, making it difficult to get out of the city. However, WBGO was playing some cool jazz, and the weather was cool, making it rather pleasant to be making it out of the city on this Friday afternoon. Nat King Cole was singing as Jo, and Maria slowly made their way out of LA and drove toward Barstow. They planned to get to Las Vegas early enough in the evening to have a nice dinner and go see a show." 
@@ -158,7 +158,7 @@ nlp_qa(context=sequence, question='Where is Pioneer Boulevard ?')
 {'answer': 'Los Angeles,', 'end': 66, 'score': 0.988201259751591, 'start': 55} 
 ```
 
-我们刚刚用几行代码实现了一个问答变压器 NLP 任务！您现在可以下载一个包含文本、问题和答案的即用数据集。
+我们刚刚用几行代码实现了一个问答Transformers NLP 任务！您现在可以下载一个包含文本、问题和答案的即用数据集。
 
 实际上，本章可以在此结束，您将准备好进行问答任务了。然而，在实际实施中事情从来都不简单。假设我们必须为用户实现一个问答变换模型，让用户在数据库中存储的许多文档上提问。我们有两个重要的约束：
 
@@ -196,7 +196,7 @@ nlp_qa(context=sequence, question='Where is Pioneer Boulevard ?')
 
 # 方法 1：NER 先
 
-本节将使用 NER 来帮助我们找到好问题的想法。变压器模型是持续训练和更新的。此外，用于训练的数据集可能会发生变化。最后，这些不是基于规则的算法，每次可能产生相同的结果。输出可能会在一个运行到另一个运行之间发生变化。NER 可以检测序列中的人、位置、组织和其他实体。我们首先运行一个 NER 任务，它将为我们提供段落的一些主要部分，以便我们专注于提问。
+本节将使用 NER 来帮助我们找到好问题的想法。Transformers模型是持续训练和更新的。此外，用于训练的数据集可能会发生变化。最后，这些不是基于规则的算法，每次可能产生相同的结果。输出可能会在一个运行到另一个运行之间发生变化。NER 可以检测序列中的人、位置、组织和其他实体。我们首先运行一个 NER 任务，它将为我们提供段落的一些主要部分，以便我们专注于提问。
 
 ## 使用 NER 寻找问题
 
@@ -260,7 +260,7 @@ Hugging Face 的文档描述了在我们的案例中使用的标签。主要的�
 
 我们可以看到 NER 已经突出显示了我们将用于创建问答问题的关键实体。
 
-让我们询问我们的变压器两种类型的问题：
+让我们询问我们的Transformers两种类型的问题：
 
 +   与位置相关的问题
 
@@ -366,29 +366,29 @@ Question 5\. {'score': 0.21833994202792262, 'start': 355, 'end': 363, 'answer': 
 
 现在我们该怎么办？
 
-现在是控制变压器的时间了，通过项目管理来增加质量和决策功能。
+现在是控制Transformers的时间了，通过项目管理来增加质量和决策功能。
 
 #### 项目管理
 
-我们将检查四个例子，其中包括管理变压器和管理它的硬编码函数的方法。我们将这四个项目管理示例分类为四个项目级别：简单、中级、困难和非常困难。项目管理不在本书的范围之内，因此我们将简要介绍这四个类别：
+我们将检查四个例子，其中包括管理Transformers和管理它的硬编码函数的方法。我们将这四个项目管理示例分类为四个项目级别：简单、中级、困难和非常困难。项目管理不在本书的范围之内，因此我们将简要介绍这四个类别：
 
 1.  **一个简单的项目** 可以是一个小学的网站。老师可能会对我们所见到的感到高兴。文本可以显示在 HTML 页面上。我们自动获得的五个问题的答案可以与一些开发合并为五个断言，并以固定格式显示：`I-LOC 在 I-LOC 中`（例如，`Barstow 在 California 中`）。然后在每个断言下添加 `(True, False)`。老师所需要做的就是有一个管理员界面，允许老师点击正确答案来完成多项选择问卷！
 
-1.  **一个中级项目** 可以是封装变压器的自动问题和答案，使用 API 检查答案并自动纠正的程序。用户看不到任何东西。这个过程是无缝的。变压器产生的错误答案将被存储以供进一步分析。
+1.  **一个中级项目** 可以是封装Transformers的自动问题和答案，使用 API 检查答案并自动纠正的程序。用户看不到任何东西。这个过程是无缝的。Transformers产生的错误答案将被存储以供进一步分析。
 
-1.  **一个困难的项目** 将是在具有后续问题的聊天机器人中实现一个中级项目。例如，变压器将 `Pioneer Boulevard` 正确放置在 `Los Angeles` 中。聊天机器人用户可能会问一个自然的后续问题，比如 `在 LA 的哪里附近？` 这需要更多的开发。
+1.  **一个困难的项目** 将是在具有后续问题的聊天机器人中实现一个中级项目。例如，Transformers将 `Pioneer Boulevard` 正确放置在 `Los Angeles` 中。聊天机器人用户可能会问一个自然的后续问题，比如 `在 LA 的哪里附近？` 这需要更多的开发。
 
-1.  **一个非常困难的项目** 将是一个研究项目，培训变压器识别数据集中数百万记录中的 `I-LOC` 实体，并输出地图软件 API 的实时流结果。
+1.  **一个非常困难的项目** 将是一个研究项目，培训Transformers识别数据集中数百万记录中的 `I-LOC` 实体，并输出地图软件 API 的实时流结果。
 
 好消息是我们也可以找到一种利用我们所发现的方法。
 
-坏消息是，实现的变压器或任何现实项目中的 AI 需要强大的机器和项目经理、**主题专家**（**SMEs**）、开发人员和最终用户之间大量的团队合作。
+坏消息是，实现的Transformers或任何现实项目中的 AI 需要强大的机器和项目经理、**主题专家**（**SMEs**）、开发人员和最终用户之间大量的团队合作。
 
 现在让我们尝试人物实体问题。
 
 ### 人物实体问题
 
-让我们从变压器的一个简单问题开始：
+让我们从Transformers的一个简单问题开始：
 
 ```py
 nlp_qa = pipeline('question-answering')
@@ -404,7 +404,7 @@ nlp_qa(context=sequence, question='Who was singing ?')
  'start': 264} 
 ```
 
-现在我们将向变压器提出一个需要一些思考的问题，因为它没有明确陈述：
+现在我们将向Transformers提出一个需要一些思考的问题，因为它没有明确陈述：
 
 ```py
 nlp_qa(context=sequence, question='Who was going to Las Vegas ?') 
@@ -513,9 +513,9 @@ DistilBertForQuestionAnswering((distilbert): DistilBertModel(
 
 图 11.3：ELECTRA 作为鉴别器进行训练
 
-*图 11.3*显示，在送入生成器之前，原始序列会被屏蔽。生成器插入*可接受*的令牌而不是随机的令牌。ELECTRA 变压器模型训练以预测一个令牌是否来自原始序列还是已被替换。
+*图 11.3*显示，在送入生成器之前，原始序列会被屏蔽。生成器插入*可接受*的令牌而不是随机的令牌。ELECTRA Transformers模型训练以预测一个令牌是否来自原始序列还是已被替换。
 
-一个 ELECTRA 变压器模型的架构和大多数超参数与 BERT 变压器模型相同。
+一个 ELECTRA Transformers模型的架构和大多数超参数与 BERT Transformers模型相同。
 
 我们现在希望看看是否能获得更好的结果。在*QA.ipynb*中要运行的下一个单元是使用*ELECTRA-small-generator*的问答单元：
 
@@ -533,7 +533,7 @@ nlp_qa(context=sequence, question='Who drove to Las Vegas ?')
  start': 18} 
 ```
 
-输出可能会从一个运行或变压器模型到另一个变化；然而，想法仍然是一样的。
+输出可能会从一个运行或Transformers模型到另一个变化；然而，想法仍然是一样的。
 
 输出也发送了训练消息：
 
@@ -548,13 +548,13 @@ nlp_qa(context=sequence, question='Who drove to Las Vegas ?')
 
 ## 项目管理约束
 
-我们并没有获得我们所期望的默认 DistilBERT 和 ELECTRA 变压器模型的结果。
+我们并没有获得我们所期望的默认 DistilBERT 和 ELECTRA Transformers模型的结果。
 
 在其他解决方案中，有三个主要选项：
 
 +   用额外的数据集训练 DistilBERT 和 ELECTRA 或其他模型。在现实项目中，训练数据集是一个昂贵的过程。如果需要实施新的数据集并改变超参数，训练可能会持续几个月。硬件成本也需要考虑在内。此外，如果结果不尽人意，项目经理可能会关闭项目。
 
-+   你也可以尝试使用现成的变压器，尽管它们可能不符合你的需求，比如 Hugging Face 模型：[`huggingface.co/transformers/usage.html#extractive-question-answering`](https://huggingface.co/transformers/usage.html#extractive-question-answering)。
++   你也可以尝试使用现成的Transformers，尽管它们可能不符合你的需求，比如 Hugging Face 模型：[`huggingface.co/transformers/usage.html#extractive-question-answering`](https://huggingface.co/transformers/usage.html#extractive-question-answering)。
 
 +   通过使用额外的 NLP 任务来帮助问答模型，找到获得更好结果的方法。
 
@@ -564,7 +564,7 @@ nlp_qa(context=sequence, question='Who drove to Las Vegas ?')
 
 ## 使用 SRL 来找到问题
 
-AllenNLP 使用我们在*SRL.ipynb*笔记本中实现的基于 BERT 的模型，*第十章*，*使用基于 BERT 的变压器进行语义角色标注*。
+AllenNLP 使用我们在*SRL.ipynb*笔记本中实现的基于 BERT 的模型，*第十章*，*使用基于 BERT 的Transformers进行语义角色标注*。
 
 让我们在**语义角色标注**部分重新运行 AllenNLP 上的序列，[`demo.allennlp.org/semantic-role-labeling`](https://demo.allennlp.org/semantic-role-labeling)，以获取句子中谓词的可视化表示。
 
@@ -707,7 +707,7 @@ nlp_qa(context= sequence, question='What was slow?')
 playing: The traffic began to slow down on Pioneer Boulevard in Los Angeles , making it difficult to get out of the city . [ARGM-DIS: However] , [ARG0: WBGO] was [V: playing] [ARG1: some cool jazz] 
 ```
 
-这个结果和以下输出可能会随着不断发展的变压器模型而有所不同，但思想仍然是一样的：识别动词及其参数。
+这个结果和以下输出可能会随着不断发展的Transformers模型而有所不同，但思想仍然是一样的：识别动词及其参数。
 
 如果我们运行`whowhat`函数，它会显示参数中没有`I-PER`。所选模板将是`what`模板，并且以下问题可能会自动生成：
 
@@ -739,7 +739,7 @@ Who is singing?
 
 我们已经在本章中成功测试了这个问题。
 
-下一个动词是`drove`，我们已经标记为一个问题。变压器无法解决这个问题。
+下一个动词是`drove`，我们已经标记为一个问题。Transformers无法解决这个问题。
 
 动词`go`是一个很好的选择：
 
@@ -763,7 +763,7 @@ nlp_qa(context=sequence, question='Who sees a show?')
  'start': 264} 
 ```
 
-我们可以看到`Nat King Cole`、`Jo`和`Maria`在一个复杂序列中的出现会为变压器模型和任何 NLP 模型造成歧义问题。需要更多的项目管理和研究。
+我们可以看到`Nat King Cole`、`Jo`和`Maria`在一个复杂序列中的出现会为Transformers模型和任何 NLP 模型造成歧义问题。需要更多的项目管理和研究。
 
 # 下一步
 
@@ -850,21 +850,21 @@ text = "The traffic began to slow down on Pioneer Boulevard in…/… have a nic
 
 就是这样！这就是您在线运行各种教育 NLP 任务所需做的一切，即使没有 GPT-3 引擎的 API，也可以使用交互式界面。
 
-你可以改变*S*（向 GPT-3 展示预期的内容）和*E*，并创建无尽的互动。下一代 NLP 诞生了！工业 4.0 的开发人员、顾问或项目经理需要掌握一套新的技能：认知方法、语言学、心理学和其他跨学科的维度。如果需要，您可以花时间返回到*第七章*，*GPT-3 引擎超人变压器的崛起*。
+你可以改变*S*（向 GPT-3 展示预期的内容）和*E*，并创建无尽的互动。下一代 NLP 诞生了！工业 4.0 的开发人员、顾问或项目经理需要掌握一套新的技能：认知方法、语言学、心理学和其他跨学科的维度。如果需要，您可以花时间返回到*第七章*，*GPT-3 引擎超人Transformers的崛起*。
 
-我们已经探讨了使用变压器进行问答的一些关键方面。让我们总结一下我们所做的工作。
+我们已经探讨了使用Transformers进行问答的一些关键方面。让我们总结一下我们所做的工作。
 
 # 摘要
 
-在本章中，我们发现问答并不像看起来那么容易。实现一个变压器模型只需几分钟。然而，让它正常运行可能需要几个小时或几个月！
+在本章中，我们发现问答并不像看起来那么容易。实现一个Transformers模型只需几分钟。然而，让它正常运行可能需要几个小时或几个月！
 
-我们首先让 Hugging Face 管道中的默认变压器回答一些简单的问题。默认变压器 DistilBERT 对简单的问题回答得相当好。然而，我们选择了简单的问题。在现实生活中，用户提出各种各样的问题。变压器可能会感到困惑，并产生错误的输出。
+我们首先让 Hugging Face 管道中的默认Transformers回答一些简单的问题。默认Transformers DistilBERT 对简单的问题回答得相当好。然而，我们选择了简单的问题。在现实生活中，用户提出各种各样的问题。Transformers可能会感到困惑，并产生错误的输出。
 
 然后，我们决定是否继续随机提问并得到随机答案，还是开始设计一个问题生成器的蓝图，这是一个更有效的解决方案。
 
 我们首先使用 NER 来找到有用的内容。我们设计了一个函数，可以根据 NER 输出自动生成问题。质量很有前途，但需要更多的工作。
 
-我们尝试了一个 ELECTRA 模型，但并没有产生我们预期的结果。我们停顿了几分钟，决定是花费昂贵的资源来训练变压器模型，还是设计一个问题生成器。
+我们尝试了一个 ELECTRA 模型，但并没有产生我们预期的结果。我们停顿了几分钟，决定是花费昂贵的资源来训练Transformers模型，还是设计一个问题生成器。
 
 我们在问题生成器的蓝图中添加了 SRL，并测试了它可以生成的问题。我们还在分析中添加了 NER，并生成了几个有意义的问题。还引入了`Haystack`框架，以发现使用 RoBERTa 进行问答的其他方法。
 

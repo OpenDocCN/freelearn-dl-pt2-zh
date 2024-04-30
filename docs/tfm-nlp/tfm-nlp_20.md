@@ -314,7 +314,7 @@ its own nature, but which it cannot answer, as they transcend every
 faculty of the mind. 
 ```
 
-按下*Enter*键来生成文本，就像之前一样。尽管输出可能会从一个运行到另一个运行而变化，但它是有结构和逻辑的，这使得变压器具有吸引力。这次，结果不是随机的，而且令人印象深刻。
+按下*Enter*键来生成文本，就像之前一样。尽管输出可能会从一个运行到另一个运行而变化，但它是有结构和逻辑的，这使得Transformers具有吸引力。这次，结果不是随机的，而且令人印象深刻。
 
 让我们来看看 GPT-2 模型生成的开头几行：
 
@@ -338,7 +338,7 @@ The first question, to which it is obliged to respond, is, how can it be true th
 
 我们可以从我们的实验中得出一些结论：
 
-+   训练良好的变压器模型可以产生接近人类水平的文本补全。
++   训练良好的Transformers模型可以产生接近人类水平的文本补全。
 
 +   在复杂和抽象推理方面，GPT-2 模型几乎可以达到人类水平的文本生成。
 

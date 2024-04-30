@@ -1,6 +1,6 @@
-# 第六章：递归神经网络和语言模型
+# 第六章：循环神经网络和语言模型
 
-我们在前几章讨论的神经网络架构接受固定大小的输入并提供固定大小的输出。即使在图像识别中使用的卷积网络（第五章，“图像识别”）也被展平成一个固定输出向量。本章将通过引入**递归神经网络**（**RNNs**）来摆脱这一限制。RNN 通过在这些序列上定义递推关系来帮助我们处理可变长度的序列，因此得名。
+我们在前几章讨论的神经网络架构接受固定大小的输入并提供固定大小的输出。即使在图像识别中使用的卷积网络（第五章，“图像识别”）也被展平成一个固定输出向量。本章将通过引入**循环神经网络**（**RNNs**）来摆脱这一限制。RNN 通过在这些序列上定义递推关系来帮助我们处理可变长度的序列，因此得名。
 
 处理任意输入序列的能力使得 RNN 可用于诸如语言建模（参见*语言建模*部分）或语音识别（参见*语音识别*部分）等任务。事实上，理论上，RNN 可以应用于任何问题，因为已经证明它们是图灵完备的 [1]。这意味着在理论上，它们可以模拟任何常规计算机无法计算的程序。作为这一点的例证，Google DeepMind 提出了一个名为“神经图灵机”的模型，该模型可以学习执行简单的算法，比如排序 [2]。
 
@@ -16,15 +16,15 @@
 
 +   应用深度学习于语音识别的简要介绍
 
-# 递归神经网络
+# 循环神经网络
 
 RNN 之所以得名，是因为它们在序列上重复应用相同的函数。可以通过下面的函数将 RNN 写成递推关系:
 
-![递归神经网络](img/00220.jpeg)
+![循环神经网络](img/00220.jpeg)
 
 这里的 *S*[t] —第 *t* 步的状态—是由函数 *f* 从前一步的状态，即 *t-1*，和当前步骤的输入 *X*[t] 计算得出。这种递推关系通过在先前状态上的反馈循环来定义状态如何逐步在序列中演变，如下图所示：
 
-![递归神经网络](img/00221.jpeg)
+![循环神经网络](img/00221.jpeg)
 
 图来自[3]
 
@@ -34,7 +34,7 @@ RNN 之所以得名，是因为它们在序列上重复应用相同的函数。�
 
 这里 *f* 可以是任何可微分函数。例如，一个基本的 RNN 定义如下递推关系:
 
-![递归神经网络](img/00222.jpeg)
+![循环神经网络](img/00222.jpeg)
 
 这里*W*定义了从状态到状态的线性变换，*U*是从输入到状态的线性变换。*tanh*函数可以被其他变换替代，比如 logit，tanh 或者 ReLU。这个关系可以在下图中进行解释，*O*[t]是网络生成的输出。
 
@@ -56,13 +56,13 @@ RNN 之所以得名，是因为它们在序列上重复应用相同的函数。�
 
     来自[7]的图片
 
-    RNN 扩展了我们可以使用神经网络进行计算的可能性—红色：输入 X，绿色：状态 S，蓝色：输出 O。![递归神经网络](img/00223.jpeg)
+    RNN 扩展了我们可以使用神经网络进行计算的可能性—红色：输入 X，绿色：状态 S，蓝色：输出 O。![循环神经网络](img/00223.jpeg)
 
 ## RNN — 如何实现和训练
 
 在前面的部分，我们简要讨论了 RNN 是什么以及它们可以解决的问题。让我们深入了解 RNN 的细节，以及如何通过一个非常简单的玩具例子来训练它：在一个序列中计算“1”的个数。
 
-在这个问题中，我们要教会最基本的递归神经网络如何计算输入中 1 的个数，并且在序列结束时输出结果。我们将在 Python 和 NumPy 中展示这个网络的实现。输入和输出的一个示例如下：
+在这个问题中，我们要教会最基本的循环神经网络如何计算输入中 1 的个数，并且在序列结束时输出结果。我们将在 Python 和 NumPy 中展示这个网络的实现。输入和输出的一个示例如下：
 
 ```py
 In:  (0, 0, 0, 0, 1, 0, 1, 0, 1, 0)
@@ -73,7 +73,7 @@ Out:  3
 
 ![RNN — 如何实现和训练](img/00224.jpeg)
 
-基本的递归神经网络用于计算输入中的 1 的个数
+基本的循环神经网络用于计算输入中的 1 的个数
 
 网络只有两个参数：一个输入权重 *U* 和一个循环权重 *W*。输出权重 *V* 设为 1，所以我们只需读取最后一个状态作为输出 *y*。这个网络定义的循环关系是 *S* *[t]* *= S* *[t-1]* ** W + X* *[t]* ** U*。请注意，这是一个线性模型，因为在这个公式中我们没有应用非线性函数。这个函数的代码定义如下：
 
@@ -88,9 +88,9 @@ def step(s, x, U, W):
 
 ### 通过时间的反向传播
 
-通过时间的反向传播算法是我们用来训练递归网络的典型算法[8]。这个名字已经暗示了它是基于我们在 第二章 讨论的反向传播算法，*神经网络*。
+通过时间的反向传播算法是我们用来训练循环网络的典型算法[8]。这个名字已经暗示了它是基于我们在 第二章 讨论的反向传播算法，*神经网络*。
 
-如果你了解常规的反向传播，那么通过时间的反向传播就不难理解。主要区别在于，递归网络需要在一定数量的时间步长内进行展开。这个展开如前图所示（*基本的递归神经网络用于计算输入中的 1 的个数*）。展开完成后，我们得到一个与常规的多层前馈网络非常相似的模型。唯一的区别在于，每层都有多个输入（上一个状态，即 *S* *[t-1]*），和当前输入（*X* *[t]*），以及参数（这里的 *U* 和 *W*）在每层之间是共享的。
+如果你了解常规的反向传播，那么通过时间的反向传播就不难理解。主要区别在于，循环网络需要在一定数量的时间步长内进行展开。这个展开如前图所示（*基本的循环神经网络用于计算输入中的 1 的个数*）。展开完成后，我们得到一个与常规的多层前馈网络非常相似的模型。唯一的区别在于，每层都有多个输入（上一个状态，即 *S* *[t-1]*），和当前输入（*X* *[t]*），以及参数（这里的 *U* 和 *W*）在每层之间是共享的。
 
 前向传播将 RNN 沿着序列展开，并为每个步骤构建一个活动堆栈。批处理输入序列 *X* 的前向步骤可实现如下：
 
@@ -607,7 +607,7 @@ HMM 假设连续帧在给定 HMM 的隐藏状态的情况下是独立的。由�
 
 在这一步中使用的网络通常是在一组频谱特征上以一个通用模型进行预训练的。通常，**深度信度网络** (**DBN**) 用于预训练这些网络。生成式预训练会创建多层逐渐复杂的特征检测器。一旦生成式预训练完成，网络会被判别性地微调以分类正确的 HMM 状态，基于声学特征。这些混合模型中的 HMMs 用于将由 DNNs 提供的段分类与完整标签序列的时间分类对齐。已经证明这些 DNN-HMM 模型比 GMM-HMM 模型具有更好的电话识别性能 [36]。
 
-### 递归神经网络
+### 循环神经网络
 
 本节描述了如何使用 RNN 模型来对序列数据进行建模。直接应用 RNN 在语音识别上的问题在于训练数据的标签需要与输入完全对齐。如果数据对齐不好，那么输入到输出的映射将包含太多噪音，网络无法学到任何东西。一些早期的尝试试图通过使用混合 RNN-HMM 模型来建模声学特征的序列上下文，其中 RNN 将模拟 HMM 模型的发射概率，很类似 DBNs 的使用 [37] 。
 
@@ -699,7 +699,7 @@ CTC 网络在每个步骤都有一个 softmax 输出层。这个 softmax 函数�
 
 +   [17] Gers 等人（2000 年）。"学习遗忘：带有 LSTM 的持续预测" 网址：[`pdfs.semanticscholar.org/1154/0131eae85b2e11d53df7f1360eeb6476e7f4.pdf`](https://pdfs.semanticscholar.org/1154/0131eae85b2e11d53df7f1360eeb6476e7f4.pdf)
 
-+   [18] Nikhil Buduma（2015）。"深入研究递归神经网络"。网址：[`nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/`](http://nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/)
++   [18] Nikhil Buduma（2015）。"深入研究循环神经网络"。网址：[`nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/`](http://nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/)
 
 +   [19] Klaus Greff 等人（2015）。"LSTM：一场搜索空间的奥德赛"。网址：[`arxiv.org/pdf/1503.04069v1.pdf`](https://arxiv.org/pdf/1503.04069v1.pdf)
 
@@ -713,11 +713,11 @@ CTC 网络在每个步骤都有一个 softmax 输出层。这个 softmax 函数�
 
 +   [24] Tomas Mikolov 等人（2013）。"连续空间词表示的语言规律"。网址：[`www.microsoft.com/en-us/research/wp-content/uploads/2016/02/rvecs.pdf`](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/rvecs.pdf)
 
-+   [25] Thomas Mikolov 等人（2010 年）。"基于递归神经网络的语言模型"。网址：[`www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf`](http://www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf)
++   [25] Thomas Mikolov 等人（2010 年）。"基于循环神经网络的语言模型"。网址：[`www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf`](http://www.fit.vutbr.cz/research/groups/speech/publi/2010/mikolov_interspeech2010_IS100722.pdf)
 
 +   [26] Frederic Morin 和 Yoshua Bengio（2005）。"分层概率神经网络语言模型"。网址：[`www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf`](http://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf)
 
-+   [27] Alex Graves（2013）。"使用递归神经网络生成序列"。网址：[`arxiv.org/pdf/1308.0850.pdf`](https://arxiv.org/pdf/1308.0850.pdf)
++   [27] Alex Graves（2013）。"使用循环神经网络生成序列"。网址：[`arxiv.org/pdf/1308.0850.pdf`](https://arxiv.org/pdf/1308.0850.pdf)
 
 +   [28] Diederik P. Kingma 和 Jimmy Ba（2014）。"Adam：一种随机优化方法"。网址：[`arxiv.org/pdf/1412.6980.pdf`](https://arxiv.org/pdf/1412.6980.pdf)
 
@@ -737,13 +737,13 @@ CTC 网络在每个步骤都有一个 softmax 输出层。这个 softmax 函数�
 
 +   [36] Geoffrey Hinton 等人（2012 年）"语音识别中声学建模的深度神经网络"。URL：[`www.microsoft.com/en-us/research/wp-content/uploads/2016/02/HintonDengYuEtAl-SPM2012.pdf`](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/HintonDengYuEtAl-SPM2012.pdf)
 
-+   [37] Tony Robinson 等人（1996）"递归神经网络在连续语音识别中的应用"。URL：[`www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf`](http://www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf)
++   [37] Tony Robinson 等人（1996）"循环神经网络在连续语音识别中的应用"。URL：[`www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf`](http://www.cstr.ed.ac.uk/downloads/publications/1996/rnn4csr96.pdf)
 
 +   [38] Graves A，Schmidhuber J。（2005）"双向 LSTM 和其他神经网络架构的逐帧音素分类"。URL：[`www.cs.toronto.edu/~graves/nn_2005.pdf`](https://www.cs.toronto.edu/~graves/nn_2005.pdf)
 
 +   [39] Alex Graves 等人（2006 年）。"使用循环神经网络标记未分段序列数据的连接时序分类法"。URL：[`www.cs.toronto.edu/~graves/icml_2006.pdf`](http://www.cs.toronto.edu/~graves/icml_2006.pdf)
 
-+   [40] Alex Graves 等人（2013 年）"使用深度递归神经网络的语音识别"。URL：[`arxiv.org/pdf/1303.5778.pdf`](https://arxiv.org/pdf/1303.5778.pdf)
++   [40] Alex Graves 等人（2013 年）"使用深度循环神经网络的语音识别"。URL：[`arxiv.org/pdf/1303.5778.pdf`](https://arxiv.org/pdf/1303.5778.pdf)
 
 +   [41] Dario Amodei 等人（2015 年）。"深度语音 2：英语和普通话端到端语音识别"。URL：[`arxiv.org/pdf/1512.02595.pdf`](https://arxiv.org/pdf/1512.02595.pdf)
 
