@@ -97,21 +97,3 @@ $ conda install -c conda-forge tensorflow
 提示或重要笔记
 
 如此呈现。
-
-# 联系我们
-
-我们非常欢迎读者的反馈。
-
-发送邮件至`customercare@packtpub.com`，并在主题中提及书名。
-
-**勘误表**：尽管我们竭尽全力确保内容准确无误，但错误不可避免。如果您在本书中发现错误，我们将不胜感激您向我们报告。请访问[www.packtpub.com/support/errata](http://www.packtpub.com/support/errata)并填写表格。
-
-发送至`copyright@packt.com`，并附上材料链接。
-
-**如果您有兴趣成为作者**：如果您在某个专题上有专长并且有兴趣撰写或贡献书籍，请访问[authors.packtpub.com](http://authors.packtpub.com)。
-
-# 分享您的想法
-
-阅读完《掌握Transformers》后，我们很想听听您的想法！请点击此处前往亚马逊翻页，分享您的反馈。
-
-您的评论对我们和技术社区非常重要，将帮助我们确保我们提供优质的内容。
