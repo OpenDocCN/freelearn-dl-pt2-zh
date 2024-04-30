@@ -4,7 +4,7 @@
 +   [生成式 AI 与 LangCHain](docs/genai-lngch/README.md)
 +   [Python 与 TensorFlow2 生成式 AI](docs/genai-py-tf2/README.md)
 +   [GPT3 终极指南](docs/gpt3-ult-gd/README.md)
-+   [Go 分布式计算](docs/mdn-genai-cgpt-oai/README.md)
++   [ChatGPT 与 OpenAI 的现代生成式 AI](docs/mdn-genai-cgpt-oai/README.md)
 +   [精通 Transformers](docs/ms-tfm/README.md)
 +   [Python 深度学习](docs/py-dl/README.md)
 +   [Transformers 自然语言处理](docs/tfm-nlp/README.md)

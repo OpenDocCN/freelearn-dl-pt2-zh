@@ -1,7 +1,7 @@
-# Go 分布式计算
+# ChatGPT 与 OpenAI 的现代生成式 AI
 
-> 原文：[`zh.annas-archive.org/md5/BF0BD04A27ACABD0F3CDFCFC72870F45`](https://zh.annas-archive.org/md5/BF0BD04A27ACABD0F3CDFCFC72870F45)
+> 原文：[Modern Generative AI with ChatGPT and OpenAI Models](https://annas-archive.org/md5/851cf28325365592cee924e8f6fefb7a)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 
-> 协议：[CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
+> 协议：[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
