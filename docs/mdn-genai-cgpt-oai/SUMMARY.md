@@ -14,4 +14,4 @@
 +   [九、为企业介绍 Azure OpenAI 的 OpenAI 和 ChatGPT](mdn-genai-cgpt-oai_15.md)
 +   [十、企业的热门用例](mdn-genai-cgpt-oai_16.md)
 +   [十一、结语和最终思考](mdn-genai-cgpt-oai_17.md)
-+   [第十二章：参考资料](mdn-genai-cgpt-oai_18.md)
++   [十二、参考资料](mdn-genai-cgpt-oai_18.md)

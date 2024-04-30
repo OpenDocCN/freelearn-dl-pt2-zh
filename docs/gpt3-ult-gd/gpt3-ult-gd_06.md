@@ -1,6 +1,4 @@
-# 第三章
-
-章节 1：大型语言模型革命
+# 第一章：大型语言模型革命
 
 "艺术是灵魂和世界碰撞的残骸" [#gpt3](https://twitter.com/hashtag/gpt3?src=hashtag_click)
 

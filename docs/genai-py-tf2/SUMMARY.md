@@ -7,7 +7,7 @@
 +   [第六章：使用 GAN 生成图像](genai-py-tf2_06.md)
 +   [第七章：使用 GAN 进行风格转移](genai-py-tf2_07.md)
 +   [第八章：使用 GANs 进行 deepfakes](genai-py-tf2_08.md)
-+   [第九章：[文本生成方法的崛起](https://wiki.example.org/the_rise_of_methods_for_text_generation)](genai-py-tf2_09.md)
++   [第九章：文本生成方法的崛起](genai-py-tf2_09.md)
 +   [第十章：NLP 2.0：使用 Transformers 生成文本](genai-py-tf2_10.md)
 +   [第十一章：使用生成模型作曲音乐](genai-py-tf2_11.md)
 +   [第十二章：用生成式人工智能玩视频游戏：GAIL](genai-py-tf2_12.md)
