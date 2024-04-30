@@ -1,4 +1,4 @@
-# 2\. LangChain 简介
+# 第二章：LangChain 简介
 
 ## 加入我们在 Discord 上的图书社区
 

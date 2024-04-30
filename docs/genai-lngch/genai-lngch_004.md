@@ -1,4 +1,4 @@
-# 3 使用 LangChain 入门
+# 第三章：使用 LangChain 入门
 
 ## 加入我们的书籍社区 Discord
 

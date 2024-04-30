@@ -1,4 +1,4 @@
-# *第三章*：使用 OpenAI Playground
+# 第四章：使用 OpenAI Playground
 
 在上一章中，我们简要介绍了 Playground。很可能您将花费大量时间在 Playground 中，因为它是一个非常好的工具，既用于学习也用于快速原型设计和测试提示和设置。因此，在本章中，我们将更深入地了解 Playground，重点放在 Playground 设置上。我们还将介绍其他您需要了解的 OpenAI 开发者工具和资源。
 

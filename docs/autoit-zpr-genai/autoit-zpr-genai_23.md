@@ -1,6 +1,4 @@
-# 19
-
-# 人工智能与自动化
+# 第十九章：人工智能与自动化
 
 由于许多软件用户正在采用更好的方式使他们的日常工作更加高效，通过使用 **生成式人工智能** (**AI**)，将 **AI** 功能集成到他们的软件应用程序中已成为许多 SaaS 公司的首要任务。 Zapier 也不例外。随着 ChatGPT 向更广泛的市场发布，并且可以集成和整合 AI 功能，Zapier 也在释放许多已整合 AI 功能的功能，并已将其确定为近期的主要业务目标。一些 AI SaaS 公司也正在利用这个机会将他们的应用程序与 Zapier 集成，使 AI 和自动化的结合成为提高生产力的助推器。
 
@@ -262,7 +260,7 @@ Zapier Interfaces 的聊天机器人组件默认使用 GPT-3.5-turbo。您可以
 
 Formatter by Zapier Split Text into Chunks for AI Prompt 转换选项仅支持英文文本。
 
-您可以在*第十七章*中了解如何设置 Formatter by Zapier Text 动作事件，*Zapier 中的文本格式化功能–第 2 部分*。一个好的开始是审查 **Split** 转换选项。
+您可以在*第十七章*中了解如何设置 Formatter by Zapier Text 动作事件，*Zapier 中的文本格式化功能–第二部分*。一个好的开始是审查 **Split** 转换选项。
 
 在设置动作步骤时，将您的大型数据集映射到 **Input** 字段，并在 **Prompt** 字段中添加您预期的提示文本，以帮助 Zapier 计算 chunk 大小。您还应指定在 **Output Style** 字段中是否应将结果生成为行项目或单独字段，与 **Split** 转换选项一样。
 

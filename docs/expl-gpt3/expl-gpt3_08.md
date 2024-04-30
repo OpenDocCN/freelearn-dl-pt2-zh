@@ -1,4 +1,4 @@
-# 第 3 节：使用 OpenAI API
+# 第三部分：使用 OpenAI API
 
 本节提供了使用 OpenAI API 与 Node.js/JavaScript 和 Python 的实际示例。然后，它通过指导您构建一个完全功能的 GPT-3 驱动的 Web 应用来结束。
 
