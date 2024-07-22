@@ -1,79 +1,111 @@
 - en: '8'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '8'
 - en: Distributed Training at a Glance
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 一览分布式训练
 - en: When we face a complex problem in real life, we usually try to solve it by dividing
     the big problem into small parts that are easier to treat. So, by combining the
     partial solutions obtained from the small pieces of the original problem, we reach
     the final solution. This strategy, called **divide and conquer**, is frequently
     used to solve computational tasks. We can say that this approach is the basis
     of the parallel and distributed computing areas.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们在现实生活中面对复杂问题时，通常会尝试通过将大问题分解为易于处理的小部分来解决。因此，通过结合从原始问题的小部分获得的部分解决方案，我们达到最终解决方案。这种称为**分而治之**的策略经常用于解决计算任务。我们可以说这种方法是并行和分布式计算领域的基础。
 - en: It turns out that this idea of dividing a big problem into small pieces comes
     in handy to accelerate the training process of complex models. In cases where
     using a single resource is not enough to train the model in a reasonable time,
     the unique way out relies on breaking down the training process and spreading
     it across multiple resources. In other words, we need to *distribute the* *training
     process*.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 原来，将一个大问题分解成小块的想法在加速复杂模型的训练过程中非常有用。在单个资源无法在合理时间内训练模型的情况下，唯一的出路是分解训练过程并将其分散到多个资源中。换句话说，我们需要*分布训练过程*。
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 您将在本章中学到以下内容：
 - en: The basic concepts of distributed training
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 分布式训练的基本概念
 - en: The parallel strategies that are used to spread the training process
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 用于分散训练过程的并行策略
 - en: The basic workflow to implement distributed training in PyTorch
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在PyTorch中实现分布训练的基本工作流程
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can find the complete code examples mentioned in this chapter in the book’s
     GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在本章提到的书籍GitHub存储库中找到完整的代码示例，网址为 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main)。
 - en: You can access your favorite environment to execute the code provided, such
     as Google Colab or Kaggle.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以访问您喜爱的环境来执行提供的代码，例如Google Colab或Kaggle。
 - en: A first look at distributed training
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 分布式训练的首次介绍
 - en: We’ll start this chapter by discussing the reasons for distributing the training
     process among multiple resources. Then, we’ll learn what resources are commonly
     used to execute this process.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从讨论将训练过程分布到多个资源中的原因开始本章。然后，我们将了解通常用于执行此过程的资源。
 - en: When do we need to distribute the training process?
+  id: totrans-13
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 我们何时需要分布训练过程？
 - en: The most common reason to distribute the training process concerns *accelerating
     the building process*. Suppose the training process is taking a long time to complete,
     and we have multiple resources at hand. In that case, we should consider distributing
     the training process among these various resources to reduce the training time.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 分布训练过程最常见的原因涉及*加速构建过程*。假设训练过程花费很长时间并且我们手头有多个资源，那么我们应该考虑在这些各种资源之间分布训练过程以减少训练时间。
 - en: The second motivation for going distributed is related to **memory leaks** to
     load a large model in a single resource. In this situation, we rely on distributed
     training to allocate different parts of the large model into distinct devices
     or resources so that the model can be loaded into the system.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 将大型模型加载到单个资源中存在内存泄漏的第二个动机与分布式训练相关。在这种情况下，我们依靠分布式训练将大型模型的不同部分分配到不同的设备或资源中，以便可以将模型加载到系统中。
 - en: However, distributed training is not a *silver bullet* that solves both problems.
     In many situations, distributed training can achieve the same performance as the
     traditional execution or, depending on the case, can even be worse. This happens
@@ -83,67 +115,89 @@
     model’s complexity, as described in [*Chapter 6*](B20959_06.xhtml#_idTextAnchor085),
     *Simplifying the Model*, instead of moving to the distributed approach. If it
     succeeds, the resultant model of the simplifying process may now fit on the device.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，分布式训练并非解决所有问题的*灵丹妙药*。在许多情况下，分布式训练可以达到与传统执行相同的性能，或者在某些情况下甚至更差。这是因为准备初始设置和在多个资源之间进行通信所带来的额外开销可能会抵消并行运行训练过程的好处。此外，我们可以首先尝试简化模型的复杂性，如[*第6章*](B20959_06.xhtml#_idTextAnchor085)中描述的那样，*简化模型*，而不是立即转向分布式方法。如果成功，简化过程的结果模型现在可能适合设备上运行。
 - en: 'Therefore, distributed training is not always the correct answer to reduce
     the training time or to fit the model on a given resource. Thus, it is recommended
     to take a breath and carefully analyze whether distributed training sounds promising
     to solve the problem. In short, we can use the flowchart depicted in *Figure 8**.1*
     to decide when to adopt either the traditional or distributed approach:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，分布式训练并不总是减少训练时间或将模型适配到给定资源的正确答案。因此，建议冷静下来，并仔细分析分布式训练是否有望解决问题。简而言之，我们可以使用图**8**.1中描述的流程图来决定何时采用传统或分布式方法：
 - en: '![Figure 8.1 – A flowchart for deciding when to use the traditional or distributed
     approach](img/B20959_08_01.jpg)'
+  id: totrans-18
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.1 – 用于决定何时使用传统或分布式方法的流程图](img/B20959_08_01.jpg)'
 - en: Figure 8.1 – A flowchart for deciding when to use the traditional or distributed
     approach
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.1 – 用于决定何时使用传统或分布式方法的流程图
 - en: In the face of a memory leak or a long time to train, we should apply all possible
     performance improvement techniques before considering moving to a distributed
     approach. By doing this, we can avoid problems such as wasting allocated resources
     that are not being used effectively.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 面对内存泄漏或长时间训练，我们应该在考虑采用分布式方法之前，应用所有可能的性能改进技术。通过这样做，我们可以避免诸如浪费未有效使用的分配资源之类的问题。
 - en: Besides deciding when to distribute the training process, we should evaluate
     the amount of resources to use in the distributed approach. It is a common mistake
     to get all available resources to execute the distributed training, supposing
     that the higher the amount of resources, the shorter the time to train the model.
     However, there’s no guarantee that increasing the amount of resources will result
     in better performance. The result can be even worse, as we discussed earlier.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了决定何时分发训练过程外，我们还应评估在分布式方法中使用的资源量。一个常见的错误是获取所有可用资源来执行分布式训练，假设资源量越多，训练模型的时间就越短。然而，并没有保证增加资源量将会带来更好的性能。结果甚至可能更糟，正如我们之前讨论过的那样。
 - en: In summary, distributed training is useful in cases where the training process
     takes a long time to finish, or the model does not fit on a given resource. As
     both cases can be solved by applying performance improvement techniques, we should
     first try these methods before moving to a distributed strategy. Otherwise, we
     can face side effects such as resource wastage.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，分布式训练在训练过程需要较长时间完成或模型无法适应给定资源的情况下非常有用。由于这两种情况都可以通过应用性能改进技术来解决，因此我们应首先尝试这些方法，然后再考虑采用分布式策略。否则，我们可能会面临资源浪费等副作用。
 - en: In the next section, we’ll provide a higher-level explanation of the computing
     resources that are used to execute this process.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将对用于执行此过程的计算资源提供更高层次的解释。
 - en: Where do we execute distributed training?
+  id: totrans-24
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 我们在哪里执行分布式训练？
 - en: In a more general way, we can say that distributed training concerns dividing
     the training process into multiple parts, where each part manages a piece of the
     entire training process. Each of these parts is allocated to run on a separate
     computing **resource**.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 更一般地说，我们可以说分布式训练涉及将训练过程划分为多个部分，每个部分管理整个训练过程的一部分。每个部分都分配在单独的计算**资源**上运行。
 - en: In the context of distributed training, we can run a part of the training process
     in the CPU or an accelerator device. Although the accelerator device that’s commonly
     used for this purpose is the GPU, other less popular options, such as FPGA, XPU,
     and TPU, exist.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
 - en: These computing resources can be available on a single machine or be located
     on multiple servers. Moreover, a single machine can possess one or more of these
     resources.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
 - en: 'In other words, we can distribute the training process among *one machine with
@@ -151,12 +205,15 @@
     or multiple resources*. To make this easier to understand, *Figure 8**.2* depicts
     the possible computing resource arrangements you can use in the distributed training
     process:'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 8.2 – Possible arrangements of computing resources](img/B20959_08_02.jpg)'
+  id: totrans-29
   prefs: []
   type: TYPE_IMG
 - en: Figure 8.2 – Possible arrangements of computing resources
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
 - en: Arrangement **A**, which has multiple devices located in a single server, is
@@ -164,21 +221,25 @@
     As we will learn in [*Chapter 11*](B20959_11.xhtml#_idTextAnchor167), *Training
     with Multiple Machines*, running the training process on multiple machines depends
     on the performance delivered by the network used to interconnect the nodes.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
 - en: Despite the network’s performance, the usage of this additional component can
     downgrade the performance on its own. Therefore, it is preferable to adopt arrangement
     **A** whenever possible to avoid the use of network interconnection.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
 - en: Concerning arrangements **B** and **C**, it is better to use the latter because
     it has a higher ratio of devices per machine. Thus, we can concentrate the distributed
     training process on a smaller number of machines, hence avoiding network usage.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
 - en: However, in the absence of arrangements **A** and **C**, it is still a good
     idea to use arrangement **B**. Even with the bottleneck imposed by the network,
     it is likely that the distributed training process overcomes the traditional way.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
 - en: 'Usually, the GPU is not shared among training instances – that is, the distributed
@@ -186,18 +247,22 @@
     things work differently: one CPU can execute more than one training instance.
     This happens because the CPU is a multicore device, so allocating distinct computing
     cores to run different training instances is possible.'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
 - en: 'For example, we can run two training instances in a CPU with 32 computing cores,
     where each training instance uses half of the available cores, as shown in *Figure
     8**.3*:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 8.3 – Usage of distinct computing cores to run different training
     instances](img/B20959_08_03.jpg)'
+  id: totrans-37
   prefs: []
   type: TYPE_IMG
 - en: Figure 8.3 – Usage of distinct computing cores to run different training instances
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
 - en: Although it is possible to run distributed training in that way, it is most
@@ -206,865 +271,1201 @@
     available in many situations, so it is interesting to know how to do it. We will
     learn more about this in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149), *Training
     with* *Multiple CPUs*.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管可以以这种方式运行分布式训练，但通常情况下在单台（或多台）多个 GPU 或多台多个机器上运行更为常见。这种配置在许多情况下可能是唯一的选择，因此了解如何操作非常重要。我们将在[*第10章*](B20959_10.xhtml#_idTextAnchor149)，*使用*
+    *多个 CPU*，中详细了解更多。
 - en: After being introduced to the distributed training world, it is time to jump
     to the next section, where you will learn the basic concepts of this approach.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 在了解了分布式训练世界之后，现在是时候跳到下一节，您将在这一节中学习这种方法的基本概念。
 - en: Learning the fundamentals of parallelism strategies
+  id: totrans-41
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 学习并行策略的基础知识
 - en: In the previous section, we learned that the distributed training approach divides
     the whole training process into small parts. As a result, the entire training
     process can be solved in parallel because each of these small parts is executed
     simultaneously in distinct computing resources.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一节中，我们了解到分布式训练方法将整个训练过程分解为小部分。因此，整个训练过程可以并行解决，因为这些小部分中的每一个在不同的计算资源中同时执行。
 - en: 'The parallelism strategy defines how to divide the training process into small
     parts. There are two main parallelism strategies: model and data parallelism.
     The following sections explain both.'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 并行策略定义如何将训练过程分解为小部分。主要有两种并行策略：模型并行和数据并行。接下来的章节将详细解释这两种策略。
 - en: Model parallelism
+  id: totrans-44
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 模型并行
 - en: '**Model parallelism** divides the set of operations that are executed during
     the training process into smaller subsets of computing tasks. By doing this, the
     distributed process can run these smaller subsets of operations in distinct computing
     resources, thus accelerating the entire training process.'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: '**模型并行**将训练过程中执行的操作集合划分为较小的计算任务子集。通过这样做，分布式过程可以在不同的计算资源上并行运行这些较小的操作子集，从而加快整个训练过程。'
 - en: It turns out that operations executed in the forward and backward phases are
     not independent of each other. In other words, the execution of one operation
     usually depends on the output generated by another. Due to this constraint, model
     parallelism is not straightforward to implement.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果表明，在前向和后向阶段执行的操作彼此并非独立。换句话说，一个操作的执行通常依赖于另一个操作生成的输出。由于这种约束，模型并行并不容易实现。
 - en: 'Nevertheless, the brilliant human mind has invented three techniques to solve
     this problem: the **inter-layer**, **intra-operation**, and **inter-operation**
     paradigms. Let’s learn more.'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管如此，卓越的人类头脑发明了三种技术来解决这个问题：**层间**、**操作内**和**操作间**范式。让我们深入了解。
 - en: Inter-layer paradigm
+  id: totrans-48
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 层间范式
 - en: 'In the **inter-layer** paradigm, each model layer is executed in parallel in
     a distinct computing resource, as shown in *Figure 8**.4*:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 在**层间**范式中，每个模型层在不同的计算资源上并行执行，如*图8.4*所示：
 - en: '![Figure 8.4 – The inter-layer model parallelism paradigm](img/B20959_08_04.jpg)'
+  id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.4 – 层间模型并行范式](img/B20959_08_04.jpg)'
 - en: Figure 8.4 – The inter-layer model parallelism paradigm
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.4 – 层间模型并行范式
 - en: However, as the computation of a given layer usually depends on the results
     of another one, the inter-layer paradigm needs to rely on a particular strategy
     to enable distributed training in these conditions.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，由于给定层的计算通常依赖于另一层的结果，层间范式需要依赖特定策略来实现这些条件下的分布式训练。
 - en: When adopting this paradigm, the distributed training process establishes a
     continuous training flow so that the neural network processes more than one training
     step at the same time – that is, it processes more than one sample concomitantly.
     As things go by, the input that’s required by one layer at a given training step
     is already processed in the training flow and is now available to serve as input
     for that layer.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 在采用这种范式时，分布式训练过程建立了一个连续的训练流程，使神经网络在同一时间处理多个训练步骤 – 也就是说，同时处理多个样本。随着事情的发展，一个层在给定的训练步骤中所需的输入已经在训练流程中被处理，并且现在可用作该层的输入。
 - en: So, at a given moment, the distributed training process can execute distinct
     layers in parallel. This process is performed on both the forward and backward
     phases, which increases the level of parallelism of tasks that can be computed
     simultaneously even more.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在特定时刻，分布式训练过程可以并行执行不同层。这个过程在前向和反向阶段都执行，从而进一步提高可以同时计算的任务的并行性水平。
 - en: Somehow, this paradigm is very similar to the instruction pipeline technique
     that’s implemented in modern processors, where multiple hardware instructions
     are executed in parallel. Due to this similarity, the intra-layer paradigm is
     also called **pipeline parallelism**, where the stages are analogous to the training
     steps.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某种程度上，这种范式与现代处理器中实现的指令流水线技术非常相似，即多个硬件指令并行执行。由于这种相似性，内部层范式也被称为**流水线并行主义**，其中各阶段类似于训练步骤。
 - en: Inter-operation paradigm
+  id: totrans-56
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 跨操作范式
 - en: 'The **inter-operation** paradigm relies on dividing the set of operations that
     are executed on each layer into smaller **chunks** of parallelizable computing
     tasks, as shown in *Figure 8**.5*. Each of these chunks of computing tasks is
     executed on distinct computing resources, hence parallelizing the execution of
     the layer. After computing all the chunks, the distributed training process combines
     the partial results obtained from each chunk to yield the layer output:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: '**跨操作**范式依赖于将在每个层上执行的操作集合分成更小的可并行计算任务的**块**，如图*8**.5*所示。每个这些计算任务块在不同的计算资源上执行，因此并行化层的执行。在计算所有块之后，分布式训练过程将来自每个块的部分结果组合以得出层输出：'
 - en: '![Figure 8.5 – The inter-operation model parallelism paradigm](img/B20959_08_05.jpg)'
+  id: totrans-58
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.5 – 跨操作模型并行主义范式](img/B20959_08_05.jpg)'
 - en: Figure 8.5 – The inter-operation model parallelism paradigm
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.5 – **跨操作模型并行主义**范式
 - en: Because of the dependence between the operations that are executed within the
     layer, the inter-operation paradigm cannot put dependent operations in distinct
     chunks. This constraint imposes an additional strain on partitioning the operations
     into chunks of parallel computing tasks.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于在层内执行的操作之间存在依赖关系，跨操作范式无法将依赖操作放入不同的块中。这种约束对将操作分割为并行计算任务块施加了额外的压力。
 - en: 'For example, consider the graph illustrated in *Figure 8**.6*, which represents
     the computation that’s executed in a layer. This graph is comprised of two pieces
     of input data (rectangles) and four operations (circles), and the arrows indicate
     the data flow between operations:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑图*8**.6*中所示的图形，它表示在层中执行的计算。该图由两个输入数据块（矩形）和四个操作（圆形）组成，箭头表示操作之间的数据流动：
 - en: '![Figure 8.6 – Example of operation partitioning in the inter-operation paradigm](img/B20959_08_06.jpg)'
+  id: totrans-62
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.6 – 跨操作范式中操作分区的示例](img/B20959_08_06.jpg)'
 - en: Figure 8.6 – Example of operation partitioning in the inter-operation paradigm
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.6 – 跨操作范式中操作分区的示例
 - en: It is easy to see that operations 1 and 2 depend only on the input data, whereas
     operation 3 needs the output of operation 1 to execute its computation. Operation
     4 is the most dependent in the graph since it relies on the results of operations
     2 and 3 to be executed.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 易于看出，操作 1 和 2 仅依赖于输入数据，而操作 3 需要操作 1 的输出来执行其计算。操作 4 在图中的依赖最强，因为它依赖于操作 2 和 3 的结果才能执行。
 - en: Therefore, as shown in *Figure 8**.6*, the unique partitioning for this graph
     creates two chunks of parallel operations to run operations 1 and 2 simultaneously.
     As operations 3 and 4 depend on prior results, they cannot be executed before
     the completion of other tasks. So, depending on the degree of dependence between
     operations within the layer, the inter-operation paradigm cannot achieve a higher
     level of parallelism.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，如图*8**.6*所示，这个图的独特分区为此图创建了两个并行操作块，以同时运行操作 1 和 2。由于操作 3 和 4 依赖于先前的结果，它们在其他任务完成之前无法执行。因此，根据层内操作之间的依赖程度，跨操作范式无法实现更高水平的并行性。
 - en: Intra-operation paradigm
+  id: totrans-66
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 内部操作范式
 - en: The **intra-operation** paradigm splits the execution of an operation into smaller
     computing tasks, where each computing task applies the operation in a different
     chunk of input data. In general, the inter-operation approach needs to combine
     partial results to get the operation done.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: '**内部操作**范式将操作的执行分成较小的计算任务，其中每个计算任务在不同的输入数据块中应用操作。通常，跨操作方法需要结合部分结果来完成操作。'
 - en: 'While inter-operation runs distinct operations in different computing resources,
     intra-operation spreads *parts of the same operation* on distinct computing resources,
     as shown in *Figure 8**.7*:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然间操作在不同计算资源上运行不同操作，内操作则将*同一操作的部分*分布到不同计算资源上，如图*8**.7*所示：
 - en: '![Figure 8.7 – The intra-operation model parallelism paradigm](img/B20959_08_07.jpg)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.7 – 内操作模型并行化范式](img/B20959_08_07.jpg)'
 - en: Figure 8.7 – The intra-operation model parallelism paradigm
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.7 – 内操作模型并行化范式
 - en: 'For example, consider the case in which a layer executes a matrix-to-matrix
     multiplication, as illustrated in *Figure 8**.8*. By adopting the intra-operation
     paradigm, this multiplication could be divided into two parts, where each part
     will execute the multiplication on distinct data chunks of matrices A and B. As
     these partial multiplications are independent of each other, it is feasible to
     run both tasks concomitantly on different devices:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑一种情况，即图*8**.8*中所示，一个层执行矩阵到矩阵乘法。通过采用内操作范式，这种乘法可以分成两部分，其中每部分将在矩阵A和B的不同数据块上执行乘法。由于这些部分乘法彼此独立，因此可以同时在不同设备上运行这两个任务：
 - en: '![Figure 8.8 – Example of data partitioning in the intra-operation paradigm](img/B20959_08_08.jpg)'
+  id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.8 – 内操作范式中数据分区示例](img/B20959_08_08.jpg)'
 - en: Figure 8.8 – Example of data partitioning in the intra-operation paradigm
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.8 – 内操作范式中数据分区示例
 - en: After executing these two computing tasks, the intra-operation approach would
     need to join the partial results to produce the resultant matrix.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 在执行这两个计算任务之后，内操作方法需要将部分结果合并以生成最终的矩阵。
 - en: Depending on the kind of operation and size of the input data, the intra-operation
     can achieve a reasonable level of parallelism because more data chunks can be
     created and submitted to additional computing resources.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据操作类型和输入数据的大小，内操作可以实现合理的并行性水平，因为可以创建更多数据块并提交给额外的计算资源。
 - en: However, if the data is too small or the operation is too simple to compute,
     the overhead of spreading the computation to distinct devices can overcome the
     potential performance improvement of executing the operation in parallel. This
     statement is true for both the inter and intra-operation approaches.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，如果数据太少或操作太简单而无法进行计算，将计算分布到不同设备可能会增加额外的开销，超过并行执行操作的潜在性能改进。这种情况适用于内操作和间操作方法。
 - en: Summary
+  id: totrans-77
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 摘要
 - en: 'To summarize what we’ve learned in this section, *Table 8.1* covers the main
     characteristics of each model parallelism paradigm:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结我们在本节学到的内容，*表8.1*涵盖了每种模型并行化范式的主要特征：
 - en: '| **Paradigm** | **Strategy** |'
+  id: totrans-79
   prefs: []
   type: TYPE_TB
+  zh: '| **范式** | **策略** |'
 - en: '| Inter-layer | Processes layers in parallel |'
+  id: totrans-80
   prefs: []
   type: TYPE_TB
+  zh: '| 间层 | 并行处理层 |'
 - en: '| Intra-operation | Computes distinct operations in parallel |'
+  id: totrans-81
   prefs: []
   type: TYPE_TB
+  zh: '| 内操作 | 并行计算不同操作 |'
 - en: '| Inter-operation | Computes parts of the same operation in parallel |'
+  id: totrans-82
   prefs: []
   type: TYPE_TB
+  zh: '| 间操作 | 并行计算同一操作的部分'
 - en: Table 8.1 – Summary of the model parallelism paradigms
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 表8.1 – 模型并行化范式总结
 - en: Although model parallelism can accelerate the training process, it has prominent
     disadvantages, such as poor scalability and imbalance usage of resources, besides
     being highly dependent on the network architecture. These issues explain why this
     parallelism strategy is not so popular among data scientists and is usually not
     the primary option to distribute the training process.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然模型并行化可以加速训练过程，但它也有显著的缺点，比如扩展性差和资源使用不均衡，除此之外，还高度依赖网络架构。这些问题解释了为什么这种并行策略在数据科学家中并不那么流行，并且通常不是分布式训练过程的首选。
 - en: Even so, model parallelism can be the unique solution for cases in which the
     model does not fit in the computing resource – that is, when we do not have enough
     memory on the device to allocate the entire model. This is the case with **large
     language models** (**LLMs**), which commonly have thousands of parameters and
     occupy a lot of bytes when loaded in memory.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 即便如此，模型并行化可能是在模型不适合计算资源的情况下的独特解决方案——也就是说，当设备内存不足以分配整个模型时。这种情况适用于**大型语言模型**（**LLMs**），这些模型通常有数千个参数，在内存中加载时占用大量字节。
 - en: Another strategy, known as data parallelism, is more robust, scalable, and simple
     to implement, as we will learn in the next section.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种策略，称为数据并行化，更加健壮、可扩展且实现简单，我们将在下一节中学习。
 - en: Data parallelism
+  id: totrans-87
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据并行化
 - en: 'The idea behind the **data parallelism** strategy is very simple to understand.
     Instead of dividing the set of computing tasks that are executed by the network,
     the data parallelism strategy divides the training dataset into smaller pieces
     of data and uses these chunks of data to train distinct *replicas* of the original
     model, as illustrated in *Figure 8**.9*. As each model replica is independent
     of each other, they can be trained in parallel:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据并行策略的思想非常容易理解。与将网络执行的计算任务集合进行分割不同，数据并行策略将训练数据集分成更小的数据块，并使用这些数据块来训练原始模型的不同*副本*，如图*8**.9*所示。由于每个模型副本彼此独立，它们可以并行训练：
 - en: '![Figure 8.9 – Data parallelism strategy](img/B20959_08_09.jpg)'
+  id: totrans-89
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.9 – 数据并行策略](img/B20959_08_09.jpg)'
 - en: Figure 8.9 – Data parallelism strategy
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.9 – 数据并行策略
 - en: At the end of each training step, the distributed training process starts a
     **synchronization phase** to update the weights of all model replicas. This synchronization
     phase is responsible for collecting and sharing the average gradient among all
     models running in distinct computing resources. After receiving the average gradient,
     each replica adjusts its weights according to this shared information.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每个训练步骤结束时，分布式训练过程启动一个**同步阶段**，以更新所有模型副本的权重。此同步阶段负责收集并分享所有在不同计算资源中运行的模型之间的平均梯度。收到平均梯度后，每个副本根据此共享信息调整其权重。
 - en: 'The synchronization phase is the core mechanism behind the data parallelism
     strategy. In simpler words, it guarantees that the knowledge obtained by a model
     replica, after executing a single training step, is shared with the other replicas
     and vice versa. Thus, when completing the distributed training process, the resultant
     model has the same knowledge as it would have if trained conventionally:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 同步阶段是数据并行策略的核心机制。简单来说，它确保了模型副本在执行单个训练步骤后获得的知识被与其他副本共享，反之亦然。因此，在完成分布式训练过程时，生成的模型具有与传统训练相同的知识：
 - en: '![Figure 8.10 – Synchronization phase in data parallelism](img/B20959_08_10.jpg)'
+  id: totrans-93
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.10 – 数据并行中的同步阶段](img/B20959_08_10.jpg)'
 - en: Figure 8.10 – Synchronization phase in data parallelism
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.10 – 数据并行中的同步阶段
 - en: There are half a dozen approaches to executing this synchronization phase, including
     **parameter server** and **all-reduce**. The former does not have good scalability
     since a unique server is used to aggregate the gradients that are obtained by
     each model replica, calculate the average gradient, and send it all over the place.
     As we increase the number of training processes, the parameter server becomes
     the major bottleneck of the distributed training process.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 有半打方法执行此同步阶段，包括**参数服务器**和**全reduce**。前者在可扩展性方面表现不佳，因为使用唯一服务器聚合每个模型副本获得的梯度，计算平均梯度，并将其发送到各处。随着训练过程数量的增加，参数服务器成为分布式训练过程的主要瓶颈。
 - en: On the other hand, the all-reduce technique is more scalable because all training
     instances participate evenly in the update process. Therefore, this technique
     has been broadly adopted by all frameworks and communications libraries to synchronize
     the parameters of the distributed training process.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，全reduce技术具有更高的可扩展性，因为所有训练实例均匀参与更新过程。因此，此技术已被所有框架和通信库广泛采用，以同步分布式训练过程的参数。
 - en: We’ll learn more about it in the next section.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在下一节详细了解它。
 - en: All-reduce synchronization
+  id: totrans-98
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 全reduce同步
 - en: All-reduce is a collective communication technique that’s used to simplify the
     computation that’s executed by multiple processes. Since all-reduce is derived
     from the reduce operation, let’s understand this technique before describing the
     all-reduce communication primitive.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 全reduce是一种集体通信技术，用于简化由多个进程执行的计算。由于全reduce源自reduce操作，让我们在描述全reduce通信原语之前了解这种技术。
 - en: In the context of distributed and parallel computing, the **reduce** operation
     executes a function on data held in multiple processes and sends the result of
     this function to a root process. The reduce operation can execute any function,
     though it is more common to apply trivial and simple functions such as sum, multiplication,
     average, maximum, and minimum, for example.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 在分布式和并行计算的背景下，**reduce** 操作在多个进程中执行一个函数，并将该函数的结果发送给一个根进程。Reduce 操作可以执行任何函数，尽管通常应用于诸如求和、乘法、平均值、最大值和最小值等简单的函数。
 - en: '*Figure 8**.11* shows an example of the reduce operation applied to vectors
     held by four processes. In this example, the reduce primitive executes the sum
     of the four vectors and sends the result to process 0, which is the root process
     in this scenario:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 8**.11* 展示了将减少操作应用于四个进程持有的向量的示例。在这个示例中，减少原语执行四个向量的和，并将结果发送到进程 0，这是此场景中的根进程。'
 - en: '![Figure 8.11 – The reduce operation](img/B20959_08_11.jpg)'
+  id: totrans-102
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.11 – Reduce 操作](img/B20959_08_11.jpg)'
 - en: Figure 8.11 – The reduce operation
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.11 – Reduce 操作
 - en: 'The all-reduce operation is a particular case of the reduce primitive, in which
     all processes receive the result of the function, as shown in *Figure 8**.12*.
     So, instead of only sending the result to the root process, all-reduce shares
     the result with all processes participating in the computation:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: All-Reduce 操作是减少原语的一个特例，其中所有进程接收函数的结果，如 *图 8**.12* 所示。因此，与仅将结果发送给根进程不同，All-Reduce
+    将结果与参与计算的所有进程共享。
 - en: '![Figure 8.12 – The all-reduce operation](img/B20959_08_12.jpg)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.12 – All-Reduce 操作](img/B20959_08_12.jpg)'
 - en: Figure 8.12 – The all-reduce operation
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.12 – All-Reduce 操作
 - en: 'There are different ways to implement the all-reduce operation. Concerning
     the distributed training context, one of the most efficient solutions is **ring
     all-reduce**. In this implementation, the processes use a logical ring topology,
     as shown in *Figure 8**.13*, to exchange information among themselves:'
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 有不同的方式可以实施 All-Reduce 操作。在分布式训练环境中，最有效的解决方案之一是**环形 All-Reduce**。在这种实现中，进程使用逻辑环形拓扑（如
+    *图 8**.13* 所示）在它们之间交换信息。
 - en: '![Figure 8.13 – The ring all-reduce implementation](img/B20959_08_13.jpg)'
+  id: totrans-108
   prefs: []
   type: TYPE_IMG
+  zh: '![图 8.13 – 环形 All-Reduce 实现](img/B20959_08_13.jpg)'
 - en: Figure 8.13 – The ring all-reduce implementation
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.13 – 环形 All-Reduce 实现
 - en: Information flows through the ring until all the processes end up with the same
     data. There are a couple of libraries that provide an optimized version of the
     ring all-reduce implementation, such as NCCL from NVIDIA and oneCCL from Intel.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 信息通过环路流动，直到所有进程最终拥有相同的数据。有一些库提供了优化版本的环形 All-Reduce 实现，比如 NVIDIA 的 NCCL 和 Intel
+    的 oneCCL。
 - en: Summary
+  id: totrans-111
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 总结
 - en: Data parallelism is easy to understand and implement, besides being flexible
     and scalable. However, as nothing is perfect, this strategy also has its drawbacks.
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据并行性易于理解和实施，而且灵活且可扩展。然而，正如万事皆有不完美之处一样，这种策略也有其缺点。
 - en: Although it provides a higher level of parallelism compared to the model parallelism
     approach, it can face limiting factors that prevent it from achieving high levels
     of scalability. As the gradient is shared among all replicas after each training
     step, any latency in communication between those replicas can slow down the entire
     training process.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管与模型并行主义方法相比，它提供了更高层次的并行性，但它可能面临一些限制因素，这些因素可能阻碍其实现高度的可扩展性。由于每个训练步骤后梯度在所有副本之间共享，这些副本之间的通信延迟可能会减慢整个训练过程。
 - en: Moreover, the data parallelism strategy does not address the problem of training
     large models because the model is loaded entirely on the device exactly as-is.
     The same large model will be loaded with distinct computing resources, which,
     in turn, will not be able to host them. Concerning models that do not fit on the
     device, the problem remains the same.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，数据并行策略并未解决训练大模型的问题，因为模型完全如原样加载到设备上。同一个大模型将以不同的计算资源加载，这反过来将无法支持它们。对于无法放入设备的模型，问题依旧存在。
 - en: Even so, nowadays, the data parallel strategy is the straightforward approach
     to distribute the training process. The simplicity and flexibility of this strategy
     to train a wide range of model types and architectures turns this approach into
     the default choice to distribute the training process. From now on, we will use
     the term **distributed training** as a synonym for distributed training based
     on the data parallelism strategy.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 即便如此，如今，数据并行策略是分布式训练过程的直接途径。这种策略的简单性和灵活性使其能够训练广泛的模型类型和架构，因此成为了默认的分布式训练选择。从现在开始，我们将使用术语**分布式训练**来指代基于数据并行策略的分布式训练。
 - en: The most adopted frameworks for building machine learning models have a built-in
     implementation of distributed training. So does PyTorch! In the next section,
     we will take our first look at how to implement this process.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 构建机器学习模型的最常用框架都内置了分布式训练的实现，PyTorch 也不例外！在接下来的部分，我们将首次探讨如何实施这个过程。
 - en: Distributed training on PyTorch
+  id: totrans-117
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: PyTorch 上的分布式训练
 - en: This section introduces the basic workflow to implement distributed training
     on PyTorch, besides presenting the components used in this process.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节介绍了在PyTorch上实现分布式训练的基本工作流程，同时介绍了此过程中使用的组件。
 - en: Basic workflow
+  id: totrans-119
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基本工作流程
 - en: 'Generally speaking, the basic workflow to implement distributed training on
     PyTorch comprises the steps illustrated in *Figure 8**.14*:'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 总体来说，实现PyTorch分布式训练的基本工作流程包括*图8**.14*中展示的步骤：
 - en: '![Figure 8.14 – Basic workflow to implement distributed training in PyTorch](img/B20959_08_14.jpg)'
+  id: totrans-121
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.14 – 在PyTorch中实现分布式训练的基本工作流程](img/B20959_08_14.jpg)'
 - en: Figure 8.14 – Basic workflow to implement distributed training in PyTorch
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.14 – 在PyTorch中实现分布式训练的基本工作流程
 - en: Let’s look at each step in more detail.
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们更详细地看看每一步。
 - en: Note
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py).
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py)找到。
 - en: Initialize and destroy the communication group
+  id: totrans-126
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 初始化和销毁通信组
 - en: 'The communication group is the logical entity that’s used by PyTorch to define
     and control the distributed environment. So, the first step to code the distributed
     training concerns *initializing a communication group*. This step is performed
     by instantiating an object from the `torch.distributed` class and calling the
     `init_process_group` method, as follows:'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 通信组是PyTorch用来定义和控制分布式环境的逻辑实体。因此，编写分布式训练的第一步涉及*初始化通信组*。通过实例化`torch.distributed`类的对象并调用`init_process_group`方法来执行此步骤，如下所示：
 - en: '[PRE0]'
+  id: totrans-128
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Strictly speaking, the initialization method does not require any argument.
     However, there are two important parameters, though not mandatory. These parameters
     allow us to select the communication backend and the initialization method. We
     will learn about these arguments in [*Chapter 9*](B20959_09.xhtml#_idTextAnchor132),
     *Training with* *Multiple CPUs*.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 严格来说，初始化方法不需要任何参数。但是，有两个重要的参数，虽然不是必须的。这些参数允许我们选择通信后端和初始化方法。我们将在[*第9章*](B20959_09.xhtml#_idTextAnchor132)中学习这些参数，*使用多CPU进行训练*。
 - en: 'During the creation of the communication group, PyTorch identifies the processes
     that will participate in the distributed training and assigns a unique identifier
     to each of them. This identifier, which is called `get_rank` method:'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 在创建通信组时，PyTorch识别将参与分布式训练的进程，并为每个进程分配一个唯一标识符。这个标识符称为`get_rank`方法：
 - en: '[PRE1]'
+  id: totrans-131
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Since *all processes execute the same code*, we can use the rank to differentiate
     the execution flow of a given process, thus assigning the execution of particular
     tasks to specific processes. For example, we can use the rank to assign the responsibility
     of performing the final model evaluation:'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于*所有进程执行相同的代码*，我们可以使用rank来区分给定进程的执行流程，从而将特定任务的执行分配给特定进程。例如，我们可以使用rank来分配执行最终模型评估的责任：
 - en: '[PRE2]'
+  id: totrans-133
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'The last step that’s executed by distributed training concerns *destroying
     the communication group*, which was created at the beginning of the code. This
     process is performed by calling the `destroy_process_group()` method, as follows:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 在分布式训练中执行的最后一步涉及*销毁通信组*，这在代码开头创建。这个过程通过调用`destroy_process_group()`方法来执行：
 - en: '[PRE3]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Terminating the communication group is important since it tells all processes
     that distributed training is over.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 终止通信组是重要的，因为它告诉所有进程分布式训练已经结束。
 - en: Instantiate the distributed data loader
+  id: totrans-137
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 实例化分布式数据加载器
 - en: As we are implementing a data parallelism strategy, it is mandatory to divide
     the training dataset into small chunks of data to feed each model replica. In
     other words, we need to instantiate a data loader that’s aware of the distributed
     training process.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们正在实现数据并行策略，将训练数据集划分为小数据块以供每个模型副本使用是必需的。换句话说，我们需要实例化一个数据加载器，它了解分布式训练过程。
 - en: 'In PyTorch, we count on the `DistributedSampler` component to facilitate this
     task. The `DistributedSampler` component abstracts all unnecessary details from
     the programmer and is very straightforward to use:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PyTorch中，我们依赖于`DistributedSampler`组件来简化这个任务。`DistributedSampler`组件将程序员不需要的所有细节抽象化，并且非常易于使用：
 - en: '[PRE4]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The unique change regards adding an extra parameter, called `sampler`, to the
     original `DataLoader` creation line. The `sampler` argument must be filled out
     with an object instantiated from the `DistributedSampler` component, which, in
     turn, only requires the original dataset object as an input parameter.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 唯一的变化是在原始的`DataLoader`创建行中添加了一个额外的参数，称为`sampler`。`sampler`参数必须填写一个从`DistributedSampler`组件实例化的对象，该对象仅需要原始数据集对象作为输入参数。
 - en: The resultant data loader is ready to deal with the distributed training process.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 最终的数据加载器已准备好处理分布式训练过程。
 - en: Instantiate the distributed model
+  id: totrans-143
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 实例化分布式模型
 - en: With the communication group in hand and the distributed data loader ready to
     go, it is time to instantiate a distributed version of the original model.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在已经有了通信组和准备好的分布式数据加载器，是时候实例化原始模型的分布式版本了。
 - en: 'PyTorch provides the native `DistributedDataParallel` component (DDP for short)
     to encapsulate the original model and prepare it to be trained in a distributed
     fashion. DDP returns a new model object, which is then used to execute the distributed
     training process:'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: PyTorch提供了本地的`DistributedDataParallel`组件（简称DDP），用于封装原始模型并准备以分布式方式进行训练。DDP返回一个新的模型对象，然后用于执行分布式训练过程：
 - en: '[PRE5]'
+  id: totrans-146
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'After instantiating the distributed model, all further steps are executed on
     the distributed version of the model. For example, the optimizer receives the
     distributed model as a parameter in place of the original model:'
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 在实例化分布式模型之后，所有进一步的步骤都在分布式模型的版本上执行。例如，优化器接收分布式模型作为参数，而不是原始模型：
 - en: '[PRE6]'
+  id: totrans-148
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: At this point, we have all we need to run the distributed training process.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，我们已经具备运行分布式训练过程所需的一切。
 - en: Run the distributed training process
+  id: totrans-150
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 运行分布式训练过程
 - en: 'Surprisingly, executing the training loop in a distributed manner is almost
     the same as executing traditional training. The unique difference lies in passing
     the DDP model as a parameter instead of the original one:'
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 令人惊讶的是，在分布式方式下执行训练循环几乎与执行传统训练相同。唯一的区别在于将DDP模型作为参数传递，而不是原始模型：
 - en: '[PRE7]'
+  id: totrans-152
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Nothing else is necessary because the components that we’ve used so far have
     intrinsic functionalities to execute the distributed training process.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 除此之外不需要任何其他内容，因为到目前为止使用的组件具有执行分布式训练过程的内在功能。
 - en: PyTorch runs the distributed training process continuously until it reaches
     the defined number of epochs. After completing each training step, PyTorch automatically
     synchronizes the weights among model replicas. There is no need for any kind of
     intervention from the programmer’s side.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: PyTorch持续运行分布式训练过程，直到达到定义的epoch数。在完成每个训练步骤后，PyTorch会自动在模型副本之间同步权重。程序员无需进行任何干预。
 - en: Checkpoint and save the training status
+  id: totrans-155
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 检查点和保存训练状态
 - en: As the distributed training process can take many hours to complete and involves
     distinct computing resources and devices, it is more likely to be affected by
     failures.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于分布式训练过程可能需要很多小时才能完成，并涉及不同的计算资源和设备，因此更容易受到故障的影响。
 - en: For this reason, it is recommended to periodically **checkpoint** and **save**
     the current training state to resume the training process in case of failure.
     We will cover this topic in detail in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
     *Training with* *Multiple GPUs*.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，建议定期**检查点**和**保存**当前训练状态，以便在出现故障时恢复训练过程。我们将在[*第10章*](B20959_10.xhtml#_idTextAnchor149)，*使用多个GPU进行训练*中详细讨论此主题。
 - en: Summary
+  id: totrans-158
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 总结
 - en: We may need to instantiate other modules and objects to implement special functionalities
     for distributed training, but this workflow is usually enough to code a basic
     – though functional – distributed training implementation.
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可能需要实例化其他模块和对象来实现分布式训练的特殊功能，但这个工作流程通常足以编写一个基本的——虽然功能齐全的——分布式训练实现。
 - en: Communication backend and program launcher
+  id: totrans-160
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 通信后端和程序启动器
 - en: Implementing distributed training on PyTorch involves defining a **communication
     backend** and using a **program launcher** to execute the process on multiple
     computing resources.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PyTorch上实现分布式训练涉及定义一个**通信后端**，并使用**程序启动器**在多个计算资源上执行进程。
 - en: The following subsections briefly explain each of these components.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的小节简要解释了每个组件。
 - en: Communication backends
+  id: totrans-163
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 通信后端
 - en: As we have learned before, model replicas exchange gradient information among
     themselves during the distributed training process. From another point of view,
     the processes running on distinct computing resources must communicate with each
     other to propagate such data.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们之前所学的，在分布式训练过程中，模型副本彼此交换梯度信息。从另一个角度来看，运行在不同计算资源上的进程必须彼此通信，以传播这些数据。
 - en: In the same way, PyTorch relies on backend software to perform model compiling
     and multithreading. It also counts on communication backends to provide an optimized
     communication channel among model replicas.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样地，PyTorch依赖于后端软件来执行模型编译和多线程操作。它还依赖于通信后端来提供模型副本之间优化的通信渠道。
 - en: There are communication backends that specialize in working with high-performance
     networks, whereas other ones are suitable for dealing with communication among
     multiple devices inside a single machine.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 有些通信后端专注于与高性能网络配合工作，而其他一些适合处理单台机器内多个设备之间的通信。
 - en: The most common communication backends that are supported by PyTorch are Gloo,
     MPI, NCCL, and oneCCL. Each of these backends is particularly interesting to use
     in a given scenario, as we will learn in the next few chapters.
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: PyTorch支持的最常见的通信后端包括Gloo、MPI、NCCL和oneCCL。每个这些后端在特定场景下的使用都非常有趣，我们将在接下来的几章中了解到。
 - en: Program launchers
+  id: totrans-168
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 程序启动器
 - en: Running distributed training is not the same as executing a traditional training
     process. The execution of any distributed and parallel program is quite distinct
     from running any traditional and sequential program.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行分布式训练并不同于执行传统的训练过程。任何分布式和并行程序的执行都与运行任何传统和顺序程序有显著的区别。
 - en: In the context of distributed training in PyTorch, we use program launchers
     to put the distributed process on the road. This tool is responsible for setting
     up the environment and creating processes in the operating system, local or remote.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PyTorch的分布式训练环境中，我们使用程序启动器来启动分布式进程。这个工具负责设置环境并在操作系统中创建进程，无论是本地还是远程。
 - en: The most common launchers that are used for this are `mp.spawn`, which is provided
     by the `torch.multiprocessing` package.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 用于此目的的最常见启动器包括`mp.spawn`，该启动器由`torch.multiprocessing`包提供。
 - en: Putting everything together
+  id: totrans-172
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 将所有内容整合起来
 - en: 'The concept map illustrated in *Figure 8**.15* shows the components and resources
     that surround the distributed training process provided by PyTorch:'
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.15所示的*分布式训练过程概念图*展示了PyTorch提供的组件和资源：
 - en: '![Figure 8.15 – Concept map of the distributed training in PyTorch](img/B20959_08_15.jpg)'
+  id: totrans-174
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.15 – PyTorch分布式训练概念图](img/B20959_08_15.jpg)'
 - en: Figure 8.15 – Concept map of the distributed training in PyTorch
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.15 – PyTorch分布式训练概念图
 - en: As we have learned, PyTorch relies on a communication backend to control communication
     among multiple computing resources and uses a program launcher to submit distributed
     training to the local or remote operating system.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们所学的，PyTorch依赖于通信后端来控制多个计算资源之间的通信，并使用程序启动器将分布式训练提交到本地或远程操作系统。
 - en: There are distinct ways to do the same thing. For example, we can use a certain
     program launcher to execute distributed training based on two different communication
     backends. The contrary is also true – that is, there are cases in which a communication
     backend supports more than one launcher.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 有多种方法可以完成同样的事情。例如，我们可以使用某种程序启动器基于两种不同的通信后端执行分布式训练。反之亦然 – 也就是说，有些通信后端支持多个启动器的情况。
 - en: So, defining the tuple *communication backend x program launcher* will depend
     on the environment and resources used in the distributed training process. We
     will learn more about this in the next few chapters.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，定义元组*通信后端 x 程序启动器*将取决于分布式训练过程中使用的环境和资源。在接下来的几章中，我们将更多地了解这一点。
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节提供了一些问题，帮助您记住本章学到的内容。
 - en: Quiz time!
+  id: totrans-180
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     Initially, try to answer these questions without consulting the material.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答一些问题来复习一下本章学到的内容。最初，试着在不查阅资料的情况下回答这些问题。
 - en: Note
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter08-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter08-answers.md).
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
 - en: Before starting the quiz, remember that this is not a test! This section aims
     to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
 - en: Choose the correct option for the following questions.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
 - en: What are the two main reasons for distributing the training process?
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Reliability and performance improvement.
+  id: totrans-187
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Leak of memory and power consumption.
+  id: totrans-188
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Power consumption and performance improvement.
+  id: totrans-189
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Leak of memory and performance improvement.
+  id: totrans-190
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which are the two main parallel strategies to distribute the training process?
+  id: totrans-191
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Model and data parallelism.
+  id: totrans-192
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Model and hardware parallelism.
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Hardware and data parallelism.
+  id: totrans-194
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Software and hardware parallelism.
+  id: totrans-195
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which paradigm is used by the model parallelism approach?
+  id: totrans-196
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Inter-model.
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Inter-data.
+  id: totrans-198
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Inter-operation.
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Inter-parameter.
+  id: totrans-200
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: What does the intra-operation paradigm process in parallel?
+  id: totrans-201
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Distinct operations.
+  id: totrans-202
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Parts of the same operation.
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Layers of the model.
+  id: totrans-204
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Dataset samples.
+  id: totrans-205
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Besides the parameter server, what other synchronization approach is used by
     the data parallelism strategy?
+  id: totrans-206
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: All-operations.
+  id: totrans-207
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: All-gather.
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: All-reduce.
+  id: totrans-209
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: All-scatter.
+  id: totrans-210
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: What is the first step of executing distributed training in PyTorch?
+  id: totrans-211
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Initialize the communication group.
+  id: totrans-212
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Initialize the model replica.
+  id: totrans-213
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Initialize the data loader.
+  id: totrans-214
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Initialize the container environment.
+  id: totrans-215
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: In the context of distributed training in PyTorch, which component is used to
     put the distributed process on the road?
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Execution library.
+  id: totrans-217
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Communication backend.
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Program launcher.
+  id: totrans-219
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Compiler backend.
+  id: totrans-220
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: PyTorch supports which of the following as a communication backend?
+  id: totrans-221
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: NDL.
+  id: totrans-222
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: MPI.
+  id: totrans-223
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: AMP.
+  id: totrans-224
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: NNI.
+  id: totrans-225
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-226
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1072,19 +1473,23 @@
     the training process and training models that do not fit on a device’s memory.
     Although going distributed can be a way out for both cases, we must consider applying
     performance improvement techniques before going distributed.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
 - en: We can perform distributed training by adopting the model parallelism or data
     parallelism strategy. The former employs different paradigms to divide the model
     computation among multiple computing resources, while the latter creates model
     replicas to be trained over chunks of the training dataset.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
 - en: We also learned that PyTorch relies on third-party components such as communication
     backends and program launchers to execute the distributed training process.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
 - en: In the next chapter, we will learn how to spread out the distributed training
     process so that it can run on multiple CPUs located in a single machine.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL

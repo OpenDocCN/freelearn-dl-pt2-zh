@@ -833,10 +833,12 @@
   id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 新型GPU模型的张量核心，如Hopper和Ampere（分别为系列H和A），支持TF32、FP16和bfloat16等低精度格式，以及双精度格式（FP64），这对于处理传统HPC工作负载特别重要。
 - en: Note
   id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The Hopper architecture started to support FP8, a fresh new numeric representation
     that uses only 1 byte to represent floating-point numbers. NVIDIA has created
     this format to accelerate the training process of Transformer neural networks.
@@ -845,6 +847,7 @@
   id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: Hopper架构开始支持FP8，一种全新的数字表示，只使用1字节来表示浮点数。NVIDIA创建了这种格式，以加速Transformer神经网络的训练过程。使用张量核心来运行FP8操作依赖于Transformer引擎库，超出了本书的范围。
 - en: On the other hand, none of the available architectures are equipped with Tensor
     Cores that support FP32, the default precision format. So, to harness the computing
     power of this hardware capability, we must adapt our code so that it can use lower-precision
@@ -852,6 +855,7 @@
   id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，现有的架构都不配备支持FP32的张量核心，默认精度格式。因此，为了利用这种硬件能力的计算能力，我们必须调整我们的代码，以便它可以使用更低精度格式。
 - en: Moreover, the activation of Tensor Cores is conditioned to other factors beyond
     the adoption of lower-precision representations. Among other things, we must pay
     attention to the required memory alignment of matrix dimensions for a given combination
@@ -861,34 +865,41 @@
   id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，激活张量核心取决于其他因素，超出了采用较低精度表示的范围。在其他事项中，我们必须注意给定架构、库版本和数字表示的矩阵维度所需的内存对齐。例如，在A100（安培架构）的情况下，当使用FP16和CuDNN版本在7.6.3之前时，矩阵的维度必须是8字节的倍数。
 - en: Therefore, the adoption of lower precision is the first condition to use Tensor
     Cores, but it is *not a unique* requirement to properly enable this resource.
   id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，采用较低精度是使用张量核心的第一个条件，但这并不是启用此资源的唯一要求。
 - en: Note
   id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can find more details about the requirements for using Tensor Cores at [https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc](https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc).
   id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在[https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc](https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc)找到有关使用张量核心要求的更多详细信息。
 - en: Now that we know about the fundamentals of mixed precision, we can learn how
     to use this approach in PyTorch.
   id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了混合精度的基础知识，我们可以学习如何在PyTorch中使用这种方法。
 - en: Enabling AMP
   id: totrans-131
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 启用AMP
 - en: Fortunately, PyTorch provides methods and tools to perform AMP by changing just
     a few things in our original code.
   id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，PyTorch提供了方法和工具，通过在我们的原始代码中进行少量更改即可执行AMP。
 - en: In PyTorch, AMP relies on enabling a couple of flags, wrapping the training
     process with the `torch.autocast` object, and using a gradient scaler. The more
     complex case, which is related to implementing AMP on GPU, takes all these three
@@ -897,44 +908,53 @@
   id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PyTorch中，AMP依赖于启用一对标志，用`torch.autocast`对象包装训练过程，并使用梯度缩放器。更复杂的情况是在GPU上实施AMP，涉及这三个部分，而最简单的场景（基于CPU的训练）只需要使用`torch.autocast`。
 - en: Let’s start by covering the more complex scenario. So, follow me to the next
     section to learn how to activate this approach in our GPU-based code.
   id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从涵盖更复杂的情况开始。因此，跟随我进入下一节，学习如何在我们基于GPU的代码中激活这种方法。
 - en: Activating AMP on GPU
   id: totrans-135
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在GPU上激活AMP。
 - en: 'To activate AMP on GPU, we need to make three modifications to our code:'
   id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在GPU上激活AMP，我们需要对我们的代码进行三处修改：
 - en: Enable the CUDA and CuDNN backend flags.
   id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 启用CUDA和CuDNN后端标志。
 - en: Wrap the training loop with `torch.autocast`.
   id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 用`torch.autocast`对象包装训练循环。
 - en: Use a gradient scaler.
   id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用梯度缩放器。
 - en: Let’s take a closer look.
   id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们仔细看看。
 - en: Enabling backend flags
   id: totrans-141
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 启用后端标志
 - en: As we learned in [*Chapter 4*](B20959_04.xhtml#_idTextAnchor060), *Using Specialized
     Libraries*, PyTorch relies on third-party libraries (also known as backends in
     PyTorch’s terminology) to help it execute specialized tasks. In the context of
