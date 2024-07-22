@@ -1,0 +1,1758 @@
+- en: Generating Song Lyrics Using RNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a normal feedforward neural network, each input is independent of other input.
+    But with a sequential dataset, we need to know about the past input to make a
+    prediction. A sequence is an ordered set of items. For instance, a sentence is
+    a sequence of words. Let's suppose that we want to predict the next word in a
+    sentence; to do so, we need to remember the previous words. A normal feedforward
+    neural network cannot predict the correct next word, as it will not remember the
+    previous words of the sentence. Under such circumstances (in which we need to
+    remember the previous input), to make predictions, we use **recurrent neural networks**
+    (**RNNs**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will describe how an RNN is used to model sequential datasets
+    and how it remembers the previous input. We will begin by investigating how an
+    RNN differs from a feedforward neural network. Then, we will inspect how forward
+    propagation works in an RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moving on, we will examine the **backpropagation through time** (**BPTT**) algorithm,
+    which is used for training RNNs. Later, we will look at the vanishing and exploding
+    gradient problem, which occurs while training recurrent networks. You will also
+    learn how to generate song lyrics using an RNN in TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of the chapter, will we examine the different types of RNN architectures,
+    and how they are used for various applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn about the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recurrent neural networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Forward propagation in RNNs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Backpropagation through time
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The vanishing and exploding gradient problem
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating song lyrics using RNNs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Different types of RNN architectures
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*The Sun rises in the ____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we were asked to predict the blank term in the preceding sentence, we would
+    probably say east. Why would we predict that the word east would be the right
+    word here? Because we read the whole sentence, understood the context, and predicted
+    that the word east would be an appropriate word to complete the sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we use a feedforward neural network to predict the blank, it would not predict
+    the right word. This is due to the fact that in feedforward networks, each input
+    is independent of other input and they make predictions based only on the current
+    input, and they don't remember previous input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, the input to the network will just be the word preceding the blank, which
+    is the word *the*. With this word alone as an input, our network cannot predict
+    the correct word, because it doesn't know the context of the sentence, which means
+    that it doesn't know the previous set of words to understand the context of the
+    sentence and to predict an appropriate next word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here is where we use RNNs. They predict output not only based on the current
+    input, but also on the previous hidden state. Why do they have to predict the
+    output based on the current input and the previous hidden state? Why can't they
+    just use the current input and the previous input?
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is because the previous input will only store information about the previous
+    word, while the previous hidden state will capture the contextual information
+    about all the words in the sentence that the network has seen so far. Basically,
+    the previous hidden state acts like a memory and it captures the context of the
+    sentence. With this context and the current input, we can predict the relevant
+    word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, let's take the same sentence, *The sun rises in the ____.* As
+    shown in the following figure, we first pass the word *the* as an input, and then
+    we pass the next word, *sun*, as input; but along with this, we also pass the
+    previous hidden state, ![](img/458c6f8a-d40d-45d3-8198-eaf4aafa46ac.png). So,
+    every time we pass the input word, we also pass a previous hidden state as an
+    input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the final step, we pass the word *the*, and also the previous hidden state
+    ![](img/c8294095-6268-44e5-873a-4e6c0e90f390.png), which captures the contextual
+    information about the sequence of words that the network has seen so far. Thus,
+    ![](img/bf6446ea-a525-4fb6-a28e-593405664893.png) acts as the memory and stores
+    information about all the previous words that the network has seen. With ![](img/bd898219-78d6-4fd4-a8f3-7dfa95903ae9.png)
+    and the current input word (*the*), we can predict the relevant next word:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a2e18a6b-2792-47f8-97c9-863377ab4bde.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In a nutshell, an RNN uses the previous hidden state as memory which captures
+    and stores the contextual information (input) that the network has seen so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNNs are widely applied for use cases that involve sequential data, such as
+    time series, text, audio, speech, video, weather, and much more. They have been
+    greatly used in various **natural language processing** (**NLP**) tasks, such
+    as language translation, sentiment analysis, text generation, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The difference between feedforward networks and RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A comparison between an RNN and a feedforward network is shown in the following
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4327bdb1-a3c4-4763-8a6d-82fb97682747.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can observe in the preceding diagram, the RNN contains a looped connection
+    in the hidden layer, which implies that we use the previous hidden state along
+    with the input to predict the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Still confused? Let's look at the following unrolled version of an RNN. But
+    wait; what is the unrolled version of an RNN?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It means that we roll out the network for a complete sequence. Let''s suppose
+    that we have an input sentence with ![](img/04c2ff2f-17e8-47b5-9943-3ef499dcd39b.png)
+    words; then, we will have ![](img/ccf0389e-8454-44c0-a831-7a712a1393dc.png) to
+    ![](img/dc35c22d-bba3-4a16-b0f2-aa6ffa5857e9.png) layers, one for each word, as
+    shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d2509d60-cf99-4d3c-9cc4-b368a9e9c212.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see in the preceding figure, at the time step ![](img/8872a7d9-968c-41fe-9887-abbc14a24781.png),
+    the output ![](img/c188d6dd-d163-4906-89d7-c61a2bfdab8f.png) is predicted based
+    on the current input ![](img/c0b5e079-f0e9-4776-9802-69bc26929f72.png) and the
+    previous hidden state ![](img/ba821958-371b-41b1-ad62-dfefef803180.png). Similarly,
+    at time step ![](img/3872e1e6-85c5-4424-9683-cd204d2cb891.png), ![](img/2bf40a00-a797-4927-8fab-58170517d363.png)
+    is predicted using the current input ![](img/d6655da4-2f28-463f-9317-7c187a62e859.png)
+    and the previous hidden state ![](img/aeac31f3-91bd-487d-88fb-f61d87394fa4.png).
+    This is how an RNN works; it takes the current input and the previous hidden state
+    to predict the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Forward propagation in RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s look at how an RNN uses forward propagation to predict the output; but
+    before we jump right in, let''s get familiar with the notations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/67aaa29a-50cc-49fe-a893-ee7d2a1d4872.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding figure illustrates the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e8c14ce3-b877-46b6-9517-401decad5e39.png) represents the input to hidden
+    layer weight matrix'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/b538e5f2-eede-4658-85af-8970a3516600.png) represents the hidden to
+    hidden layer weight matrix'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/a65d52e4-e147-484f-9fa3-eb6279443766.png) represents the hidden to
+    output layer weight matrix'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The hidden state ![](img/b9242358-ecb8-4726-8326-d92c4a311927.png) at a time
+    step ![](img/cb45a853-41f7-484f-9446-d6f3f23bd3dd.png) can be computed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5b43f70d-e24c-4d7f-b483-59754144e72d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: That is, *hidden state at a time step, t = tanh([input to hidden layer weight
+    x input] + [hidden to hidden layer weight x previous hidden state])*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output at a time step ![](img/c16541d9-f156-4c48-83e3-6dc4f35070cc.png)
+    can be computed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/10b8680f-7613-4b12-b473-4a471403db20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: That is, *output at a time step, t = softmax (hidden to output layer weight*
+    x *hidden state at a time t)*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also represent RNNs as shown in the following figure. As you can see,
+    the hidden layer is represented by an RNN block, which implies that our network
+    is an RNN, and previous hidden states are used in predicting the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4ed16907-a459-43dc-9d6c-640e671139a6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The following diagram shows how forward propagation works in an unrolled version
+    of an RNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/edec3143-35b0-4af7-ba04-b37e14030d2a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We initialize the initial hidden state ![](img/6615f685-b929-45b2-b7e0-e45c559381db.png)
+    with random values. As you can see in the preceding figure, the output, ![](img/50ebe989-e25d-4826-9c9b-71bba2cf8ffa.png),
+    is predicted based on the current input, ![](img/c32660b6-140a-49df-b3bd-f71b2c1c8987.png)
+    and the previous hidden state, which is an initial hidden state, ![](img/6615f685-b929-45b2-b7e0-e45c559381db.png),
+    using the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1f792fc7-d64f-4a83-902e-2c420fa51d2b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/cd00e1ac-010a-4980-8ca5-2aeab71ccf56.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Similarly, look at how the output, ![](img/f553c432-9a57-444f-97e8-010ee27f60bc.png),
+    is computed. It takes the current input, ![](img/f64094cd-9f12-40dd-8916-7d9ecc16810b.png),
+    and the previous hidden state, ![](img/33d251b6-7355-4bdb-8fac-2dc7c7a0d7e3.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/235ea93c-2679-453e-b39c-a69e877df36a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/4e7da6bf-ee7a-4508-a685-3deca9ae7691.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Thus, in forward propagation to predict the output, RNN uses the current input
+    and the previous hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To achieve clarity, let''s look at how to implement forward propagation in
+    RNN to predict the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Initialize all the weights, ![](img/c3efe389-783a-49bc-836e-476412e21b8a.png),
+    ![](img/0e801a23-d593-4670-866b-8fd1450bf481.png), and ![](img/bc9a798b-7e2f-4aff-a0e1-065b94718831.png),
+    by randomly drawing from the uniform distribution:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the number of time steps, which will be the length of our input sequence,
+    ![](img/e3ea8ad6-f6b8-42c1-b3df-aedd6220ef0d.png):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the hidden state:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the initial hidden state, ![](img/749e77de-caab-41e5-bde8-52a5ad068ecb.png),
+    with zeros:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For every time step, we perform the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Backpropagating through time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We just learned how forward propagation works in RNNs and how it predicts the
+    output. Now, we compute the loss, ![](img/64479a6c-b690-4efc-86a7-517c7dd06b79.png),
+    at each time step, ![](img/4caa63fe-0308-4e69-96e7-3049d125d643.png), to determine
+    how well the RNN has predicted the output. We use the cross-entropy loss as our
+    loss function. The loss ![](img/4d9d85c2-78d6-47e5-ae6d-6cd76138ded6.png) at a
+    time step ![](img/4caa63fe-0308-4e69-96e7-3049d125d643.png) can be given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4f24f775-00f1-4b1f-b74f-2b31ea5c2c95.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/20982ece-f436-4ca3-be19-332765024b10.png) is the actual output,
+    and ![](img/42669ca6-70c1-4d62-b23e-38ba3ecd9cc3.png) is the predicted output
+    at a time step ![](img/9c19e742-9400-42f5-b91b-c2b833aea576.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final loss is a sum of the loss at all the time steps. Suppose that we
+    have ![](img/81a851a4-6e51-4bec-86de-121b488ed4b1.png) layers; then, the final
+    loss can be given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5ca94542-8bb2-4517-8618-9db73674966f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As shown in the following figure, the final loss is obtained by the sum of
+    loss at all the time steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c99e1c4b-b2f2-4885-9c9a-d49b00dd5483.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We computed the loss, now our goal is to minimize the loss. How can we minimize
+    the loss? We can minimize the loss by finding the optimal weights of the RNN.
+    As we learned, we have three weights in RNNs: input to hidden, ![](img/506de957-8136-4b7a-b727-16decfa5cb39.png),
+    hidden to hidden, ![](img/6c47a07a-178e-4963-8d71-412cecc002eb.png), and hidden
+    to output, ![](img/d53286da-5f7e-426d-8412-48e443a6d220.png).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need to find optimal values for all of these three weights to minimize the
+    loss. We can use our favorite gradient descent algorithm to find the optimal weights.
+    We begin by calculating the gradients of the loss function with respect to all
+    the weights; then, we update the weights according to the weight update rule as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/800d1857-5449-4155-b448-441188297d6c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/a0258154-1ac4-4772-bd1b-7507a7f45b01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/814dc1b3-9460-4875-924e-af775624cc0a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can skip the upcoming sections if you don't want to understand the math
+    behind the gradient calculation. However, it will help you to better understand
+    how BPTT works in RNN better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we calculate the gradients of loss with respect to the final layer ![](img/f451bf26-6e9d-4a0e-8bc3-ee5753ae46e3.png),
+    that is ![](img/f6ece5a6-92ec-4c30-a60e-8b739a0f4728.png), so that we can use
+    it in the upcoming steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have learned, the loss ![](img/4d9d85c2-78d6-47e5-ae6d-6cd76138ded6.png)
+    at a time step ![](img/4caa63fe-0308-4e69-96e7-3049d125d643.png) can be given
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fa612325-7e04-4e72-a3b2-4a1feea9c90f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Since we know:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/334d43db-f1c5-4dee-892a-a8ff46c60b0b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/001b5467-5c38-4d8c-8cef-e76ec7447d08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, the gradient of the loss ![](img/4d9d85c2-78d6-47e5-ae6d-6cd76138ded6.png)
+    with respect to ![](img/f451bf26-6e9d-4a0e-8bc3-ee5753ae46e3.png) becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68b43156-0c4a-42cd-9fa0-298cbd640074.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, we will learn how to calculate the gradient of the loss with respect to
+    all the weights one by one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradients with respect to the hidden to output weight, V
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First, let''s recap the steps involved in the forward propagation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cc1a523f-b1b7-4eef-944c-a7cfed5eded2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/14f05246-b094-4bf9-9b08-7b543ecc6b21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/b06b4611-ead7-4a7d-af35-873d64a8da0a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s suppose that ![](img/c3f72581-aa05-4ad7-b0f0-fbcc278a1597.png), and
+    substituting this into equation *(2)*, we can rewrite the preceding steps as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cc1a523f-b1b7-4eef-944c-a7cfed5eded2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/f1d0c5e5-514f-4c19-8a63-f1de866825ae.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/855a730d-09e9-4a57-8795-a68202406061.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: After predicting the output ![](img/f072d0a4-7355-47a7-bea9-9e03ce88bffc.png),
+    we are in the final layer of the network. Since we are backpropagating, that is,
+    going from the output layer to the input layer, our first weight would be ![](img/b5c7341a-7af7-4bb6-9501-174fcfed9b05.png),
+    which is the hidden to output layer weight.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have seen that the final loss is the sum of the loss over all the time steps,
+    and similarly, the final gradient is the sum of gradients over all the time steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3403b3f1-f6bb-42ef-b8fa-b236013e5810.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Hence, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9c24ef53-b82f-4f72-81cd-6b7672b1e646.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Recall our loss function, ![](img/49409524-301d-4a6b-8ec5-f88c6f42d34d.png);
+    we cannot calculate the gradient with respect to
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b5c7341a-7af7-4bb6-9501-174fcfed9b05.png) directly from ![](img/842e394d-d8d4-4ad5-9176-0f5415c98d08.png),
+    as there are no ![](img/b5c7341a-7af7-4bb6-9501-174fcfed9b05.png) terms in it.
+    So, we apply the chain rule. Recall the forward propagation equation; there is
+    a ![](img/b5c7341a-7af7-4bb6-9501-174fcfed9b05.png) term in ![](img/db5a20a7-db1c-48b2-85c4-c2017bc7d5ea.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7dbc66a2-0727-403a-b3a0-bfb1b086ac55.png) where ![](img/d59f4d43-7dd0-401e-8635-308ebbe3c09b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: First, we calculate a partial derivative of the loss with respect to ![](img/db5a20a7-db1c-48b2-85c4-c2017bc7d5ea.png),
+    and then, from ![](img/db5a20a7-db1c-48b2-85c4-c2017bc7d5ea.png), we will calculate
+    the partial derivative with respect to ![](img/29d11f59-f2ee-498b-99e9-c318ff3acb9c.png).
+    From ![](img/d64191a9-469b-44de-9a17-cc396859ae4f.png), we can calculate the derivative
+    with respect to ![](img/4f1f59f8-4b8e-43fb-9c5c-baed623ee9d0.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, our equation becomes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4af89994-d2cd-45c6-a152-e46b5f05c784.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As we know that, ![](img/002f1a76-e814-460a-8c78-4561df5d3a3c.png), the gradient
+    of loss with respect to ![](img/1a5006ba-52b3-49bd-9d8d-476242f5f8bd.png) can
+    be calculated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4d4684ca-b4ba-4bca-9a04-64bd59d15b02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting equation *(4)* in equation *(3)*, we can write the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/36da3d10-1767-4597-b24d-c8833abb4e0c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'For better understanding, let''s take each of the terms from the preceding
+    equation and compute them one by one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1112b7f2-339b-4ce5-99cf-c6df78d40194.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'From equation *(1)*, we can substitute the value of ![](img/e195ec7d-8c38-4f52-ab57-299b622f2e7c.png)
+    in the preceding equation *(6)* as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b2ed4f38-4b08-4015-b1c8-87840c3dfecb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, we will compute the term ![](img/d09b3f31-d03f-4b17-ba13-fca7055c0054.png).
+    Since we know, ![](img/002f1a76-e814-460a-8c78-4561df5d3a3c.png), computing ![](img/0bdacbe8-9489-4ef0-bfe8-6ace5c71c78a.png)
+    gives us the derivative of the softmax function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4e2582cf-bc25-4eb8-b235-d018c1f34ff5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The derivative of the softmax function can be represented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/892c67de-449c-4a37-b8f7-75184b88a427.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting equation *(8)* into equation *(7)*, we can write the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d7f8d2eb-3cf1-4339-8427-b991003ade3b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, the final equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/32da4bf8-3349-4236-a6a6-43edcdbbe1a8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, we can substitute equation *(9)* into equation *(5)*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/12399086-bdfa-400a-a02a-5242d04abef7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Since we know that ![](img/2b93d32d-50de-4e91-ab73-7f19e1b80d5f.png), we can
+    write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/147a2feb-72a0-4df3-9025-8515df5d35f3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting the preceding equation into equation *(10)*, we get our final
+    equation, that is, gradient of the loss function with respect to ![](img/a1d9a457-be7b-4445-b6f8-9faa63a53991.png),
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2792d04c-bb47-4e78-a0db-87b4da96e897.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Gradients with respect to hidden to hidden layer weights, W
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, we will compute the gradients of loss with respect to hidden to hidden
+    layer weights, ![](img/a7804dd9-7a32-4507-a4fb-7ea08209578a.png). Similar to ![](img/683d0de8-d8cd-4798-a13d-a01c5b5f8c3b.png),
+    the final gradient is the sum of the gradients at all time steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fa73b527-33cc-4787-b508-e32652748604.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/834ff810-d70a-49ba-91d7-0ac9640734b3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: First, let's compute gradient of loss, ![](img/8d47d734-7c46-4b0d-a8de-f88bc29b3918.png)
+    with respect to ![](img/43e7ae91-5ab2-40e1-be89-018ed8d7d013.png), that is, ![](img/80edec19-56f8-4a43-b0df-f70a1ae6651a.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We cannot compute derivative of ![](img/8d47d734-7c46-4b0d-a8de-f88bc29b3918.png)
+    with respect to ![](img/8904cf4f-986d-416e-a712-e41a3596babd.png) directly from
+    as there are no ![](img/37e77c54-a6ac-40fc-9b65-71f35645ea44.png) terms in it.
+    So, we use the chain rule to compute the gradients of loss with respect to ![](img/bd613dea-48a2-4e9b-a593-44b2f3a1258d.png).
+    Let''s recollect the forward propagation equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a282aa7f-7ee2-4af0-9088-657715b4ad39.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/388b6d16-c63b-436d-af50-c528d4db225b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/fd3bceaa-01ef-494b-ae67-7154329611bc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'First, we calculate the partial derivative of loss ![](img/66a379fd-243b-4699-9944-e06ebc5d56a6.png)
+    with respect to ![](img/92490484-5cb1-4184-a19a-9461fa7a5cb5.png); then, from
+    ![](img/783c76ba-a63a-436e-a231-8dc1035cdd78.png), we calculate the partial derivative
+    with respect to ![](img/7f1ac4cd-8eac-4534-b7e7-d42de1db8c94.png); then, from
+    ![](img/cd675325-add1-4e8f-b6b4-8dccdccef57d.png), we can calculate the derivative
+    with respect to *W*, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d0c93e46-3872-4a8e-be11-43fe60a4d504.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s compute the gradient of loss, ![](img/33bc7f4c-569e-4cf8-8e07-264224669dde.png)
+    with respect to ![](img/43e7ae91-5ab2-40e1-be89-018ed8d7d013.png), that is, ![](img/f869ae3e-cf7d-4699-a1cb-2523617d3ce0.png).
+    Thus, again, we will apply the chain rule and get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ed563d77-3ca1-4e89-86d1-b81dd4a79313.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If you look at the preceding equation, how can we calculate the term ![](img/21ea5fbb-0b85-4e01-82d4-f36846d11bcb.png)?
+    Let''s recall the equation of ![](img/0a8a684f-00ec-4748-85fc-fd8e524e9170.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ce9781a3-0336-4136-8261-384a1297d27f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see in the preceding equation, computing ![](img/b9759f68-c0a4-4f03-8b86-2252753b5919.png)
+    depends on ![](img/542ae61a-c8ac-438c-b7a5-bf89b2879073.png) and ![](img/e056a8c4-f39b-41d3-b99b-158cfd4aee25.png),
+    but ![](img/eb66b04b-0700-4165-bd54-a620f8a087f2.png) is not a constant; it is
+    a function again. So, we need to calculate the derivative with respect to that,
+    as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The equation then becomes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/825d9ade-e1eb-46cd-9d17-5fcc62897e78.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The following figure shows computing ![](img/cfe99387-87de-4d39-a1e3-1c71ee698df0.png);
+    we can notice how ![](img/b9759f68-c0a4-4f03-8b86-2252753b5919.png) is dependent
+    on ![](img/542ae61a-c8ac-438c-b7a5-bf89b2879073.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4e1bf1cd-aaa4-45b4-bd1f-de34cde53b66.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s compute the gradient of loss, ![](img/b29c042b-b5fd-4bca-943e-7a60c587ae3c.png)
+    with respect to ![](img/43e7ae91-5ab2-40e1-be89-018ed8d7d013.png), that is,![](img/d0da61ac-1cb8-4c7d-a68b-1a6a7f7cf04d.png).
+    Thus, again, we will apply the chain rule and get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/57d5989d-7fd4-4a18-bca9-f72f9992dfeb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding equation, we can''t compute ![](img/13eb2602-1011-485f-aff3-8aa10fb6240b.png)
+    directly. Recall the equation of ![](img/58ebb286-48f5-45dd-a933-5ea3149dd2e7.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0754e778-2993-4050-af9e-2faf72fa6c24.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As you observe, computing ![](img/6bdcabae-12f4-491b-b6b7-567c74347953.png),
+    depends on a function ![](img/5bb0190a-05bc-4728-b2fa-5fe015b3f619.png), whereas
+    ![](img/6098d4f4-a409-400f-b305-d62ff7843ecd.png) is again a function which depends
+    on function ![](img/fbcd1328-a49d-4539-823f-6b8f6cdf2896.png). As shown in the
+    following figure, to compute the derivative with respect to ![](img/a4f53c1b-7611-4c78-b885-56165fe7d195.png),
+    we need to traverse until ![](img/59e989bb-1031-471d-9268-8d0db34e2fd1.png), as
+    each function is dependent on one another:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3d415da8-a11d-42ed-8503-b7aabb36ec9f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This can be pictorially represented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ab170b47-574e-412b-8189-1c5d66dc8d2c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This applies for the loss at any time step; say, ![](img/9166e372-27b3-4c05-9ab9-3a5ccf45375b.png).
+    So, we can say that to compute any loss ![](img/ad3e986a-0ea8-40a6-9494-609395378d07.png),
+    we need to traverse all the way to ![](img/a2438430-3683-4d72-b56d-99234f9d1cf5.png),
+    as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e1767315-ee84-4ec5-8a85-0374dba241fe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is because in RNNs, the hidden state at a time ![](img/d586504e-cac1-4947-b860-904898c59ff5.png)
+    is dependent on a hidden state at a time ![](img/2883488b-b02f-4f7f-a26a-5a4d4fffa23c.png),
+    which implies that the current hidden state is always dependent on the previous
+    hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, any loss ![](img/6a2f37b3-d174-4890-9382-74e22ebacb22.png) can be computed
+    as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7fc6c457-3cba-4e88-b68b-46f92a8cf7fa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, we can write, gradient of loss ![](img/8881eb0a-2a3a-4b4c-8480-0658def14f7b.png)
+    with respect to ![](img/29bb39fe-99a0-4581-84ac-72db22f872b8.png) becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c1a45c32-3769-4569-8c98-5b07a1c05a75.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The sum ![](img/110ac4e4-8707-4023-8f35-ab38a73909e0.png) in the previous equation
+    implies the sum over all the hidden states ![](img/6152d3ec-d37c-43e7-8931-faa1911f6a97.png).
+    In the preceding equation,![](img/6a56cd8e-4322-4688-a2cf-c949c2a3f762.png) can
+    be computed using the chain rule. So, we can say:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3a596778-bf70-4139-8c90-425ece0b98c6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Assume that *j=3* and *k=0*; then, the preceding equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a443c6f9-bea7-4bc1-880f-88156a7847e2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting equation *(12)* into equation *(11)* will give us the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/65b1d140-81d3-4055-b111-96f88f4cd367.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We know that final loss is the sum of loss across all the time steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/834ff810-d70a-49ba-91d7-0ac9640734b3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting equation *(13)* into the preceding equation, we get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/35c4066f-7230-4ff4-9faf-de6020044c45.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We have two summations in the preceding equation, where:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f3e48fee-b0a7-487e-b1b9-f8ce81aa91ab.png) implies the sum of loss across
+    all the time steps'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/753ac5f6-1add-4ee5-b5aa-ece8312eeb5c.png) is the summation over hidden
+    states'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'So, our final equation for computing gradient of loss with respect to *W*,
+    is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/57d629f2-fb47-40df-b50b-a1b58a73e30d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, we will look at how to compute each of the terms in the preceding equation,
+    one by one. From equation *(4)* and equation *(9)*, we can say that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3572a974-3b10-4e5b-acb3-57b098b2b847.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at the next term:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b2a0ae76-ae52-49ef-a000-c44831b7ebad.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We know that the hidden state ![](img/13e1f88c-3dd3-4e1a-9dcf-a4096cc7c42c.png)
+    is computed as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4dc4fda6-8b66-4eaa-8aee-3839088e1cdc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The derivative of ![](img/55d602d9-9548-4859-a99b-dbf12e12ff39.png) is ![](img/5ea21d93-8420-4e6a-bf5d-4449fc4d5f6b.png),
+    so we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7f8921c9-8713-4737-88bd-5ea19ea5efce.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at the final term ![](img/bd407262-7e2f-47b2-a6ef-6cf798693488.png).
+    We know that the hidden state ![](img/860d20ad-deda-49ed-a11e-b5917198f42d.png)
+    is computed as, ![](img/49b5386f-6fd3-498c-956a-6908a8043de2.png). Thus, the derivation
+    of ![](img/359883d1-8cfb-4c60-b23d-3e487cf7ab5e.png) with respect to ![](img/f63926bf-8e02-4bae-b9e2-a3aa83f268b9.png)
+    becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6f24c981-c8f1-4e1c-9630-63a9ce2f4e2e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting all of the calculated terms into equation *(15)*, we get our final
+    equation for gradient of loss ![](img/0780e980-493b-4b07-9019-e9935310071a.png)
+    with respect to ![](img/8df7ed9c-b546-4548-86f1-7d99e85b2e19.png) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/00798e74-09a6-4521-a5cd-871cea5e4fd0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Gradients with respect to input to the hidden layer weight, U
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Computing the gradients of the loss function with respect to ![](img/7fe2825b-472c-47f5-af2e-7421c1daf9e8.png)
+    is the same as ![](img/470b648e-ccd4-4697-a8a4-7d8fcc9d9551.png), since here also
+    we take the sequential derivative of ![](img/4447db7f-708c-451a-a72b-9ac034b5e669.png).
+    Similar to ![](img/470b648e-ccd4-4697-a8a4-7d8fcc9d9551.png), to compute the derivative
+    of any loss ![](img/24cccd52-50ce-47c3-b94c-9add1dd31f8d.png) with respect to
+    ![](img/7fe2825b-472c-47f5-af2e-7421c1daf9e8.png), we need to traverse all the
+    way back to ![](img/a50a20c6-c54c-4945-b035-6c067baade2f.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final equation for computing the gradient of the loss with respect to ![](img/7fe2825b-472c-47f5-af2e-7421c1daf9e8.png)
+    is given as follows. As you may notice, it is basically the same as the equation
+    *(15)*, except that we have the term![](img/b7e741dd-bdee-4447-8e4a-2261b07b5691.png)
+    instead of ![](img/2e46c8c1-938f-4aec-9ec6-c1dadc1000da.png) shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3897b39f-55b0-40d4-bcba-3987878caefd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We have already seen how to compute to the first two terms in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the final term ![](img/a4717c74-afdd-4e8d-a388-c577f10db618.png).
+    We know that the hidden state ![](img/c933d30a-7bf8-4843-b820-d778a186bb1d.png)
+    is computed as, ![](img/0481fc80-3cae-4136-ac58-7f1739f18461.png). Thus, the derivation
+    of ![](img/d6780a9b-59c9-4e73-953f-fa5345662113.png) with respect to ![](img/95d442e9-23d4-4676-8cc2-0f70c1c63856.png)
+    becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/48384cfd-e122-42ea-8eea-8c1a35f179bf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So, our final equation for a gradient of the loss ![](img/f8f95855-69c2-490c-acf9-68e5f8f67b4d.png),
+    with respect to ![](img/7fe2825b-472c-47f5-af2e-7421c1daf9e8.png), can be written
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/54561de8-c032-4693-a547-54bf6bd4dfa4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Vanishing and exploding gradients problem
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We just learned how BPTT works, and we saw how the gradient of loss can be computed
+    with respect to all the weights in RNNs. But here, we will encounter a problem
+    called the **vanishing and exploding gradients**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While computing the derivatives of loss with respect to ![](img/817f9d6a-c803-4d12-90b6-1b84f825008d.png)
+    and ![](img/8a942335-a0e7-4678-a66f-d90787932787.png), we saw that we have to
+    traverse all the way back to the first hidden state, as each hidden state at a
+    time ![](img/5bb76da6-1ea3-4e61-b400-74a19d5a493c.png) is dependent on its previous
+    hidden state at a time ![](img/1a3b3b0a-b675-4a09-9c42-713da17889be.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, the gradient of loss ![](img/81827407-78c5-447c-b5cc-b1617ffb2f48.png)
+    with respect to ![](img/6ec3d4eb-b572-43d2-89ae-4922e8af13d5.png) is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4b8e1b81-6963-40d7-b578-e8cacca890a8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If you look at the term ![](img/9994e50e-4aaf-4b82-9c28-f5b280763ad6.png) from
+    the preceding equation, we can't calculate the derivative
+  prefs: []
+  type: TYPE_NORMAL
+- en: of ![](img/ad5d13a0-b7c2-4735-9d11-82480eee7d92.png) with respect to ![](img/584bca7b-31c7-409e-8dc8-b144d9a6ce32.png)
+    directly. As we know, ![](img/4f6cbf48-6e6c-4064-9b2e-452da085e021.png) is a function
+    that is dependent on ![](img/6fff19d9-7f93-47d6-a614-3fbb31ae214d.png) and ![](img/584bca7b-31c7-409e-8dc8-b144d9a6ce32.png).
+    So, we need to calculate the derivative with respect to ![](img/6fff19d9-7f93-47d6-a614-3fbb31ae214d.png),
+    as well. Even ![](img/9e192206-167c-46d1-8f9e-c5b227d6acfc.png) is a function
+    that is dependent on ![](img/697ec559-c85c-4034-a304-0e74b1756b6c.png) and ![](img/584bca7b-31c7-409e-8dc8-b144d9a6ce32.png).
+    Thus, we need to calculate the derivative with respect to ![](img/eb6488d9-3a99-4b4e-ac4b-06abb1408d52.png),
+    as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the following figure, to compute the derivative of ![](img/d1d54dae-34a6-47a4-b0a5-6cafa3ea4f7c.png),
+    we need to go all the way back to the initial hidden state ![](img/f3cb32d4-6c46-4f3b-ab25-5639d48617d1.png),
+    as each hidden state is dependent on its previous hidden state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a4b97dab-8a53-4e2e-b775-ac6d0b583384.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So, to compute any loss ![](img/1c9c6492-be3a-4813-a05d-ec12582130d3.png), we
+    need to traverse all the way back to the initial hidden
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'state ![](img/931e2725-bc7b-49f0-a943-42cb9c89b617.png), as each hidden state
+    is dependent on its previous hidden state. Suppose that we have a deep recurrent
+    network with 50 layers. To compute the loss ![](img/a23cf5fb-48d2-471b-aca5-766399059c5d.png),
+    we need to traverse all the way back to ![](img/931e2725-bc7b-49f0-a943-42cb9c89b617.png),
+    as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4dcd0cd0-a0f7-4f67-b283-83cb90d68d5e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So, what is the problem here, exactly? While backpropagating towards the initial
+    hidden state, we lose information, and the RNN will not backpropagate perfectly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember ![](img/d913a9e9-5fee-4e6e-8139-cb8c1e5ce0c3.png)? Every time we move
+    backward, we compute the derivative of ![](img/33120d82-b5ac-462f-8bae-9e599cb7aba0.png).
+    A derivative of tanh is bounded to 1\. We know that any two values between 0 and
+    1, when multiplied with each other will give us a smaller number. We usually initialize
+    the weights of the network to a small number. Thus, when we multiply the derivatives
+    and weights while backpropagating, we are essentially multiplying smaller numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, when we multiply smaller numbers at every step while moving backward, our
+    gradient becomes infinitesimally small and leads to a number that the computer
+    can't handle; this is called the **vanishing gradient problem.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall the equation of gradient of the loss with respect to the ![](img/ced572d2-9278-4cab-a2eb-b6cdb02ea31e.png)
+    that we saw in the *Gradients with respect to hidden to hidden layer weights,
+    W* section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cf4137b0-4a11-4b38-ab29-33b702dced2a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can observe, we are multiplying the weights and derivative of the tanh
+    function at every time step. Repeated multiplication of these two leads to a small
+    number and causes the vanishing gradients problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vanishing gradients problem occurs not only in RNN but also in other deep
+    networks where we use sigmoid or tanh as the activation function. So, to overcome
+    this, we can use ReLU as an activation function instead of tanh.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, we have a variant of the RNN called the **long short-term memory**
+    (**LSTM**) network, which can solve the vanishing gradient problem effectively.
+    We will look at how it works in [Chapter 5](c8326380-001a-4ece-8a14-b0a1ea0010b5.xhtml),
+    *Improvements to the RNN*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, when we initialize the weights of the network to a very large number,
+    the gradients will become very large at every step. While backpropagating, we
+    multiply a large number together at every time step, and it leads to infinity.
+    This is called the **exploding gradient problem.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradient clipping
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We can use gradient clipping to bypass the exploding gradient problem. In this
+    method, we normalize the gradients according to a vector norm (say, *L2*) and
+    clip the gradient value to a certain range. For instance, if we set the threshold
+    as 0.7, then we keep the gradients in the -0.7 to +0.7 range. If the gradient
+    value exceeds -0.7, then we change it to -0.7, and similarly, if it exceeds 0.7,
+    then we change it to +0.7.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s assume ![](img/46772caf-a135-4853-b011-cbfe4346843c.png) is the gradient
+    of loss L with respect to W:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/70ac4730-be3f-48b6-829c-d4cc6ac84a0e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'First, we normalize the gradients using the L2 norm, that is, ![](img/7201c6b6-7ce4-4f30-af35-ee6ea0be0d0f.png).
+    If the normalized gradient exceeds the defined threshold, we update the gradient,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0cde0a7c-4f3b-45ec-ad0a-ab169da0b938.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Generating song lyrics using RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have learned enough about RNNs; now, we will look at how to generate song
+    lyrics using RNNs. To do this, we simply build a character-level RNN, meaning
+    that on every time step, we predict a new character.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's consider a small sentence, *What a beautiful d*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the first time step, the RNN predicts a new character as *a.* The sentence
+    will be updated to, *What a beautiful* *d**a**.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the next time step, it predicts a new character as *y*, and the sentence
+    becomes, *What a beautiful da**y**.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this manner, we predict a new character at each time step and generate a
+    song. Instead of predicting a new character every time, we can also predict a
+    new word every time, which is called **word level RNN**. For simplicity, let's
+    start with a character level RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But how does RNN predicts a new character on each time step? Let's suppose at
+    a time step t=0, we feed an input character say *x*. Now the RNN predicts the
+    next character based on the given input character *x*. To predict the next character,
+    it predicts the probability of all the characters in our vocabulary to be the
+    next character. Once we have this probability distribution we randomly select
+    the next character based on this probability. Confusing? Let us better understand
+    this with an example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, as shown in the following figure, let''s suppose that our vocabulary
+    contains four characters *L, O, V,* and *E*; when we feed the character *L* as
+    an input, RNN computes the probability of all the words in the vocabulary to be
+    the next character:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/79adc628-079c-474e-b687-af043cadc304.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So, we have the probabilities as **[0.0, 0.9, 0.0, 0.1]**, corresponding to
+    the characters in the vocabulary *[L,O,V,E].* With this probability distribution,
+    we select *O* as the next character 90% of the time, and *E* as the next character
+    10% of the time. Predicting the next character by sampling from this probability
+    distribution adds some randomness to the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On the next time step, we feed the predicted character from the previous time
+    step and the previous hidden state as an input to predict the next character,
+    as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d44f75dd-af2d-4754-8992-cc3bb20e1793.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So, on each time step, we feed the predicted character from the previous time
+    step and the previous hidden state as input and predict the next character shown
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2741fb9b-44f2-4e0f-a7b6-07359373bd1f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see in the preceding figure, at time step *t=2*, *V* is passed as
+    an input, and it predicts the next character as *E*. But this does not mean that
+    every time character *V* is sent as an input it should always return *E* as output.
+    Since we are passing input along with the previous hidden state, the RNN has the
+    memory of all the characters it has seen so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, the previous hidden state captures the essence of the previous input characters,
+    which are *L* and *O*. Now, with this previous hidden state and the input *V**,*
+    the RNN predicts the next character as *E*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing in TensorFlow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now, we will look at how to build the RNN model in TensorFlow to generate song
+    lyrics. The dataset and also the complete code used in this section with step
+    by step explanation is available on GitHub at [http://bit.ly/2QJttyp](http://bit.ly/2QJttyp).
+    After downloading, unzip the archive, and place the `songdata.csv` in the `data`
+    folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the required libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Data preparation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Read the downloaded input dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s see what we have in our dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b141430d-703a-4651-b047-85272150672d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Our dataset consists of about 57,650 song lyrics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have song lyrics from about `643` artists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The number of songs from each artist is shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'On average, we have about `89` songs from each artist:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have song lyrics in the column `text`, so we combine all the rows of that
+    column and save it as a `text` in a variable called `data`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s see a few lines of a song:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since we are building a char-level RNN, we will store all the unique characters
+    in our dataset into a variable called `chars`; this is basically our vocabulary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Store the vocabulary size in a variable called `vocab_size`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since the neural networks only accept the input in numbers, we need to convert
+    all the characters in the vocabulary to a number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We map all the characters in the vocabulary to their corresponding index that
+    forms a unique number. We define a `char_to_ix` dictionary, which has a mapping
+    of all the characters to their index. To get the index by a character, we also
+    define the `ix_to_char` dictionary, which has a mapping of all the indices to
+    their respective characters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see in the following code snippet, the character `''s''` is mapped
+    to an index `68` in the `char_to_ix` dictionary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similarly, if we give `68` as an input to the `ix_to_char`, then we get the
+    corresponding character, which is `''s''`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we obtain the character to integer mapping, we use one-hot encoding to
+    represent the input and output in vector form. A **one-hot encoded vector** is
+    basically a vector full of 0s, except, 1 at a position corresponding to a character
+    index.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, let''s suppose that the `vocabSize` is `7`, and the character
+    *z* is in the fourth position in the vocabulary. Then, the one-hot encoded representation
+    for the character *z* can be represented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we have a 1 at the corresponding index of the character, and
+    the rest of the values are 0s. This is how we convert each character into a one-hot
+    encoded vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code, we define a function called `one_hot_encoder`, which
+    will return the one-hot encoded vectors, given an index of the character:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining the network parameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Next, we define all the network parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the number of units in the hidden layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the length of the input and output sequence:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the learning rate for gradient descent:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the seed value:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining placeholders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, we will define the TensorFlow placeholders:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `placeholders` for the input and output is defined as:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the `placeholder` for the initial hidden state:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define an `initializer` for initializing the weights of the RNN:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining forward propagation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s define the forward propagation involved in the RNN, which is mathematically
+    given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/523f1fa0-bea0-4810-9134-da3e0f971538.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/5acff446-3893-46e3-b0fb-fe80338957c8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The ![](img/c4dd726d-98a7-4cfa-bf7d-1b82f8d98c21.png) and ![](img/f25b6fa6-b0c4-42e0-b737-89dfec3ec7a2.png)
+    are the biases of the hidden and output layers, respectively. For simplicity,
+    we haven''t added them to our equations in the previous sections. Forward propagation
+    can be implemented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Apply `softmax` on the output and get the probabilities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the cross-entropy loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Store the final hidden state of the RNN in `hprev`. We use this final hidden
+    state for making predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining BPTT
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, we will perform the BPTT, with Adam as our optimizer. We will also perform
+    gradient clipping to avoid the exploding gradients problem:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Initialize the Adam optimizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the gradients of the loss with the Adam optimizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the threshold for the gradient clipping:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Clip the gradients that exceed the threshold and bring it to the range:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the gradients with the clipped gradients:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Start generating songs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Start the TensorFlow session and initialize all the variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we will look at how to generate the song lyrics using an RNN. What should
+    the input and output to the RNN? How does it learn? What is the training data?
+    Let's understand this an explanation, along with the code, step by step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know that in RNNs, the output predicted at a time step ![](img/db822ea3-1b38-46ec-bb99-2663c951b137.png)
+    will be sent as the input to the next time step; that is, on every time step,
+    we need to feed the predicted character from the previous time step as input.
+    So, we prepare our dataset in the same way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, look at the following table. Let's suppose that each row is a
+    different time step; on a time step ![](img/0249a9fb-0d9b-4b2f-93ff-4b22011a9441.png),
+    the RNN predicted a new character, *g*, as the output. This will be sent as the
+    input to the next time step, ![](img/8556fd17-b301-4584-8a9a-1d06c3082bc6.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if you notice the input in the time step ![](img/8556fd17-b301-4584-8a9a-1d06c3082bc6.png),
+    we removed the first character from the input `o` and added the newly predicted
+    character *g* at the end of our sequence. Why are we removing the first character
+    from the input? Because we need to maintain the sequence length.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's suppose that our sequence length is eight; adding a newly predicted character
+    to our sequence increases the sequence length to nine. To avoid this, we remove
+    the first character from the input, while adding a newly predicted character from
+    the previous time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, in the output data, we also remove the first character on each time
+    step, because once it predicts the new character, the sequence length increases.
+    To avoid this, we remove the first character from the output on each time step,
+    as shown in the following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4a4c6500-b69d-4016-a58b-91988ee76b16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, we will look at how we can prepare our input and output sequence similarly
+    to the preceding table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a variable called `pointer`, which points to the character in our dataset.
+    We will set our `pointer` to `0`, which means it points to the first character:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the input data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'What does this mean? With the pointer and the sequence length, we slice the
+    data. Consider that the `seq_length` is `25` and the pointer is `0`. It will return
+    the first 25 characters as input. So, `data[pointer:pointer + seq_length]` returns
+    the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the output, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We slice the output data with one character ahead moved from input data. So,
+    `data[pointer + 1:pointer + seq_length + 1]` returns the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we added the next character in the preceding sentence and removed
+    the first character. So, on every iteration, we increment the pointer and traverse
+    the entire dataset. This is how we obtain the input and output sentence for training
+    the RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have learned, an RNN accepts only numbers as input. Once we have sliced
+    the input and output sequence, we get the indices of the respective characters,
+    using the `char_to_ix` dictionary that we defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Convert the indices into one-hot encoded vectors by using the `one_hot_encoder`
+    function we defined previously:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: This `input_vector` and `target_vector` become the input and output for training
+    the RNN. Now, Let's start training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `hprev_val` variable stores the last hidden state of our trained RNN model
+    which we use for making predictions, and we store the loss in a variable called
+    `loss_val`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We train the model for *n* iterations. After training, we start making predictions.
+    Now, we will look at how to make predictions and generate song lyrics using our
+    trained RNN. Set the `sample_length`, that is, the length of the sentence (song)
+    we want to generate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Randomly select the starting index of the input sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Select the input sentence with the randomly selected index:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we know, we need to feed the input as numbers; convert the selected input
+    sentence to indices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: Remember, we stored the last hidden state of the RNN in `hprev_val`. We used
+    that for making predictions. We create a new variable called `sample_prev_state_val`
+    by copying values from `hprev_val`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `sample_prev_state_val` is used as an initial hidden state for making predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the list for storing the predicted output indices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, for *t* in range of `sample_length`, we perform the following and generate
+    the song for the defined `sample_length`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Convert the `sampled_input_indices` to the one-hot encoded vectors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Feed the `sample_input_vector`, and also the hidden state `sample_prev_state_val`,
+    as the initial hidden state to the RNN, and get the predictions. We store the
+    output probability distribution in `probs_dist`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Randomly select the index of the next character with the probability distribution
+    generated by the RNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Add this newly predicted index, `ix`, to the `sample_input_indices`, and also
+    remove the first index from `sample_input_indices` to maintain the sequence length.
+    This will form the input for the next time step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Store all the predicted `chars` indices in the `predicted_indices` list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Convert all the `predicted_indices` to their characters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Combine all the `predicted_chars` and save it as `text`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Print the predicted text on every 50,000^(th) iteration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Increment the `pointer` and `iteration`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'On the initial iteration, you can see that the RNN has generated the random
+    characters. But at the 50,000^(th) iteration, it has started to generate meaningful
+    text:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: Different types of RNN architectures
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have learned how an RNN works, we will look at a different type
+    of RNN architecture that's based on numbers of input and output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One-to-one architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a **one-to-one architecture**, a single input is mapped to a single output,
+    and the output from the time step *t* is fed as an input to the next time step.
+    We have already seen this architecture in the last section for generating songs
+    using RNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, for a text generation task, we take the output generated from
+    a current time step and feed it as the input to the next time step to generate
+    the next word. This architecture is also widely used in stock market predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following figure shows the one-to-one RNN architecture. As you can see,
+    output predicted at the time step *t* is sent as the input to the next time step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa53eae7-a2f7-4149-9de0-06b7916f6e60.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: One-to-many architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a **one-to-many architecture**, a single input is mapped to multiple hidden
+    states and multiple output values, which means RNN takes a single input and maps
+    it to an output sequence. Although we have a single input value, we share the
+    hidden states across time steps to predict the output. Unlike the previous one-to-one
+    architecture, here, we only share the previous hidden states across time steps
+    and not the previous outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One such application of this architecture is image caption generation. We pass
+    a single image as an input, and the output is the sequence of words constituting
+    a caption of the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the following figure, a single image is passed as an input to the
+    RNN, and at the first time step, ![](img/5b87e5a4-61c8-4f3f-ad26-380f22e2f150.png),
+    the word *Horse* is predicted; on the next time step, ![](img/a5426056-19c6-4b7c-9f69-bdc6fb3e6f5e.png),
+    the previous hidden state ![](img/0e5cc4c7-c5be-4ff6-8599-dc2d6ade366e.png) is
+    used to predict the next word which is *standing*. Similarly, it continues for
+    a sequence of steps and predicts the next word until the caption is generated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e898e507-4926-4708-84b4-3fd31fa19b80.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Many-to-one architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A **many-to-one architecture,** as the name suggests, takes a sequence of input
+    and maps it to a single output value. One such popular example of a many-to-one
+    architecture is **sentiment classification**. A sentence is a sequence of words,
+    so on each time step, we pass each word as input and predict the output at the
+    final time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s suppose that we have a sentence: *Paris is a beautiful city*. As shown
+    in the following figure, at each time step, a single word is passed as an input,
+    along with the previous hidden state; and, at the final time step, it predicts
+    the sentiment of the sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/922ee723-6f74-4265-b9fb-8837d4c7ee16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Many-to-many architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In **many-to-many architectures**, we map a sequence of input of arbitrary length
+    to a sequence of output of arbitrary length. This architecture has been used in
+    various applications. Some of the popular applications of many-to-many architectures
+    include language translation, conversational bots, and audio generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s suppose that we are converting a sentence from English to French. Consider
+    our input sentence: *W**hat are you doing?* It would be mapped to, *Que faites
+    vous* as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/52a6c838-3b48-48e6-a775-46af909f8fb1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We started off the chapter by covering what an RNN is and how an RNN differs
+    from a feedforward network. We learned that an RNN is a special type of neural
+    network that is widely applied over sequential data; it predicts output based
+    on not only the current input but also on the previous hidden state, which acts
+    as the memory and stores the sequence of information that the network has seen
+    so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We learned how forward propagation works in RNNs, and then we explored a detailed
+    derivation of the BPTT algorithm, which is used for training RNN. Then, we explored
+    RNNs by implementing them in TensorFlow to generate song lyrics. At the end of
+    the chapter, we learned about the different architectures of RNNs, such as one-to-one,
+    one-to-many, many-to-one, and many-to-many, which are used for various applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about the LSTM cell, which solves the vanishing
+    gradient problem in RNNs. We will also learn about different variants of RNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Try answering the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is the difference between an RNN and a feedforward neural network?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is the hidden state computed in an RNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the use of a recurrent network?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does the vanishing gradient problem occur?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the exploding gradient problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How gradient clipping mitigates the exploding gradient problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the different types of RNN architectures?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Refer to the following links to learn more about RNNs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Fundamentals of Recurrent Neural Network (RNN) and Long Short-Term Memory
+    (LSTM) Network*, by Alex Sherstinsky, [https://arxiv.org/pdf/1808.03314.pdf](https://arxiv.org/pdf/1808.03314.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handwriting generation by RNN with TensorFlow, based on *Generating Sequences
+    With Recurrent Neural Networks* by Alex Graves, [https://github.com/snowkylin/rnn-handwriting-generation](https://github.com/snowkylin/rnn-handwriting-generation)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

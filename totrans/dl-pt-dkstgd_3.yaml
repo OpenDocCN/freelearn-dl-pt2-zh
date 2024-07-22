@@ -1,0 +1,626 @@
+- en: Computational Graphs and Linear Models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'By now you should have an understanding of the theory of linear models and
+    neural networks, as well as a knowledge of the fundamentals of PyTorch. In this
+    chapter, we will be putting all this together by implementing some ANNs in PyTorch.
+    We will focus on the implementation of linear models, and show how they can be
+    adapted to perform multi-class classification. We will discuss the following topics
+    in relation to PyTorch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: autograd
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Computational graphs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Linear regression
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Logistic regression
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multi-class classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: autograd
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As we saw in the last chapter, much of the computational work for ANNs involves
+    calculating derivatives to find the gradient of the cost function. PyTorch uses
+    the `autograd` package to perform automatic differentiation of operations on PyTorch
+    tensors. To see how this works, let''s look at an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5e024860-55f3-4e18-ad1e-2884aea71f1c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding code, we create a 2 x 3 torch tensor and, importantly, set
+    the `requires_grad` attribute to `True`. This enables the calculation of gradients
+    across subsequent operations. Notice also that we set the `dtype` to `torch.float`,
+    since this is the data type that PyTorch uses for automatic differentiation. We
+    perform a sequence of operations and then take the mean of the result. This returns
+    a tensor containing a single scalar. This is normally what `autograd` requires to
+    calculate the gradient of the preceding operations. This could be any sequence
+    of operations; the important point is that all these operations are recorded.
+    The input tensor, `a`, is tracking these operations, even though there are two
+    intermediate variables. To see how this works, let''s write down the sequence
+    of operations performed in the preceding code with respect to the input tensor `a`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5baf1fb7-3d0d-4654-b1b5-084265e30fd4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, the summation and division by six represents taking the mean across the
+    six elements of the tensor `a`*.* For each element, *ai*, the operations assigned
+    to the tensor `b`, the addition of two, and `c`, squaring and multiplying by two,
+    are summed and divided by six.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calling `backward()` on the *out* tensor calculates the derivative of the previous
+    operation. This derivative can be written as the following, and if you know a
+    little bit of calculus you will be able to easily confirm this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3b1ec126-ace8-4874-bea4-82ae16308f33.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When we substitute the values of *a* into the right-hand side of the preceding
+    equation, we do, indeed, get the values contained in the `a.grad` tensor, printed
+    out in the preceding code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is sometimes necessary to perform operations that do not need to be tracked on
+    tensors that have `requires_grad=True`. To save memory and computational effort,
+    it is possible to wrap such operations in a `with torch.no_grad():` block. For
+    example, observe the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/120d6c78-5669-46ee-833c-a884ad0b01c4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'To stop PyTorch tracking operations on a tensor, use the `.detach()` method.
+    This prevents future tracking of operations and detaches the tensor from the tracking
+    history:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e7d071e9-f825-44b3-98ef-599abb7be0a9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Notice that if we try to calculate gradients a second time, by, for example
+    calling `out.backward()`, we will again generate an error. If we do need to calculate
+    gradients a second time, we need to retain the computational graph. This is done
+    by setting the `retain_graph` parameter to `True`. For example, observe the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dd47905b-25ad-45f6-b75d-312af0798cd3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice that calling `backward` a second time adds the gradients to the ones
+    already stored in the `a.grad` variable. Note that the `grad` buffer is freed
+    once `backward()` is called without setting the `retain_graph` parameter to `True`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computational graphs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To get a better understanding of this, let''s look at what precisely a computational
+    graph is. We can draw the graph for the function we have been using so far as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6aa4a821-1ea1-4632-9f82-9e1f0497ca52.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, the leaves of the graph represent the inputs and parameters of each layer,
+    and the output represents the loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typically, unless `retain_graph` is set to `True`, on each iteration of an epoch,
+    PyTorch will create a new computational graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linear models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Linear models are an essential way to understand the mechanics of ANNs. Linear
+    regression is used to both predict a continuous variable and also, in the case
+    of logistic regression for classification, to predict a class. Neural networks
+    are extremely useful for multi-class classification, since their architecture can
+    be naturally adapted to multiple inputs and outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linear regression in PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s see how PyTorch implements a simple linear network. We could use `autograd`
+    and `backward` to manually iterate through gradient descent. This unnecessarily
+    low-level approach encumbers us with a lot of code that will be difficult to maintain,
+    understand, and upgrade. Fortunately, PyTorch has a very straightforward object
+    approach to building ANNs, using classes to represent models. The model classes
+    we customize inherit all the foundation machinery required for building ANNs using
+    the super class, `torch.nn.Module`. The following code demonstrates the standard
+    way to implement modules (in this case, a `linearModel`) in PyTorch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/045e5fee-3226-4820-bc15-769773819887.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `nn.Module` is the base class and is called through the super function
+    on initialization. This ensures that it inherits all the functionality encapsulated
+    in `nn.Module`. We set a variable, `self.Linear`, to the `nn.Linear` class, reflective
+    of the fact we are building a linear model. Remember, a linear function with one
+    independent variable, that is one feature, `x`, can be written in the following
+    way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa74e133-be34-440f-8a8c-ebb6106fd253.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `nn.linear` class contains two learnable variables: `bias` and `weight`.
+    In our single feature model, these are the two parameters, *w[0]* and *w[1]*,respectively.
+    When we train a model, these variables are updated, ideally to values that approach
+    the line of best fit to the data. Finally, in the preceding code, we instantiate
+    the model by creating the variable, `model`, and setting it to our `LinearModel`
+    class.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we can run the model, we need set the learning rate, the type of optimizer
+    to use, and the criteria to measure the loss. This is done with the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/093ca580-b33c-4c0d-9b3f-272fb8effe73.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, we set the learning rate to `0.01`. This tends to be a good
+    starting point; any higher and the optimizer may overshoot the optimum, any lower
+    and it may take too long to find it. We set the `optimiser` to stochastic gradient
+    descent, passing it the items we need it to optimize (in this case, the model
+    parameters), and also the learning rate to use on each step of the gradient descent.
+    Finally, we set the loss criteria; that is, the criteria gradient descent will
+    be used to measure the loss, and here we set it to the mean square error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To test this linear model, we need to feed it some data and, for testing purposes,
+    we create a simple dataset, `x`, consisting of numbers from `1` to `10`. We create
+    the output, or target, data by applying a linear transformation on the input values.
+    Here, we use the linear function, `y= 3*x + 5`. This is coded as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5b3aa523-090d-49fb-b239-c7b04c9a3281.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that we need to reshape these tensors so the input, `x`, and the target,
+    `y`, have the same shapes. Note also that we do not need to set `autograd`, as
+    this is all handled by the model class. We do, however, need to tell PyTorch that
+    the input tensor is of data type `torch.float`, since, by default, it will treat
+    the list as integers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we are ready to run the linear model and to do this we run it in a loop
+    for each epoch. This training cycle consists of the following three steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A forward pass over the training set
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A backward pass to compute the loss
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Updating the parameters according to the gradient of the loss function
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'This is done with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f2241ffa-603e-4839-bee9-8a35d5f4a23f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We set `epoch` to `1000.` Remember, each `epoch` is one full pass over the training
+    set. The model inputs are set to the `x` values of the dataset; in this case,
+    it is simply the sequence of numbers from 1 to 10\. We set the labels to the `y`
+    values; in this case, the values calculated by our function, `2*x + 5`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Importantly, we need to clear the gradients so that they do not accumulate over
+    epochs and distort the model. This is achieved by calling the `zero_grad()` function
+    on the optimizer on each epoch. The out tensor is set to the linear models output,
+    calling the forward function of the `LinearModel` class. This model applies a
+    linear function, with the current estimate of the parameters, and gives a predicted
+    output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have an output, we can calculate the loss using the mean square error,
+    comparing the actual `y` values to the values calculated by the model. Next, the
+    gradient can calculate by calling `backwards()` on the `loss` function. This determines
+    the next step of the gradient descent, enabling the `step()` function to update
+    parameter values. We also create a `predicted` variable that will store the predicted
+    values of `x`. We will use this shortly when we plot the predictions and actual
+    values of `x`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand if our model is working, we print the loss on each epoch. Notice
+    the loss is decreasing each time, indicating it is working as expected. Indeed,
+    by the time the model completes `1000` epochs, the loss is quite small. We can
+    print the model''s state (that is, the parameter values) by running the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68563ab1-2739-4fbb-a207-dec97bda3eb2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, the `linear.weight` tensor consists of the single element of value `3.0113`
+    and the `linear.bias` tensor contains the value `4.9210`. This is very close to
+    the values of *w[0 ]*(5) and *w[1]* (3) that we used to create the linear dataset
+    through the `y=3x + 5` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To make this a little more interesting, let''s see what happens when, instead
+    of using a linear function to create the labels, we add a squared term to the
+    function (for example, `y= 3x² + 5`). We can visualize the result of the model
+    by graphing the predicted values against the actual values. We can see the result
+    with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3425344f-37a6-4893-a9cd-9868292ba8be.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We have used the `y = 3x2 + 5` function to generate the labels. The squared
+    term gives the training set the characteristic curve and the linear model's predictions
+    are the best fit straight line. You can see that after 1,000 epochs, this model
+    does a reasonably good job at fitting the curve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Saving models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Once a model has been built and trained, it is common to want to save the model''s
+    state. This is not so important in cases like this, when training takes an insignificant
+    amount of time. However, with large datasets, and many parameters, training can
+    potentially take hours our even days to complete. Clearly, we do not want to retrain
+    a model every time we need it to make a prediction on new data. To save a trained
+    model''s parameters, we simply run the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7b1e7fe9-08f4-4240-9382-58763a35d582.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding code saves the model using Python''s inbuilt object serialization
+    module, `pickle`. When we need to restore the model, we can do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c51ae7cf-f799-4c74-ad07-51a1a5610487.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that we need our `LinearModel` class in memory for this to work, since
+    we are only saving the model's state; that is, the model parameters, not the entire
+    model. To retrain the model once we have restored it, we need to reload the data
+    and set the model hyperparameters (in this case the optimizer, learning rate,
+    and criterion).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Logistic regression
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A simple logistic regression model does not look a great deal different from
+    the model for linear regression. The following is a typical class definition for
+    a logistic model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3cc7286d-0efc-404f-8b09-abaff43c8baf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice that we still use a linear function when we initialize the `model` class.
+    However, for logistic regression, we need an activation function. Here, this is
+    applied when `forward` is called. As usual, we instantiate the model into our
+    `model` variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we set the criterion and optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9d3efcef-c428-45e5-94f7-9d01c769d752.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We still use stochastic gradient descent; however, we need to change the criterion for
+    the loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With linear regression, we used the `MSELoss` function to calculate the mean
+    square error. For logistic regression, we are working with probabilities represented
+    by values between zero and 1\. It does not make much sense to calculate the mean
+    squared error of a probability; instead, a common technique is to use the cross-entropy
+    loss or log loss. Here, we use the `BCELoss` function, or **binary cross-entropy
+    loss**. The theory behind this is a little involved. What is important to understand
+    is that it is essentially a logarithmic function that better captures the notion
+    of a probability. Because it is logarithmic, as a predicted probability approaches 1,
+    the log loss slowly decreases toward zero given a correct prediction. Remember,
+    we are trying to calculate a penalty for an incorrect prediction. The loss must
+    increase as the prediction diverges from the true value. Cross-entropy loss penalizes predictions
+    that have high confidence (that is, they are close to 1, and are incorrect) and,
+    conversely, rewards predictions that have lower confidence but are correct.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can train the model with the identical code used for linear regression, running
+    each epoch in a `for` loop where we do a forward pass to calculate an output,
+    a backward pass to calculate the loss gradient, and finally, update the parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s make this a little more concrete by creating a practice example. Suppose
+    we are trying to categorize the species of an insect by some numerical measure,
+    say the length of its wings. We have some training data as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/053f379f-1907-4573-87ab-eabfdb3f28a7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, the `x_train` values could represent the wing length in millimeters and
+    the `y_train` values each sample's label; one indicated the sample belongs to
+    the target species. Once we have instantiated the `LogisticModel` class, we can
+    run it using the standard running code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we have trained the model, we can test it using some new data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/84f34883-842a-41a4-9030-f0cf2ea34787.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Activation functions in PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Part of the trick that makes ANNs perform as well as they do is the use of nonlinear
+    activation functions. A first thought is simply to use a step function. In this
+    case, an output from a particular occurs only when the input exceeds zero. The
+    problem with the step function is that it cannot be differentiated, since it does
+    not have a defined gradient. It consists only of flat sections and is discontinuous
+    at zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another method is to use a linear activation function; however, this restricts
+    our output to a linear function as well. This is not what we want, since we need
+    to model highly nonlinear real-world data. It turns out that we can inject nonlinearity
+    into our networks by using nonlinear activation functions. The following is a
+    plot for popular activation functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa86c951-6f04-4255-b3b5-cfdd43f286e7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The `ReLU`, or **rectified linear unit**, is generally considered the most popular
+    activation function. Even though it is non- differentiable at zero, it has a characteristic
+    elbow that can make gradient descent jump around, and it does, in practice, work
+    very well. One of the advantages of the `ReLU` function is that it is very fast
+    to compute. Also, it does not have a maximum value; it continues to rise to infinity
+    as its input rises. This can be advantageous in certain situations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have already met the `sigmoid` function; its major advantage is that is is
+    differentialable at all input values. This can help in situations where the `ReLU`
+    function causes erratic behavior during gradient descent. The `sigmoid` function,
+    unlike `ReLU`, is constrained by asymptotes. This also can used beneficial for
+    some ANNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `softmax` function is typically used on output layers for multi-class classification.
+    Remember, multiclass classification, in contrast with multi-label classification,
+    has only one true output. In such cases, we need the predicted target to be as
+    close to 1 as possible and all other outputs close to zero. The `softmax` function
+    is a nonlinear form of normalization. We need to normalize the output to ensure
+    we are approximating the probability distribution of the input data. Rather than
+    use linear normalization by simply dividing all outputs by their sum, `softmax`
+    applies a nonlinear exponential function that increases the impact of outlying
+    data points. This tends to increase a network's sensitivity by increasing its
+    reaction to low stimuli. It is computationally more complex than other activation
+    functions; however, it turns out to be an effective generalization of the `sigmoid`
+    function for multi-class classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `tanh`activation function, or hyperbolic tangent function, is primarily
+    used for binary classification. It has asmpotopes at `-1` and `1` and is often
+    used as an alternative to the `sigmoid` function, where strongly negative input
+    values cause the `sigmoid` to output values very close to zero, causing the gradient
+    descent to get stuck. The `tanh` function will output negatively in such situations,
+    allowing the calculation of meaningful parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-class classification example
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have been using trivial examples to demonstrate core concepts in
+    PyTorch. We are now ready to explore a more real-world example. The dataset we
+    will be using is the `MNIST` dataset of hand-written digits from 0 to 9\. The
+    task is to correctly identify each sample image with the correct digit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The classification model we will be building consists of several layers and
+    these are outlined in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2ddc9654-aaa1-49f2-92a6-08dc7ab7f96f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The images we are working with are 28 x 28 pixels in size, and each pixel in
+    each image is characterized by a single number, indicating its gray scale. This
+    is why we need 28 x 28 or 784 inputs to the model. The first layer is a linear
+    layer with 10 outputs, one output for each label. These outputs are fed into to
+    the `softmax` activation layer and cross-entropy loss layer. The 10 output dimensions
+    represent the 10 possible classes, the digits zero to nine. The output with the
+    highest value indicates the predicted label of a given image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We begin by importing the required libraries, as well as the `MNIST` dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a437e863-ded5-48e0-be4d-6af893e5d7e0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now let''s print out some information about the `MNIST` dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3eec457d-d3fa-4706-ae35-1c281c490819.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The `len` function returns the number of separate items (in this case, single
+    images) in the dataset. Each one of these images is encoded as a type tensor and
+    the size of each image is 28 x 28 pixels. Each pixel in the image is assigned
+    a single number, indicating its gray scale.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To define our multi-class classification model, we are going to use the exactly
+    the same model definition that we used for linear regression:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ed7709ab-3e21-4e40-83e7-b11cdb176345.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Even though, ultimately, we need to perform logistic regression, we achieve
+    the required activation and nonlinearity in a slightly different way to the binary
+    case. You will notice that in the model definition, the output returned by the
+    forward function is simply a linear function. Instead of using the `sigmoid` function,
+    as we did in the previous binary classification example, here we use the `softmax`
+    function, which is assigned with the loss criterion. The following code sets up
+    these variables and instantiates the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c79c4887-7768-4da1-b2ca-5fd0f1589776.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `CrossEntropyLoss()` function essentially adds two layers to the network:
+    a `softmax` activation function and a cross- entropy loss function. Each input
+    to the network takes one pixel of the image, so our input dimension is 28 x 28
+    = 784\. The optimizer uses stochastic gradient descent and a learning rate of
+    `.0001`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we set a batch size, the number of `epochs` to run the model, and create
+    a data loader object so the model can iterate over the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/77fbd968-88b9-4526-abab-73e267bf19ba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Setting a batch size feeds the data into the model in specific-sized chunks.
+    Here, we feed the model in batches of `100` images. The number of iterations (that
+    is, the total number of forward-backward traversals of the network), can be calculated
+    by dividing the length of the dataset by the batch size, and multiplying this
+    by the number of `epochs`. In this example, we have 5 x 60,000/100 = 3,000 iterations
+    in total. It turns out this is a much more efficient and effective way to work
+    with moderate to large datasets, since, with finite memory, loading the entire
+    data may not be possible. Also, the model tends to make better predictions since
+    it is trained on a different subsets of data with each batch. Setting `shuffle`
+    to `True` shuffles the data on each `epoch`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run this model, we need to create an outer loop that loops through the `epochs`
+    and an inner loop that loops through each batch. This is achieved with the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/852628d1-4a5c-496c-a0b7-3fc7be56644b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is similar to the code we have used to run all our models so far. The only
+    difference here is that the model enumerates over each batch in `trainloader` rather
+    than iterating over the entire dataset at once. Here, we print out the loss on
+    each epoch and, as expected, this loss is decreasing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can make a prediction using the model by making a forward pass:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/63f170fb-3ae4-4bba-89e2-eb3bef02285e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The size of the predicted variable is `100` by `10`. This represents the predictions
+    for the `100` images in the batch. For each image, the model outputs a `10` element
+    prediction tensor, containing a value representing the relative strength of each
+    label at each of its `10` outputs. The following code prints out the first prediction
+    tensor and the actual label:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/65f6f2d0-42cb-4090-9405-95fc84b82c0b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If we look closely at the previous output, we see that the model correctly predicted
+    the label since the second element, representing the digit `1`, contains the highest
+    value of `1.3957`. We can see the relative strength of this prediction by comparing
+    it to other values in the tensor. For example, we can see that the next strongest
+    prediction was for the number `7`, with a value of `0.9142`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You will see that the model is not correct for every image and to begin to
+    evaluate and improve our models, we need to be able to measure its performance.
+    The most straightforward way is to measure its success rate; that is, the proportion
+    of correct results. To do this, we create the following function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0f67a8e5-5368-48c7-9c0e-8c0cd8e6c0fe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we use string comprehensions, firstly to create a list of predictions
+    by finding the maximum of each output. Next, we create a list of labels to compare
+    the predictions. We create a list of correct values by comparing each element
+    in the `predict` list with the corresponding element in the `actual` list. Finally,
+    we return the success rate by dividing the number of correct values with the total
+    number of predictions made. We can calculate the success rate of our model by
+    calling this function with the output predictions and the labels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/20e5038e-59ef-4206-a2c7-33866e82d115.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we get a success rate of 83%. Note that this is calculated using images
+    the model has already trained on. To truly test the model''s performance, we need
+    to test it on images it has not seen before. We do this with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9d31ee45-f603-4e19-a653-04313caafeb9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, we have tested the model using the entire 10,000 images in the `MNIST`
+    test set. We create an iterator from the data loader object and then load them
+    in to the two tensors, `images` and `labels`. Next, we get an output (here, a
+    10 by 10,000 prediction tensor), by passing the model test images. Finally, we
+    run the `SuccessRate` function with the output and labels. The value is only slightly
+    lower than the success rate on the training set, so we can be reasonably confident
+    that this is an accurate measure of the model's performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have explored linear models and applied them to the tasks
+    of linear regression, logistic regression, and multi-class classification. We
+    have seen how autograd calculates gradients and how PyTorch works with computational
+    graphs. The multi-class classification model we built did a reasonable job of
+    predicting hand-written digits; however, its performance is far from optimal.
+    The best deep learning models are able to get near 100% accuracy on this dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will see in [Chapter 4](a3ca526e-1be7-4891-b763-a77141073ba8.xhtml), *Convolutional
+    Networks*, how adding more layers and using convolutional networks can improve
+    performance.
+  prefs: []
+  type: TYPE_NORMAL

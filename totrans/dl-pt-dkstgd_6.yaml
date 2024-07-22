@@ -1,0 +1,752 @@
+- en: Getting the Most out of PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'By now, you should be able to build and train three different types of model:
+    linear, convolutional, and recurrent. You should have an appreciation of the theory
+    and mathematics behind these model architectures and explain how they make predictions. Convolutional
+    networks are probably the most studied deep learning network, especially in relation
+    to image data. Of course, both convolutional and recurrent networks make extensive
+    use of linear layers, so the theory behind linear networks, most notably linear
+    regression and gradient descent, is fundamental to all artificial neural networks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our discussion so far has been fairly contained. We have looked at a well-studied
+    problem, such as classification using MNIST, to give you a solid understanding
+    of the basic PyTorch building blocks. This final chapter is the launching pad
+    for your use of PyTorch in the real world, and after reading it you should be
+    well placed to begin your own deep learning exploration. In this chapter, we will
+    discuss the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using **graphics processing units** (**GPUs**) to improve performance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimization strategies and techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using pretrained models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multiprocessor and distributed environments
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There are a variety of multiprocessor and distributed environment possibilities.
+    The most common reason for using more than one processor is, of course, to make
+    models run faster. The time it takes to load MNIST—a relatively tiny dataset of
+    60,000 images—to memory is not significant. However, consider the situation where
+    we have giga or terabytes of data, or if the data is distributed across multiple
+    servers. The situation is even more complex when we consider online models, where
+    data is being harvested from multiple servers in real time. Clearly, some sort
+    of parallel processing capability is required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a GPU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The simplest way to make a model run faster is to add GPUs. A significant reduction
+    in training time can be achieved by transferring processor-intensive tasks from
+    the **central processing unit** (**CPU**) to one or more GPUs. PyTorch uses the
+    `torch.cuda()` module to interface with the GPUs. CUDA is a parallel computing
+    model created by NVIDIA that features lazy assignment so that resources are only
+    allocated when needed. The resulting efficiency gains are substantial.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PyTorch uses a context manager, `torch.device()`, to assign tensors to a particular
+    device. The following screenshot shows an example of this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/28f918be-0a58-4290-ac06-197935fad27d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'It is a more usual practice to test for a GPU and assign a device to a variable
+    using the following semantics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `"cuda:0"` string refers to the default GPU device. Note that we test for
+    the presence of a GPU device and assign it to the `device `variable. If a GPU
+    device is unavailable, then the device is assigned to the CPU. This allows code
+    to run on machines that may or may not have a GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider the linear model we explored in [Chapter 3](77e1b6da-e5d6-46a4-8a2c-ee1cfa686cc6.xhtml),
+    *Computational Graphs and Linear Models*. We can use exactly the same model definition;
+    however, we need to change a few things in our training code to ensure processor-intensive
+    operations occur on the GPU. Once we have create our `device` variable, we can
+    assign operations to that device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the benchmark function we created earlier, we need to add the following
+    line of code after we initialize the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need to ensure the operations on the images, labels, and outputs all
+    occur on the selected device. In the `for` loop of the benchmark function, we
+    make the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/027ab9e2-ba48-4ed2-a9bf-d43a566d05e4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We need do to exactly the same thing for the images, labels, and outputs defined
+    in our accuracy function, simply appending `.to(device)` to these tensor definitions.
+    Once these changes have been made, if it is run on a system with a GPU, it should
+    run noticeably faster. For a model with four linear layers, this code ran in just
+    over 55 seconds, compared to over 120 seconds when run just on the CPU on my system.
+    Of course, CPU speed, memory, and other factors contribute to running time, so
+    these benchmarks will be different on different systems. The exact same training
+    code will work for a logistic regression model. The same modifications also work
+    for the training code for the other networks we have studied. Almost anything
+    can be transferred to a GPU, but be aware that there is a computational expense
+    incurred every time data is copied to the GPU, so do not unnecessarily transfer
+    operations to the GPU unless a complex computation—for example, calculating a
+    gradient—is involved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you have multiple GPUs available on your system, then `nn.DataParallel`
+    can be used to transparently distribute operations across these GPUs. This can
+    be as simple as using a wrapper around your model—for example, `model=torch.nn.DataParallel(model)`.
+    We can of course use a more granular approach and assign specific operations to
+    specific devices, as shown in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: PyTorch has a specific memory space available to speed up the transfer of tensors
+    to the GPU. This is used when a tensor is repeatedly allocated to a GPU. This
+    is achieved using the `pin_memory()` function—for example, `w3.pin_memory()`.
+    One of the major uses for this is to speed up the loading of input data, which
+    occurs repeatedly over a model's training cycle. To do this, simply pass the `pin_memory=True` argument to
+    the `DataLoader` object when it is instantiated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Distributed environments
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Sometimes, data and computing resources are not available on a single physical
+    machine. This requires protocols for exchanging tensor data over a network. With
+    distributed environments, where computations can occur on different kinds of physical
+    hardware over a network, there are a large number of considerations—for example,
+    network latencies or errors, processor availability, scheduling and timing issues,
+    and competing processing resources. In an ANN, it is essential that calculations
+    are produced in a certain order. The complex machinery for the assigning and timing
+    of each computation across networks of machines and processors in each machine
+    is, thankfully, largely hidden in PyTorch using higher-level interfaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PyTorch has two main packages, each of which deals the various aspects of distributed
+    and parallel environments. This is in addition to CUDA, which we discussed previously.
+    These packages are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`torch.distributed`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`torch.multiprocessing`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: torch.distributed
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Using `torch.distributed` is probably the most common approach. This package
+    provides communication primitives, such as classes, to check the number of nodes
+    in a network, ensure the availability of backend communication protocols, and
+    initialize process groups. It works on the module level. The `torch.nn.parallel.DistributedDataParallel()` class is
+    a container that wraps a PyTorch model, allowing it to inherit the functionality
+    of `torch.distributed`. The most common use case involves multiple processes that
+    each operate on their own GPU, either locally or over a network. A process group
+    is initialized to a device using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is run on each host. The backend specifies what communication protocols
+    to use. The NCCL (pronounced nickel) backend is generally the fastest and most
+    reliable. Be aware that this may need to be installed on your system. The `world_size`
+    is the number of processes in the job and the `init_method` is a URL pointing
+    to location and port for the process to be initialized. This can either be a network
+    address—for example, (`tcp://......`)—or a shared filesystem (`file://... /...`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A device can be set using `torch.cuda.set_devices(i)`. Finally, we can assign
+    the model by using the code phrase
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`model = distributedDataParallel(model, device_ids=[i], output_device=i`. This
+    is typically used in an initialization function that spawns each process and assigns
+    it to a processor. This ensures that every process is coordinated through a master
+    using the same IP address and port.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: torch.multiprocessing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The `torch.multiprocessor` package is a replacement for the Python multiprocessor
+    package, and is used in exactly the same way, that is, as a process-based threading
+    interface. One of the ways it extends the Python distributed package is by placing
+    PyTorch tensors into shared memory and only sending their handles to other processes.
+    This is achieved using a `multiprocessing.Queue` object. In general, multiprocessing
+    occurs asynchronously; that is, processes for a particular device are enqueued
+    and executed when the process reaches the top of the queue. Each device executes
+    a process in the order that it is queued and PyTorch periodically synchronizes
+    the multiple processes when copying between devices. This means that, as far as
+    the caller of a multi-process function is concerned, the processes occur synchronously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the major difficulties when writing multithreaded applications is avoiding
+    deadlocking, where two processes compete for a single resource. A common reason
+    for this is when background threads lock or import a module and a subprocess is
+    forked. The subprocess will likely be spawned in a corrupted state, causing a
+    deadlock or another error. The `multiprocessingQueue` class itself spawns multiple
+    background threads to send, receive, and serialize objects, and these threads
+    can also cause deadlocks. For these circumstances, the thread free `multiprocessingQueue.queues.SimpleQueue`
+    can be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimization techniques
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The `torch.optim` package contains a number of optimization algorithms, and
+    each of these algorithms has several parameters that we can use to fine-tune deep
+    learning models. Optimization is a critical component in deep learning, so it
+    is no surprise that different optimization techniques can be key to a model's
+    performance. Remember, its role is to store and update the parameter state based
+    on the calculated gradients of the loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizer algorithms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There are a number of optimization algorithms besides SGD available in PyTorch.
+    The following code shows one such algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `Adedelta` algorithm is based on stochastic gradient descent; however,
+    instead of having the same learning rate over each iteration, the learning rate
+    adapts over time. The `Adadelta` algorithm maintains separate dynamic learning
+    rates for each dimension. This can make training quicker and more efficient, as
+    the overhead of calculating new learning rates on each iteration is quite small
+    compared to actually calculating the gradients. The `Adadelta` algorithm performs
+    well with noisy data for a range of model architectures, large gradients, and
+    in distributed environments. The `Adadelta` algorithm is particularly effective
+    with large models, and works well with large initial learning rates. There are
+    two hyperparameters associated with `Adadelta` that we have not discussed yet.
+    The `rho` is used to calculate the running averages of the squared gradients;
+    this determines the decay rate. The `eps` hyperparameter is added to improve the
+    numerical stability of `Adadelta`, as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `Adagrad` algorithm, or adaptive subgradient methods for stochastic optimization,
+    is a technique that incorporates geometric knowledge of the training data observed
+    in earlier iterations. This allows the algorithm to find infrequent, but highly
+    predictive, features. The `Adagrad` algorithm uses an adaptive learning rate that
+    give frequently occurring features low learning rates and rare features higher
+    learning rates. This has the effect of finding rare but important features of
+    the data and calculating each gradient step accordingly. The learning rate decreases
+    faster over each iteration for more frequent features, and slower for rarer features,
+    meaning that rare features tend to maintain higher learning rates over more iterations.
+    The `Adagrad` algorithm tends to work best for sparse datasets. An example of
+    its application is shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Adam` algorithm (adaptive moment estimation) uses an adaptive learning
+    rate based on the mean and the uncentered variance (the first and second moments)
+    of the gradient. Like `Adagrad`, it stores the average of past squared gradients.
+    It also stores the decaying average of these gradients. It calculates the learning
+    rate on each iteration on a per-dimension basis. The `Adam` algorithm combines
+    the benefits of `Adagrad`, working well on sparse gradients, with the ability
+    to work well in online and nonstationary settings. Note that `Adam` takes an optional
+    tuple of beta parameters. These are coefficients that are used in the calculation
+    of the running average and the square of these averages. The `amsgrad` flag, when
+    set to `True`, enables a variant of `Adam` that incorporates the long-term memory
+    of gradients. This can assist with the convergence, where, in certain situations,
+    the standard `Adam` algorithm fails to converge. In addition to the `Adam` algorithm,
+    PyTorch contains two variants of `Adam`. The `optim.SparseAdam` performs lazy
+    updating of parameters, where only the moments that appear in the gradient get
+    updated and applied to the parameters. This provides a more efficient way of working
+    with sparse tensors, such as those used for word embedding. The second variant,
+    `optim.Adamax`, uses the infinite norm to calculate the gradients, and this, theoretically,
+    reduces its susceptibility to noise. In practice, the choice of the best optimizer
+    is often a matter of trial and error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code demonstrates the `optim.RMSprop` optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `RMSprop` algorithm divides the learning rate for each parameter by a running
+    average of the squares of the magnitude of recent gradients for that particular
+    parameter. This ensures that the step size on each iteration is of the same scale
+    as the gradient. This has the effect of stabilizing gradient descent and reduces
+    the problem of disappearing or exploding gradients. The alpha hyperparameter is
+    a smoothing parameter that helps make the network resilient to noise. Its use
+    can be seen in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Rprop` algorithm (resilient back propagation) is an adaptive algorithm
+    that calculates weight updates by using the sign, but not the magnitude, of the
+    partial derivative of the cost function for each weight. These are calculated
+    for each weight independently. The `Rprop` algorithm takes a tuple pair of arguments,
+    `etas`. These are multiplicative factors that either increase or decrease the
+    weight depending on the sign of the derivative calculated on the entire loss function
+    of the previous iteration. If the last iteration produced the opposite sign as
+    the current derivative, then the update is multiplied by the first value in the
+    tuple, called `etaminus`, a value less than one and defaulting to `0.5`. If the
+    sign is the same on the current iteration, then that weight update is multiplied
+    by the second value in the `etas` tuple, called `etaplis`, a value greater than
+    `1` and defaulting to `1.2`. In this way, the total error function is minimized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning rate scheduler
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The `torch.optim.lr_schedular `class serves as a wrapper around an to schedule
+    the learning rate according to a specific function multiplied by the initial learning
+    rate. The learning rate scheduler can be applied separately to each parameter
+    group. This can speed up training time since, typically, we are able to use larger
+    learning rates at the beginning of the training cycle and shrink this rate as
+    the optimizer approaches minimal loss. Once a scheduler object is defined, it
+    is typically stepped every epoch using `scheduler.step()`. There are a number
+    of learning rate scheduler classes available in PyTorch, and the most common one
+    is shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This learning rate scheduler class takes a function that multiplies the initial
+    learning rate of each parameter group, and is either passed as a single function
+    or a list of functions if there is more than one parameter group. The `last_epoch`
+    is the index of the last epoch, so the default, `-1`, is the initial learning
+    rate. The following screenshot of an example of this class assumes that we have
+    two parameter groups:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/76f9618c-2c83-4e84-826d-cfef3306afc5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '`optim.lr_schedular.StepLR(optimizer, step_size, gamma=0.1, last_epoch=-1` decays
+    the learning rate by a multiplicative factor, `gamma`, every `step_size` of epochs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`optim.lr_schedular.MultiStepLR(optimizer, milestones, gamma=0.1,last_epoch=-1)` takes
+    a list of milestones, measured in the number of epochs, when the learning rate
+    is decayed by `gamma`. The `milestones` phrase is an increasing list of `epoch`
+    indices.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parameter groups
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When an optimizer is instantiated, it is the as well as a variety of hyperparameters
+    such as the learning rate. Optimizers are also passed other hyperparameters specific
+    to each optimization algorithm. It can be extremely useful to set up groups of
+    these hyperparameters, which can be applied to different parts of the model. This
+    can be achieved by creating a parameter group, essentially a list of dictionaries
+    that can be passed to the optimizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `param` variable must either be an iterator over a `torch.tens``or` or a
+    Python dictionary specifying a default value of optimization options. Note that
+    the parameters themselves need to be specified as an ordered collection, such
+    as a list, so that parameters are a consistent sequence between model runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is possible to specify the parameters as a parameter group. Consider the
+    code shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0f14fc80-5800-4ab0-99eb-d19abcccf827.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The `param_groups` function returns a list of dictionaries containing the weights
+    and the optimizer hyperparameters. We have already discussed the learning rate.
+    The SGD optimizer also has several other hyperparameters that can be used to fine-tune
+    your models. The `momentum` hyperparameter modifies the SGD algorithm to help
+    accelerate gradient tensors towards the optimum, usually leading to faster convergence.
+    The momentum defaults to `0`; however, using higher values, usually around `0.9`,
+    often results in faster optimization. This is especially effective on noisy data.
+    It works by calculating a moving average across the dataset, effectively smoothing
+    the data and consequently improving optimization. The `dampening` parameter can
+    be used in conjunction with `momentum` as a dampening factor. The `weight_decay` parameter
+    applies L2 regularization. This adds a term to the loss function, with the effect
+    of shrinking the parameter estimates, making the model simpler and less likely
+    to overfit. Finally, the `nestrove` parameter calculates the momentum based on
+    future weight predictions. This enables the algorithm to look ahead by calculating
+    a gradient, not with respect to current parameters, but with respect to approximate
+    future parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can use the `param_groups` function to assign different sets of parameters
+    to each parameter group. Consider the code shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/04b193a5-3112-4d6d-81de-6b54c5306952.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we have created another weight, `w2`, and assigned it to a parameter
+    group. Note that in the output we have two sets of hyperparameters, one for each
+    parameter group. This enables us to set weight-specific hyperparameters, allowing,
+    for example, different options to be applied to each layer in a network. We can
+    access each parameter group and change a parameter value, using its list index,
+    as shown in the code in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/552d4d51-37a2-45b0-accf-dabdd9ad3f43.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Pretrained models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One of the major difficulties with image classification models is the lack of
+    labeled data. It is difficult to assemble a labeled dataset of sufficient size
+    to train a model well; it is an extremely time consuming and laborious task. This
+    is not such a problem for MNIST, since the images are relatively simple. They
+    are greyscale and largely consist only of target features, there are no distracting
+    background features, and the images are all aligned the same way and are of the
+    same scale. A small dataset of 60,000 images is quite sufficient to train a model
+    well. It is rare to find such a well-organized and consistent dataset in the problems
+    we encounter in real life. Images are often of variable quality, and the target
+    features can be obscured or distorted. They can also be of widely variable scales
+    and rotations. The solution is to use a model architecture that is pretrained
+    on a very large dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PyTorch includes six model architectures based on convolutional networks, designed
+    for working with images on classification or regression tasks. The following list
+    describes these models in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**AlexNet**: This model is based on convolutional networks and achieves significant
+    performance improvements through a strategy of parallelizing operations across
+    processors. The reason for this is that operations on the convolutional layers
+    are somewhat different to those that occur on the linear layers of a convolutional
+    network. The convolutional layers account for around 90% of the overall computation,
+    but operate on only 55% of the parameters. For the fully connected linear layers,
+    the reverse is true, accounting for around 5% of the computations, yet they contain
+    around 95% of the parameters. AlexNet uses a different parellelizing strategy
+    to take into account the differences between linear and convolutional layers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**VGG**: The basic strategy behind **very deep convolutional networks** (**VGG**)
+    for large-scale image recognition is to increase the depth the number of layers—while
+    using a very small filter with a receptive field of 3 x 3 for all convolutional
+    layers. All hidden layers include ReLU nonlinearity, and the output layers consist
+    of three fully connected linear layers and a softmax layer. The VGG architecture
+    is available in the `vgg11`, `vgg13`, `vgg16`, `vgg19`, `vgg 11_bn`, `vgg13_bn`,
+    `vgg16_bn`, and `vgg19_bn `variants.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ResNet**: While very deep networks offer potentially greater computation
+    power, they can be very difficult to optimize and train. Very deep networks often
+    result in gradients that either vanish or explode. ResNet uses a residual network
+    that includes shortcut skip connections to jump over some layers. These skip layers
+    have variable weights so that in the initial training phase the network effectively
+    collapses into a few layers, and as training proceeds, the number of layers is
+    expanded as new features are learned. Resnet is available in the `resnet18`, `resnet34`,
+    `resnet50`, `resnet101`, and `resnet152 `variants.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**SqueezeNet**:SqueezeNet was designed to create smaller models with fewer
+    parameters that are easier to export and run in distributed environments. This
+    is achieved using three strategies. Firstly, it reduces the receptive field of
+    the majority of convolutions from 3 x 3 to 1 X 1\. Secondly, it reduces the input
+    channels into the remaining 3 x 3 filters. Thirdly, it down samples in the final
+    layers in the network. SqueezeNet is available in the `squeezenet1_0 `and `squeezenet1_1 `variants.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**DenseNet**:Densely convolutional networks—in contrast to standard CNNs, where
+    weights propagate through each layer from input to output— each layer, the feature
+    maps for all preceding layers are used as inputs. This results in shorter connections
+    between layers and a network that encourages the reuse of parameters. This results
+    in fewer parameters and strengthens the propagation of features. DenseNet is available
+    in the `Densenet121`, `Densenet169`, and `Densenet201 `variants.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Inception**: This architecture uses several strategies to improve performance,
+    including reducing informational bottlenecks by gently reducing dimensionality
+    between the input and output, factorizing convolutions from larger to smaller
+    receptive fields, and balancing the width and depth of the network. The latest
+    version is `inception_v3`. Importantly, Inception requires images to be of size
+    299 x 299, in contrast to the other models, which require images to be of size
+    224 x 224.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These models can be initialized with random weights by simply calling their
+    constructor, for example `model = resnet18()`. To initialize a pre-trained model,
+    set the Boolean `pretrained= True`, for example, `model = resnet18(pretrained=True)`.
+    This will load the dataset with their weight values pre-loaded. These weights are
+    calculated by training the network on the `Imagenet` dataset. This dataset contains
+    over 14 million images with over 100 indexes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many of these model architectures come in several configurations—for example, `resnet18`,
+    `resnet34`, `vgg11`, and `vgg13`. These variants exploit differences in layer
+    depth, normalization strategies, and other hyperparameters. Finding which one
+    works best for a particular task requires some experimentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Also, be aware that these models are designed for working with image data,
+    and require RGB images in the form of `(3, W, H)`. Input images need to be resized
+    to 224 x 224, except for Inception, which requires images of size 299 x 299\.
+    Importantly, they need to be normalized in a very specific way. This can be done
+    by creating a `normalize` variable and passing it to `torch.utils.data.DataLoader`,
+    usually as part of a `transforms.compose()` object. It is important that the `normalize`
+    variable is given exactly the following values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This ensures that the input images have the same distribution as the `Imagenet`
+    set that they were trained on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a pretrained model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Remember the Guiseppe toys dataset we played with in [Chapter 1](2d1384b3-ec8a-40f0-96d0-5ac061f08a65.xhtml), *Introduction
+    to PyTorch*? We now finally have the tools and knowledge to be able to create
+    a classification model for this data. We are going to do this by using a model
+    pretrained on the `Imagenet` dataset. This is called transfer learning, because
+    we are transferring the learning achieved on one dataset to make predictions on
+    a different, usually much smaller, dataset. Using a network with pretrained weights
+    dramatically increases its performance on much smaller datasets, and this is surprisingly
+    easy to achieve. In the simplest case, we can pass the pretrained model a data
+    of labeled images and simply change the number of output features. Remember that
+    `Imagenet` has `100` indexes or potential labels. For our task here, we want to
+    categorize images into three classes: `toy`, `notoy`, and `scenes`. For this reason,
+    we need to assign the number of output features to three.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in the following screenshot is an adaption of code from the transfer learning
+    tutorial by Sasank Chilamkurthy, found at [https://chsasank.github.io](https://chsasank.github.io).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To begin, we need to import the data. This is available from this book''s website
+    (`.../toydata`). Unzip this file into your working directory. You can actually
+    use any image data you like, provided it has the same directory structure: that
+    is two subdirectories for training and validation sets, and within these two directories,
+    subdirectories for each of the classes. Other datasets you might like to try are
+    the hymenoptera dataset, containing two classes of either ants or bees, available
+    from [https://download.pytorch.org/tutorial/hymenoptera_data.zip](https://download.pytorch.org/tutorial/hymenoptera_data.zip),
+    and the CIFAR-10 dataset from `torchvision/datasets`, or the much larger and more
+    challenging plant seedling dataset, containing 12 classes, available from [https://www.kaggle.com/c/plant-seedlings-classification](https://www.kaggle.com/c/plant-seedlings-classification).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need to apply separate data transformations for training and validation
+    datasets, import and make the datasets iterable, and then assign the device to
+    a GPU, if available, as shown in the code in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d918ebae-9d7b-4807-bd5e-61f637ab2640.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that a dictionary is used to store two lists of `compose` objects in order
+    to transform the training and validation sets. The `RandomResizedCrop` and `RandomHorizontalFlip` transforms
+    are used to augment the training set. For both the training and validation sets,
+    the images are resized and center cropped, and the specific normalization values,
+    as discussed in the last section, are applied.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data is unpacked using a dictionary comprehension. This uses the `datasets.Imagefolder`
+    class, which is a generic data loader for use where the data is organized into
+    their class folders. In this case, we have three folders, `NoToy`, `Scenes`, and
+    `SingleToy`, for their respective classes. This directory structure is replicated
+    in both the `val` and `train` directories. There are 117 training images and 24
+    validation images, divided into the three classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can retrieve the class names simply by calling the `classes` attribute of
+    the `ImageFolder`, as shown in the code in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/513366ab-885c-48fb-b03a-904975aaca52.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'A batch of images and their class indexes can be retrieved using the code in
+    the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a44ce0e3-7031-4f95-84b5-61c5a7206a34.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `inputs` tensor has a size in the form of `(batch, RGB, W,H)`. The first
+    tensor, of size `4`, contains either a `0` (`NoToy`), `1` (`Scenes`), or `2` (`SingleToy`),
+    representing the class for each of the `4` images in the batch. The class names
+    of each image in the batch can be retrieved using the following list comprehension:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f78f1227-8603-4cf2-8f32-3827530bee1f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s look at the function that is used to train the model. This has
+    a similar structure to our earlier training code, with a few additions. Training
+    is divided into two phases, `train` and `val`. Also, the learning rate scheduler
+    needs to be stepped for every `epoch` in the `train` phase, as shown in the code
+    in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8ffc7b19-15d8-406d-9f98-27f3344ae0eb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The `train_model` function takes as arguments the model, the loss criteria,
+    a learning rate scheduler, and the number of epochs. The model weights are stored
+    by deep copying `model.state_dict()`. Deep copying this ensures that all elements
+    of the state dictionary are copied, and not just referenced, into the `best_model_wts`
+    variable. For every epoch there are two phases, a training phase and a validation
+    phase. In the validation phase, the model is set to evaluation mode using `model.eval()`.
+    This changes the behaviour of some model layers, typically the dropout layer,
+    setting the dropout probability to zero to validate on the complete model. The
+    accuracy and loss for both the training and validation phases are printed on each
+    epoch. Once this is done, the best validation accuracy is printed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we can run the training code, we need to instantiate the model and set
+    up the optimizer, loss criteria, and learning rate scheduler. Here, we use the `resnet18` model,
+    as shown in the code in the following screenshot. This code works for all `resnet`
+    variants, although not necessarily with the same accuracy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68111a99-dc1f-4183-b102-bef34c6d1fb1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The model is used with all weights, excluding the output layer, trained on the
+    `Imagenet` dataset. We need only change the output layer since the weights in
+    all hidden layers are frozen in their pretrained state. This is done by setting
+    the output layer to a linear layer with its output set to the number of classes
+    we are predicting. The output layer is essentially a feature extractor for the
+    dataset we are working with. At the output, the features we are trying to extract
+    are the classes themselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can look at the structure of the model by simply running `print(model)`.
+    The final layer is named `fc`, so we can access this layer with `model.fc`. This
+    is assigned a linear layer and is passed the number of input features, accessed
+    with `fc.in_features`, and the number of output classes, here set to `3`. When
+    we run this model, we are able to achieve an accuracy of around 90%, which is
+    actually quite impressive, considering the tiny dataset we are using. This is
+    possible because most of the training, apart from the final layer, is done on
+    a much larger training set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is possible, and a worthwhile exercise, to use the other pretrained models
+    with a few changes to the training code. For example, the DenseNet model can be
+    directly substituted for ResNet by simply changing the name of the output layer
+    from `fc` to `classifier`, so instead of writing `model.fc`, we write `model.classifier`.
+    SqueezeNet, VGG, and AlexNet have their final layers wrapped inside a sequential
+    container, so to change the output `fc` layer, we need to go through the following
+    four steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the number of filters in the output layer
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Convert the layers in the sequential object to a list and remove the last element
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add the last linear layer, specifying the number of output classes, to the end
+    of the list
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Convert the list back to a sequential container and add it to the model class
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `vgg11` model, the following code can be used to implement these four
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a71d4a48-4c04-442f-bd96-f23aa9322633.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that you have an understanding of the foundations of deep learning, you
+    should be well placed to apply this knowledge to specific learning problems that
+    you are interested in. In this chapter, we have developed an out-of-the-box solution
+    for image classification using pretrained models. As you have seen, this is quite
+    simple to implement, and can be applied to almost any image classification problem
+    you can think of. Of course, the actual performance in each situation will depend
+    on the number and quality of images presented, as well as the precise tuning of
+    the hyperparameters associated with each model and task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can generally get very good results on most image classification tasks by
+    simply running the pretrained models with default parameters. This requires no
+    theoretical knowledge, apart from installing the programs' running environment.
+    You will find that when you adjust some parameters, you may improve the network's
+    training time and/or accuracy. For example, you may have noticed that increasing
+    the learning rate may dramatically improve a model's performance over a small
+    number of epochs, but over subsequent epochs the accuracy actually declines. This
+    is an example of gradient descent overshooting, and failing to find the true optimum.
+    Finding the best learning rate requires some knowledge of gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to get the most out of PyTorch and apply it in different problem domains—such
+    as language processing, physical modeling, weather and climate prediction, and
+    so on (the applications are almost endless)—you need to have some understanding
+    of the theory behind these algorithms. This not only allows improvement on known
+    tasks, such as image classification, but also gives you some insight into how
+    deep learning might be applied in a situation where, for example, the input data
+    is a time series and the task is to predict the next sequence. After reading this
+    book, you should know the solution, which is of course to use a recurrent network.
+    You would have noticed that the model we built to generate text—that is, to make
+    predictions on a sequence—was quite different to the model used to make predictions
+    on static image data. But what about the model you would have to build to help
+    you gain insights into a particular process? This could be the electronic traffic
+    on a website, the physical traffic on a road network, the carbon and oxygen cycle
+    of the planet, or a human biological system. These are the frontiers of deep learning,
+    with immense power to do good. I hope reading this short introduction has left
+    you feeling empowered and inspired to begin exploring some of these applications.
+  prefs: []
+  type: TYPE_NORMAL
