@@ -1,6 +1,8 @@
 - en: Deploying to the Edge
+  id: totrans-0
   prefs: []
   type: TYPE_NORMAL
+  zh: 部署到边缘
 - en: Performing **machine learning and operations** (**MLOps**) on a single computer
     can be challenging. When we think about training, deploying, and maintaining models
     across thousands of computers, the complexity of doing so can be daunting. Luckily,
@@ -8,8 +10,10 @@
     and **continuous integration/continuous deployment** (**CI/CD**) pipelines. In
     this chapter, we are going to discuss deploying models in a way that is secure,
     updatable, and optimized for the hardware at hand.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在单个计算机上执行**机器学习和运维**（**MLOps**）可能具有挑战性。当我们考虑在成千上万台计算机上进行模型训练、部署和维护时，这样做的复杂性可能令人生畏。幸运的是，有减少此复杂性的方法，如使用容器化和**持续集成/持续部署**（**CI/CD**）流水线工具。在本章中，我们将讨论以安全、可更新且优化当前硬件的方式部署模型。
 - en: In terms of building updatable models, we are going to discuss using Azure IoT
     Hub Edge devices to enable **over-the-air** (**OTA**) updates across a single management
     plane. We are also going to use device twins to maintain the fleet and push configuration
@@ -17,42 +21,63 @@
     one type of computer architecture, such as x86, and run it on ARM. Finally, we
     are going to discuss how to use fog computing to perform distributed machine learning
     across different types of devices.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在构建可更新模型方面，我们将讨论使用 Azure IoT Hub Edge 设备在单一管理平面上实现**OTA**更新。我们还将使用设备双子来维护车队并推送配置设置到我们的模型中。此外，我们还将学习如何在一个计算机架构（如
+    x86）上训练模型并在 ARM 上运行。最后，我们将讨论如何使用雾计算在不同类型的设备上执行分布式机器学习。
 - en: 'This chapter consist of the following recipes:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章包括以下步骤：
 - en: OTA updating MCUs
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OTA 更新 MCU
 - en: Deploying modules with IoT Edge
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用 IoT Edge 部署模块
 - en: Offloading to the web with TensorFlow.js
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用 TensorFlow.js 将负载卸载到网络
 - en: Deploying mobile models
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 部署移动模型
 - en: Maintaining your fleet with device twins
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用设备双子维护你的车队
 - en: Enabling distributed machine learning with fog computing
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用雾计算启用分布式机器学习
 - en: Let's get started!
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们开始吧！
 - en: OTA updating MCUs
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: OTA 更新 MCU
 - en: OTA updates are essential for deploying security updates, new functionality,
     and updating models. There are two different techniques for OTA updates. The first
     is building a custom program that, ideally, runs on its own program or thread
@@ -61,109 +86,165 @@
     firmware. If the new firmware fails to start, the custom software can then start
     up the working version of the software. This usually involves saving half of the
     flash memory available for OTA updates.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: OTA 更新对于部署安全更新、新功能和更新模型至关重要。有两种不同的 OTA 更新技术。第一种是构建一个自定义程序，理想情况下，它运行在与尝试更新的主程序不同的程序或线程上。这个软件会将新固件下载到闪存中，并注册并启动新固件。如果新固件启动失败，自定义软件可以启动工作版本的软件。通常需要将一半的可用闪存内存保存用于
+    OTA 更新。
 - en: The second way is to use a system such as Azure IoT Edge to update the Docker
     containers on the device. This requires a device that is running a full operating
     system, such as Raspbian, Ubuntu, or Windows. The majority of IoT devices do not
     have the compute needed to support IoT Edge. In this recipe, we will talk about
     OTA updates on MCUs, while in the next, we will discuss OTA updates with IoT Edge.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二种方法是使用 Azure IoT Edge 等系统来更新设备上的 Docker 容器。这需要设备运行完整操作系统，如 Raspbian、Ubuntu
+    或 Windows。大多数物联网设备无法支持 IoT Edge 所需的计算能力。在这个示例中，我们将讨论 MCU 的 OTA 更新，而在下一个示例中，我们将讨论
+    IoT Edge 上的 OTA 更新。
 - en: Getting ready
+  id: totrans-14
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备工作
 - en: In this recipe, we are going to use an ESP32 to do an OTA update for a small
     MCU device. With the ESP32, we are going to be programming in the IDF framework. **Espressif
     IoT Development Framework** (**ESP-IDF**) is a low-level programming framework.
     It has fewer pre-built components than the Arduino framework but is faster and
     more geared to industrial applications.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们将使用 ESP32 对小型 MCU 设备进行 OTA 更新。使用 ESP32，我们将在 IDF 框架中进行编程。**Espressif
+    IoT 开发框架**（**ESP-IDF**）是一个低级编程框架。它比 Arduino 框架具有较少的预构建组件，但更快速，更适合工业应用。
 - en: 'For development, we are going to be using VS Code with the **PlatformIO** extension
     added. We can create a project by going to the **PlatformIO** home page and selecting
     **+ New Project**:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于开发，我们将使用带有**PlatformIO**扩展的 VS Code。我们可以通过访问**PlatformIO**主页并选择**+ New Project**来创建项目：
 - en: '![](img/66a3ab03-88e2-4e4b-83d2-092966f5c1f2.png)'
+  id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/66a3ab03-88e2-4e4b-83d2-092966f5c1f2.png)'
 - en: 'From there, add a project name, and then select the development board and the
     development framework you will be using. In my case, I am using the NodeMCU-32S
     as my development board:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，添加项目名称，然后选择将要使用的开发板和开发框架。在我这里，我使用NodeMCU-32S作为开发板：
 - en: '![](img/23760114-2ef8-489f-bca8-2d76c1939978.png)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/23760114-2ef8-489f-bca8-2d76c1939978.png)'
 - en: Then, rename `empty.c` to `main.c` in your root directory and start coding.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，在您的根目录中将`empty.c`重命名为`main.c`并开始编码。
 - en: How to do it...
+  id: totrans-21
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何操作...
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个配方的步骤如下：
 - en: 'Import the necessary libraries:'
+  id: totrans-23
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的库：
 - en: '[PRE0]'
+  id: totrans-24
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Set the firmware version, certificates, and buffer size:'
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 设置固件版本、证书和缓冲区大小：
 - en: '[PRE1]'
+  id: totrans-26
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Create an HTTP event handler:'
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建HTTP事件处理程序：
 - en: '[PRE2]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Next, we are going to create an infinite loop (for the sake of brevity, we
     will forget the machine learning algorithm):'
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将创建一个无限循环（为简洁起见，我们将忽略机器学习算法）：
 - en: '[PRE3]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Check for OTA updates. Doing so will download the manifest. Then, if the version
     is different than the current version, it triggers a download and restarts the
     device:'
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 检查OTA更新。这样做会下载清单。然后，如果版本与当前版本不同，它将触发下载并重新启动设备：
 - en: '[PRE4]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Initialize the Wi-Fi:'
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化Wi-Fi：
 - en: '[PRE5]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'In the main loop, initiate the Wi-Fi and create two tasks (the OTA update task
     and our mock machine learning task):'
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在主循环中，初始化Wi-Fi并创建两个任务（OTA更新任务和我们的模拟机器学习任务）：
 - en: '[PRE6]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: How it works...
+  id: totrans-37
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作原理...
 - en: The program has three tasks. The first task is to set up and ensure that it
     is connected to the Wi-Fi. It will not do anything else until it establishes a
     connection. This program uses Free RTOS as its real-time operating system. RTOS
@@ -171,30 +252,42 @@
     threads. Our first thread performs a machine learning task, while the second performs
     an update task. The update task allows us to poll our web server on a less frequent
     basis.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序有三个任务。第一个任务是设置并确保连接到Wi-Fi。在建立连接之前，它不会执行其他操作。该程序使用Free RTOS作为其实时操作系统。RTOS允许线程独立执行。这使我们能够拥有两个非阻塞线程。我们的第一个线程执行机器学习任务，而第二个执行更新任务。更新任务允许我们以较低的频率轮询我们的Web服务器。
 - en: There's more...
+  id: totrans-39
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 更多内容...
 - en: 'The OTA updater in this recipe needs a manifest so that it can check against
     its current version and find the file to download. The following is a `.json`
     file example of the manifest:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 此配方中的OTA更新器需要一个清单，以便它可以根据其当前版本检查并找到要下载的文件。以下是清单的`.json`文件示例：
 - en: '[PRE7]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: OTA updates are an important thing for any IoT device. Most manufactures of
     silicon devices, such as the ESP32 or STM32, have solved this OTA update issue.
     These manufacturers usually have sample code that will help you quickly start
     your project.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: OTA更新对任何IoT设备都是重要的事情。大多数芯片设备制造商，如ESP32或STM32，已解决了这个OTA更新问题。这些制造商通常有示例代码，可以帮助您快速启动项目。
 - en: Deploying modules with IoT Edge
+  id: totrans-43
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用IoT Edge部署模块
 - en: Deploying models to the edge can be risky. In the previous recipe, we made a
     simple update to a small IoT device. If the update bricked the entire fleet of
     devices, they may be lost forever. If we had a more powerful device, then we could
@@ -205,16 +298,23 @@
     equipment that needs to perform geofencing operations, machine learning for device
     failure predictions, and reinforcement learning for self-driving cars. Any one
     of these programs could be updated without impacting the other modules.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 在边缘部署模型可能存在风险。在前面的配方中，我们对小型IoT设备进行了简单的更新。如果更新导致整个设备群失败，它们可能永远丢失。如果我们有一个更强大的设备，那么我们可以启动独立运行的程序，彼此不受影响。如果更新失败，程序可以回滚到一个正常工作的版本。这就是IoT
+    Edge的作用所在。IoT Edge通过使用Docker技术专门处理在IoT设备上运行多个程序的问题。例如，这可能是需要执行地理围栏操作的采矿设备，用于设备故障预测的机器学习和用于自动驾驶汽车的强化学习。这些程序中的任何一个都可以更新，而不会影响其他模块。
 - en: In this recipe, we are going to use Azure's IoT Hub and IoT Edge capabilities.
     This will involve using Docker and IoT Hub to push models down to devices.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个配方中，我们将使用Azure的IoT Hub和IoT Edge功能。这涉及使用Docker和IoT Hub将模型推送到设备。
 - en: Getting ready
+  id: totrans-46
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备工作
 - en: For this recipe, you will need an Azure IoT Hub and an Azure Container Registry
     in the cloud. You will also need **Visual Studio Code** (**VS Code**) with the
     Azure IoT extension installed and a Raspberry Pi. There are three main components
@@ -223,53 +323,81 @@
     writing the code. In our case, we will be writing the code on an x86-based laptop
     and deploying the models to an ARM-based Raspberry Pi. Finally, we will be deploying
     the code to a device or series of devices.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这个教程，您将需要一个位于云端的Azure IoT Hub和Azure容器注册表。您还需要安装了Azure IoT扩展的**Visual Studio
+    Code**（**VS Code**）和一个Raspberry Pi。对于这个教程，您将需要三个主要组件。第一个是我们的Raspberry Pi，它必须进行设置。这将涉及安装Moby，即Docker的轻量级版本。接下来是编写代码。在我们的情况下，我们将在基于x86的笔记本上编写代码，并将模型部署到基于ARM的Raspberry
+    Pi上。最后，我们将把代码部署到一个或一系列设备上。
 - en: Setting up our Raspberry Pi
+  id: totrans-48
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 设置我们的Raspberry Pi
 - en: 'For this recipe, we are going to code on the Raspberry Pi remotely from a laptop
     computer. To do that, we are going to need to allow SSH and then connect to the
     Raspberry Pi via VS Code. On the Raspberry Pi, you will need to go to **Menu**
     | **Preferences** | **Raspberry Pi Configuration**. Then, click on **Interfaces**
     and enable **SSH**:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这个教程，我们将远程从笔记本电脑上的Raspberry Pi进行编码。为了实现这一点，我们需要允许SSH并通过VS Code连接到Raspberry
+    Pi。在Raspberry Pi上，您需要转到**Menu** | **Preferences** | **Raspberry Pi Configuration**。然后，单击**Interfaces**并启用**SSH**：
 - en: '![](img/cb11cffd-7d55-40a5-ba0a-4fe5b62e4659.png)'
+  id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/cb11cffd-7d55-40a5-ba0a-4fe5b62e4659.png)'
 - en: 'In a Terminal window, type in the following command:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 在终端窗口中，输入以下命令：
 - en: '[PRE8]'
+  id: totrans-52
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: This will give you the IP address of your Raspberry Pi. Take that IP address
     and, back on your desktop computer, in VS Code, install the SSH plugin and connect
     to the Raspberry Pi. Then, connect to the Raspberry Pi using VS Code by using
     the Connect to SSH button. From there, follow the wizard to connect to the Raspberry
     Pi using the device's IP address and password. Once you've done this, you can
     create a new project on the device.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将为您提供Raspberry Pi的IP地址。将该IP地址记录下来，然后回到您的桌面电脑，在VS Code中安装SSH插件并连接到Raspberry
+    Pi。然后，通过使用连接到SSH按钮连接到Raspberry Pi。然后，按照向导的指示使用设备的IP地址和密码连接到Raspberry Pi。完成这些步骤后，您可以在设备上创建一个新项目。
 - en: Also, while you are on the device, you will need to install the IoT Edge agent.
     To do this, follow the instructions at [https://docs.microsoft.com/en-us/azure/iot-edge/how-to-install-iot-edge-linux](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-install-iot-edge-linux).
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在您使用设备时，您需要安装IoT Edge代理。要做到这一点，请按照[https://docs.microsoft.com/en-us/azure/iot-edge/how-to-install-iot-edge-linux](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-install-iot-edge-linux)中的说明操作。
 - en: Coding setup
+  id: totrans-55
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 编码设置
 - en: 'Now, create a new IoT Edge project. To do this, open Visual Studio and install
     the Azure IoT Edge extension, as well as the Docker extension. Then, using *Ctrl*
     + *Shift* + *P*, open the command window, type `Azure IoT Edge:` into the **Search**
     bar, and select **Azure IoT Edge: New IoT Edge Solution**:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: '现在，创建一个新的IoT Edge项目。要做到这一点，请打开Visual Studio并安装Azure IoT Edge扩展，以及Docker扩展。然后，使用*Ctrl*
+    + *Shift* + *P*打开命令窗口，输入`Azure IoT Edge:`进入**搜索**栏，并选择**Azure IoT Edge: New IoT
+    Edge Solution**：'
 - en: '![](img/a8bc36ae-632c-4008-a118-eefd631831f7.png)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/a8bc36ae-632c-4008-a118-eefd631831f7.png)'
 - en: 'Once you''ve done this, you will see a wizard that asks you to name the project.
     Then, the wizard will have you add a module. A project can have numerous modules
     that do different tasks. These modules can be written in different languages or
@@ -277,78 +405,117 @@
     In our case, we are making a custom Python module. It will then ask you for the
     location of the Azure Container Registry for the module, so provide the location
     as required, as shown in the following screenshot:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 完成这些步骤后，您将看到一个向导，要求您为项目命名。然后，向导将提示您添加一个模块。一个项目可以有多个执行不同任务的模块。这些模块可以用不同的语言编写，或者使用Azure机器学习服务来集成该平台上的预构建模型。在我们的情况下，我们正在制作一个自定义的Python模块。然后，它会要求您提供Azure容器注册表模块的位置，因此根据需要提供位置，如下面的屏幕截图所示：
 - en: '![](img/b929f143-77c2-4aef-b529-0156265686b1.png)'
+  id: totrans-59
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b929f143-77c2-4aef-b529-0156265686b1.png)'
 - en: From here, we can develop against the Raspberry Pi. One thing to note on developing
     machine learning on a Raspberry Pi is that tasks such as environmental builds
     can take 10 times longer. A machine learning Docker build that takes minutes on
     a 16-core desktop with 32 GB RAM can take 10 times the duration when it is forced
     to compile on 1 core with 2 GB RAM.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这里开始，我们可以在树莓派上进行开发。在树莓派上开发机器学习的一个需要注意的事项是，像环境构建这样的任务可能会花费10倍的时间。在具有16核心和32
+    GB RAM的桌面上，需要几分钟的机器学习Docker构建，在只有1个核心和2 GB RAM的情况下，可能需要10倍的时间来编译。
 - en: At this point, VS Code's code generator has created a `main.py` file that has
     a starter template that receives a message from IoT Hub and echoes it back. In
     the *How to do it...* section, we will modify that to include a stub out for your
     machine learning code. In the *There's more...* section, we are going to talk
     about building the module for the ARM32 environment.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，VS Code的代码生成器已创建了一个`main.py`文件，其中包含一个接收来自IoT Hub消息并将其回显的起始模板。在*如何执行……*部分，我们将修改它以包含用于您的机器学习代码的存根。在*还有更多……*部分，我们将讨论如何为ARM32环境构建模块。
 - en: How to do it...
+  id: totrans-62
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何执行……
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 此处的步骤如下：
 - en: 'In the `main.py` file, import the necessary libraries:'
+  id: totrans-64
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`main.py`文件中，导入必要的库：
 - en: '[PRE9]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Create a stub for your ML code:'
+  id: totrans-66
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为您的ML代码创建一个存根：
 - en: '[PRE10]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Create a message-sending function:'
+  id: totrans-68
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个发送消息的函数：
 - en: '[PRE11]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Create a message-receiving function:'
+  id: totrans-70
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个接收消息的函数：
 - en: '[PRE12]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Start our message sender thread and our message receiver thread:'
+  id: totrans-72
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 启动我们的消息发送线程和消息接收线程：
 - en: '[PRE13]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Set the standard Python main program entry point:'
+  id: totrans-74
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 设置标准的Python主程序入口点：
 - en: '[PRE14]'
+  id: totrans-75
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: How it works...
+  id: totrans-76
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作原理……
 - en: In this recipe, we learned how to prepare a device and development environment
     for developing an edge module that you can deploy your code on. The IoT Edge coding
     paradigm works on receiving messages, performing actions, and then sending messages.
@@ -360,60 +527,87 @@
     container and deploy that to other devices with the edge module installed or an
     entire fleet of devices. In the *There's more...* section, we will discuss how
     to do that.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们学习了如何为开发一个边缘模块准备设备和开发环境，您可以在其上部署代码。IoT Edge编程范式的工作方式是接收消息、执行操作，然后发送消息。在这个示例的代码中，我们将这些操作分成了可以独立运行的不同任务。这使我们能够在慢速循环中执行获取和发送消息等操作，并在更快的循环中评估我们的数据。为此，我们使用了`asyncio`，这是一个在Python中支持多线程的库。一旦您的代码准备好，您可以构建一个Docker容器，并将其部署到安装有边缘模块或整个设备群的其他设备上。在*还有更多……*部分，我们将讨论如何执行这些操作。
 - en: There's more...
+  id: totrans-78
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 还有更多……
 - en: 'Now that you have added the code to the device, you will need to build the
     code locally on the device''s architecture. Once you''ve ensured that the device
     image is working, you can upload it to your container registry. This ensures you
     have the devices within your IoT Hub. To do this, go into your Visual Studio project
     and right-click on the `module.json` file. A new context menu will appear that
     will allow you to either build locally or build and push to your container registry:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在您已将代码添加到设备上，您需要在设备的架构上本地构建代码。确保设备镜像正常运行后，您可以将其上传到您的容器注册表。这可以确保您的设备位于IoT Hub中。要执行此操作，请进入Visual
+    Studio项目，并右键单击`module.json`文件。将出现一个新的上下文菜单，允许您选择本地构建或构建并推送到容器注册表：
 - en: '![](img/4738f3a5-a696-416c-86a3-68b0a25b0cef.png)'
+  id: totrans-80
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/4738f3a5-a696-416c-86a3-68b0a25b0cef.png)'
 - en: 'From here, you can create a deployment manifest by right-clicking on the `deployment.template.json`
     file and selecting **Generate IoT Edge Deployment Manifest**. VS Code will generate
     a `config` folder with a `deployment.arm32.json` file inside it:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这里开始，您可以通过右键单击`deployment.template.json`文件并选择**生成IoT Edge部署清单**来创建一个部署清单。VS
+    Code将生成一个包含`deployment.arm32.json`文件的`config`文件夹：
 - en: '![](img/b130fb83-f807-4ea8-9ff4-b94a9b89fd18.png)'
+  id: totrans-82
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b130fb83-f807-4ea8-9ff4-b94a9b89fd18.png)'
 - en: 'Locate and right-click on the `deployemtn.arm32.json` file; a new context menu
     will appear that will allow you to deploy to a single device or a fleet of devices:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 定位并右键单击`deployemtn.arm32.json`文件；将出现一个新的上下文菜单，允许您部署到单个设备或设备群：
 - en: '![](img/4031812e-bf3f-48df-94f9-cbd7891399fc.png)'
+  id: totrans-84
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/4031812e-bf3f-48df-94f9-cbd7891399fc.png)'
 - en: This very same menu allows you to also push to a fleet of devices. Once you've
     deployed your update, you can view the update in the portal. If you have that
     deployment update the device twins, you can use that to query the status of the
     deployments across your fleet.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 此相同的菜单还允许您推送到一组设备。一旦部署了更新，您可以在门户中查看更新。如果您让该部署更新设备双胞胎，您可以使用它来查询整个设备组的部署状态。
 - en: Offloading to the web with TensorFlow.js
+  id: totrans-86
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 TensorFlow.js 将计算卸载到 Web
 - en: One of the biggest drivers of failures in IoT is cost. Often, devices are sold
     at a low fixed price and then have a reoccurring cost for the device manufacturer.
     There are multiple ways of reducing reoccurring costs. One of these is to offload
     some of the machine learning compute to the device or application accessing the
     data. In this recipe, we are going to use TensorFlow.js to offload the expensive
     compute to the browser of the person looking at the web page.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: IoT 中失败的最大驱动因素之一是成本。通常，设备以固定的低价格出售，然后对设备制造商来说有再发生的成本。有多种方法可以减少再发生的成本。其中一种方法是将一些机器学习计算卸载到访问数据的设备或应用程序中。在这个案例中，我们将使用
+    TensorFlow.js 将昂贵的计算卸载到查看网页的浏览器中。
 - en: Getting ready
+  id: totrans-88
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备工作
 - en: For this recipe, we are going to be building off of the *Implementing LSTM to
     predict device failure* recipe from [Chapter 4](a40f2c07-0e51-46c6-a3cf-66d5c46477c4.xhtml),
     *Deep Learning for Predictive Maintenance*, where we looked at the NASA *Turbofan
@@ -422,19 +616,30 @@
     to retrieve our model. We will convert that model into one that can be run on
     the frontend using TensorFlow.js. Before we get started with TensorFlow.js, you
     will need to run `pip install tensorflowjs`.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这个案例，我们将基于 [第 4 章](a40f2c07-0e51-46c6-a3cf-66d5c46477c4.xhtml) 中的 *实现 LSTM
+    预测设备故障* 案例进行扩展，该章节是关于预测维护的深度学习，我们研究了 NASA 的 *Turbofan Run to Failure* 数据集。您可以在本章的仓库中找到
+    Databricks 笔记本。对于这个案例，我们将使用 MLflow 实验来获取我们的模型。我们将把该模型转换为可以在前端使用 TensorFlow.js
+    运行的模型。在开始使用 TensorFlow.js 之前，您需要运行 `pip install tensorflowjs`。
 - en: 'From there, you will need to find the model you downloaded from the MLflow
     artifact; that is, the saved Keras model. To do this, run the following command:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 接着，您需要找到从 MLflow artifact 下载的模型；也就是说，保存的 Keras 模型。为此，请运行以下命令：
 - en: '[PRE15]'
+  id: totrans-91
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: Here, `model.h5` is the saved Keras LSTM model from the predictive maintenance
     dataset and `tfjs_model` is the folder that the model will be placed in.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，`model.h5` 是从预测维护数据集中保存的 Keras LSTM 模型，`tfjs_model` 是该模型将被放置的文件夹。
 - en: From there, open Visual Studio. Here, we will be writing two files. The first
     will be an HTML file, while the second will be a JavaScript file. Once you've
     created these files, you can run them locally with the `webserver.py` file in
@@ -442,52 +647,80 @@
     any other files in your web browser at `http://localhost:8080/index.html`. Something
     else that's in the GitHub repository for this chapter is a `data.json` file that
     represents a web service where data is returned to the web page.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 接着，打开 Visual Studio。在这里，我们将写两个文件。第一个文件将是一个 HTML 文件，而第二个文件将是一个 JavaScript 文件。创建这些文件后，您可以在本章的
+    GitHub 仓库中使用 `webserver.py` 文件在本地运行它们。这将在您的 web 浏览器中运行 `index.html` 文件和任何其他文件，地址为
+    `http://localhost:8080/index.html`。本章的 GitHub 仓库中还有一个 `data.json` 文件，表示一个 Web
+    服务，该服务会向网页返回数据。
 - en: How to do it...
+  id: totrans-94
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何实现...
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个案例的步骤如下：
 - en: 'In the `index.js` file, add a `GetData` function that gets the data from `data.json`:'
+  id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `index.js` 文件中，添加一个 `GetData` 函数，从 `data.json` 中获取数据：
 - en: '[PRE16]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Make a function that pulls in the model and evaluates the data:'
+  id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 制作一个函数，引入模型并评估数据：
 - en: '[PRE17]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Create an `index.html` file that will call your `js` file:'
+  id: totrans-100
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `index.html` 文件，该文件将调用您的 `js` 文件：
 - en: '[PRE18]'
+  id: totrans-101
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: How it works...
+  id: totrans-102
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作原理是如何...
 - en: In this recipe, we took a pre-trained model written for Python and, using a
     conversion utility, converted it into something that will work on the web. Then,
     we pulled in data from a web service and evaluated it against the machine learning
     model. Finally, we displayed the text `"Needs Maintenance"` when our machine learning
     model has 80% confidence that the Turbofan engine is nearing the end of its remaining
     useful life.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个案例中，我们采用了为 Python 编写的预训练模型，并使用转换工具将其转换为在 Web 上运行的模型。然后，我们从 Web 服务中获取数据，并将其与机器学习模型进行评估。最后，当我们的机器学习模型对涡轮风扇引擎的剩余寿命有
+    80% 的信心时，我们显示文本 `"Needs Maintenance"`。
 - en: There's more...
+  id: totrans-104
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 还有更多内容...
 - en: In recent years, web browsers have taken on vastly increased functionality.
     One aspect of this is the ability to handle data and process it in the background.
     An example of this can be found in the GitHub repository for this book. It's called
@@ -495,18 +728,24 @@
     use service workers in modern web browsers. **Service workers** are background
     jobs that can be run on web browsers in the background. They can even work when
     a page is not active.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 近年来，Web浏览器的功能大大增强。其中一个方面是能够处理数据并在后台进行处理。例如，可以在本书的GitHub存储库中找到一个例子，称为`Dexie`，展示了向浏览器的数据库添加数据的示例。您还可以在现代Web浏览器中使用服务工作者。**服务工作者**是在Web浏览器中后台运行的后台作业。它们甚至可以在页面不活动时工作。
 - en: Deploying mobile models
+  id: totrans-106
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 部署移动模型
 - en: Many IoT scenarios require that you have a graphical user interface; that is,
     a high level of compute, Bluetooth, and Wi-Fi and a cellular network. Most modern
     cell phones have these. An inexpensive IoT device can talk to an app on a smartphone
     via Bluetooth and use that app to perform ML and talk to the cloud.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 许多物联网场景要求具有图形用户界面，即高级计算、蓝牙、Wi-Fi和蜂窝网络。大多数现代手机都有这些功能。一个廉价的物联网设备可以通过蓝牙与智能手机上的应用程序通信，并使用该应用程序执行机器学习并与云端通信。
 - en: Using cell phones can cut the time to market for IoT devices. These devices
     can use a secure and easily updatable app to send data to the cloud. The portability
     of cell phones is an appeal but also a drawback. Having a device constantly communicating
@@ -514,186 +753,270 @@
     as 8 hours. Because of this, companies often look to edge processing to perform
     compute tasks such as machine learning. This allows the device to send data less
     frequently.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用手机可以缩短物联网设备的上市时间。这些设备可以使用安全且易于更新的应用程序将数据发送到云端。手机的便携性是一个优点，但也是一个缺点。一个设备持续与云端通信可能会耗尽手机的电池，以至于它的电池寿命只有短短8小时。因此，公司经常倾向于使用边缘处理来执行诸如机器学习之类的计算任务。这使得设备可以更少地发送数据。
 - en: How cell phones are used for IoT is ubiquitous. Companies such as Fitbit and
     Tile use low-power **Bluetooth Low Energy** (**BLE**) to send data to consumer
     cell phones. The IoT devices themselves can be low power and offload most of the
     work to the attached cell phones. Other devices, such as patient heart monitors,
     warehouse inventory tools, and voice-activated kiosks, can have dedicated smart
     devices designed specifically for the needs of the application.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 手机如何用于物联网是无处不在的。像Fitbit和Tile这样的公司使用低功耗的**蓝牙低能耗**（**BLE**）将数据发送到消费者手机。物联网设备本身可以是低功耗的，并将大部分工作卸载到附加的手机上。其他设备，如患者心脏监测仪、仓库库存工具和语音激活的信息亭，可以拥有专门设计以满足应用程序需求的智能设备。
 - en: In this recipe, we are going to show you how to use TensorFlow Lite on Android.
     We are going to learn how to use a simple Android kiosk keyword-activated application
     and deploy it to a device. We are then going to learn how to sideload it into
     a device.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们将向您展示如何在Android上使用TensorFlow Lite。我们将学习如何使用一个简单的Android kiosk关键词激活应用程序，并将其部署到设备上。然后，我们将学习如何将其侧载到设备上。
 - en: Getting ready
+  id: totrans-111
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备就绪
 - en: 'In this recipe, we are going to create a simple Android Studio application
     and add machine learning code to it. For this, you will need to download and install
     Android Studio. From there, create a new project and follow these steps:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们将创建一个简单的Android Studio应用程序，并向其添加机器学习代码。为此，您需要下载并安装Android Studio。从那里，创建一个新项目并按照以下步骤操作：
 - en: 'Upon opening Android Studio, from the Start menu, select **+ Start a new Android
     Studio project**:'
+  id: totrans-113
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开Android Studio后，从“开始”菜单中选择**+开始一个新的Android Studio项目**：
 - en: '![](img/f76be9d6-6b6b-418f-b499-c4b04de03bb9.png)'
+  id: totrans-114
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f76be9d6-6b6b-418f-b499-c4b04de03bb9.png)'
 - en: 'Then, you will need to select a UI template. In this recipe, we are going to
     select an empty activity:'
+  id: totrans-115
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，您需要选择一个UI模板。在这个示例中，我们将选择一个空的活动：
 - en: '![](img/0f95da9e-f2e3-4e84-b7a8-e9d9c238382d.png)'
+  id: totrans-116
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/0f95da9e-f2e3-4e84-b7a8-e9d9c238382d.png)'
 - en: 'On the next screen, you will see a wizard that gives you the option to give
     the project a name and select a language for it. For this project, we will be
     selecting **Java** as our language:'
+  id: totrans-117
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在接下来的屏幕上，您将看到一个向导，可以为项目命名并选择语言。对于这个项目，我们将选择**Java**作为我们的语言：
 - en: '![](img/b90d24b6-8d7a-4f0b-902f-8a1d0b3e6b1c.png)'
+  id: totrans-118
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b90d24b6-8d7a-4f0b-902f-8a1d0b3e6b1c.png)'
 - en: 'With that, a new project will open. Now, we need to import TensorFlow Lite
     into our project. To do this, go to the **build.gradle (Module: app)** section
     under **Gradle Scripts**:'
+  id: totrans-119
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 好了，一个新项目就这样打开了。 现在，我们需要将TensorFlow Lite导入到我们的项目中。 要做到这一点，请转到**build.gradle（Module：app）**部分，在**Gradle
+    Scripts**下：
 - en: '![](img/19679e74-2352-4d71-932b-04918ac0f9b1.png)'
+  id: totrans-120
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/19679e74-2352-4d71-932b-04918ac0f9b1.png)'
 - en: 'In the `build.gradle` JSON file under the `dependencies` section, add a reference
     to TensorFlow Lite (`implementation ''org.tensorflow:tensorflow-lite:+''`):'
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`build.gradle`的JSON文件中，在`dependencies`部分下，添加对TensorFlow Lite的引用（`implementation
+    'org.tensorflow:tensorflow-lite:+'`）：
 - en: '![](img/e9e58f0e-c894-4dc2-acea-9a211f0980b8.png)'
+  id: totrans-122
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/e9e58f0e-c894-4dc2-acea-9a211f0980b8.png)'
 - en: 'From there, in Android Studio, right-click on the **app** folder, select **New**,
     then select **Folder** and then **Assets folder**:'
+  id: totrans-123
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从这里，在Android Studio中，右键单击**app**文件夹，选择**New**，然后选择**Folder**，然后**Assets folder**：
 - en: '![](img/f2b96f78-93a0-489d-aa5f-9d8f2e93e614.png)'
+  id: totrans-124
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f2b96f78-93a0-489d-aa5f-9d8f2e93e614.png)'
 - en: This is where we will put our trained model. Just as we used a `tfliteJS` conversion
     tool in the *Offloading to the web with TensorFlow.js* recipe, we can use the
     `tflite` conversion tool to convert our model.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是我们将放置我们训练过的模型的地方。 就像我们在*使用TensorFlow.js将数据外载至网络*的方法中使用了`tfliteJS`转换工具一样，我们可以使用`tflite`转换工具来转换我们的模型。
 - en: How to do it...
+  id: totrans-126
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何操作...
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 此方法的步骤如下：
 - en: 'In the header section of the `MainActivity.java` file, add the necessary reference
     to TensorFlow:'
+  id: totrans-128
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`MainActivity.java`文件的头部部分，添加必要的TensorFlow引用：
 - en: '[PRE19]'
+  id: totrans-129
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'In the `variables` section, initialize the `tflite` interpreter:'
+  id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`variables`部分，初始化`tflite`解释器：
 - en: '[PRE20]'
+  id: totrans-131
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'In the `OnCreate` method, add the code that will load the model from the file
     into the `tflite` interpreter:'
+  id: totrans-132
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`OnCreate`方法中，添加代码，从文件中加载模型到`tflite`解释器中：
 - en: '[PRE21]'
+  id: totrans-133
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Then, create a method that will load the model file:'
+  id: totrans-134
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，创建一个加载模型文件的方法：
 - en: '[PRE22]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'In a method that is called from a Bluetooth data feed, perform the necessary
     inference:'
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在从蓝牙数据源调用的方法中执行必要的推理：
 - en: '[PRE23]'
+  id: totrans-137
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: How it works...
+  id: totrans-138
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 它是如何工作的...
 - en: Similar to the *Offloading to the web with TensorFlow.js* recipe, this recipe
     takes in a TensorFlow Lite model, performs inference, and returns the probability.
     The TensorFlow Lite model works on small devices such as Android and can be used
     in applications and services.
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似于*使用TensorFlow.js将数据外载至网络*的方法，此方法接受一个TensorFlow Lite模型，执行推理，并返回概率值。 TensorFlow
+    Lite模型适用于Android等小型设备，并可用于应用程序和服务。
 - en: Maintaining your fleet with device twins
+  id: totrans-140
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用设备双重维护您的设备群
 - en: A device twin is a set of tools designed to help us work with a fleet. They
     can be used to pass information down to a device, such as what model that device
     should be using. They can be used to pass more stateful information back to the
     cloud, such as the model's actual error rate.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 设备双重是一套旨在帮助我们处理设备群的工具。 它们可用于将信息传递给设备，例如该设备应使用的模型。 它们也可用于将更有状态的信息传递回云端，例如模型的实际错误率。
 - en: Device twins have two sides. On the device side, there is a JSON file that acts
     like a writable configuration file, while on the cloud side, there is a writable
     database of properties. These two sides sync in an orderly way to allow you to
     reason about your fleet.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 设备的双面。 在设备一侧，有一个行为像可写配置文件的 JSON 文件，而在云端，则有一个可写属性数据库。 这两个方面有序地同步，允许您推理您的设备群。
 - en: One advantage of a device twin is that you can see if model deployment actually
     worked. Often, machine learning models are updated with information changes, and
     new models are pushed down to the devices. These models can trigger out-of-memory
     exceptions and fail; they can also brick the device. Often, in an IoT product's
     life cycle, hardware may be substituted if a manufacture changes or certain components
     are no longer available.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 设备双重的一个优点是您可以看到模型部署是否实际有效。 通常，机器学习模型会随信息变化而更新，并将新模型推送到设备上。 这些模型可能会触发内存不足异常并失败；
+    它们也可能会使设备变砖。 在物联网产品的生命周期中，如果制造商更改硬件或某些组件不再可用，通常可以更换硬件。
 - en: 'Before we get started, we need to go over some basic concepts. We will do more
     of a deep dive on this topic in the *How it works...* section. A device twin consists
     of three parts:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始之前，我们需要讨论一些基本概念。 我们将在*它是如何工作的...*部分进行更深入的研究。 设备双重由三部分组成：
 - en: A **tags area**, which is responsible for generic tags such as the device's
     name, location, or owner. The tags area's data is set by the cloud.
+  id: totrans-145
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**标签区域**负责通用标签，如设备的名称、位置或所有者。 标签区域的数据由云端设置。'
 - en: The next is the **desired properties**. The desired properties section is also
     set by the cloud. Conceptually, it is what state the cloud wishes the device to
     be in. This, for example, could be a model version or a threshold.
+  id: totrans-146
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 接下来是**期望的属性**。期望的属性部分也由云端设置。在概念上，这是云端希望设备处于的状态。例如，这可能是一个模型版本或阈值。
 - en: The final property is a **reported property**. This property is set by the device.
     It can be a data value or the response to the desired property.
+  id: totrans-147
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最后一个属性是一个**报告属性**。该属性由设备设置。它可以是数据值，也可以是对所需属性的响应。
 - en: If, for example, the desired property or model version changes, we can attempt
     to update to the latest version and set our reported property to the desired version
     if the update worked. If it does not work, then we can query for that in the cloud.
@@ -702,19 +1025,27 @@
     to update very few devices at first and multiple devices later. We can also use
     it to deploy different models depending on certain characteristics of a device,
     such as location and owner.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果所需属性或模型版本发生更改，我们可以尝试更新到最新版本，并且如果更新成功，将我们的报告属性设置为所需版本。如果不起作用，我们可以在云中查询。我们还可以使用标签部分在称为**更新环**的集合中更新我们的设备。我们可以使用更新环来获取滚动更新，这使我们可以首先更新很少的设备，然后稍后更新多个设备。我们还可以根据设备的某些特征（例如位置和所有者）部署不同的模型。
 - en: Getting ready
+  id: totrans-149
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备工作：
 - en: 'In this recipe, we are going to use Azure IoT Hub and Python. The Python version
     in our example needs to be above 3.6\. We will need to install the following libraries:'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个配方中，我们将使用Azure IoT Hub和Python。我们示例中的Python版本需要在3.6以上。我们需要安装以下库：
 - en: '[PRE24]'
+  id: totrans-151
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'You will also need to get a device connection string from IoT Hub. In the *Setting
     up an IoT Hub* recipe of [Chapter 1](a6e87d27-4456-40a7-a006-5fdb54960858.xhtml),
     *Setting Up the IoT and AI Environment*, we showed you how to set up IoT Hub in
@@ -722,134 +1053,203 @@
     navigate to the IoT Hub you created and click on the **IoT Devices** menu item
     in the left panel. Then, click the **+** button and add a device with symmetric
     key authentication:'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 您还需要从IoT Hub获取设备连接字符串。在[第一章](a6e87d27-4456-40a7-a006-5fdb54960858.xhtml)的*设置IoT和AI环境*配方中，我们向您展示了如何在Azure中设置IoT
+    Hub。从那里开始，您需要获取该单独设备的密钥。为此，请导航到您创建的IoT Hub，并在左侧面板中单击**IoT设备**菜单项。然后，单击**+**按钮并添加具有对称密钥身份验证的设备：
 - en: '![](img/b797a507-52b5-46cd-9754-f01c9fd5bc8e.png)'
+  id: totrans-153
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b797a507-52b5-46cd-9754-f01c9fd5bc8e.png)'
 - en: 'From here, you will see the device appear in the device list, as shown in the
     following screenshot. You can click on that item and get the device key:'
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，您将看到设备显示在设备列表中，如下面的截图所示。您可以单击该项并获取设备密钥：
 - en: '![](img/f218bac9-7686-4b9e-ab0a-ae728af66fe6.png)'
+  id: totrans-155
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f218bac9-7686-4b9e-ab0a-ae728af66fe6.png)'
 - en: You will also need to go into the shared access policy menu item and copy the
     service policy connection string. This connection string is for connecting to
     IoT Hub so that you can manage your fleet of devices. The previous key was for
     an individual device.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 您还需要进入共享访问策略菜单项并复制服务策略连接字符串。此连接字符串用于连接到IoT Hub，以便您管理设备群。先前的密钥适用于单个设备。
 - en: How to do it...
+  id: totrans-157
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何操作...
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 此配方的步骤如下：
 - en: 'On the device side, import the necessary libraries:'
+  id: totrans-159
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在设备端，导入必要的库：
 - en: '[PRE25]'
+  id: totrans-160
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Create a `main()` function and connect to the device:'
+  id: totrans-161
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个`main()`函数并连接到设备：
 - en: '[PRE26]'
+  id: totrans-162
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'Create a twin listener:'
+  id: totrans-163
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个孪生监听器：
 - en: '[PRE27]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Create a listen task:'
+  id: totrans-165
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个监听任务：
 - en: '[PRE28]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Listen for a quit signal:'
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 监听退出信号：
 - en: '[PRE29]'
+  id: totrans-168
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Wait for the user finish signal and disconnect:'
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 等待用户完成信号并断开连接：
 - en: '[PRE30]'
+  id: totrans-170
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Use `asyncio` to run the loop:'
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`asyncio`运行循环：
 - en: '[PRE31]'
+  id: totrans-172
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'On the cloud side (this is the computer helping you manage the fleet) use the
     following code to set the desired machine learning model version. First, import
     the necessary libraries:'
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在云端（这是帮助您管理设备群的计算机）使用以下代码设置期望的机器学习模型版本。首先，导入必要的库：
 - en: '[PRE32]'
+  id: totrans-174
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Connect to IoT Hub with the service connection string:'
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用服务连接字符串连接到IoT Hub：
 - en: '[PRE33]'
+  id: totrans-176
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Set the desired property so that it''s the model version:'
+  id: totrans-177
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 设置所需的属性，使其成为模型版本：
 - en: '[PRE34]'
+  id: totrans-178
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Later, in another Python file, we will query to see if the versions were updated.
     First, we import the necessary libraries:'
+  id: totrans-179
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 稍后，在另一个Python文件中，我们将查询版本是否已更新。首先，导入必要的库：
 - en: '[PRE35]'
+  id: totrans-180
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'We can then query for all of the devices with reported properties that do not
     match our desired properties:'
+  id: totrans-181
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们可以查询所有具有报告属性但不符合我们期望属性的设备：
 - en: '[PRE36]'
+  id: totrans-182
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: How it works...
+  id: totrans-183
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作原理...
 - en: This recipe had three different code segments. The first was on the device side.
     This code gathers any changes that were made to the device via the device twin.
     In the next section, we instructed IoT Hub to update a reported property on a
     specific device. We then queried our fleet of devices and checked if all of our
     devices are updated to the model we wanted to use.
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个示例有三个不同的代码段。第一个在设备端。这段代码收集了通过设备双胞胎对设备进行的任何更改。在接下来的部分中，我们指示IoT Hub更新特定设备的报告属性。然后，我们查询了我们的设备群，并检查是否所有设备都更新到我们想要使用的模型。
 - en: There's more...
+  id: totrans-185
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 还有更多...
 - en: A device twin is basically a large JSON file that resides on both the cloud
     and device side. It can be used to adjust settings, control the device, and set
     metadata about the device. There is another service that builds upon a device
@@ -864,31 +1264,41 @@
     lines that contain related data. These manufacturing lines could contain dozens
     of IoT devices that provide different types of readings. Digital twins can help
     us diagnose problems with root cause analysis on slow assembly lines.
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 设备双胞胎基本上是一个大的JSON文件，位于云端和设备端。它可用于调整设置、控制设备并设置关于设备的元数据。还有另一个服务建立在设备双胞胎之上。它被称为**数字双胞胎**。数字双胞胎在设备和云端之间同步相同的JSON文件。它们还有将设备连接成图的额外好处。图是将设备链接在一起的一种方式。这可以根据地理位置完成。换句话说，您可以根据位置将设备连接在一起。它还可以在本地将设备连接在一起。当您拥有相关设备时，这非常有用。例如，智能城市希望具有地理相关性的设备。在这个智能城市中，我们希望知道某个地理位置的所有交叉口是否有交通停止。在工厂中，可能有包含相关数据的制造线。这些制造线可能包含数十个提供不同类型读数的物联网设备。数字双胞胎可以帮助我们诊断慢装配线的问题，并进行根本原因分析。
 - en: Enabling distributed ML with fog computing
+  id: totrans-187
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用雾计算启用分布式ML
 - en: Working in IoT generally means working with large data. Sensors can be verbose
     and the devices can be large as well. The CERN's particle accelerator, for example,
     generates over a petabyte a second. Sending this raw data to a central repository would
     be impractical. Many companies facing extremely large datasets or extremely fast-moving
     datasets can face challenges when it comes to dealing with their data.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 在物联网中工作通常意味着处理大数据。传感器可能会有详细说明，设备也可能很大。例如，CERN的粒子加速器每秒产生超过一PB的数据。将这些原始数据发送到中央存储库将是不切实际的。许多公司面临处理极大数据集或极快速数据集时可能会面临挑战。
 - en: In this recipe, we are going to distribute a workload across several systems,
     thereby allowing one system to take an image and another to process it. A small
     device, in our example, could take the image and stream it to an industrial PC
     or a set of servers in a factory. We are going to use `docker` and `docker-compose`
     here, while for our algorithm, we are going to use YOLO's (an image classification
     algorithm) OpenCV implementation.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们将把工作负载分布到几个系统中，从而允许一个系统拍摄图像，另一个处理图像。在我们的示例中，一个小设备可以拍摄图像并将其流式传输到工业PC或工厂中一组服务器。在这里，我们将使用`docker`和`docker-compose`，而对于我们的算法，我们将使用YOLO（一种图像分类算法）的OpenCV实现。
 - en: Getting ready
+  id: totrans-190
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备工作
 - en: This recipe will be quite verbose in terms of the amount of code we'll be seeing,
     but everything will be done in Docker. You can use VS Code's Docker extension
     to work directly within the Docker container. You will also need a device with
@@ -897,215 +1307,326 @@
     learning service, a camera streaming service, and a service that allows the devices
     to know where other devices are, and allow you to view your classification across
     your entire fleet of devices.
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 本示例将在代码量上非常详细，但所有操作都将在 Docker 中完成。您可以使用 VS Code 的 Docker 扩展直接在 Docker 容器中工作。您还需要一个连接了摄像头的设备。这可以是带有摄像头的笔记本电脑或树莓派
+    – 这并不重要。在这个示例中，我们将设置一个机器学习服务、一个摄像头流服务，并允许设备知道其他设备的位置，并允许您查看您在整个设备群中的分类。
 - en: Although this is fairly simple, listing the code for all of the containers would
     take dozens of pages. For the sake of brevity, in this recipe, we are going to
     show the computer vision module. The rest of the modules can be run using Docker
     and the code in the GitHub repository for this book.
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这相当简单，但列出所有容器的代码将需要几十页。为了简洁起见，在这个示例中，我们将展示计算机视觉模块。其余模块可以使用 Docker 运行，并使用本书的
+    GitHub 仓库中的代码。
 - en: How to do it...
+  id: totrans-193
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何做…
 - en: 'The steps for this recipe are as follows:'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 本示例的步骤如下：
 - en: 'On your compute device, download the machine learning model files for YOLO:'
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在您的计算设备上，下载 YOLO 的机器学习模型文件：
 - en: '[PRE37]'
+  id: totrans-196
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Create a `CPU` folder and create an `__init__.py` file inside it:'
+  id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `CPU` 文件夹，并在其中创建一个 `__init__.py` 文件：
 - en: '[PRE38]'
+  id: totrans-198
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Create a `manifest.py` file that will send the capabilities of the compute
     server to a centralized server:'
+  id: totrans-199
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `manifest.py` 文件，将计算服务器的功能发送到集中服务器：
 - en: '[PRE39]'
+  id: totrans-200
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Create a `Yolo.py` file and import the necessary libraries:'
+  id: totrans-201
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `Yolo.py` 文件并导入必要的库：
 - en: '[PRE40]'
+  id: totrans-202
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Initialize the page as a Flask page:'
+  id: totrans-203
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将页面初始化为 Flask 页面：
 - en: '[PRE41]'
+  id: totrans-204
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'Initialize our drawing variables:'
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化我们的绘图变量：
 - en: '[PRE42]'
+  id: totrans-206
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Import the model class names:'
+  id: totrans-207
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入模型类名称：
 - en: '[PRE43]'
+  id: totrans-208
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Create a helper function to get the output layers:'
+  id: totrans-209
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个获取输出层的帮助函数：
 - en: '[PRE44]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'Create a helper function that will draw a rectangle around the identified objects
     and insert the classification text:'
+  id: totrans-211
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个帮助函数，该函数将在识别到的对象周围绘制一个矩形并插入分类文本：
 - en: '[PRE45]'
+  id: totrans-212
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'Create a `Yolo` method that takes in an image and a neural network and then
     downscales the image:'
+  id: totrans-213
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `Yolo` 方法，该方法接收图像和神经网络，然后缩小图像：
 - en: '[PRE46]'
+  id: totrans-214
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'Set the image as the input on the neural network and perform the YOLO analysis:'
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像设置为神经网络的输入，并执行 YOLO 分析：
 - en: '[PRE47]'
+  id: totrans-216
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'Initialize the variables and set the confidence threshold:'
+  id: totrans-217
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化变量并设置置信度阈值：
 - en: '[PRE48]'
+  id: totrans-218
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'Turn the machine learning result set into a set of coordinates we can apply
     to the image:'
+  id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将机器学习结果集转换为我们可以应用于图像的坐标集：
 - en: '[PRE49]'
+  id: totrans-220
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'Suppress any of our bounding boxes that do not meet the threshold criteria:'
+  id: totrans-221
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 抑制任何不符合阈值标准的边界框：
 - en: '[PRE50]'
+  id: totrans-222
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'Get the bounding boxes and draw them inside the images:'
+  id: totrans-223
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取边界框并在图像内绘制它们：
 - en: '[PRE51]'
+  id: totrans-224
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'Return the image:'
+  id: totrans-225
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 返回图像：
 - en: '[PRE52]'
+  id: totrans-226
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Create a function called `gen` that will import the model and continuously
     pull images from the camera device:'
+  id: totrans-227
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个名为 `gen` 的函数，该函数将导入模型并持续从摄像头设备获取图像：
 - en: '[PRE53]'
+  id: totrans-228
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'Resize and color adjust the image:'
+  id: totrans-229
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整图像大小并调整颜色：
 - en: '[PRE54]'
+  id: totrans-230
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Perform the machine learning algorithm and stream back the results:'
+  id: totrans-231
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行机器学习算法并返回结果流：
 - en: '[PRE55]'
+  id: totrans-232
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: 'Create a web address that will grab the URL parameters and put them through
     the algorithm:'
+  id: totrans-233
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 Web 地址，将抓取 URL 参数并通过算法处理它们：
 - en: '[PRE56]'
+  id: totrans-234
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'Back inside the root folder, create a `manifest.json` file that will broadcast
     the capabilities of the machine we are using:'
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 回到根目录内，创建一个 `manifest.json` 文件，该文件将广播我们正在使用的机器的功能：
 - en: '[PRE57]'
+  id: totrans-236
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'Create a `runcpu.py` file. This will be the file that starts the Flask server
     and registers the other code files:'
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `runcpu.py` 文件。这将是启动 Flask 服务器并注册其他代码文件的文件：
 - en: '[PRE58]'
+  id: totrans-238
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: How it works...
+  id: totrans-239
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 它是如何工作的…
 - en: This fog computing recipe shows how several different types of systems can be
     brought together to work as one. In this recipe, we showed the device code that
     grabs a video stream from a different system, perform a compute on it, and then
     passes it along to another system. Our final system in this case is a web application.
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个边缘计算配方展示了如何将几种不同类型的系统集成到一起以作为一个整体运行。在本示例中，我们展示了从另一个系统获取视频流的设备代码，对其进行计算，然后将其传递给另一个系统。在这种情况下，我们的最终系统是一个
+    Web 应用程序。
 - en: For different systems to communicate, there needs to be centralized state management.
     In this recipe, we used Flask and Redis. Every machine on our cluster registers
     its state and capabilities every 10 minutes. This allows the other machines to
     utilize machines that are on a network, thereby not bottlenecking on one machine.
     When a new machine comes online, it simply registers its state with our state
     server; as long as it keeps broadcasting, it is available to use.
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 不同系统之间要进行通信，需要有集中式的状态管理。在这个示例中，我们使用了Flask和Redis。我们集群中的每台机器每10分钟注册一次其状态和能力。这样其他机器就可以利用网络上的机器，避免一个机器成为瓶颈。当新机器上线时，它只需向我们的状态服务器注册其状态；只要它继续广播，就可以供其他机器使用。
 - en: There's more...
+  id: totrans-242
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 还有更多...
 - en: 'This recipe is dependent on other components. These components are in the GitHub
     repository for this chapter, under `AI_Benchtest`. You can start the programs
     by going into their respective folders and running `docker` or `docker-compose`.
     To run the camera server in a Terminal, go into the `AI_Benchtest_API` folder
     and run the following command:'
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个示例依赖于其他组件。这些组件位于本章节的GitHub存储库中，位于`AI_Benchtest`文件夹下。您可以进入各自的文件夹并运行`docker`或`docker-compose`来启动这些程序。要在终端中运行摄像机服务器，请进入`AI_Benchtest_API`文件夹并运行以下命令：
 - en: '[PRE59]'
+  id: totrans-244
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'Next, you must run the `AI_Benchtest_Cam` module. In a Terminal, `CD` into
     the `AI_Benchtest_Cam` folder and run the same `docker-compose` command that you
     ran to get the API server running. At this point, both the camera and compute
@@ -1113,8 +1634,12 @@
     Next, you will need to run a UI server so that you can give commands to the other
     servers. To do this, `CD` into the `AI_Benchtest_API` folder and run the following
     `docker` command to start the UI application:'
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，您需要运行`AI_Benchtest_Cam`模块。在终端中，`CD`到`AI_Benchtest_Cam`文件夹，并运行与启动API服务器相同的`docker-compose`命令。此时，摄像机和计算服务器都将启动并向API服务器传输其状态。接下来，您需要运行一个UI服务器，以便可以向其他服务器发送命令。要做到这一点，请`CD`到`AI_Benchtest_API`文件夹，并运行以下`docker`命令来启动UI应用程序：
 - en: '[PRE60]'
+  id: totrans-246
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
