@@ -1,0 +1,1403 @@
+- en: '*Chapter 3*: NLP and Text Embeddings'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There are many different ways of representing text in deep learning. While we
+    have covered basic **bag-of-words** (**BoW**) representations, unsurprisingly,
+    there is a far more sophisticated way of representing text data known as embeddings.
+    While a BoW vector acts only as a count of words within a sentence, embeddings
+    help to numerically define the actual meaning of certain words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will explore text embeddings and learn how to create embeddings
+    using a continuous BoW model. We will then move on to discuss n-grams and how
+    they can be used within models. We will also cover various ways in which tagging,
+    chunking, and tokenization can be used to split up NLP into its various constituent
+    parts. Finally, we will look at TF-IDF language models and how they can be useful
+    in weighting our models toward infrequently occurring words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in the chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Word embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring CBOW
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring n-grams
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tokenization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tagging and chunking for parts of speech
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TF-IDF
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: GLoVe vectors can be downloaded from [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/)
+    . It is recommended to use the `glove.6B.50d.txt` file as it is much smaller than
+    the other files and will be much faster to process. NLTK will be required for
+    later parts of this chapter. All the code for this chapter can be found at [https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x](https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Embeddings for NLP
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Words do not have a natural way of representing their meaning. In images, we
+    already have representations in rich vectors (containing the values of each pixel
+    within the image), so it would clearly be beneficial to have a similarly rich
+    vector representation of words. When parts of language are represented in a high-dimensional
+    vector format, they are known as **embeddings**. Through analysis of a corpus
+    of words, and by determining which words appear frequently together, we can obtain
+    an *n*-length vector for each word, which better represents the semantic relationship
+    of each word to all other words. We saw previously that we can easily represent
+    words as one-hot encoded vectors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.1 – One-hot encoded vectors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_1.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.1 – One-hot encoded vectors
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On the other hand, embeddings are vectors of length *n* (in the following example,
+    *n* = 3) that can take any value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.2 – Vectors with n=3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_2.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.2 – Vectors with n=3
+  prefs: []
+  type: TYPE_NORMAL
+- en: These embeddings represent the word's vector in *n*-dimensional space (where
+    *n* is the length of the embedding vectors), and words with similar vectors within
+    this space are considered to be more similar in meaning. While these embeddings
+    can be of any size, they are generally of much lower dimensionality than the BoW
+    representation. The BOW representation requires vectors that are of the length
+    of the entire corpus, which, when looking at a whole language, could become very
+    large very quickly. Although embeddings are of a high enough dimensionality to
+    represent the individual words, they are generally not much larger than a few
+    hundred dimensions. Furthermore, the BOW vectors are generally very sparse, consisting
+    mostly of zeros, whereas embeddings are rich in data and every dimension contributes
+    to the overall representation of the word. The lower dimensionality and the fact
+    that they are not sparse makes performing deep learning on embeddings much more
+    efficient than performing it on BOW representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GLoVe
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can download a set of pre-calculated word embeddings to demonstrate how
+    they work. For this, we will use **Global Vectors for Word Representation** (**GLoVe**)
+    embeddings, which can be downloaded from here: [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/)
+    . These embeddings are calculated on a very large corpus of NLP data and are trained
+    on a word co-occurrence matrix. This is based on the notion that words that appear
+    together are more likely to have similar meaning. For instance, the word *sun*
+    is likely to appear more frequently with the word *hot* as opposed to the word
+    *cold*, so it is more likely that *sun* and *hot* are considered more similar.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can validate that this is true by examining the individual GLoVe vectors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first create a simple function to load our GLoVe vectors from a text file.
+    This just builds a dictionary where the index is each word in the corpus and the
+    values are the embedding vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This means we can access a single vector by just calling it from the dictionary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.3 – Vector output'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_3.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.3 – Vector output
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can see that this returns a 50-dimensional vector embedding for the word
+    Python. We will now introduce the concept of **cosine similarity** to compare
+    how similar two vectors are. Vectors will have a similarity of 1 if the angle
+    in the *n*-dimensional space between them is 0 degrees. Values with high cosine
+    similarity can be considered similar, even if they are not equal. This can be
+    calculated using the following formula, where A and B are the two embedding vectors
+    being compared:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_001.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: 'We can calculate this easily in Python using the `cosine_similarity()` function
+    from `Sklearn`. We can see that `cat` and `dog` have similar vectors as they are
+    both animals:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.4 – Cosine similarity output for cat and dog'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_4.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.4 – Cosine similarity output for cat and dog
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'However, `cat` and `piano` are quite dissimilar as they are two seemingly unrelated
+    items:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.5 – Cosine similarity output for cat and piano'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_5.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.5 – Cosine similarity output for cat and piano
+  prefs: []
+  type: TYPE_NORMAL
+- en: Embedding operations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Since embeddings are vectors, we can perform operations on them. For example,
+    let''s say we take the embeddings for the following sorts and we calculate the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Queen-Woman+Man*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can approximate the embedding for *king*. This essentially replaces
+    the *Woman* vector component from *Queen* with the *Man* vector to arrive at this
+    approximation. We can graphically illustrate this as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.6 – Graphical representation of the example'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_6.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.6 – Graphical representation of the example
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that in this example, we illustrate this graphically in two dimensions.
+    In the case of our embeddings, this is happening in a 50-dimensional space. While
+    this is not exact, we can verify that our calculated vector is indeed similar
+    to the GLoVe vector for **King**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.7 – Output for the GloVe vector'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_7.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.7 – Output for the GLoVe vector
+  prefs: []
+  type: TYPE_NORMAL
+- en: While GLoVe embeddings are very useful pre-calculated embeddings, it is actually
+    possible for us to calculate our own embeddings. This may be useful when we are
+    analyzing a particularly unique corpus. For example, the language used on Twitter
+    may differ from the language used on Wikipedia, so embeddings trained on one may
+    not be useful for the other. We will now demonstrate how we can calculate our
+    own embeddings using a continuous bag-of-words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring CBOW
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The **continuous** **bag-of-words (CBOW)** model forms part of Word2Vec – a
+    model created by Google in order to obtain vector representations of words. By
+    running these models over a very large corpus, we are able to obtain detailed
+    representations of words that represent their semantic and contextual similarity
+    to one another. The Word2Vec model consists of two main components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CBOW**: This model attempts to predict the target word in a document, given
+    the surrounding words.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Skip-gram**: This is the opposite of CBOW; this model attempts to predict
+    the surrounding words, given the target word.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Since these models perform similar tasks, we will focus on just one for now,
+    specifically CBOW. This model aims to predict a word (the **target word**), given
+    the other words around it (known as the **context** words). One way of accounting
+    for context words could be as simple as using the word directly before the target
+    word in the sentence to predict the target word, whereas more complex models could
+    use several words before and after the target word. Consider the following sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*PyTorch is a deep learning framework*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we want to predict the word *deep*, given the context words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*PyTorch is a {target_word} learning framework*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could look at this in a number of ways:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.8 – Table of context and representations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_8.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.8 – Table of context and representations
+  prefs: []
+  type: TYPE_NORMAL
+- en: For our CBOW model, we will use a window of length 2, which means for our model's
+    (*X, y*) input/output pairs, we use *([n-2, n-1, n+1, n+2, n])*, where *n* is
+    our target word being predicted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using these as our model inputs, we will train a model that includes an embedding
+    layer. This embedding layer automatically forms an *n*-dimensional representation
+    of the words in our corpus. However, to begin with, this layer is initialized
+    with random weights. These parameters are what will be learned using our model
+    so that after our model has finished training, this embedding layer can be used
+    can be used to encode our corpus in an embedded vector representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CBOW architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now design the architecture of our model in order to learn our embeddings.
+    Here, our model takes an input of four words (two before our target word and two
+    after) and trains it against an output (our target word). The following representation
+    is an illustration of how this might look:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.9 – CBOW architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_9.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.9 – CBOW architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our input words are first fed through an embedding layer, represented as a tensor
+    of size (n,l), where n is the specified length of our embeddings and l is the
+    number of words in our corpus. This is because every word within the corpus has
+    its own unique tensor representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using our combined (summed) embeddings from our four context words, this is
+    then fed into a fully connected layer in order to learn the final classification
+    of our target word against our embedded representation of our context words. Note
+    that our predicted/target word is encoded as a vector that's the length of our
+    corpus. This is because our model effectively predicts the probability of each
+    word in the corpus to be the target word, and the final classification is the
+    one with the highest probability. We then obtain a loss, backpropagate this through
+    our network, and update the parameters on the fully connected layer, as well as
+    the embeddings themselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reason this methodology works is because our learned embeddings represent
+    semantic similarity. Let''s say we train our model on the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*X = ["is", "a", "learning", "framework"]; y = "deep"*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What our model is essentially learning is that the combined embedding representation
+    of our target words is semantically similar to our target word. If we repeat this
+    over a large enough corpus of words, we will find that our word embeddings begin
+    to resemble our previously seen GLoVe embeddings, where semantically similar words
+    appear to one another within the embedding space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building CBOW
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now run through building a CBOW model from scratch, thereby demonstrating
+    how our embedding vectors can be learned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first define some text and perform some basic text cleaning, removing basic
+    punctuation and converting it all into lowercase:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We start by defining our corpus and its length:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Note that we use a set instead of a list as we are only concerned with the
+    unique words within our text. We then build our corpus index and our inverse corpus
+    index. Our corpus index will allow us to obtain the index of a word given the
+    word itself, which will be useful when encoding our words for entry into our network.
+    Our inverse corpus index allows us to obtain a word, given the index value, which
+    will be used to convert our predictions back into words:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we encode our data. We loop through our corpus and for each target word,
+    we capture the context words (the two words before and the two words after). We
+    append this with the target word itself to our dataset. Note how we begin this
+    process from the third word in our corpus (index = `2`) and stop it two steps
+    before the end of the corpus. This is because the two words at the beginning won''t
+    have two words before them and, similarly, the two words at the end won''t have
+    two words after them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.10 – Encoding the data'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_10.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.10 – Encoding the data
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We then define the length of our embeddings. While this can technically be
+    any number you wish, there are some tradeoffs to consider. While higher-dimensional
+    embeddings can lead to a more detailed representation of the words, the feature
+    space also becomes sparser, which means high-dimensional embeddings are only appropriate
+    for large corpuses. Furthermore, larger embeddings mean more parameters to learn,
+    so increasing the embedding size can increase training time significantly. We
+    are only training on a very small dataset, so we have opted to use embeddings
+    of size `20`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Next, we define our `CBOW` model in PyTorch. We define our embeddings layer
+    so that it takes a vector of corpus length in and outputs a single embedding.
+    We define our linear layer as a fully connected layer that takes an embedding
+    in and outputs a vector of `64`. We define our final layer as a classification
+    layer that is the same length as our text corpus.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We define our forward pass by obtaining and summing the embeddings for all
+    input context words. This then passes through the fully connected layer with ReLU
+    activation functions and finally into the classification layer, which predicts
+    which word in the corpus corresponds to the summed embeddings of the context words
+    the most:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can also define a `get_word_embedding()` function, which will allow us to
+    extract embeddings for a given word after our model has been trained:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we are ready to train our model. We first create an instance of our model
+    and define the loss function and optimizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We then create a helper function that takes our input context words, gets the
+    word indexes for each of these, and transforms them into a tensor of length 4,
+    which forms the input to our neural network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.11 – Tensor value'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_11.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.11 – Tensor value
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, we train our network. We loop through 100 epochs and for each pass, we
+    loop through all our context words, that is, target word pairs. For each of these
+    pairs, we load the context sentence using `make_sentence_vector()` and use our
+    current model state to obtain predictions. We evaluate these predictions against
+    our actual target in order to obtain our loss. We backpropagate to calculate the
+    gradients and step through our optimizer to update the weights. Finally, we sum
+    all our losses for the epoch and print this out. Here, we can see that our loss
+    is decreasing, showing that our model is learning:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.12 – Training our network'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_12.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.12 – Training our network
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now that our model has been trained, we can make predictions. We define a couple
+    of functions to allow us to do so. `get_predicted_result()` returns the predicted
+    word from the array of predictions, while our `predict_sentence()` function makes
+    a prediction based on the context words.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We split our sentences into individual words and transform them into an input
+    vector. We then create our prediction array by feeding this into our model and
+    get our final predicted word by using the `get_predicted_result()` function. We
+    also print the two words before and after the predicted target word for context.
+    We can run a couple of predictions to validate our model is working correctly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.13 – Predicted values'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_13.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.13 – Predicted values
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now that we have a trained model, we are able to use the `get_word_embedding()`
+    function in order to return the 20 dimensions word embedding for any word in our
+    corpus. If we needed our embeddings for another NLP task, we could actually extract
+    the weights from the whole embedding layer and use this in our new model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.14 – Tensor value after editing the model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_14.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.14 – Tensor value after editing the model
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we have demonstrated how to train a CBOW model for creating word embeddings.
+    In reality, to create reliable embeddings for a corpus, we would require a very
+    large dataset to be able to truly capture the semantic relationship between all
+    the words. Because of this, it may be preferable to use pre-trained embeddings
+    such as GLoVe, which have been trained on a very large corpus of data, for your
+    models, but there may be cases where it would be preferable to train a brand new
+    set of embeddings from scratch; for example, when analyzing a corpus of data that
+    doesn't resemble normal NLP (for example, Twitter data where users may speak in
+    short abbreviations and not use full sentences).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring n-grams
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In our CBOW model, we successfully showed that the meaning of the words is
+    related to the context of the words around it. It is not only our context words
+    that influence the meaning of words in a sentence, but the order of those words
+    as well. Consider the following sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The cat sat on the dog*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The dog sat on the cat*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you were to transform these two sentences into a bag-of-words representation,
+    we would see that they are identical. However, by reading the sentences, we know
+    they have completely different meanings (in fact, they are the complete opposite!).
+    This clearly demonstrates that the meaning of a sentence is not just the words
+    it contains, but the order in which they occur. One simple way of attempting to
+    capture the order of words within a sentence is by using n-grams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we perform a count on our sentences, but instead of counting individual
+    words, we now count the distinct two-word pairings that occur within the sentences,
+    this is known as using **bi-grams**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.15 – Tabular representation of bi-grams'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_15.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.15 – Tabular representation of bi-grams
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can represent this as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The cat sat on the dog -> [1,1,1,0,1,1]*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The dog sat on the cat -> [1,1,0,1,1,1]*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: These pairs of words attempt to capture the order the words appear in within
+    a sentence, not just their frequency. Our first sentence contains the bi-gram
+    *cat sat*, while the other one contains *dog sat*. These bigrams clearly help
+    add much more context to our sentence than just using raw word counts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are not limited to pairs of words. We can also look at distinct word triplets,
+    known as **trigrams**, or indeed any distinct number of words. We can use n-grams
+    as inputs into our deep learning models instead of just a singular word, but when
+    using n-gram models, it is worth noting that your feature space can become very
+    large very quickly and may make machine learning very slow. If a dictionary contains
+    all the words in the English language, a dictionary containing all distinct pairs
+    of words would be several orders of magnitude larger!
+  prefs: []
+  type: TYPE_NORMAL
+- en: N-gram language modeling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One thing that n-grams help us do is understand how natural language is formed.
+    If we think of a language as being represented by parts of smaller word pairs
+    (bigrams) instead of single words, we can begin to model language as a probabilistic
+    model where the probability that a word appears in a sentence depends on the words
+    that appeared before it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a **unigram** model, we assume that all the words have a finite probability
+    of appearing based on the distribution of the words in a corpus or document. Let''s
+    take a document consisting of one sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*My name is my name*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on this sentence, we can generate a distribution of words whereby each
+    word has a given probability of occurring based on its frequency within the document:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.16 – Tabular representation of a unigram'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_16.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.16 – Tabular representation of a unigram
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could then draw words randomly from this distribution in order to generate
+    new sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Name is Name my my*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But as we can see, this sentence doesn't make any sense, illustrating the problems
+    of using a unigram model. Because the probability of each word occurring is independent
+    of all the other words in the sentence, there is no consideration given to the
+    order or context of the words appearing. This is where n-gram models are useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now consider using a **bigram** language model. This calculation takes
+    the probability of a word occurring, given the word that appears before it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This means that the probability of a word occurring, given the previous word,
+    is the probability of the word n-gram occurring divided by the probability of
+    the previous word occurring. Let''s say we are trying to predict the next word
+    in the following sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*My favourite language is ___*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Along with this, we''re given the following n-gram and word probabilities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.17 – Tabular representation of the probabilities'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_17.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.17 – Tabular representation of the probabilities
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this, we could calculate the probability of Python occurring, given the
+    probability of the previous word *is* occurring is only 20%, whereas the probability
+    of *English* occurring is only 10%. We could expand this model further to use
+    a trigram or any n-gram representation of words as we deem appropriate. We have
+    demonstrated that n-gram language modeling can be used to introduce further information
+    about word's relationships to one another into our models, rather than naively
+    assuming that words are independently distributed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tokenization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Next, we will learn about tokenization for NLP, a way of pre-processing text
+    for entry into our models. Tokenization splits our sentences up into smaller parts.
+    This could involve splitting a sentence up into its individual words or splitting
+    a whole document up into individual sentences. This is an essential pre-processing
+    step for NLP that can be done fairly simply in Python:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first take a basic sentence and split this up into individual words using
+    the **word tokenizer** in NLTK:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.18 – Splitting the sentence'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_18.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.18 – Splitting the sentence
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Note how a period (`.`) is considered a token as it is a part of natural language.
+    Depending on what we want to do with the text, we may wish to keep or dispose
+    of the punctuation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.19 – Removing the punctuation'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_19.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.19 – Removing the punctuation
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can also tokenize documents into individual sentences using the **sentence**
+    **tokenizer**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.20 – Splitting multiple sentences into single sentences'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_20.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.20 – Splitting multiple sentences into single sentences
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Alternatively, we can combine the two to split into individual sentences of
+    words:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.21 – Splitting multiple sentences into words'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_21.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.21 – Splitting multiple sentences into words
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'One other optional step in the process of tokenization, which is the removal
+    of stopwords. Stopwords are very common words that do not contribute to the overall
+    meaning of a sentence. These include words such as *a*, `I`, and `or`. We can
+    print a complete list from NLTK using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.22 – Displaying stopwords'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_22.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.22 – Displaying stopwords
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can easily remove these stopwords from our words using basic list comprehension:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.23 – Removing stopwords'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_23.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.23 – Removing stopwords
+  prefs: []
+  type: TYPE_NORMAL
+- en: While some NLP tasks (such as predicting the next word in the sentence) require
+    stopwords, others (such as judging the sentiment of a film review) do not as the
+    stopwords do not contribute much toward the overall meaning of the document. Removing
+    stopwords may be preferable in these circumstances as the frequency of these common
+    words means they can increase our feature space unnecessarily, which will increase
+    the time it takes for our models to train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tagging and chunking for parts of speech
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, we have covered several approaches for representing words and sentences,
+    including bag-of-words, embeddings, and n-grams. However, these representations
+    fail to capture the structure of any given sentence. Within natural language,
+    different words can have different functions within a sentence. Consider the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The big dog is sleeping on the bed*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can "tag" the various words of this text, depending on the function of each
+    word in the sentence. So, the preceding sentence becomes as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The -> big -> dog -> is -> sleeping -> on -> the -> bed*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Determiner -> Adjective -> Noun -> Verb -> Verb -> Preposition -> Determiner->
+    Noun*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These **parts of speech** include, but are not limited to, the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.24 – Parts of speech'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_24.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.24 – Parts of speech
+  prefs: []
+  type: TYPE_NORMAL
+- en: These different parts of speech can be used to better understand the structure
+    of sentences. For example, adjectives often precede nouns in English. We can use
+    these parts of speech and their relationships to one another in our models. For
+    example, if we are predicting the next word in the sentence and the context word
+    is an adjective, we know the probability of the next word being a noun is high.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tagging
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Part of speech **tagging** is the act of assigning these part of speech tags
+    to the various words within the sentence. Fortunately, NTLK has a built-in tagging
+    functionality, so there is no need for us to train our own classifier to be able
+    to do so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.25 – Classifying parts of speech'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_25.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.25 – Classifying parts of speech
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we simply tokenize our text and call the `pos_tag()` function to tag
+    each of the words in the sentence. This returns a tag for each of the words in
+    the sentence. We can decode the meaning of this tag by calling `upenn_tagset()`
+    on the code. In this case, we can see that "`VBG`" corresponds to a verb:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.26 – Explanation of VBG'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_26.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.26 – Explanation of VBG
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using pre-trained part of speech taggers is beneficial because they don''t
+    just act as a dictionary that looks up the individual words in the sentence; they
+    also use the context of the word within the sentence to allocate its meaning.
+    Consider the following sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*He drinks the water*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*I will buy us some drinks*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The word *drinks* within these sentences represents two different parts of speech.
+    In the first sentence, *drinks* refers to the verb; the present tense of the verb
+    *to drink.* In the second sentence, *drinks* refers to the noun; the plural of
+    a singular *drink*. Our pre-trained tagger is able to determine the context of
+    these individual words and perform accurate part of speech tagging.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Chunking
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Chunking** expands upon our initial parts of speech tagging and aims to structure
+    our sentences in small chunks, where each of these chunks represent a small part
+    of speech.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We may wish to split our text up into **entities**, where each entity is a
+    separate object or thing. For example, *the red book* refers not to three separate
+    entities, but to a single entity described by three words. We can easily implement
+    chunking using NLTK again. We must first define a grammar pattern to match using
+    regular expressions. The pattern in question looks for **noun phrases** (**NP**),
+    where a noun phrase is defined as a **determiner** (**DT**), followed by an **optional
+    adjective** (**JJ**), followed by a **noun** (**NN**):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using the `RegexpParser()` function, we can match occurrences of this expression
+    and tag them as noun phrases. We are then able to print the resulting tree, showing
+    the tagged phrases. In our example sentence, we can see that *the big dog* and
+    *the bed* are tagged as two separate noun phrases. We are able to match any chunk
+    of text that we define using the regular expression as we see fit:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.27 – Tree representation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_27.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.27 – Tree representation
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF-IDF
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**TF-IDF** is yet another technique we can learn about to better represent
+    natural language. It is often used in text mining and information retrieval to
+    match documents based on search terms, but can also be used in combination with
+    embeddings to better represent sentences in embedding form. Let''s take the following
+    phrase:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*This is a small giraffe*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we want a single embedding to represent the meaning of this sentence.
+    One thing we could do is simply average the individual embeddings of each of the
+    five words in this sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.28 – Word embeddings'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_28.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.28 – Word embeddings
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this methodology assigns equal weight to all the words in the sentence.
+    Do you think that all the words contribute equally to the meaning of the sentence?
+    **This** and **a** are very common words in the English language, but **giraffe**
+    is very rarely seen. Therefore, we might want to assign more weight to the rarer
+    words. This methodology is known as **Term Frequency – Inverse Document Frequency**
+    (**TD-IDF**). We will now demonstrate how we can calculate TF-IDF weightings for
+    our documents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculating TF-IDF
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As the name suggests, TF-IDF consists of two separate parts: term frequency
+    and inverse document frequency. Term frequency is a document-specific measure
+    counting the frequency of a given word within the document being analyzed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that we divide this measure by the total number of words in the document
+    as a longer document is more likely to contain any given word. If a word appears
+    many times in a document, it will receive a higher term frequency. However, this
+    is the opposite of what we wish our TF-IDF weighting to do as we want to give
+    a higher weight to occurrences of rare words within our document. This is where
+    IDF comes into play.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Document frequency measures the number of documents within the entire corpus
+    of documents where the word is being analyzed, and inverse document frequency
+    calculates the ratio of the total documents to the document frequency:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_004.jpg)![](img/Formula_03_005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If we have a corpus of 100 documents and our word appears five times across
+    them, we will have an inverse document frequency of 20\. This means that a higher
+    weight is given to words with lower occurrences across all documents. Now, consider
+    a corpus of 100,000 documents. If a word appears just once, it will have an IDF
+    of 100,000, whereas a word occurring twice would have an IDF of 50,000\. These
+    very large and volatile IDFs aren''t ideal for our calculations, so we must first
+    normalize them with logs. Note how we add 1 within our calculations to prevent
+    division by 0 if we calculate TF-IDF for a word that doesn''t appear in our corpus:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This makes our final TF-IDF equation look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_03_007.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can now demonstrate how to implement this in Python and apply TF-IDF weightings
+    to our embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing TF-IDF
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Here, we will implement TF-IDF on a dataset using the Emma corpus from NLTK
+    datasets. This dataset consists of a selection of sentences from the book *Emma*
+    by Jane Austen, and we wish to calculate an embedded vector representation for
+    each of these sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by importing our dataset and looping through each of the sentences,
+    removing any punctuation and non-alphanumeric characters (such as astericks).
+    We choose to leave stopwords in our dataset to demonstrate how TF-IDF accounts
+    for these as these words appear in many documents and so have a very low IDF.
+    We create a list of parsed sentences and a set of the distinct words in our corpus:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we create a function that will return our Term Frequencies for a given
+    word in a given document. We take the length of the document to give us the number
+    of words and count the occurrences of this word in the document before returning
+    the ratio. Here, we can see that the word `ago` appears in the sentence once and
+    that the sentence is 41 words long, giving us a Term Frequency of 0.024:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.29 – TF-IDF score'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_29.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.29 – TF-IDF score
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we calculate our Document Frequency. In order to do this efficiently,
+    we first need to pre-compute a Document Frequency dictionary. This loops through
+    all the data and counts the number of documents each word in our corpus appears
+    in. We pre-compute this so we that do not have to perform this loop every time
+    we wish to calculate Document Frequency for a given word:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here, we can see that the word `ago` appears within our document 32 times.
+    Using this dictionary, we can very easily calculate our Inverse Document Frequency
+    by dividing the total number of documents by our Document Frequency and taking
+    the logarithm of this value. Note how we add one to the Document Frequency to
+    avoid a divide by zero error when the word doesn''t appear in the corpus:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we simply combine the Term Frequency and Inverse Document Frequency
+    to get the TF-IDF weighting for each word/document pair:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.30 – TF-IDF score for ago and indistinct'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_30.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.30 – TF-IDF score for ago and indistinct
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we can see that although the words `ago` and `indistinct` appear only
+    once in the given document, `indistinct` occurs less frequently throughout the
+    whole corpus, meaning it receives a higher TF-IDF weighting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculating TF-IDF weighted embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Next, we can show how these TF-IDF weightings can be applied to embeddings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first load our pre-computed GLoVe embeddings to provide the initial embedding
+    representation of words in our corpus:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We then calculate an unweighted mean average of all the individual embeddings
+    in our document to get a vector representation of the sentence as a whole. We
+    simply loop through all the words in our document, extract the embedding from
+    the GLoVe dictionary, and calculate the average over all these vectors:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.31 – Mean embedding'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_31.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.31 – Mean embedding
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We repeat this process to calculate our TF-IDF weighted document vector, but
+    this time, we multiply our vectors by their TF-IDF weighting before we average
+    them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.32 – TF-IDF embedding'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_32.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 3.32 – TF-IDF embedding
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can then compare the TF-IDF weighted embedding with our average embedding
+    to see how similar they are. We can do this using cosine similarity, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 3.33 – Cosine similarity between TF-IDF and average embedding'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B12365_03_33.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.33 – Cosine similarity between TF-IDF and average embedding
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we can see that our two different representations are very similar. Therefore,
+    while using TF-IDF may not dramatically change our representation of a given sentence
+    or document, it may weigh it in favor of words of interest, thus providing a more
+    useful representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have taken a deeper dive into word embeddings and their
+    applications. We have demonstrated how they can be trained using a continuous
+    bag-of-words model and how we can incorporate n-gram language modeling to better
+    understand the relationship between words in a sentence. We then looked at splitting
+    documents into individual tokens for easy processing and how to use tagging and
+    chunking to identify parts of speech. Finally, we showed how TF-IDF weightings
+    can be used to better represent documents in embedding form.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will see how to use NLP for text preprocessing, stemming,
+    and lemmatization.
+  prefs: []
+  type: TYPE_NORMAL

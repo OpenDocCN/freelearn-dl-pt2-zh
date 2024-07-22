@@ -1,0 +1,1426 @@
+- en: '13'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Going Deeper – The Mechanics of PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 12*, *Parallelizing Neural Network Training with PyTorch*, we covered
+    how to define and manipulate tensors and worked with the `torch.utils.data` module
+    to build input pipelines. We further built and trained a multilayer perceptron
+    to classify the Iris dataset using the PyTorch neural network module (`torch.nn`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have some hands-on experience with PyTorch neural network training
+    and machine learning, it’s time to take a deeper dive into the PyTorch library
+    and explore its rich set of features, which will allow us to implement more advanced
+    deep learning models in upcoming chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will use different aspects of PyTorch’s API to implement
+    NNs. In particular, we will again use the `torch.nn` module, which provides multiple
+    layers of abstraction to make the implementation of standard architectures very
+    convenient. It also allows us to implement custom NN layers, which is very useful
+    in research-oriented projects that require more customization. Later in this chapter,
+    we will implement such a custom layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To illustrate the different ways of model building using the `torch.nn` module,
+    we will also consider the classic **exclusive or** (**XOR**) problem. Firstly,
+    we will build multilayer perceptrons using the `Sequential` class. Then, we will
+    consider other methods, such as subclassing `nn.Module` for defining custom layers.
+    Finally, we will work on two real-world projects that cover the machine learning
+    steps from raw input to prediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The topics that we will cover are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding and working with PyTorch computation graphs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working with PyTorch tensor objects
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the classic XOR problem and understanding model capacity
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building complex NN models using PyTorch’s `Sequential` class and the `nn.Module`
+    class
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Computing gradients using automatic differentiation and `torch.autograd`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The key features of PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous chapter, we saw that PyTorch provides us with a scalable, multiplatform
+    programming interface for implementing and running machine learning algorithms.
+    After its initial release in 2016 and its 1.0 release in 2018, PyTorch has evolved
+    into one of the two most popular frameworks for deep learning. It uses dynamic
+    computational graphs, which have the advantage of being more flexible compared
+    to its static counterparts. Dynamic computational graphs are debugging friendly:
+    PyTorch allows for interleaving the graph declaration and graph evaluation steps.
+    You can execute the code line by line while having full access to all variables.
+    This is a very important feature that makes the development and training of NNs
+    very convenient.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While PyTorch is an open-source library and can be used for free by everyone,
+    its development is funded and supported by Facebook. This involves a large team
+    of software engineers who expand and improve the library continuously. Since PyTorch
+    is an open-source library, it also has strong support from other developers outside
+    of Facebook, who avidly contribute and provide user feedback. This has made the
+    PyTorch library more useful to both academic researchers and developers. A further
+    consequence of these factors is that PyTorch has extensive documentation and tutorials
+    to help new users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another key feature of PyTorch, which was also noted in the previous chapter,
+    is its ability to work with single or multiple **graphical processing units**
+    (**GPUs**). This allows users to train deep learning models very efficiently on
+    large datasets and large-scale systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Last but not least, PyTorch supports mobile deployment, which also makes it
+    a very suitable tool for production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will look at how a tensor and function in PyTorch are
+    interconnected via a computation graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch’s computation graphs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: PyTorch performs its computations based on a **directed acyclic graph** (**DAG**).
+    In this section, we will see how these graphs can be defined for a simple arithmetic
+    computation. Then, we will see the dynamic graph paradigm, as well as how the
+    graph is created on the fly in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding computation graphs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: PyTorch relies on building a computation graph at its core, and it uses this
+    computation graph to derive relationships between tensors from the input all the
+    way to the output. Let’s say that we have rank 0 (scalar) tensors *a*, *b*, and
+    *c* and we want to evaluate *z* = 2 × (*a* – *b*) + *c*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This evaluation can be represented as a computation graph, as shown in *Figure
+    13.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.1: How a computation graph works'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the computation graph is simply a network of nodes. Each node
+    resembles an operation, which applies a function to its input tensor or tensors
+    and returns zero or more tensors as the output. PyTorch builds this computation
+    graph and uses it to compute the gradients accordingly. In the next subsection,
+    we will see some examples of creating a graph for this computation using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a graph in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s look at a simple example that illustrates how to create a graph in PyTorch
+    for evaluating *z* = 2 × (*a* – *b*) + *c*, as shown in the previous figure. The
+    variables *a*, *b*, and *c* are scalars (single numbers), and we define these
+    as PyTorch tensors. To create the graph, we can simply define a regular Python
+    function with `a`, `b`, and `c` as its input arguments, for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, to carry out the computation, we can simply call this function with tensor
+    objects as function arguments. Note that PyTorch functions such as `add`, `sub`
+    (or `subtract`), and `mul` (or `multiply`) also allow us to provide inputs of
+    higher ranks in the form of a PyTorch tensor object. In the following code example,
+    we provide scalar inputs (rank 0), as well as rank 1 and rank 2 inputs, as lists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this section, you saw how simple it is to create a computation graph in PyTorch.
+    Next, we will look at PyTorch tensors that can be used for storing and updating
+    model parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch tensor objects for storing and updating model parameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We covered tensor objects in *Chapter 12*, *Parallelizing Neural Network Training
+    with PyTorch*. In PyTorch, a special tensor object for which gradients need to
+    be computed allows us to store and update the parameters of our models during
+    training. Such a tensor can be created by just assigning `requires_grad` to `True`
+    on user-specified initial values. Note that as of now (mid-2021), only tensors
+    of floating point and complex `dtype` can require gradients. In the following
+    code, we will generate tensor objects of type `float32`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that `requires_grad` is set to `False` by default. This value can be
+    efficiently set to `True` by running `requires_grad_()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`method_()` is an in-place method in PyTorch that is used for operations without
+    making a copy of the input.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s take a look at the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: You will recall that for NN models, initializing model parameters with random
+    weights is necessary to break the symmetry during backpropagation—otherwise, a
+    multilayer NN would be no more useful than a single-layer NN like logistic regression.
+    When creating a PyTorch tensor, we can also use a random initialization scheme.
+    PyTorch can generate random numbers based on a variety of probability distributions
+    (see [https://pytorch.org/docs/stable/torch.html#random-sampling](https://pytorch.org/docs/stable/torch.html#random-sampling)).
+    In the following example, we will take a look at some standard initialization
+    methods that are also available in the `torch.nn.init` module (see [https://pytorch.org/docs/stable/nn.init.html](https://pytorch.org/docs/stable/nn.init.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let’s look at how we can create a tensor with Glorot initialization, which
+    is a classic random initialization scheme that was proposed by Xavier Glorot and
+    Yoshua Bengio. For this, we first create an empty tensor and an operator called
+    `init` as an object of class `GlorotNormal`. Then, we fill this tensor with values
+    according to the Glorot initialization by calling the `xavier_normal_()` method.
+    In the following example, we initialize a tensor of shape 2×3:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Xavier (or Glorot) initialization**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the early development of deep learning, it was observed that random uniform
+    or random normal weight initialization could often result in poor model performance
+    during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In 2010, Glorot and Bengio investigated the effect of initialization and proposed
+    a novel, more robust initialization scheme to facilitate the training of deep
+    networks. The general idea behind Xavier initialization is to roughly balance
+    the variance of the gradients across different layers. Otherwise, some layers
+    may get too much attention during training while the other layers lag behind.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'According to the research paper by Glorot and Bengio, if we want to initialize
+    the weights in a uniform distribution, we should choose the interval of this uniform
+    distribution as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *n*[in] is the number of input neurons that are multiplied by the weights,
+    and *n*[out] is the number of output neurons that feed into the next layer. For
+    initializing the weights from Gaussian (normal) distribution, we recommend that
+    you choose the standard deviation of this Gaussian to be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: PyTorch supports Xavier initialization in both uniform and normal distributions
+    of weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more information about Glorot and Bengio’s initialization scheme, including
+    the rationale and mathematical motivation, we recommend the original paper (*Understanding
+    the difficulty of deep feedforward neural networks*, *Xavier Glorot* and *Yoshua
+    Bengio*, 2010), which is freely available at [http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, to put this into the context of a more practical use case, let’s see how
+    we can define two `Tensor` objects inside the base `nn.Module` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: These two tensors can be then used as weights whose gradients will be computed
+    via automatic differentiation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing gradients via automatic differentiation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you already know, optimizing NNs requires computing the gradients of the
+    loss with respect to the NN weights. This is required for optimization algorithms
+    such as **stochastic gradient descent** (**SGD**). In addition, gradients have
+    other applications, such as diagnosing the network to find out why an NN model
+    is making a particular prediction for a test example. Therefore, in this section,
+    we will cover how to compute gradients of a computation with respect to its input
+    variables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing the gradients of the loss with respect to trainable variables
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: PyTorch supports *automatic differentiation*, which can be thought of as an
+    implementation of the *chain rule* for computing gradients of nested functions.
+    Note that for the sake of simplicity, we will use the term *gradient* to refer
+    to both partial derivatives and gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Partial derivatives and gradients**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A partial derivative ![](img/B17582_13_003.png) can be understood as the rate
+    of change of a multivariate function—a function with multiple inputs, *f*(*x*[1], *x*[2], ...),
+    with respect to one of its inputs (here: *x*[1]). The gradient, ![](img/B17582_13_004.png),
+    of a function is a vector composed of all the inputs’ partial derivatives, ![](img/B17582_13_005.png).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we define a series of operations that results in some output or even intermediate
+    tensors, PyTorch provides a context for calculating gradients of these computed
+    tensors with respect to its dependent nodes in the computation graph. To compute
+    these gradients, we can call the `backward` method from the `torch.autograd` module.
+    It computes the sum of gradients of the given tensor with regard to leaf nodes
+    (terminal nodes) in the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s work with a simple example where we will compute *z* = *wx* + *b* and
+    define the loss as the squared loss between the target *y* and prediction *z*,
+    *Loss* = (*y* – *z*)². In the more general case, where we may have multiple predictions
+    and targets, we compute the loss as the sum of the squared error, ![](img/B17582_13_006.png).
+    In order to implement this computation in PyTorch, we will define the model parameters,
+    *w* and *b*, as variables (tensors with the `requires_gradient` attribute set
+    to `True`), and the input, *x* and *y*, as default tensors. We will compute the
+    loss tensor and use it to compute the gradients of the model parameters, *w* and
+    *b*,as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Computing the value *z* is a forward pass in an NN. We used the `backward`
+    method on the `loss` tensor to compute ![](img/B17582_13_007.png) and ![](img/B17582_13_008.png).
+    Since this is a very simple example, we can obtain ![](img/B17582_13_009.png)
+    symbolically to verify that the computed gradients match the results we obtained
+    in the previous code example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We leave the verification of *b* as an exercise for the reader.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding automatic differentiation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Automatic differentiation represents a set of computational techniques for
+    computing gradients of arbitrary arithmetic operations. During this process, gradients
+    of a computation (expressed as a series of operations) are obtained by accumulating
+    the gradients through repeated applications of the chain rule. To better understand
+    the concept behind automatic differentiation, let’s consider a series of nested
+    computations, *y* = *f*(*g*(*h*(*x*))), with input *x* and output *y*. This can
+    be broken into a series of steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*u*[0] = *x*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*u*[1] = *h*(*x*)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*u*[2] = *g*(*u*[1])'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*u*[3] = *f*(*u*[2]) = *y*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The derivative ![](img/B17582_13_010.png) can be computed in two different
+    ways: forward accumulation, which starts with ![](img/B17582_13_011.png), and
+    reverse accumulation, which starts with ![](img/B17582_13_012.png). Note that
+    PyTorch uses the latter, reverse accumulation, which is more efficient for implementing
+    backpropagation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adversarial examples
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Computing gradients of the loss with respect to the input example is used for
+    generating *adversarial examples* (or *adversarial attacks*). In computer vision,
+    adversarial examples are examples that are generated by adding some small, imperceptible
+    noise (or perturbations) to the input example, which results in a deep NN misclassifying
+    them. Covering adversarial examples is beyond the scope of this book, but if you
+    are interested, you can find the original paper by *Christian Szegedy et al.*,
+    *Intriguing properties of neural networks* at [https://arxiv.org/pdf/1312.6199.pdf](https://arxiv.org/pdf/1312.6199.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Simplifying implementations of common architectures via the torch.nn module
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have already seen some examples of building a feedforward NN model (for
+    instance, a multilayer perceptron) and defining a sequence of layers using the
+    `nn.Module` class. Before we take a deeper dive into `nn.Module`, let’s briefly
+    look at another approach for conjuring those layers via `nn.Sequential`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing models based on nn.Sequential
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With `nn.Sequential` ([https://pytorch.org/docs/master/generated/torch.nn.Sequential.html#sequential](https://pytorch.org/docs/master/generated/torch.nn.Sequential.html#sequential)),
+    the layers stored inside the model are connected in a cascaded way. In the following
+    example, we will build a model with two densely (fully) connected layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: We specified the layers and instantiated the `model` after passing the layers
+    to the `nn.Sequential` class. The output of the first fully connected layer is
+    used as the input to the first ReLU layer. The output of the first ReLU layer
+    becomes the input for the second fully connected layer. Finally, the output of
+    the second fully connected layer is used as the input to the second ReLU layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can further configure these layers, for example, by applying different activation
+    functions, initializers, or regularization methods to the parameters. A comprehensive
+    and complete list of available options for most of these categories can be found
+    in the official documentation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Choosing activation functions: [https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity](https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Initializing the layer parameters via `nn.init`: [https://pytorch.org/docs/stable/nn.init.html](https://pytorch.org/docs/stable/nn.init.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Applying L2 regularization to the layer parameters (to prevent overfitting)
+    via the parameter `weight_decay` of some optimizers in `torch.optim`: [https://pytorch.org/docs/stable/optim.html](https://pytorch.org/docs/stable/optim.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Applying L1 regularization to the layer parameters (to prevent overfitting)
+    by adding the L1 penalty term to the loss tensor, which we will implement next
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In the following code example, we will configure the first fully connected
+    layer by specifying the initial value distribution for the weight. Then, we will
+    configure the second fully connected layer by computing the L1 penalty term for
+    the weight matrix:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we initialized the weight of the first linear layer with Xavier initialization.
+    And we computed the L1 norm of the weight of the second linear layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, we can also specify the type of optimizer and the loss function
+    for training. Again, a comprehensive list of all available options can be found
+    in the official documentation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Optimizers via `torch.optim`: [https://pytorch.org/docs/stable/optim.html#algorithms](https://pytorch.org/docs/stable/optim.html#algorithms)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Loss functions: [https://pytorch.org/docs/stable/nn.html#loss-functions](https://pytorch.org/docs/stable/nn.html#loss-functions)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Choosing a loss function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Regarding the choices for optimization algorithms, SGD and Adam are the most
+    widely used methods. The choice of loss function depends on the task; for example,
+    you might use mean square error loss for a regression problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The family of cross-entropy loss functions supplies the possible choices for
+    classification tasks, which are extensively discussed in *Chapter 14*, *Classifying
+    Images with Deep Convolutional Neural Networks*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, you can use the techniques you have learned from previous chapters
+    (such as techniques for model evaluation from *Chapter 6*, *Learning Best Practices
+    for Model Evaluation and Hyperparameter Tuning*) combined with the appropriate
+    metrics for the problem. For example, precision and recall, accuracy, **area under
+    the curve** (**AUC**), and false negative and false positive scores are appropriate
+    metrics for evaluating classification models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this example, we will use the SGD optimizer, and cross-entropy loss for
+    binary classification:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will look at a more practical example: solving the classic XOR classification
+    problem. First, we will use the `nn.Sequential()` class to build the model. Along
+    the way, you will also learn about the capacity of a model for handling nonlinear
+    decision boundaries. Then, we will cover building a model via `nn.Module` that
+    will give us more flexibility and control over the layers of the network.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving an XOR classification problem
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The XOR classification problem is a classic problem for analyzing the capacity
+    of a model with regard to capturing the nonlinear decision boundary between two
+    classes. We generate a toy dataset of 200 training examples with two features
+    (*x*[0], *x*[1]) drawn from a uniform distribution between [–1, 1). Then, we assign
+    the ground truth label for training example *i* according to the following rule:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_013.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We will use half of the data (100 training examples) for training and the remaining
+    half for validation. The code for generating the data and splitting it into the
+    training and validation datasets is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The code results in the following scatterplot of the training and validation
+    examples, shown with different markers based on their class label:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.2: Scatterplot of training and validation examples'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the previous subsection, we covered the essential tools that we need to
+    implement a classifier in PyTorch. We now need to decide what architecture we
+    should choose for this task and dataset. As a general rule of thumb, the more
+    layers we have, and the more neurons we have in each layer, the larger the capacity
+    of the model will be. Here, the model capacity can be thought of as a measure
+    of how readily the model can approximate complex functions. While having more
+    parameters means the network can fit more complex functions, larger models are
+    usually harder to train (and prone to overfitting). In practice, it is always
+    a good idea to start with a simple model as a baseline, for example, a single-layer
+    NN like logistic regression:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After defining the model, we will initialize the cross-entropy loss function
+    for binary classification and the SGD optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will create a data loader that uses a batch size of 2 for the train
+    data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we will train the model for 200 epochs and record a history of training
+    epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the history of training epochs includes the train loss and validation
+    loss and the train accuracy and validation accuracy, which is useful for visual
+    inspection after training. In the following code, we will plot the learning curves,
+    including the training and validation loss, as well as their accuracies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code will plot the training performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following figure, with two separate panels for the losses
+    and accuracies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.3: Loss and accuracy results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, a simple model with no hidden layer can only derive a linear
+    decision boundary, which is unable to solve the XOR problem. As a consequence,
+    we can observe that the loss terms for both the training and the validation datasets
+    are very high, and the classification accuracy is very low.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To derive a nonlinear decision boundary, we can add one or more hidden layers
+    connected via nonlinear activation functions. The universal approximation theorem
+    states that a feedforward NN with a single hidden layer and a relatively large
+    number of hidden units can approximate arbitrary continuous functions relatively
+    well. Thus, one approach for tackling the XOR problem more satisfactorily is to
+    add a hidden layer and compare different numbers of hidden units until we observe
+    satisfactory results on the validation dataset. Adding more hidden units would
+    correspond to increasing the width of a layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can also add more hidden layers, which will make the model
+    deeper. The advantage of making a network deeper rather than wider is that fewer
+    parameters are required to achieve a comparable model capacity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, a downside of deep (versus wide) models is that deep models are prone
+    to vanishing and exploding gradients, which make them harder to train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As an exercise, try adding one, two, three, and four hidden layers, each with
+    four hidden units. In the following example, we will take a look at the results
+    of a feedforward NN with two hidden layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can repeat the previous code for visualization, which produces the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.4: Loss and accuracy results after adding two hidden layers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we can see that the model is able to derive a nonlinear decision boundary
+    for this data, and the model reaches 100 percent accuracy on the training dataset.
+    The validation dataset’s accuracy is 95 percent, which indicates that the model
+    is slightly overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making model building more flexible with nn.Module
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous example, we used the PyTorch `Sequential` class to create a
+    fully connected NN with multiple layers. This is a very common and convenient
+    way of building models. However, it unfortunately doesn’t allow us to create more
+    complex models that have multiple input, output, or intermediate branches. That’s
+    where `nn.Module` comes in handy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The alternative way to build complex models is by subclassing `nn.Module`.
+    In this approach, we create a new class derived from `nn.Module` and define the
+    method, `__init__()`, as a constructor. The `forward()` method is used to specify
+    the forward pass. In the constructor function, `__init__()`, we define the layers
+    as attributes of the class so that they can be accessed via the `self` reference
+    attribute. Then, in the `forward()` method, we specify how these layers are to
+    be used in the forward pass of the NN. The code for defining a new class that
+    implements the previous model is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that we put all layers in the `nn.ModuleList` object, which is just a
+    `list` object composed of `nn.Module` items. This makes the code more readable
+    and easier to follow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we define an instance of this new class, we can train it as we did previously:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, besides the train history, we will use the mlxtend library to visualize
+    the validation data and the decision boundary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Mlxtend can be installed via `conda` or `pip` as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To compute the decision boundary of our model, we need to add a `predict()`
+    method in the `MyModule` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: It will return the predicted class (0 or 1) for a sample.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code will plot the training performance along with the decision
+    region bias:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in *Figure 13.5*, with three separate panels for the losses, accuracies,
+    and the scatterplot of the validation examples, along with the decision boundary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.5: Results, including a scatterplot'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writing custom layers in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In cases where we want to define a new layer that is not already supported by
+    PyTorch, we can define a new class derived from the `nn.Module` class. This is
+    especially useful when designing a new layer or customizing an existing layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To illustrate the concept of implementing custom layers, let’s consider a simple
+    example. Imagine we want to define a new linear layer that computes ![](img/B17582_13_014.png),
+    where ![](img/B17582_13_015.png) refers to a random variable as a noise variable.
+    To implement this computation, we define a new class as a subclass of `nn.Module`.
+    For this new class, we have to define both the constructor `__init__()` method
+    and the `forward()` method. In the constructor, we define the variables and other
+    required tensors for our customized layer. We can create variables and initialize
+    them in the constructor if the `input_size` is given to the constructor. Alternatively,
+    we can delay the variable initialization (for instance, if we do not know the
+    exact input shape upfront) and delegate it to another method for late variable
+    creation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To look at a concrete example, we are going to define a new layer called `NoisyLinear`,
+    which implements the computation ![](img/B17582_13_016.png), which was mentioned
+    in the preceding paragraph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before we go a step further and use our custom `NoisyLinear` layer in a model,
+    let’s test it in the context of a simple example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code, we will define a new instance of this layer, and execute
+    it on an input tensor. Then, we will call the layer three times on the same input
+    tensor:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the outputs for the first two calls differ because the `NoisyLinear`
+    layer added random noise to the input tensor. The third call outputs [0, 0] as
+    we didn’t add noise by specifying `training=False`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, let’s create a new model similar to the previous one for solving the XOR
+    classification task. As before, we will use the `nn.Module` class for model building,
+    but this time, we will use our `NoisyLinear` layer as the first hidden layer of
+    the multilayer perceptron. The code is as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Similarly, we will train the model as we did previously. At this time, to compute
+    the prediction on the training batch, we use `pred = model(x_batch, True)[:, 0]`
+    instead of `pred = model(x_batch)[:, 0]`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After the model is trained, we can plot the losses, accuracies, and the decision
+    boundary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The resulting figure will be as follows:![](img/B17582_13_06.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 13.6: Results using NoisyLinear as the first hidden layer'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Here, our goal was to learn how to define a new custom layer subclassed from
+    `nn.Module` and to use it as we would use any other standard `torch.nn` layer.
+    Although, with this particular example, `NoisyLinear` did not help to improve
+    the performance, please keep in mind that our objective was to mainly learn how
+    to write a customized layer from scratch. In general, writing a new customized
+    layer can be useful in other applications, for example, if you develop a new algorithm
+    that depends on a new layer beyond the existing ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project one – predicting the fuel efficiency of a car
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, in this chapter, we have mostly focused on the `torch.nn` module. We
+    used `nn.Sequential` to construct the models for simplicity. Then, we made model
+    building more flexible with `nn.Module` and implemented feedforward NNs, to which
+    we added customized layers. In this section, we will work on a real-world project
+    of predicting the fuel efficiency of a car in miles per gallon (MPG). We will
+    cover the underlying steps in machine learning tasks, such as data preprocessing,
+    feature engineering, training, prediction (inference), and evaluation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with feature columns
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In machine learning and deep learning applications, we can encounter various
+    different types of features: continuous, unordered categorical (nominal), and
+    ordered categorical (ordinal). You will recall that in *Chapter 4*, *Building
+    Good Training Datasets – Data Preprocessing*, we covered different types of features
+    and learned how to handle each type. Note that while numeric data can be either
+    continuous or discrete, in the context of machine learning with PyTorch, “numeric”
+    data specifically refers to continuous data of floating point type.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Sometimes, feature sets are comprised of a mixture of different feature types.
+    For example, consider a scenario with a set of seven different features, as shown
+    in *Figure 13.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.7: Auto MPG data structure'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The features shown in the figure (model year, cylinders, displacement, horsepower,
+    weight, acceleration, and origin) were obtained from the Auto MPG dataset, which
+    is a common machine learning benchmark dataset for predicting the fuel efficiency
+    of a car in MPG. The full dataset and its description are available from UCI’s
+    machine learning repository at [https://archive.ics.uci.edu/ml/datasets/auto+mpg](https://archive.ics.uci.edu/ml/datasets/auto+mpg).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are going to treat five features from the Auto MPG dataset (number of cylinders,
+    displacement, horsepower, weight, and acceleration) as “numeric” (here, continuous)
+    features. The model year can be regarded as an ordered categorical (ordinal) feature.
+    Lastly, the manufacturing origin can be regarded as an unordered categorical (nominal)
+    feature with three possible discrete values, 1, 2, and 3, which correspond to
+    the US, Europe, and Japan, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s first load the data and apply the necessary preprocessing steps, including
+    dropping the incomplete rows, partitioning the dataset into training and test
+    datasets, as well as standardizing the continuous features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.8: Preprocessed Auto MG data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, let’s group the rather fine-grained model year (`ModelYear`) information
+    into buckets to simplify the learning task for the model that we are going to
+    train later. Concretely, we are going to assign each car into one of four *year*
+    buckets, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B17582_13_019.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Note that the chosen intervals were selected arbitrarily to illustrate the
+    concepts of “bucketing.” In order to group the cars into these buckets, we will
+    first define three cut-off values: [73, 76, 79] for the model year feature. These
+    cut-off values are used to specify half-closed intervals, for instance, (–∞, 73),
+    [73, 76), [76, 79), and [76, ∞). Then, the original numeric features will be passed
+    to the `torch.bucketize` function ([https://pytorch.org/docs/stable/generated/torch.bucketize.html](https://pytorch.org/docs/stable/generated/torch.bucketize.html))
+    to generate the indices of the buckets. The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: We added this bucketized feature column to the Python list `numeric_column_names`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will proceed with defining a list for the unordered categorical feature,
+    `Origin`. In PyTorch, There are two ways to work with a categorical feature: using
+    an embedding layer via `nn.Embedding` ([https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html](https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html)),
+    or using one-hot-encoded vectors (also called *indicator*). In the encoding approach,
+    for example, index 0 will be encoded as [1, 0, 0], index 1 will be encoded as
+    [0, 1, 0], and so on. On the other hand, the embedding layer maps each index to
+    a vector of random numbers of the type `float`, which can be trained. (You can
+    think of the embedding layer as a more efficient implementation of a one-hot encoding
+    multiplied with a trainable weight matrix.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the number of categories is large, using the embedding layer with fewer
+    dimensions than the number of categories can improve the performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code snippet, we will use the one-hot-encoding approach on
+    the categorical feature in order to convert it into the dense format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After encoding the categorical feature into a three-dimensional dense feature,
+    we concatenated it with the numeric features we processed in the previous step.
+    Finally, we will create the label tensors from the ground truth MPG values as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this section, we have covered the most common approaches for preprocessing
+    and creating features in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a DNN regression model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, after constructing the mandatory features and labels, we will create a
+    data loader that uses a batch size of 8 for the train data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will build a model with two fully connected layers where one has 8
+    hidden units and another has 4:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After defining the model, we will define the MSE loss function for regression
+    and use stochastic gradient descent for optimization:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we will train the model for 200 epochs and display the train loss for every
+    20 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After 200 epochs, the train loss was around 5\. We can now evaluate the regression
+    performance of the trained model on the test dataset. To predict the target values
+    on new data points, we can feed their features to the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: The MSE on the test set is 9.6, and the **mean absolute error** (**MAE**) is
+    2.1\. After this regression project, we will work on a classification project
+    in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project two – classifying MNIST handwritten digits
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For this classification project, we are going to categorize MNIST handwritten
+    digits. In the previous section, we covered the four essential steps for machine
+    learning in PyTorch in detail, which we will need to repeat in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will recall that in *Chapter 12* you learned the way of loading available
+    datasets from the `torchvision` module. First, we are going to load the MNIST
+    dataset using the `torchvision` module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The setup step includes loading the dataset and specifying hyperparameters
+    (the size of the train set and test set, and the size of mini-batches):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, we constructed a data loader with batches of 64 samples. Next, we will
+    preprocess the loaded datasets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We preprocess the input features and the labels. The features in this project
+    are the pixels of the images we read from **Step 1**. We defined a custom transformation
+    using `torchvision.transforms.Compose`. In this simple case, our transformation
+    consisted only of one method, `ToTensor()`. The `ToTensor()` method converts the
+    pixel features into a floating type tensor and also normalizes the pixels from
+    the [0, 255] to [0, 1] range. In *Chapter 14*, *Classifying Images with Deep Convolutional
+    Neural Networks*, we will see some additional data transformation methods when
+    we work with more complex image datasets. The labels are integers from 0 to 9
+    representing ten digits. Hence, we don’t need to do any scaling or further conversion.
+    Note that we can access the raw pixels using the `data` attribute, and don’t forget
+    to scale them to the range [0, 1].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will construct the model in the next step once the data is preprocessed.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Construct the NN model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the model starts with a flatten layer that flattens an input image
+    into a one-dimensional tensor. This is because the input images are in the shape
+    of [1, 28, 28]. The model has two hidden layers, with 32 and 16 units respectively.
+    And it ends with an output layer of ten units representing ten classes, activated
+    by a softmax function. In the next step, we will train the model on the train
+    set and evaluate it on the test set.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Use the model for training, evaluation, and prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We used the cross-entropy loss function for multiclass classification and the
+    Adam optimizer for gradient descent. We will talk about the Adam optimizer in
+    *Chapter 14*. We trained the model for 20 epochs and displayed the train accuracy
+    for every epoch. The trained model reached an accuracy of 96.3 percent on the
+    training set and we will evaluate it on the testing set:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The test accuracy is 95.6 percent. You have learned how to solve a classification
+    problem using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Higher-level PyTorch APIs: a short introduction to PyTorch-Lightning'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In recent years, the PyTorch community developed several different libraries
+    and APIs on top of PyTorch. Notable examples include fastai ([https://docs.fast.ai/](https://docs.fast.ai/)),
+    Catalyst ([https://github.com/catalyst-team/catalyst](https://github.com/catalyst-team/catalyst)),
+    PyTorch Lightning ([https://www.pytorchlightning.ai](https://www.pytorchlightning.ai)),
+    ([https://lightning-flash.readthedocs.io/en/latest/quickstart.html](https://lightning-flash.readthedocs.io/en/latest/quickstart.html)),
+    and PyTorch-Ignite ([https://github.com/pytorch/ignite](https://github.com/pytorch/ignite)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will explore PyTorch Lightning (Lightning for short), which
+    is a widely used PyTorch library that makes training deep neural networks simpler
+    by removing much of the boilerplate code. However, while Lightning’s focus lies
+    in simplicity and flexibility, it also allows us to use many advanced features
+    such as multi-GPU support and fast low-precision training, which you can learn
+    about in the official documentation at [https://pytorch-lightning.rtfd.io/en/latest/](https://pytorch-lightning.rtfd.io/en/latest/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is also a bonus introduction to PyTorch-Ignite at [https://github.com/rasbt/machine-learning-book/blob/main/ch13/ch13_part4_ignite.ipynb](https://github.com/rasbt/machine-learning-book/blob/main/ch13/ch13_part4_ignite.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In an earlier section, *Project two – classifying MNIST handwritten digits*,
+    we implemented a multilayer perceptron for classifying handwritten digits in the
+    MNIST dataset. In the next subsections, we will reimplement this classifier using
+    Lightning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Installing PyTorch Lightning**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lightning can be installed via pip or conda, depending on your preference.
+    For instance, the command for installing Lightning via pip is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following is the command for installing Lightning via conda:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code in the following subsections is based on PyTorch Lightning version
+    1.5, which you can install by replacing `pytorch-lightning` with `pytorch-lightning==1.5`
+    in these commands.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the PyTorch Lightning model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We start by implementing the model, which we will train in the next subsections.
+    Defining a model for Lightning is relatively straightforward as it is based on
+    regular Python and PyTorch code. All that is required to implement a Lightning
+    model is to use `LightningModule` instead of the regular PyTorch module. To take
+    advantage of PyTorch’s convenience functions, such as the trainer API and automatic
+    logging, we just define a few specifically named methods, which we will see in
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s now discuss the different methods one by one. As you can see, the `__init__`
+    constructor contains the same model code that we used in a previous subsection.
+    What’s new is that we added the accuracy attributes such as `self.train_acc =
+    Accuracy()`. These will allow us to track the accuracy during training. `Accuracy`
+    was imported from the `torchmetrics` module, which should be automatically installed
+    with Lightning. If you cannot import `torchmetrics`, you can try to install it
+    via `pip install torchmetrics`. More information can be found at [https://torchmetrics.readthedocs.io/en/latest/pages/quickstart.html](https://torchmetrics.readthedocs.io/en/latest/pages/quickstart.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `forward` method implements a simple forward pass that returns the logits
+    (outputs of the last fully connected layer of our network before the softmax layer)
+    when we call our model on the input data. The logits, computed via the `forward`
+    method by calling `self(x)`, are used for the training, validation, and test steps,
+    which we’ll describe next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `training_step`, `training_epoch_end`, `validation_step`, `test_step`, and
+    `configure_optimizers` methods are methods that are specifically recognized by
+    Lightning. For instance, `training_step` defines a single forward pass during
+    training, where we also keep track of the accuracy and loss so that we can analyze
+    these later. Note that we compute the accuracy via `self.train_acc.update(preds,
+    y)` but don’t log it yet. The `training_step` method is executed on each individual
+    batch during training, and via the `training_epoch_end` method, which is executed
+    at the end of each training epoch, we compute the training set accuracy from the
+    accuracy values we accumulated via training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `validation_step` and `test_step` methods define, analogous to the `training_step`
+    method, how the validation and test evaluation process should be computed. Similar
+    to `training_step`, each `validation_step` and `test_step` receives a single batch,
+    which is why we log the accuracy via respective accuracy attributes derived from
+    `Accuracy` of `torchmetric`. However, note that `validation_step` is only called
+    in certain intervals, for example, after each training epoch. This is why we log
+    the validation accuracy inside the validation step, whereas with the training
+    accuracy, we log it after each training epoch, otherwise, the accuracy plot that
+    we inspect later will look too noisy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, via the `configure_optimizers` method, we specify the optimizer used
+    for training. The following two subsections will discuss how we can set up the
+    dataset and how we can train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the data loaders for Lightning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'There are three main ways in which we can prepare the dataset for Lightning.
+    We can:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make the dataset part of the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Set up the data loaders as usual and feed them to the `fit` method of a Lightning
+    Trainer—the Trainer is introduced in the next subsection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Create a `LightningDataModule`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Here, we are going to use a `LightningDataModule`, which is the most organized
+    approach. The `LightningDataModule` consists of five main methods, as we can see
+    in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `prepare_data` method, we define general steps, such as downloading the
+    dataset. In the `setup` method, we define the datasets used for training, validation,
+    and testing. Note that MNIST does not have a dedicated validation split, which
+    is why we use the `random_split` function to divide the 60,000-example training
+    set into 55,000 examples for training and 5,000 examples for validation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The data loader methods are self-explanatory and define how the respective
+    datasets are loaded. Now, we can initialize the data module and use it for training,
+    validation, and testing in the next subsections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training the model using the PyTorch Lightning Trainer class
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now we can reap the rewards from setting up the model with the specifically
+    named methods, as well as the Lightning data module. Lightning implements a `Trainer`
+    class that makes the training model super convenient by taking care of all the
+    intermediate steps, such as calling `zero_grad()`, `backward()`, and `optimizer.step()`
+    for us. Also, as a bonus, it lets us easily specify one or more GPUs to use (if
+    available):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Via the preceding code, we train our multilayer perceptron for 10 epochs. During
+    training, we see a handy progress bar that keeps track of the epoch and core metrics
+    such as the training and validation losses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: After the training has finished, we can also inspect the metrics we logged in
+    more detail, as we will see in the next subsection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating the model using TensorBoard
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous section, we experienced the convenience of the `Trainer` class.
+    Another nice feature of Lightning is its logging capabilities. Recall that we
+    specified several `self.log` steps in our Lightning model earlier. After, and
+    even during training, we can visualize them in TensorBoard. (Note that Lightning
+    supports other loggers as well; for more information, please see the official
+    documentation at [https://pytorch-lightning.readthedocs.io/en/latest/common/loggers.html](https://pytorch-lightning.readthedocs.io/en/latest/common/loggers.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Installing TensorBoard**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorBoard can be installed via pip or conda, depending on your preference.
+    For instance, the command for installing TensorBoard via pip is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following is the command for installing Lightning via conda:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code in the following subsection is based on TensorBoard version 2.4, which
+    you can install by replacing `tensorboard` with `tensorboard==2.4` in these commands.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By default, Lightning tracks the training in a subfolder named `lightning_logs`.
+    To visualize the training runs, you can execute the following code in the command-line
+    terminal, which will open TensorBoard in your browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Alternatively, if you are running the code in a Jupyter notebook, you can add
+    the following code to a Jupyter notebook cell to show the TensorBoard dashboard
+    in the notebook directly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Figure 13.9* shows the TensorBoard dashboard with the logged training and
+    validation accuracy. Note that there is a `version_0` toggle shown in the lower-left
+    corner. If you run the training code multiple times, Lightning will track them
+    as separate subfolders: `version_0`, `version_1`, `version_2`, and so forth:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated](img/B17582_13_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.9: TensorBoard dashboard'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By looking at the training and validation accuracies in *Figure 13.9*, we can
+    hypothesize that training the model for a few additional epochs can improve performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lightning allows us to load a trained model and train it for additional epochs
+    conveniently. As mentioned previously, Lightning tracks the individual training
+    runs via subfolders. In *Figure 13.10*, we see the contents of the `version_0`
+    subfolder, which contains log files and a model checkpoint for reloading the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application Description automatically generated](img/B17582_13_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.10: PyTorch Lightning log files'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, we can use the following code to load the latest model checkpoint
+    from this folder and train the model via `fit`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we set `max_epochs` to `15`, which trained the model for 5 additional
+    epochs (previously, we trained it for 10 epochs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s take a look at the TensorBoard dashboard in *Figure 13.11* and see
+    whether training the model for a few additional epochs was worthwhile:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated](img/B17582_13_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.11: TensorBoard dashboard after training for five more epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see in *Figure 13.11*, TensorBoard allows us to show the results from
+    the additional training epochs (`version_1`) next to the previous ones (`version_0`),
+    which is very convenient. Indeed, we can see that training for five more epochs
+    improved the validation accuracy. At this point, we may decide to train the model
+    for more epochs, which we leave as an exercise to you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we are finished with training, we can evaluate the model on the test set
+    using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The resulting test set performance, after training for 15 epochs in total,
+    is approximately 95 percent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that PyTorch Lightning also saves the model automatically for us. If you
+    want to reuse the model later, you can conveniently load it via the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Learn more about PyTorch Lightning**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To learn more about Lightning, please visit the official website, which contains
+    tutorials and examples, at [https://pytorch-lightning.readthedocs.io](https://pytorch-lightning.readthedocs.io).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lightning also has an active community on Slack that welcomes new users and
+    contributors. To find out more, please visit the official Lightning website at
+    [https://www.pytorchlightning.ai](https://www.pytorchlightning.ai).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered PyTorch’s most essential and useful features. We
+    started by discussing PyTorch’s dynamic computation graph, which makes implementing
+    computations very convenient. We also covered the semantics of defining PyTorch
+    tensor objects as model parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After we considered the concept of computing partial derivatives and gradients
+    of arbitrary functions, we covered the `torch.nn` module in more detail. It provides
+    us with a user-friendly interface for building more complex deep NN models. Finally,
+    we concluded this chapter by solving a regression and classification problem using
+    what we have discussed so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have covered the core mechanics of PyTorch, the next chapter will
+    introduce the concept behind **convolutional neural network** (**CNN**) architectures
+    for deep learning. CNNs are powerful models and have shown great performance in
+    the field of computer vision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/MLwPyTorch](https://packt.link/MLwPyTorch)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code874410888448293359.png)'
+  prefs: []
+  type: TYPE_IMG
