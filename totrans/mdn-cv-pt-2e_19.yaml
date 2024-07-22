@@ -3,11 +3,13 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '15'
 - en: Combining Computer Vision and NLP Techniques
   id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 结合计算机视觉和NLP技术
 - en: In the previous chapter, we learned about applications that combine reinforcement
     learning and computer vision. In this chapter, we will switch gears and learn
     about how a **convolutional neural network** (**CNN**) can be used in conjunction
@@ -17,6 +19,7 @@
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们了解了结合强化学习和计算机视觉的应用。在本章中，我们将转而学习**卷积神经网络**（**CNN**）如何与transformers家族的算法结合使用，在自然语言处理中广泛使用（截至本书编写时）开发同时利用计算机视觉和NLP的解决方案。
 - en: To understand combining CNNs and transformers, we will first learn how **vision
     transformers** (**ViTs**) work and how they help in performing image classification.
     After that, we will learn about leveraging transformers to perform the transcription
@@ -28,30 +31,37 @@
   id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解如何结合CNN和transformers，我们将首先学习**视觉transformers**（**ViTs**）的工作原理以及它们如何帮助执行图像分类。之后，我们将学习如何利用transformers执行手写图像的转录，使用**Transformer光学字符识别**（**TrOCR**）。接下来，我们将学习如何结合transformers和OCR，使用名为**LayoutLM**的技术在文档图像上执行问答。最后，我们将学习如何使用名为**Bootstrapping
+    Language Image Pre-training**（**BLIP2**）的transformer架构执行视觉问题回答。
 - en: 'By the end of this chapter, you will have learned about the following topics:'
   id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章结束时，您将学习以下主题：
 - en: Implementing ViTs for image classification
   id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 实现ViTs进行图像分类
 - en: Implementing LayoutLM for document question answering
   id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 实现LayoutLM进行文档问答
 - en: Transcribing handwritten images
   id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 转录手写图像
 - en: Visual question answering using BLIP2
   id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用BLIP2进行视觉问题回答
 - en: You are advised to go through the supplemental chapter on training with minimal
     data points to get familiarity with word embeddings, available in the `Extra chapters
     from first edition` folder on GitHub.
@@ -59,22 +69,26 @@
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 建议您阅读关于使用最少数据点进行训练的补充章节，以熟悉在GitHub的`第一版额外章节`文件夹中提供的词嵌入。
 - en: The code in this chapter is available in the `Chapter15` folder of this book’s
     GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
   id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的代码位于本书GitHub存储库的`Chapter15`文件夹中，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: As the field evolves, we will periodically add valuable supplements to the GitHub
     repository. Do check the `supplementary_sections` folder within each chapter’s
     directory for new and useful content.
   id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着领域的发展，我们将定期向GitHub存储库添加有价值的补充内容。请查看每章节目录中的`supplementary_sections`文件夹获取新的和有用的内容。
 - en: Introducing transformers
   id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入transformers
 - en: 'Before we learn about ViTs, let us understand transformers from an NLP perspective.
     A transformer helps in generating a representation (word/vector embedding) that
     best describes the word given its context (surrounding words). Some of the major
@@ -84,6 +98,7 @@
   id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们学习关于ViTs之前，让我们从自然语言处理的角度理解transformers。一个transformer有助于生成一个最能描述给定上下文（周围单词）中单词的表示（单词/向量嵌入）。**递归神经网络**（**RNNs**）和**长短期记忆**（**LSTM**）架构（有关详细信息，请参阅相关的GitHub存储库）的一些主要限制包括：
 - en: A word embedding corresponding to a word is not dependent on the context in
     which the word appears (the word *apple* will have the same embedding irrespective
     of whether the context is about the fruit or the company).
@@ -91,6 +106,7 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 与单词相关的词嵌入不依赖于单词出现的上下文（无论上下文是关于水果还是公司，单词*苹果*的嵌入都相同）。
 - en: Hidden state calculation during training happens sequentially (a word’s hidden
     state is dependent on the previous word’s hidden state and thus can only be calculated
     after the previous hidden state is calculated), resulting in a considerable time
@@ -99,10 +115,12 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在训练期间进行隐藏状态计算是顺序的（一个单词的隐藏状态依赖于前一个单词的隐藏状态，因此只能在前一个隐藏状态计算之后计算），导致处理文本所需的时间相当长。
 - en: 'Transformers address these two major limitations, which results in:'
   id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: Transformers解决了这两个主要限制，导致：
 - en: The ability to pre-train transformers on a large corpus of data
   id: totrans-17
   prefs:
@@ -237,14 +255,18 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 每个嵌入单独转换为三个额外的向量，即对应于每个输入的 `Q`、`K` 和 `V` 向量。在下面的图像中，`512` 是 Q、K 和 V 向量的嵌入维数，`3`
+    是序列长度（3 个单词/标记）：
 - en: '![A picture containing calendar  Description automatically generated](img/B18475_15_03.png)'
   id: totrans-37
   prefs: []
   type: TYPE_IMG
+  zh: '![A picture containing calendar  Description automatically generated](img/B18475_15_03.png)'
 - en: 'Figure 15.3: Initializing Q, K, and V vectors'
   id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 15.3：初始化 Q、K 和 V 向量
 - en: 'We use a multi-head approach where we split each of these vectors into smaller
     “heads” (eight in this example), with eight sets of vectors (of size 64 x 3) for
     each key, query, and value tensor. Here, `64` is obtained by dividing 512 (embedding
@@ -253,20 +275,25 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们采用多头方法，将每个向量分成较小的“头部”（本例中为八个），每个键、查询和值张量有八组大小为 64 x 3 的向量。这里，`64` 是通过将 512（嵌入大小）除以
+    8（头部数）获得的，`3` 是序列长度：
 - en: '![A group of black letters  Description automatically generated](img/B18475_15_04.png)'
   id: totrans-40
   prefs: []
   type: TYPE_IMG
+  zh: '![A group of black letters  Description automatically generated](img/B18475_15_04.png)'
 - en: 'Figure 15.4: Q, K, and V values of each head'
   id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 15.4：每个头部的 Q、K 和 V 值
 - en: Note that there will be eight sets of tensors of key, query, and value as there
     are eight heads. Furthermore, each head could learn about different aspects of
     a word.
   id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，由于有八个头部，将会有八组键、查询和值的张量集合。此外，每个头部可以学习单词的不同方面。
 - en: 'In each head, we first perform matrix multiplication between the key transpose
     and query matrices. This way, we end up with a 3 x 3 matrix. Divide the resulting
     matrix by the square root of the number of dimensions of vectors (`d = 64` in
@@ -276,47 +303,59 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在每个头部中，我们首先执行键转置和查询矩阵之间的矩阵乘法。这样，我们得到一个 3 x 3 的矩阵。将得到的矩阵除以向量的维数的平方根（在本例中为 `d
+    = 64`）。通过 softmax 激活函数。现在，我们有一个显示每个单词与其他每个单词关系重要性的矩阵：
 - en: '![](img/B18457_15_002.png)'
   id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_15_002.png)'
 - en: 'Figure 15.5: Operations on Q and K vectors'
   id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 15.5：对 Q 和 K 向量的操作
 - en: 'Finally, we perform matrix multiplication of the preceding tensor output with
     the value tensor to get the output of our self-attention operation:'
   id: totrans-46
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们对前述张量输出执行值张量的矩阵乘法，以获得自注意力操作的输出：
 - en: '![](img/B18457_15_003.png)'
   id: totrans-47
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_15_003.png)'
 - en: 'Figure 15.6: Self-attention calculation'
   id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 15.6：自注意力计算
 - en: 'Formally, this scaled-dot product attention calculation can be written as:'
   id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 形式上，这种缩放点积注意力计算可以写成：
 - en: '![](img/B18457_15_001.png)'
   id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_15_001.png)'
 - en: In the preceding equation, *d* refers to the dimension of vector (64 in this
     case) and k represents the index of head.
   id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述方程中，*d* 指向向量的维数（在本例中为 64），k 表示头部的索引。
 - en: A step-by-step calculation on a sample input and randomly initialized Q, K,
     and V weight matrices is provided in the associated GitHub repository as `self-attention.ipynb`
     in the `Chapter15` folder at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
   id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在相关的 GitHub 仓库中，提供了有关一个样本输入和随机初始化的 Q、K 和 V 权重矩阵的逐步计算，文件名为 `self-attention.ipynb`，存放在
+    `Chapter15` 文件夹中，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'We then combine the eight outputs of this step using the concat layer (*Step
     3* in *Figure 15.2*), and end up with a single tensor of size 512 x 3\. As there
     are eight heads (i.e., eight Q, K, and V matrices), the layer is also called **multi-head
@@ -325,6 +364,8 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们使用 concat 层（*图 15.2* 中的 *步骤 3*）组合这一步骤的八个输出，最终得到一个大小为 512 x 3 的单一张量。由于有八个头部（即八个
+    Q、K 和 V 矩阵），该层也被称为 **多头自注意力**（来源：*Attention Is All You Need*，[https://arxiv.org/pdf/1706.03762.pdf](https://arxiv.org/pdf/1706.03762.pdf)）。
 - en: For our example in computer vision, when searching for an object such as a horse,
     the query would contain information to search for an object that is large in dimension
     and is brown, black, or white in general. The softmax output of scaled dot-product
@@ -453,14 +494,17 @@
   id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![一个过程图的图表 说明自动生成](img/B18475_15_07.png)'
 - en: 'Figure 15.7: ViT architecture (source: [https://arxiv.org/pdf/2010.11929](https://arxiv.org/pdf/2010.11929))'
   id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.7：ViT架构（来源：[https://arxiv.org/pdf/2010.11929](https://arxiv.org/pdf/2010.11929)）
 - en: 'Let’s look at the workflow that is being followed in the preceding figure:'
   id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看在前面的图中遵循的工作流程：
 - en: We are taking an image and extracting 9 (3 x 3) patches from it. For example,
     let us assume the original image is of size 300 x 300 and each of the 9 patches
     would be 100 x 100 in shape.
@@ -468,6 +512,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们正在取出一张图像并从中提取9（3 x 3）个补丁。例如，假设原始图像的大小为300 x 300，每个9个补丁中的一个将是100 x 100的形状。
 - en: Next, we take each of the patches, flatten them, and pass them through a linear
     projection. This exercise is like extracting word embeddings corresponding to
     a word (token).
@@ -475,6 +520,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们取出每个补丁，将它们展开，并通过线性投影传递它们。这个练习类似于提取与单词（标记）对应的词嵌入。
 - en: Next, we add the positional embedding corresponding to the patch. We add a positional
     embedding as we need to preserve the information of the location of the patch
     in original image. In addition, we are also initializing a class token that would
@@ -483,6 +529,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们添加与补丁对应的位置嵌入。我们添加位置嵌入是因为我们需要保留补丁在原始图像中的位置信息。此外，我们还初始化一个类标记，这对于图像最终的分类非常有帮助。
 - en: Now, all the embeddings are passed through the transformer encoder. In a transformer,
     these embeddings pass through a sequence of normalization, multi-head attention,
     and a skip connection with a linear head (MLP stands for multi-layer perceptron).
@@ -490,6 +537,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，所有嵌入都通过变换器编码器。在变换器中，这些嵌入经过一系列的归一化、多头注意力和线性头的跳跃连接（MLP代表多层感知器）。
 - en: Now, we have output embeddings corresponding to each patch. We now attach the
     final head, depending on the problem we are trying to solve. In the case of image
     classification, we would attach a linear layer only for the **classification**
@@ -499,31 +547,37 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们有了与每个补丁对应的输出嵌入。我们现在附加最终头部，具体取决于我们要解决的问题。在图像分类的情况下，我们只会为**分类**（**CLS**）标记附加一个线性层。其余补丁的输出可以用作下游任务（如物体识别或图像字幕）的特征提取器。
 - en: Now that we understand how ViTs work, we will go ahead and implement transformers
     on a dataset.
   id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了ViTs的工作原理，我们将继续在数据集上实施变换器。
 - en: Implementing ViTs
   id: totrans-81
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 实施ViTs
 - en: 'We will implement ViTs on the cats vs dogs dataset that we leveraged in *Chapters
     4* and *5*:'
   id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在我们在*第4*和*第5章*中使用的猫狗数据集上实施ViTs：
 - en: The following code is available in the `ViT_Image_classification.ipynb` file
     in the `Chapter15` folder of this book’s GitHub repository at `https://bit.ly/mcvp-2e`.
   id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码可在本书GitHub存储库的`Chapter15`文件夹中的`ViT_Image_classification.ipynb`文件中找到，链接为`https://bit.ly/mcvp-2e`。
 - en: 'Install and import the required packages:'
   id: totrans-84
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装和导入所需的包：
 - en: '[PRE1]'
   id: totrans-85
   prefs:
@@ -535,11 +589,13 @@
   id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们将利用上述预训练的ViT模型（提供的检查点位置）。
 - en: 'Import the dataset:'
   id: totrans-87
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入数据集：
 - en: '[PRE2]'
   id: totrans-88
   prefs:
@@ -551,6 +607,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定训练数据的位置：
 - en: '[PRE3]'
   id: totrans-90
   prefs:
@@ -562,6 +619,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定数据集类，就像我们在*第4*和*第5章*中所做的那样：
 - en: '[PRE4]'
   id: totrans-92
   prefs:
@@ -573,6 +631,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义ViT模型架构：
 - en: '[PRE5]'
   id: totrans-94
   prefs:
@@ -586,11 +645,13 @@
   id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述架构中，我们获取与每个补丁对应的特征，获取第一个的特征（CLS标记）并通过sigmoid层传递它，因为我们希望将其分类为可能的类之一。
 - en: 'Define the model, loss function, and optimizer:'
   id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型、损失函数和优化器：
 - en: '[PRE6]'
   id: totrans-97
   prefs:
@@ -602,6 +663,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义执行训练、计算准确度和获取数据的函数：
 - en: '[PRE7]'
   id: totrans-99
   prefs:
@@ -613,6 +675,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加的epochs上训练模型：
 - en: '[PRE8]'
   id: totrans-101
   prefs:
@@ -624,6 +687,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练和验证准确性如下：
 - en: '[PRE9]'
   id: totrans-103
   prefs:
@@ -634,15 +698,18 @@
   id: totrans-104
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有线图的图表 说明自动生成](img/B18475_15_08.png)'
 - en: 'Figure 15.8: Training loss and accuracy over increasing epochs'
   id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.8：随着增加的epochs的训练损失和准确性
 - en: Note that the accuracy is similar to the accuracy that we saw with VGG and ResNet
     in *Chapter 5*.
   id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，准确性与我们在*第5章*中看到的VGG和ResNet的准确性相似。
 - en: In this section, we learned about leveraging an encoder-only transformer to
     perform image classification. In the next section, we will learn about leveraging
     encoder-decoder architecture-based transformers to transcribe images containing
@@ -1198,16 +1265,19 @@
   id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们使用一个护照数据集编写`LayoutLMv3`的代码 - 在这里，我们尝试将图像中的每个标记与相应的键或值关联起来：
 - en: The following code is available in `LayoutLMv3_passports.ipynb` in the `Chapter15`
     folder of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
   id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码位于本书GitHub仓库的`Chapter15`文件夹中的`LayoutLMv3_passports.ipynb`中，地址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required packages and import them:'
   id: totrans-202
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包并导入它们：
 - en: '[PRE23]'
   id: totrans-203
   prefs:
@@ -1219,6 +1289,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入一个合成护照数据集：
 - en: '[PRE24]'
   id: totrans-205
   prefs:
@@ -1229,31 +1300,38 @@
   id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 输入数据集包含单词、框和标签，如下所示：
 - en: '![A close-up of a number  Description automatically generated](img/B18475_15_16.png)'
   id: totrans-207
   prefs: []
   type: TYPE_IMG
+  zh: '![数字的特写 由模型自动生成的描述](img/B18475_15_16.png)'
 - en: 'Figure 15.16: Sample expected output'
   id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.16：样本期望输出
 - en: 'A sample image is as follows:'
   id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个样本图像如下所示：
 - en: '![A close-up of a passport  Description automatically generated](img/B18475_15_17.png)'
   id: totrans-210
   prefs: []
   type: TYPE_IMG
+  zh: '![护照的特写 由模型自动生成的描述](img/B18475_15_17.png)'
 - en: 'Figure 15.17: Sample synthetic passport'
   id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.17：样本合成护照
 - en: 'Specify the train and test split:'
   id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定训练和测试集划分：
 - en: '[PRE25]'
   id: totrans-213
   prefs:
@@ -1265,6 +1343,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定`label2id`和`id2label`的映射：
 - en: '[PRE26]'
   id: totrans-215
   prefs:
@@ -1276,6 +1355,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义处理器并准备函数来编码输入：
 - en: '[PRE27]'
   id: totrans-217
   prefs:
@@ -1288,11 +1368,13 @@
   id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们正在利用预训练的`LayoutLMv3`模型的处理器，我们正在对我们的数据集进行微调。然后，我们通过处理器传递图像、单词和框来获得相应的编码。
 - en: 'Prepare the train and evaluation datasets:'
   id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 准备训练和评估数据集：
 - en: '[PRE28]'
   id: totrans-220
   prefs:
@@ -1304,6 +1386,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义评估指标：
 - en: '[PRE29]'
   id: totrans-222
   prefs:
@@ -1315,6 +1398,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义计算指标的函数：
 - en: '[PRE30]'
   id: totrans-224
   prefs:
@@ -1326,12 +1410,14 @@
   id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们正在获取非填充的真实输出并计算精确度、召回率、F1分数和准确度指标。
 - en: 'Define the pre-trained `LayoutLMv3` model by importing the relevant module
     from the transformers library:'
   id: totrans-226
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过从transformers库导入相关模块来定义预训练的`LayoutLMv3`模型：
 - en: '[PRE31]'
   id: totrans-227
   prefs:
@@ -1343,11 +1429,13 @@
   id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们正在定义我们将用于微调模型的基础模型。
 - en: 'Define the training parameters:'
   id: totrans-229
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义训练参数：
 - en: '[PRE32]'
   id: totrans-230
   prefs:
@@ -1359,6 +1447,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化训练器并训练模型：
 - en: '[PRE33]'
   id: totrans-232
   prefs:
@@ -1373,26 +1462,31 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们进行推断（推断的代码在相关的GitHub仓库中提供），以获取输入图像的结果。以下是使用预测的键和值进行的样本推断（这些键和值作为图像内的边界框存在）：
 - en: '![](img/B18475_15_18.png)'
   id: totrans-234
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18475_15_18.png)'
 - en: 'Figure 15.18: Predicted output with bounding boxes of different keys and values
     extracted'
   id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.18：预测输出及提取的不同键和值的边界框
 - en: In this section, we’ve learned about extracting keys and values from a document.
     In the next section, we will learn about performing question answering given a
     generic image.
   id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一部分，我们已经学习了从文档中提取键和值的方法。在下一部分中，我们将学习如何在给定一张通用图像的情况下执行问答任务。
 - en: Visual question answering
   id: totrans-237
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 视觉问答
 - en: Imagine a scenario where you are given an image and are asked to answer certain
     questions by looking at that image. This is a task of **visual question answering**
     (**VQA**). A high-level strategy for VQA could be to leverage a pre-trained image
@@ -1403,16 +1497,20 @@
   id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，你拿到一张图像，并被要求根据图像回答某些问题。这是一种**视觉问答**（**VQA**）的任务。VQA的高级策略可以利用预训练的图像编码图像信息，使用**大型语言模型**（**LLM**）编码问题（文本），然后使用图像和文本表示来生成（解码）答案
+    - 实质上是一个多模态模型，既可以接收文本输入也可以接收图像输入。
 - en: One way of performing visual question answering is by getting the caption corresponding
     to the image and then performing question answering on the caption.
   id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过获取与图像对应的标题并在标题上执行问答，执行视觉问答的一种方式。
 - en: 'To understand the reason why we cannot use this, let’s look at the following
     image:'
   id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 要理解为什么我们不能使用这个，让我们看一下下面的图像：
 - en: '![A cat wearing sunglasses  Description automatically generated](img/B18475_15_19.png)'
   id: totrans-241
   prefs: []
