@@ -1,1032 +1,1474 @@
 - en: '10'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '10'
 - en: Training with Multiple GPUs
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用多个GPU进行训练
 - en: Undoubtedly, the computing power provided by GPUs is one of the factors that’s
     responsible for boosting the deep learning area. If a single GPU device can accelerate
     the training process exceedingly, imagine what we can do with a multi-GPU environment.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 无疑，GPU提供的计算能力是推动深度学习领域发展的因素之一。如果单个GPU设备可以显著加速训练过程，那么想象一下在多GPU环境下我们可以做什么。
 - en: In this chapter, we will show you how to use multiple GPUs to accelerate the
     training process. Before describing the code and launching procedure, we will
     dive into the characteristics and nuances of the multi-GPU environment.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将展示如何利用多个GPU加速训练过程。在描述代码和启动过程之前，我们将深入探讨多GPU环境的特性和细微差别。
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是您将在本章学到的内容：
 - en: The fundamentals of a multi-GPU environment
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 多GPU环境的基础知识
 - en: How to distribute the training process among multiple GPUs
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何将训练过程分布到多个GPU中
 - en: NCCL, the default backend for distributed training on NVIDIA GPUs
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: NCCL，NVIDIA GPU上分布式训练的默认后端
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can find the complete code mentioned in this chapter in this book’s GitHub
     repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在本书的GitHub仓库中找到本章提到的所有代码，网址为[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main)。
 - en: You can access your favorite environment to execute this code, such as Google
     Colab or Kaggle.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以访问您喜欢的环境来执行此代码，例如Google Colab或Kaggle。
 - en: Demystifying the multi-GPU environment
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 解密多GPU环境
 - en: A multi-GPU environment is a computing system with more than one GPU device.
     Although multiple interconnected machines with just one GPU can be considered
     a multi-GPU environment, we usually employ this term to describe environments
     with two or more GPUs per machine.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 多GPU环境是一个具有多个GPU设备的计算系统。虽然只有一个GPU的多个互连机器可以被认为是多GPU环境，但我们通常使用此术语来描述每台机器具有两个或更多GPU的环境。
 - en: To understand how this environment works under the hood, we need to learn about
     the connectivity of the devices and technologies that are adopted to provide efficient
     communication across multiple GPUs.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 要了解此环境在幕后的工作原理，我们需要了解设备的连接性以及采用的技术，以实现跨多个GPU的有效通信。
 - en: 'However, before we dive into these topics, we will answer a disquieting question
     that has probably come to your mind: will we have access to an expensive environment
     like that? Yes, we will. But first, let’s briefly discuss the increasing popularity
     of multi-GPU environments.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在我们深入讨论这些话题之前，我们将回答一个让您担忧的问题：我们是否能够访问像那样昂贵的环境？是的，我们可以。但首先，让我们简要讨论多GPU环境的日益流行。
 - en: The popularity of multi-GPU environments
+  id: totrans-15
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 多GPU环境的流行度
 - en: Going back 10 years ago, it was inconceivable to think of a machine with more
     than one GPU. Besides the high cost of this device, the applicability of a GPU
     was restricted to solving scientific computing problems, which is a niche that’s
     exploited only by universities and research institutes. However, with the boom
     of **artificial intelligence** (**AI**) workloads, the usage of GPU was tremendously
     democratized across all sorts of companies.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 十年前，想象一台拥有多个GPU的机器是不可思议的事情。除了设备成本高昂外，GPU的适用性仅限于解决科学计算问题，这是仅由大学和研究机构利用的一个小众领域。然而，随着**人工智能**（**AI**）工作负载的蓬勃发展，GPU的使用在各种公司中得到了极大的普及。
 - en: Moreover, with the massive adoption of cloud computing in the last few years,
     we started to have cloud providers offering multi-GPU instances at a competitive
     price. In **Amazon Web Services** (**AWS**), for example, there are a variety
     of instances endowed with multiple GPUs such as **p5.48xlarge**, **p4d.24xlarge**,
     and **p3dn.24xlarge**, which provides 8 NVIDIA GPUs for the H100, A100, and V100
     models, respectively.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在过去几年中，随着云计算的大规模采用，我们开始看到云服务提供商以竞争性价格提供多GPU实例。例如，在**亚马逊网络服务**（**AWS**）中，有多种实例配备了多个GPU，例如**p5.48xlarge**、**p4d.24xlarge**和**p3dn.24xlarge**，分别为H100、A100和V100型号提供了8个NVIDIA
+    GPU。
 - en: Microsoft Azure and **Google Cloud Platform** (**GCP**) also have multi-GPU
     instances. The former offers the **NC96ads** with 4 NVIDIA A100s, while the latter
     offers the **a3-highgpu-8g** instance equipped with 8 NVIDIA H100s. Even second-tier
     cloud providers such as IBM, Alibaba, and **Oracle Cloud Infrastructure** (**OCI**)
     have multi-GPU instances.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 微软 Azure 和**谷歌云平台**（**GCP**）也提供多 GPU 实例。前者提供配备 4 个 NVIDIA A100 的**NC96ads**，而后者提供配备
+    8 个 NVIDIA H100 的**a3-highgpu-8g** 实例。即使是次要的云服务提供商，如 IBM、阿里巴巴和**Oracle 云基础设施**（**OCI**），也有多
+    GPU 实例。
 - en: Looking at the on-premises side, we have important vendors such as Supermicro,
     HP, and Dell offering multi-GPU platforms in their portfolio. NVIDIA, for example,
     provides a fully integrated server specially designed to run AI workloads known
     as the DGX system. DGX version 1, for example, is equipped with 8 GPUs of Volta
     or Pascal architecture, while DGX version 2 has twice the number of GPUs of its
     predecessor.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本地环境方面，我们有重要的供应商，如 Supermicro、惠普和戴尔，在其产品组合中提供多 GPU 平台。例如，NVIDIA 提供了专门设计用于运行
+    AI 工作负载的完全集成服务器，称为 DGX 系统。例如，DGX 版本 1 配备了 8 个 Volta 或 Pascal 架构的 GPU，而 DGX 版本
+    2 的 GPU 数量是其前身的两倍。
 - en: Considering the increasing popularity of these environments, it is more than
     reasonable to say that data scientists and machine learning engineers will have
     access to these platforms sooner or later. Note that many professionals already
     have these environments in their hands, though they do not know how to exploit
     them.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑到这些环境越来越受欢迎，可以合理地说，数据科学家和机器学习工程师迟早会接触到这些平台。需要注意的是，许多专业人士已经拥有这些环境，尽管他们不知道如何利用它们。
 - en: Note
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Although a multi-GPU environment can provide an outstanding performance improvement
     for the training process, it has some drawbacks, such as the high cost to acquire
     and maintain such environments, and the huge amount of energy needed to control
     the temperature of these devices.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然多 GPU 环境可以显著提高训练过程的性能，但也存在一些缺点，比如获取和维护这些环境的高成本，以及控制这些设备温度所需的大量能源。
 - en: To use this resource efficiently, we must learn the fundamental characteristics
     of this environment. So, let’s take our first step in that direction and understand
     how GPUs are connected to this platform.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了有效地使用这个资源，我们必须学习这个环境的基本特征。所以，让我们朝着这个方向迈出第一步，了解 GPU 如何连接到这个平台。
 - en: Understanding multi-GPU interconnection
+  id: totrans-24
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 理解多 GPU 互连
 - en: A multi-GPU environment can be seen as a pool of resources where different users
     can allocate devices individually to execute their training process. However,
     in the context of distributed training, we are interested in using more than one
     device simultaneously – that is, we will use each GPU to run a model replica of
     the distributed training process.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 多 GPU 环境可以被视为资源池，不同的用户可以单独分配设备来执行其训练过程。然而，在分布式训练的背景下，我们有兴趣同时使用多个设备——也就是说，我们将每个
+    GPU 用于运行分布式训练过程的模型副本。
 - en: 'As the gradient that’s obtained by each model replica must be shared among
     all other replicas, the GPUs in a multi-GPU environment must be connected so that
     the data can flow across the multiple devices available on the system. There are
     three types of GPU connection technologies: PCI Express, NVLink, and NVSwitch.'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于每个模型副本得到的梯度必须在所有其他副本之间共享，多 GPU 环境中的 GPU 必须连接，以便数据可以流过系统上的多个设备。GPU 连接技术有三种类型：PCI
+    Express、NVLink 和 NVSwitch。
 - en: Note
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can find a comparison between these technologies in the paper entitled
     *Evaluating Modern GPU Interconnect: PCIe, NVLink, NV-SLI, NVSwitch and GPUDirect*,
     by Ang Li and others. You can access this paper at [https://ieeexplore.ieee.org/document/8763922](https://ieeexplore.ieee.org/document/8763922).'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在由 Ang Li 等人撰写的论文*评估现代 GPU 互连：PCIe、NVLink、NV-SLI、NVSwitch 和 GPUDirect*中找到这些技术的比较。您可以通过
+    [https://ieeexplore.ieee.org/document/8763922](https://ieeexplore.ieee.org/document/8763922)
+    访问此论文。
 - en: The following sections describe each of them.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的章节描述了每一个部分。
 - en: PCI Express
+  id: totrans-30
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: PCI Express
 - en: '**PCI Express**, also known as PCIe, is the default bus to connect all sorts
     of devices, such as network cards, disks, and GPUs, to the computer system, as
     shown in *Figure 10**.1*. Therefore, PCIe is not a particular technology to interconnect
     GPUs. Au contraire, PCIe is a general and vendor-agnostic expansion bus that connects
     peripherals to the system, including GPUs:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '**PCI Express**，也称为PCIe，是连接各种设备（如网络卡、硬盘和GPU）到计算机系统的默认总线，如*图 10**.1*所示。因此，PCIe并不是一种特定的连接GPU的技术。相反，PCIe是一种通用且与厂商无关的扩展总线，连接外围设备到系统中：'
 - en: '![Figure 10.1 – PCIe interconnection technology](img/B20959_10_1.jpg)'
+  id: totrans-32
   prefs: []
   type: TYPE_IMG
+  zh: '![图 10.1 – PCIe互连技术](img/B20959_10_1.jpg)'
 - en: Figure 10.1 – PCIe interconnection technology
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.1 – PCIe互连技术
 - en: 'PCIe interconnects peripherals through two main components: the **PCIe root
     complex** and the **PCIe switch**. The former connects the entire PCIe subsystem
     to the CPU, while the latter is used to connect endpoint devices (peripherals)
     to the subsystem.'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: PCIe通过两个主要组件互连外围设备：**PCIe根复杂**和**PCIe交换机**。前者将整个PCIe子系统连接到CPU，而后者用于将端点设备（外围设备）连接到子系统。
 - en: Note
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The PCIe root complex is also known as the PCIe host bridge or PHB. In modern
     processors, the PCIe host bridge is placed inside the CPU.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: PCIe根复杂也称为PCIe主机桥或PHB。在现代处理器中，PCIe主机桥位于CPU内部。
 - en: 'As shown in *Figure 10**.2*, PCIe uses switches to organize the subsystem on
     a hierarchical basis, where devices connected to a common switch belong to the
     same hierarchical level. Peripherals at the same hierarchical level communicate
     with each other at a lower cost than those in distinct levels of the hierarchical
     structure:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*图 10**.2*所示，PCIe使用交换机以分层方式组织子系统，连接到同一交换机的设备属于同一层次结构级别。同一层次结构级别的外围设备之间的通信成本低于层次结构不同级别中的外围设备之间的通信成本：
 - en: '![Figure 10.2 – PCIe subsystem](img/B20959_10_2.jpg)'
+  id: totrans-38
   prefs: []
   type: TYPE_IMG
+  zh: '![图 10.2 – PCIe子系统](img/B20959_10_2.jpg)'
 - en: Figure 10.2 – PCIe subsystem
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.2 – PCIe子系统
 - en: 'For example, the communication between `GPU #0` and `NIC #0` is faster than
     it is between `GPU #1` and `NIC #0`. This happens because the first tuple is connected
     to the same switch (`switch #2`), while the devices of the last tuple are connected
     to different switches.'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: '例如，`GPU #0`与`NIC #0`之间的通信比`GPU #1`与`NIC #0`之间的通信要快。这是因为第一组连接到同一个交换机（`switch
+    #2`），而最后一组设备连接到不同的交换机。'
 - en: 'Similarly, the communication between `GPU #3` and `Disk #1` is cheaper than
     between `GPU #3` and `Disk #0`. In the latter case, `GPU #3` should traverse three
     switches and the root complex to reach `Disk #0`, whereas `Disk #1` is far from
     `GPU #3` by only two switches.'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: '类似地，`GPU #3`与`Disk #1`之间的通信比`GPU #3`与`Disk #0`之间的通信要便宜。在后一种情况下，`GPU #3`需要穿过三个交换机和根复杂来到达`Disk
+    #0`，而`Disk #1`距离`GPU #3`只有两个交换机的距离。'
 - en: PCI Express does not provide a way to connect one GPU to another directly or
     to connect all GPUs. To overcome this issue, NVIDIA has invented a new interconnection
     technology called NVLink, as described in the next section.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: PCI Express不提供直接连接一个GPU到另一个GPU或连接所有GPU的方法。为了解决这个问题，NVIDIA发明了一种新的互连技术称为NVLink，如下一节所述。
 - en: NVLink
+  id: totrans-43
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: NVLink
 - en: '**NVLink** is an NVIDIA proprietary interconnection technology that allows
     us to connect pairs of GPUs directly to each other. NVLink provides superior data
     transfer rates compared to PCIe. A single NVLink can provide a data transfer of
     25 GB per second, while PCIe allows a maximum data transfer rate of 1 GB per second.'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: '**NVLink**是NVIDIA的专有互连技术，允许我们直接连接成对的GPU。NVLink提供比PCIe更高的数据传输速率。单个NVLink可以提供每秒25
+    GB的数据传输速率，而PCIe允许的最大数据传输速率为每秒1 GB。'
 - en: 'Modern GPU architectures support more than one NVLink connection. Each link
     can be used to connect the GPU to different GPUs (as shown in *Figure 10**.3 (a)*)
     or to bond the links to increase the bandwidth between two or more GPUs (as shown
     in *Figure 10**.3 (b)*). The P100 and V100 GPUs, for example, support four and
     six NVLink connections, respectively:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 现代GPU架构支持多个NVLink连接。每个连接可以用于连接GPU到不同的GPU（如*图 10**.3 (a)*所示）或者将连接绑定在一起以增加两个或多个GPU之间的带宽（如*图
+    10**.3 (b)*所示）。例如，P100和V100 GPU分别支持四个和六个NVLink连接：
 - en: '![Figure 10.3 – NVLink connections](img/B20959_10_3.jpg)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![图 10.3 – NVLink连接](img/B20959_10_3.jpg)'
 - en: Figure 10.3 – NVLink connections
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.3 – NVLink连接
 - en: Nowadays, NVLink is the best option to interconnect NVIDIA GPUs. The benefits
     of using NVLink rather than PCIe are quite obvious. With NVLink, we can connect
     GPUs directly, reducing latency and improving bandwidth.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 如今，NVLink是连接NVIDIA GPU的最佳选择。与PCIe相比，使用NVLink的好处非常明显。通过NVLink，我们可以直接连接GPU，减少延迟并提高带宽。
 - en: 'Notwithstanding, PCIe overcomes NVLink in one aspect: *scalability*. Due to
     the finite number of connections present in GPU, NVLink will not be able to connect
     a certain number of devices altogether. For example, it is impossible to connect
     eight GPUs altogether if each GPU supports only four NVLink connections. On the
     other hand, PCIe can connect any number of devices through PCIe switches.'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管如此，PCIe在一个方面胜过NVLink：*可扩展性*。由于GPU中存在的连接数量有限，如果每个GPU仅支持四个NVLink连接，则NVLink将无法连接某些数量的设备。例如，如果每个GPU仅支持四个NVLink连接，那么是无法将八个GPU全部连接在一起的。另一方面，PCIe可以通过PCIe交换机连接任意数量的设备。
 - en: To surpass this scalability problem, NVIDIA has created a complementary technology
     for NVLink known as **NVSwitch**. We’ll learn about it in the next section.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 要解决这个可扩展性问题，NVIDIA开发了一种名为**NVSwitch**的NVLink辅助技术。我们将在下一节详细了解它。
 - en: NVSwitch
+  id: totrans-51
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: NVSwitch
 - en: 'NVSwitch extends the degree of connectivity of GPUs by using NVLink switches.
     Roughly speaking, the idea behind NVSwitch is similar to the usage of switches
     on PCIe technology – that is, both interconnections rely on components acting
     like a concentrator or a hub. This component is used to link and aggregate devices:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: NVSwitch通过使用NVLink交换机扩展了GPU的连接度。粗略来说，NVSwitch的思想与PCIe技术上使用交换机的方式相似 - 也就是说，两者的互连都依赖于像聚集器或集线器一样的组件。这些组件用于连接和聚合设备：
 - en: '![Figure 10.4 – NVSwitch interconnection topology](img/B20959_10_4.jpg)'
+  id: totrans-53
   prefs: []
   type: TYPE_IMG
+  zh: '![图10.4 – NVSwitch互连拓扑](img/B20959_10_4.jpg)'
 - en: Figure 10.4 – NVSwitch interconnection topology
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.4 – NVSwitch互连拓扑
 - en: 'As shown in *Figure 10**.4*, we can use NVSwitch to connect eight GPUs, regardless
     of the number of NVLinks supported by each GPU. Other arrangements involve NVLink
     and NVSwitch, such as the one presented in *Figure 10**.5*:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如*图10**.4*所示，我们可以使用NVSwitch连接八个GPU，而不受每个GPU支持的NVLink数量的限制。其他配置包括NVLink和NVSwitch，如*图10**.5*所示：
 - en: '![Figure 10.5 – Example of a topology using NVLink and NVSwitch](img/B20959_10_5.jpg)'
+  id: totrans-56
   prefs: []
   type: TYPE_IMG
+  zh: '![图10.5 – 使用NVLink和NVSwitch的拓扑示例](img/B20959_10_5.jpg)'
 - en: Figure 10.5 – Example of a topology using NVLink and NVSwitch
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.5 – 使用NVLink和NVSwitch的拓扑示例
 - en: In the example illustrated in *Figure 10**.5*, all GPUs are connected to themselves
     through NVSwitch. However, some pairs of GPUs are connected with two NVLinks,
     thus doubling the data transfer rate between these pairs. It is also possible
     to use more than one NVSwitch to provide total connectivity of GPUs, besides improving
     the connection among pairs or tuples of devices.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*图10**.5*中所示的示例中，所有GPU都通过NVSwitch连接到自身。然而，一些GPU对通过两个NVLink连接，因此可以使这些GPU对之间的数据传输速率加倍。此外，还可以使用多个NVSwitch来提供GPU的完全连接性，改善设备对或元组之间的连接。
 - en: In summary, GPUs can be connected through distinct communication technologies
     that provide different data transfer rates and distinct ways to connect devices.
     As a result, we can have more than one path to connect two or more devices in
     a multi-GPU environment.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，在多GPU环境中，可以通过不同的通信技术连接GPU，提供不同的数据传输速率和不同的设备连接方式。因此，我们可以有多条路径来连接两个或多个设备。
 - en: The way devices are connected in a system is called **interconnection topology**
     and is something that plays a vital role in the performance optimization of the
     training process. Let’s jump to the next section to understand why the topology
     is worthy of our attention.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 系统中设备连接的方式称为**互连拓扑**，在训练过程的性能优化中扮演着至关重要的角色。让我们跳到下一节，了解为什么拓扑是值得关注的。
 - en: How does interconnection topology affect performance?
+  id: totrans-61
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 互连拓扑如何影响性能？
 - en: To understand the impact of interconnection topology on training performance,
     let’s consider an analogy. Consider a city with multiple roads, such as freeways,
     highways, and streets, where each type of road has characteristics related to
     speed limit, congestion, and so forth. As the city has many roads, we have distinct
     ways to reach the same destination. Therefore, we need to decide which path is
     the best one to make our route as fast as possible.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解互联拓扑对训练性能的影响，让我们考虑一个类比。想象一个城市，有多条道路，如高速公路、快速路和普通街道，每种类型的道路都有与速限、拥堵等相关的特征。由于城市有许多道路，我们有不同的方式到达同一目的地。因此，我们需要决定哪条路径是使我们的路线尽可能快的最佳路径。
 - en: We can think of the interconnection topology as the city described in our analogy.
     In the city, communication between devices can take distinct paths, where some
     paths are fast, such as the highways, and other ones are slow, such as a regular
     street. As stated in the city analogy, we should always choose the fastest connection
     between devices being used in the training process.
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以把互联拓扑看作是我们类比中描述的城市。在城市中，设备之间的通信可以采用不同的路径，一些路径快速，如高速公路，而其他路径较慢，如普通街道。如同在城市类比中所述，我们应始终选择训练过程中使用的设备之间最快的连接。
 - en: 'To have an idea of the potential impact of an unaware topology selection of
     devices, consider the block diagram illustrated in *Figure 10**.6*, which represents
     an environment that’s used to run highly intensive computing workloads as the
     training process:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 要了解设备互联拓扑选择无意识可能影响的潜在影响，考虑*图10.6*中的块图，该图代表一个用于运行高度密集计算工作负载作为训练过程的环境：
 - en: '![Figure 10.6 – Example of a system interconnection diagram](img/B20959_10_6.jpg)'
+  id: totrans-65
   prefs: []
   type: TYPE_IMG
+  zh: '![图10.6 - 系统互联拓扑示意图示例](img/B20959_10_6.jpg)'
 - en: Figure 10.6 – Example of a system interconnection diagram
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.6 - 系统互联拓扑示意图示例
 - en: Note
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The diagram shown in *Figure 10**.6* is a simplified version of a real interconnection
     topology. Hence, we should consider it a didactic representation of a real topology
     scheme.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图10.6*中显示的图表是真实互联拓扑的简化版本。因此，我们应将其视为真实拓扑结构方案的教学表现。'
 - en: The environment illustrated in *Figure 10**.6* can be classified as a multi-device
     platform because it has multiple GPUs, CPUs, and other important components, such
     as ultra-fast disks and network cards. Alongside multiple devices, such platforms
     also employ multiple interconnection technologies, such as the ones we learned
     about in the previous section.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图10.6*中展示的环境可以被归类为多设备平台，因为它拥有多个GPU、CPU和其他重要组件，如超快速磁盘和网络卡。除了多个设备外，此类平台还使用多种互联技术，正如我们在前一节中学到的那样。'
 - en: Supposing we intend to use two GPUs to execute the distributed training process
     on the system described in *Figure 10**.6*, which ones should we pick up?
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们打算在*图10.6*所描述的系统上使用两个GPU来执行分布式训练过程，我们应该选择哪些GPU？
 - en: 'If we choose `GPU #0` and `GPU #1`, the communication will be fast since these
     devices are connected through NVLink connections. On the other hand, if we select
     `GPU #0` and `GPU#3`, the communication will traverse the entire PCIe subsystem.
     Besides having a lower bandwidth than NVLink, communication through PCIe in this
     scenario will cross various PCIe switches, two PCIe root complexes, and both CPUs.'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: '如果我们选择`GPU #0`和`GPU #1`，通信速度会很快，因为这些设备通过NVLink连接。另一方面，如果我们选择`GPU #0`和`GPU #3`，通信将穿越整个PCIe子系统。在这种情况下，与NVLink相比，通过PCIe进行通信具有较低的带宽，通信会穿过各种PCIe交换机、两个PCIe根复杂以及两个CPU。'
 - en: Naturally, we must choose the option that delivers the best communication performance,
     which can be achieved by using links with higher data transfer rates and using
     the nearest devices. In other words, *we need to use GPUs with the* *highest affinity*.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 自然而然地，我们必须选择提供最佳通信性能的选项，这可以通过使用数据传输速率更高的链接和使用最近的设备来实现。换句话说，*我们需要使用具有最高亲和力的GPU*。
 - en: You might be wondering how to discover the interconnection topology of your
     environment. We’ll learn how to do this in the next section.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可能想知道如何发现您环境中的互联拓扑。我们将在下一节中学习如何做到这一点。
 - en: Discovering the interconnection topology
+  id: totrans-74
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 发现互联拓扑
 - en: 'To discover the interconnection topology of NVIDIA GPUs, we just need to execute
     the `nvidia-smi` command with two parameters:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 要发现NVIDIA GPU的互联拓扑结构，我们只需执行带有两个参数的`nvidia-smi`命令：
 - en: '[PRE0]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: The `topo` parameter stands for topology and provides options to get more information
     about the interconnection topology adopted in the system. The `–m` option tells
     `nvidia-smi` to print the GPU affinity in a matrix format.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: '`topo`参数代表拓扑，并提供获取系统中采用的互连拓扑的更多信息的选项。`-m`选项告诉`nvidia-smi`以矩阵格式打印GPU的亲和性。'
 - en: 'The matrix that’s printed by `nvidia-smi` reveals the affinity between each
     possible pair of GPUs available in the system. As the affinity between the same
     device is illogical, the matrix diagonal is marked with X. In the remaining coordinates,
     the matrix exhibits a label to denote the best connection type available for that
     pair of devices. The possible labels for the matrix are as follows (adapted from
     the `nvidia-smi` manual):'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 由`nvidia-smi`打印的矩阵显示了系统中每对可用GPU之间的亲和性。由于同一设备之间的亲和性是不合逻辑的，矩阵对角线标有X。在其余坐标中，矩阵展示了标签，以表示该设备对的最佳连接类型。矩阵可能的标签如下（从`nvidia-smi`手册调整）：
 - en: '**SYS**: The connection traversing PCIe as well as the interconnection between
     NUMA nodes (for example, QPI/UPI interconnections)'
+  id: totrans-79
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**SYS**：连接通过PCIe以及NUMA节点之间的互联（例如QPI/UPI互联）'
 - en: '**NODE**: The connection traversing PCIe as well as the interconnection between
     the PCIe root complex within a NUMA node'
+  id: totrans-80
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**NODE**：连接通过PCIe以及NUMA节点内PCIe根复杂的连接'
 - en: '**PHB**: The connection traversing PCIe as well as a PCIe root complex (PCIe
     host bridge)'
+  id: totrans-81
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**PHB**：连接通过PCIe以及PCIe根复杂（PCIe主机桥）'
 - en: '**PXB**: The connection traversing multiple PCIe bridges (without traversing
     any PCIe root complex)'
+  id: totrans-82
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**PXB**：连接通过多个PCIe桥（而不通过任何PCIe根复杂）'
 - en: '**PIX**: The connection traversing, at most, a single PCIe bridge'
+  id: totrans-83
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**PIX**：连接最多通过单个PCIe桥'
 - en: '**NV#**: The connection traversing a bonded set of # NVLinks'
+  id: totrans-84
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**NV#**：连接通过一组#个NVLink的绑定'
 - en: 'Let’s evaluate an example of an affinity matrix generated by `nvidia-smi`.
     The matrix illustrated in *Table 10.1* was generated from an environment comprised
     of 8 GPUs:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们评估一个由`nvidia-smi`生成的亲和矩阵的示例。在一个由8个GPU组成的环境中生成的表10.1所示的矩阵：
 - en: '|  | **GPU0** | **GPU1** | **GPU2** | **GPU3** | **GPU4** | **GPU5** | **GPU6**
     | **GPU7** |'
+  id: totrans-86
   prefs: []
   type: TYPE_TB
+  zh: '|  | **GPU0** | **GPU1** | **GPU2** | **GPU3** | **GPU4** | **GPU5** | **GPU6**
+    | **GPU7** |'
 - en: '| **GPU0** | X | NV1 | NV1 | NV2 | NV2 | SYS | SYS | SYS |'
+  id: totrans-87
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU0** | X | NV1 | NV1 | NV2 | NV2 | 系统 | 系统 | 系统 |'
 - en: '| **GPU1** | NV1 | X | NV2 | NV1 | SYS | NV2 | SYS | SYS |'
+  id: totrans-88
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU1** | NV1 | X | NV2 | NV1 | 系统 | NV2 | 系统 | 系统 |'
 - en: '| **GPU2** | NV1 | NV2 | X | NV2 | SYS | SYS | NV1 | SYS |'
+  id: totrans-89
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU2** | NV1 | NV2 | X | NV2 | 系统 | 系统 | NV1 | 系统 |'
 - en: '| **GPU3** | NV2 | NV1 | NV2 | X | SYS | SYS | SYS | NV1 |'
+  id: totrans-90
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU3** | NV2 | NV1 | NV2 | X | 系统 | 系统 | 系统 | NV1 |'
 - en: '| **GPU4** | NV2 | SYS | SYS | SYS | X | NV1 | NV1 | NV2 |'
+  id: totrans-91
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU4** | NV2 | 系统 | 系统 | 系统 | X | NV1 | NV1 | NV2 |'
 - en: '| **GPU5** | SYS | NV2 | SYS | SYS | NV1 | X | NV2 | NV1 |'
+  id: totrans-92
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU5** | 系统 | NV2 | 系统 | 系统 | NV1 | X | NV2 | NV1 |'
 - en: '| **GPU6** | SYS | SYS | NV1 | SYS | NV1 | NV2 | X | NV2 |'
+  id: totrans-93
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU6** | 系统 | 系统 | NV1 | 系统 | NV1 | NV2 | X | NV2 |'
 - en: '| **GPU7** | SYS | SYS | SYS | NV1 | NV2 | NV1 | NV2 | X |'
+  id: totrans-94
   prefs: []
   type: TYPE_TB
+  zh: '| **GPU7** | 系统 | 系统 | 系统 | NV1 | NV2 | NV1 | NV2 | X |'
 - en: Table 10.1 – Example of an affinity matrix generated by nvidia-smi
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 表10.1 - 由nvidia-smi生成的亲和矩阵示例
 - en: The affinity matrix described in *Table 10.1* tells us that some GPUs are connected
     through two NVLinks (labeled `NV2`), while other ones are connected with just
     one NVLink (labeled `NV1`). In addition, many other GPUs do not share an NVLink
     connection, being connected only by the largest path in the system (labeled `SYS`).
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*表10.1*中描述的亲和矩阵告诉我们，一些GPU通过两个NVLink连接（标记为`NV2`），而其他一些只通过一个NVLink连接（标记为`NV1`）。此外，许多其他GPU没有共享NVLink连接，仅通过系统中的最大路径连接（标记为`SYS`）。
 - en: So, if we needed to select two GPUs to work together in the distributed training
     process, it would be recommended to use, for example, GPUs `#0` and `#3`, `#0`
     and `#4`, and `#1` and `#2` because these pairs of devices are connected by two
     bonded NVLinks. Conversely, the worse option would be using GPUs `#0` and `#5`
     or `#2` and `#4` since the connection between these devices crosses the entire
     system.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在分布式训练过程中，如果我们需要选择两个GPU一起工作，建议使用例如GPU `#0` 和 `#3`，GPU `#0` 和 `#4`，以及GPU `#1`
+    和 `#2`，因为这些设备对通过两个绑定NVLink连接。相反，较差的选择将是使用GPU `#0` 和 `#5`或者`#2` 和 `#4`，因为这些设备之间的连接跨越整个系统。
 - en: 'If we are interested in knowing the affinity of two specific devices, we can
     execute `nvidia-smi` with the `–i` parameter, followed by the GPU’s ID:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们有兴趣了解两个特定设备的亲和性，可以执行带有`-i`参数的`nvidia-smi`，然后跟上GPU的ID：
 - en: '[PRE1]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: In this example, GPUs `#0` and `#1` are connected through multiple PCIe switches,
     though they do not traverse any PCIe root complex.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，GPU `#0` 和 `#1` 通过多个 PCIe 开关连接，虽然它们不经过任何 PCIe 根复杂。
 - en: Note
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'Another way to map the topology of NVIDIA GPUs is using **NVIDIA Topology-Aware
     GPU Selection** (**NVTAGS**). NVTAGS is a toolset created by NVIDIA to automatically
     determine the fastest communication channel between GPUs. For more information
     about NVTAGS, you can access this link: [https://developer.nvidia.com/nvidia-nvtags](https://developer.nvidia.com/nvidia-nvtags)'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种映射 NVIDIA GPU 拓扑的方法是使用 **NVIDIA 拓扑感知 GPU 选择**（**NVTAGS**）。NVTAGS 是 NVIDIA
+    创建的工具集，用于自动确定 GPU 之间最快的通信通道。有关 NVTAGS 的更多信息，您可以访问此链接：[https://developer.nvidia.com/nvidia-nvtags](https://developer.nvidia.com/nvidia-nvtags)
 - en: Setting GPU affinity
+  id: totrans-103
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 设置 GPU 亲和性
 - en: The easiest way to set GPU affinity is by using the `CUDA_VISIBLE_DEVICES` environment
     variable. This variable allows us to indicate which GPUs will be visible to CUDA-based
     programs. To do this, we just need to specify the number IDs of the GPUs, separated
     by commas.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 设置 GPU 亲和性最简单的方法是使用 `CUDA_VISIBLE_DEVICES` 环境变量。此变量允许我们指示哪些 GPU 将对基于 CUDA 的程序可见。要做到这一点，我们只需指定
+    GPU 的编号，用逗号分隔即可。
 - en: 'For example, considering an environment endowed with 8 GPUs, we must set `CUDA_VISIBLE_DEVICES`
     to a value of `2,3` so that it can use GPUs `#2` and `#3`:'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑一个配备 8 个 GPU 的环境，我们必须将 `CUDA_VISIBLE_DEVICES` 设置为 `2,3`，以便可以使用 GPU `#2`
+    和 `#3`：
 - en: '[PRE2]'
+  id: totrans-106
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Note that `CUDA_VISIBLE_DEVICES` defines which GPUs will be used by the CUDA
     program and not the number of devices. So, if the variable is set to `5`, for
     example, the CUDA program will see only GPU device `#5` and not five of the eight
     devices available in the system.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意 `CUDA_VISIBLE_DEVICES` 定义了 CUDA 程序将使用哪些 GPU，而不是设备的数量。因此，如果变量设置为 `5`，例如，CUDA
+    程序将只看到系统中可用的八个设备中的 GPU 设备 `#5`。
 - en: 'There are three ways to set `CUDA_VISIBLE_DEVICES` to select the GPUs we want
     to use in our training process:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 有三种方法可以设置 `CUDA_VISIBLE_DEVICES` 以选择我们想在训练过程中使用的 GPU：
 - en: '**Exporting** the variable before starting the training program:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在启动训练程序之前 **导出** 变量：
 - en: '[PRE3]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: '**Setting** up the variable inside the training program:'
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在训练程序内部 **设置** 变量：
 - en: '[PRE4]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: '**Defining** the variable in the same command line of the training program:'
+  id: totrans-113
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在训练程序的同一命令行中 **定义** 变量：
 - en: '[PRE5]'
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: In the next section, we will learn how to code and launch distributed training
     on multiple GPUs.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何在多个 GPU 上编写和启动分布式训练。
 - en: Implementing distributed training on multiple GPUs
+  id: totrans-116
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在多个 GPU 上实施分布式训练
 - en: In this section, we’ll show you how to implement and run distributed training
     on multiple GPUs using NCCL, the *de facto* communication backend for NVIDIA GPUs.
     We’ll start by providing a brief overview of NCCL, after which we will learn how
     to code and launch distributed training in a multi-GPU environment.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将向您展示如何使用 NCCL 在多个 GPU 上实施和运行分布式训练，NCCL 是 NVIDIA GPU 的 *事实上* 通信后端。我们将首先简要概述
+    NCCL，之后我们将学习如何在多 GPU 环境中编写和启动分布式训练。
 - en: The NCCL communication backend
+  id: totrans-118
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: NCCL 通信后端
 - en: NCCL stands for NVIDIA Collective Communications Library. As its name suggests,
     NCCL is a library that provides optimized collective operations for NVIDIA GPUs.
     Therefore, we can use NCCL to execute collective routines such as broadcast, reduce,
     and the so-called all-reduce operation. Roughly speaking, NCCL plays the same
     role as oneCCL does for Intel CPUs.
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: NCCL 代表 NVIDIA 集体通信库。顾名思义，NCCL 是为 NVIDIA GPU 提供优化集体操作的库。因此，我们可以使用 NCCL 来执行诸如广播、归约和所谓的全归约操作等集体例程。粗略地说，NCCL
+    在 Intel CPU 上的作用类似于 oneCCL。
 - en: PyTorch supports NCCL natively, which means that the default installation of
     PyTorch for NVIDIA GPUs already comes with a built-in NCCL version. NCCL works
     on single or multiple machines and supports the usage of high-performance networks
     such as InfiniBand.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: PyTorch 原生支持 NCCL，这意味着默认安装的 PyTorch 针对 NVIDIA GPU 已经内置了 NCCL 版本。NCCL 可在单台或多台机器上工作，并支持高性能网络的使用，如
+    InfiniBand。
 - en: Along the lines of oneCCL and OpenMP, the behavior of NCCL can also be controlled
     through environment variables. For example, we can control the logging level of
     NCCL through the `NCCL_DEBUG` environment variable, which accepts the `trace`,
     `info`, and `warn` values. In addition, it is possible to filter the logs according
     to the subsystem by setting the `NCCL_DEBUG_SUBSYS` variable.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 oneCCL 和 OpenMP 类似，NCCL 的行为也可以通过环境变量进行控制。例如，我们可以通过 `NCCL_DEBUG` 环境变量来控制 NCCL
+    的日志级别，接受 `trace`、`info` 和 `warn` 等值。此外，还可以通过设置 `NCCL_DEBUG_SUBSYS` 变量来根据子系统过滤日志。
 - en: Note
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete set of NCCL environment variables can be found at [https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html).
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以在 [https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html)
+    找到完整的 NCCL 环境变量集合。
 - en: In the next section, we will learn how to use NCCL as the communication backend
     in the distributed training process with multiple GPUs.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何使用 NCCL 作为分布式训练过程中的通信后端，实现多 GPU 环境下的分布式训练。
 - en: Coding and launching distributed training with multiple GPUs
+  id: totrans-125
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编写和启动多 GPU 的分布式训练
 - en: The code and launching script to distribute the training process among multiple
     GPUs is almost the same as what was presented in [*Chapter 9*](B20959_09.xhtml#_idTextAnchor132),
     *Training with Multiple CPUs*. Here, we will learn how to adapt them for distributed
     training in a multi-GPU environment.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 将训练过程分布在多个 GPU 上的代码和启动脚本与《第 9 章》中介绍的几乎相同，即*多 CPU 训练*。在这里，我们将学习如何将它们调整为多 GPU
+    环境下的分布式训练。
 - en: Coding the distributed training for multi-GPU
+  id: totrans-127
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 编写多 GPU 的分布式训练
 - en: We only need to make two modifications to the multi-CPU code.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们只需要对多 CPU 代码进行两处修改。
 - en: Note
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py).
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可以在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py)
+    找到。
 - en: 'The first modification concerns passing `nccl` as input for the `backend` parameter
     of the `init_process_group` method (line 77):'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个修改涉及将 `nccl` 作为 `init_process_group` 方法（第 77 行）中 `backend` 参数的输入传递：
 - en: '[PRE6]'
+  id: totrans-132
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The second modification is the most important one, though. As we are running
     the training process in a multi-GPU environment, we need to guarantee that each
     process exclusively allocates one of the GPUs available on the system.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个修改尽管最重要。由于我们正在多 GPU 环境中运行训练进程，因此需要确保每个进程专属地分配系统上可用的一个 GPU。
 - en: By doing this, we can utilize the process rank to define which device will be
     allocated to the process. For example, considering a muti-GPU environment comprised
     of four GPUs, process rank 0 will use GPU `#0`, process rank 1 will use GPU `#1`,
     and so on.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这样做，我们可以利用进程排名来定义将分配给进程的设备。例如，考虑一个由四个 GPU 组成的多 GPU 环境，进程排名 0 将使用 GPU `#0`，进程排名
+    1 将使用 GPU `#1`，依此类推。
 - en: 'Although this change is essential to execute distributed training correctly,
     it is pretty simple to implement. We just need to attribute the process rank –
     stored in the `my_rank` variable – to the `device` variable:'
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这个变更对于正确执行分布式训练至关重要，但实现起来非常简单。我们只需将存储在 `my_rank` 变量中的进程排名分配给 `device` 变量即可。
 - en: '[PRE7]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Concerning the GPU’s affinity, you might be wondering, **how could we select
     GPUs we intend to use if each process allocates the GPU that corresponds to its
     rank?** This question is fair and usually leads to a lot of confusion. Fortunately,
     the answer is simple.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于 GPU 的关联性，您可能会想知道，**如果每个进程分配对应于其排名的 GPU，那我们该如何选择要使用的 GPU 呢？** 这个问题是合理的，通常会导致很多混淆。幸运的是，答案很简单。
 - en: It turns out that the `CUDA_VISIBLE_DEVICES` variable abstracts the real GPU
     identification from the training program. So, if we set the variable to `6,7`,
     the training program will see only two devices – that is, devices identified with
     numbers 0 and 1\. Thus, the processes with ranks 0 and 1 will allocate the GPU
     numbers 0 and 1, which are the real IDs of 6 and 7, respectively.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果表明，`CUDA_VISIBLE_DEVICES`变量从训练程序中抽象出真实的GPU标识。因此，如果我们将该变量设置为`6,7`，训练程序将只看到两个设备
+    - 即标识为0和1的设备。因此，等级为0和1的进程将分配GPU号码0和1，这些号码实际上是6和7的真实ID。
 - en: 'To summarize, only these two modifications are enough to get a piece of code
     ready to be executed in a multi-GPU environment. So, let’s move on to the next
     step: launching the distributed training process.'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结一下，这两个修改就足以使代码在多GPU环境中准备好执行。那么，让我们继续下一步：启动分布式训练过程。
 - en: Launching the distributed training process on a multi-GPU
+  id: totrans-140
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 启动在多GPU上的分布式训练过程
 - en: 'The script to execute distributed training on multiple GPUs follows the same
     logic as the one we used to run distributed training on multiple CPUs:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 在多GPU上执行分布式训练的脚本与我们用于在多CPU上运行分布式训练的脚本逻辑相同：
 - en: '[PRE8]'
+  id: totrans-142
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: In the GPU version, we pass the number of GPUs as an input parameter instead
     of the number of processes. Because we usually assign an entire GPU to a single
     process, the number of processes in distributed training is equal to the number
     of GPUs we intend to use.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GPU版本中，我们将GPU数量作为输入参数传递，而不是进程数量。因为我们通常将一个完整的GPU分配给一个单独的进程，在分布式训练中，进程数量等于我们打算使用的GPU数量。
 - en: 'Concerning the command line to execute the script, there is no difference between
     the CPU and GPU versions. We just need to call the script’s name and inform the
     training script, followed by the number of GPUs:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于执行脚本的命令行，CPU版本和GPU版本之间没有区别。我们只需调用脚本的名称并通知训练脚本，然后是GPU的数量：
 - en: '[PRE9]'
+  id: totrans-145
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'We can also adapt the script so that it uses containers, as we did with the
     CPU implementation:'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们也可以调整脚本，使其像CPU实现一样使用容器：
 - en: '[PRE10]'
+  id: totrans-147
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: The unique difference in the GPU implementation concerns the Apptainer command
     line. When using NVIDIA GPUs, we need to call Apptainer with the `--nv` parameter
     to enable support for these devices within the container.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU实现的独特差异涉及Apptainer命令行。当使用NVIDIA GPU时，我们需要使用`--nv`参数调用Apptainer来启用容器内这些设备的支持。
 - en: Note
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh).
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh)获取。
 - en: Now, let’s see how fast distributed training with multiple GPUs can be.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们看看使用多个GPU进行快速分布式训练的速度能有多快。
 - en: Experimental evaluation
+  id: totrans-152
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实验评估
 - en: To evaluate distributed training on multiple GPUs, we have trained the EfficientNet
     model against the CIFAR-10 dataset over 25 epochs by using a single machine equipped
     with 8 NVIDIA A100 GPUs. As a baseline, we will use the execution time of training
     this model with only 1 GPU, which was equal to 707 seconds.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了评估在多个GPU上的分布式训练，我们使用了一台配备8个NVIDIA A100 GPU的单机对CIFAR-10数据集训练EfficientNet模型进行了25个epoch。作为基准，我们将使用仅使用1个GPU训练此模型的执行时间，即707秒。
 - en: The execution time of training the model with 8 GPUs was equal to 109 seconds,
     representing an impressive performance improvement of 548% compared to the execution
     time spent to train the model with just 1 GPU. In other words, the distributed
     training with 8 GPUs was almost 6.5 times faster than the singular training approach.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用8个GPU训练模型的执行时间为109秒，相比仅使用1个GPU训练模型的执行时间，性能显著提升了548%。换句话说，使用8个GPU进行的分布式训练比单个训练方法快了近6.5倍。
 - en: Nevertheless, as happened in the distributed training process with multiple
     CPUs, the model accuracy was also penalized by the distributed training process
     running multiple GPUs. With only 1 GPU, the trained model achieved an accuracy
     of 78.76%, but with 8 GPUs, the accuracy decreased to 68.82%.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，与使用多个CPU进行的分布式训练过程一样，使用多GPU进行的训练也会导致模型准确率下降。使用1个GPU时，训练的模型达到了78.76%的准确率，但使用8个GPU时，准确率降至68.82%。
 - en: This difference in model accuracy is relevant; therefore, we should not put
     it aside. Au contraire, we should take it into account when distributing the training
     process among multiple GPUs. For example, if we cannot tolerate a 10% difference
     in model accuracy, we should try reducing the number of GPUs.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
 - en: 'To give you an idea of the relationship between performance gain and the corresponding
     model accuracy, we conducted additional tests. The results are shown in *Table
     10.2*:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
 - en: '| **Number** **of GPUs** | **Execution Time** | **Accuracy** |'
+  id: totrans-158
   prefs: []
   type: TYPE_TB
 - en: '| 1 | 707 | 78.76% |'
+  id: totrans-159
   prefs: []
   type: TYPE_TB
 - en: '| 2 | 393 | 74.82% |'
+  id: totrans-160
   prefs: []
   type: TYPE_TB
 - en: '| 3 | 276 | 72.70% |'
+  id: totrans-161
   prefs: []
   type: TYPE_TB
 - en: '| 4 | 208 | 70.72% |'
+  id: totrans-162
   prefs: []
   type: TYPE_TB
 - en: '| 5 | 172 | 68.34% |'
+  id: totrans-163
   prefs: []
   type: TYPE_TB
 - en: '| 6 | 142 | 69.44% |'
+  id: totrans-164
   prefs: []
   type: TYPE_TB
 - en: '| 7 | 122 | 69.00% |'
+  id: totrans-165
   prefs: []
   type: TYPE_TB
 - en: '| 8 | 109 | 68.82% |'
+  id: totrans-166
   prefs: []
   type: TYPE_TB
 - en: Table 10.2 – Results of distributed training with multiple GPUs
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
 - en: As shown in *Table 10.2*, the accuracy tends to decrease as the number of GPUs
     increases. However, if we take a closer look, we’ll realize that 4 GPUs achieve
     a very good performance improvement (240%) while keeping the accuracy above 70%.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
 - en: It is also interesting to note that model accuracy decreased by 4% when we used
     2 GPUs in the training process. This result shows that the distributed training
     impacts accuracy, even using the smallest possible number of GPUs.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
 - en: On the other hand, the model accuracy remained almost stable at around 68% from
     5 devices onward, though performance improvement kept rising.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
 - en: In short, it is essential to pay attention to model accuracy when increasing
     the number of GPUs in the distributed training process. Otherwise, a blind pursuit
     of performance improvement can lead to an undesirable result in the training process.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
 - en: Quiz time!
+  id: totrans-173
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     Initially, try to answer these questions without consulting the material.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter10-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter10-answers.md).
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
 - en: Before starting the quiz, remember that this is not a test! This section aims
     to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
 - en: Choose the correct option for the following questions.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
 - en: Which are the three main types of GPU interconnection technologies?
+  id: totrans-179
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: PCI Express, NCCL, and GPU-Link.
+  id: totrans-180
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: PCI Express, NVLink, and NVSwitch.
+  id: totrans-181
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: PCI Express, NCCL, and GPU-Switch.
+  id: totrans-182
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: PCI Express, NVML, and NVLink.
+  id: totrans-183
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: NVLink is a proprietary interconnection technology that allows you to do which
     of the following?
+  id: totrans-184
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Connect the GPU to the CPU.
+  id: totrans-185
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Connect the GPU to the main memory.
+  id: totrans-186
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Connect pairs of GPUs directly to each other.
+  id: totrans-187
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Connect the GPU to the network adapter.
+  id: totrans-188
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which environment variable is used to define GPU affinity?
+  id: totrans-189
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '`CUDA_VISIBLE_DEVICES`.'
+  id: totrans-190
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: '`GPU_VISIBLE_DEVICES`.'
+  id: totrans-191
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: '`GPU_ACTIVE_DEVICES`.'
+  id: totrans-192
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: '`CUDA_AFFINITY_DEVICES`.'
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`CUDA_AFFINITY_DEVICES`。'
 - en: What is NCCL?
+  id: totrans-194
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 什么是 NCCL？
 - en: NCCL is an interconnection technology that’s used to link NVIDIA GPUs.
+  id: totrans-195
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCL 是用于连接 NVIDIA GPU 的互连技术。
 - en: NCCL is a library that’s used to profile programs running on NVIDIA GPUs.
+  id: totrans-196
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCL 是用于分析在 NVIDIA GPU 上运行的程序的库。
 - en: NCCL is a compiler toolkit that’s used to generate optimized code for NVIDIA
     GPUs.
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCL 是用于为 NVIDIA GPU 生成优化代码的编译工具包。
 - en: NCCL is a library that provides optimized collective operations for NVIDIA GPUs.
+  id: totrans-198
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCL 是为 NVIDIA GPU 提供优化集体操作的库。
 - en: Which program launcher can be used to run distributed training on multiple GPUs?
+  id: totrans-199
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 哪个程序启动器可用于在多个 GPU 上运行分布式训练？
 - en: GPUrun.
+  id: totrans-200
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: GPUrun。
 - en: Torchrun.
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Torchrun。
 - en: NCCLrun.
+  id: totrans-202
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCLrun。
 - en: oneCCL.
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: oneCCL。
 - en: If we set the `CUDA_VISIBLE_DEVICES` environment variable to a value of “`2,3`”,
     which device numbers will be passed to the training script?
+  id: totrans-204
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果我们将 `CUDA_VISIBLE_DEVICES` 环境变量设置为“`2,3`”，那么训练脚本将传递哪些设备号？
 - en: 2 and 3.
+  id: totrans-205
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 2 和 3。
 - en: 3 and 2.
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 3 和 2。
 - en: 0 and 1.
+  id: totrans-207
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 0 和 1。
 - en: 0 and 7.
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 0 和 7。
 - en: How can we obtain more information about the interconnection topology that’s
     adopted in a given multi-GPU environment?
+  id: totrans-209
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如何获取有关在特定多 GPU 环境中采用的互连拓扑的更多信息？
 - en: Running the `nvidia-topo-ls` command with the `-``interconnection` option.
+  id: totrans-210
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行带有 `-``interconnection` 选项的 `nvidia-topo-ls` 命令。
 - en: Running the `nvidia-topo-ls` command with the `-``gpus` option.
+  id: totrans-211
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行带有 `-``gpus` 选项的 `nvidia-topo-ls` 命令。
 - en: Running the `nvidia-smi` command with the `-``interconnect` option.
+  id: totrans-212
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行带有 `-``interconnect` 选项的 `nvidia-smi` 命令。
 - en: Running the `nvidia-smi` command with the `-``topo` option.
+  id: totrans-213
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行带有 `-``topo` 选项的 `nvidia-smi` 命令。
 - en: Which component is used by the PCI Express technology to interconnect PCI Express
     devices in a computing system?
+  id: totrans-214
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PCI Express 技术用于在计算系统中连接 PCI Express 设备的哪个组件？
 - en: PCIe switch.
+  id: totrans-215
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PCIe 交换机。
 - en: PCIe nvswitch.
+  id: totrans-216
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PCIe nvswitch。
 - en: PCIe link.
+  id: totrans-217
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PCIe 连接。
 - en: PCIe network.
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PCIe 网络。
 - en: Summary
+  id: totrans-219
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we learned how to distribute the training process across multiple
     GPUs by using NCCL, the optimized NVIDIA library for collective communication.
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了如何通过使用 NCCL，在多个 GPU 上分发训练过程，这是优化的 NVIDIA 集体通信库。
 - en: We started this chapter by understanding how a multi-GPU environment employs
     distinct technologies to interconnect devices. Depending on the technology and
     interconnection topology, the communication between devices can slow down the
     entire distributed training process.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从理解多 GPU 环境如何利用不同技术来互连设备开始本章。根据技术和互连拓扑，设备之间的通信可能会减慢整个分布式训练过程。
 - en: After being introduced to the multi-GPU environment, we learned how to code
     and launch distributed training on multiple GPUs by using NCCL as the communication
     backend and `torchrun` as the launch provider.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 在介绍多 GPU 环境后，我们学习了如何使用 NCCL 作为通信后端和 `torchrun` 作为启动提供者，在多个 GPU 上编码和启动分布式训练。
 - en: The experimental evaluation of our multi-GPU implementation showed that distributed
     training with 8 GPUs was 6.5 times faster than running with a single GPU; this
     is an expressive performance improvement. We also learned that model accuracy
     can be affected by performing distributed training on multiple GPUs, so we must
     take it into account when increasing the number of devices that are used in the
     distributed training process.
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的多 GPU 实现的实验评估显示，使用 8 个 GPU 进行分布式训练比单个 GPU 运行快 6.5 倍；这是显著的性能改进。我们还了解到，在多 GPU
+    上进行分布式训练可能会影响模型的准确性，因此在增加用于分布式训练过程中的设备数量时必须考虑这一点。
 - en: To end our journey of accelerating the training process with PyTorch, in the
     next chapter, we will learn how to distribute the training process among multiple
     machines.
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 结束我们加速 PyTorch 训练过程的旅程，下一章中，我们将学习如何在多台机器之间分发训练过程。
