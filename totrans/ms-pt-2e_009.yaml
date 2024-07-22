@@ -1,795 +1,1179 @@
 - en: 13 Operationalizing PyTorch Models into Production
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 13 将PyTorch模型操作化为生产环境
 - en: Join our book community on Discord
+  id: totrans-1
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 加入我们的书籍社区Discord
 - en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
 - en: '![img](img/file106.png)'
+  id: totrans-3
   prefs: []
   type: TYPE_IMG
+  zh: '![img](img/file106.png)'
 - en: So far in this book, we have covered how to train and test different kinds of
     machine learning models using PyTorch. We started by reviewing the basic elements
     of PyTorch that enable us to work on deep learning tasks efficiently. Then, we
     explored a wide range of deep learning model architectures and applications that
     can be written using PyTorch.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，在本书中，我们已经介绍了如何使用PyTorch训练和测试不同类型的机器学习模型。我们首先回顾了PyTorch的基本元素，使我们能够高效地处理深度学习任务。然后，我们探索了使用PyTorch编写的广泛的深度学习模型架构和应用程序。
 - en: In this chapter, we will be focusing on taking these models into production.
     But what does that mean? Basically, we will be discussing the different ways of
     taking a trained and tested model (object) into a separate environment where it
     can be used to make predictions or inferences on incoming data. This is what is
     referred to as the **productionization** of a model, as the model is being deployed
     into a production system.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中，我们将重点讨论将这些模型投入生产环境的过程。但这意味着什么呢？基本上，我们将讨论不同的方式，将经过训练和测试的模型（对象）带入一个独立的环境，使其能够对输入数据进行预测或推断。这就是所谓的模型**生产化**，因为模型正在部署到生产系统中。
 - en: We will begin by discussing some common approaches you can take to serve PyTorch
     models in production environments, starting from defining a simple model inference
     function and going all the way to using model microservices. We will then take
     a look at TorchServe, which is a scalable PyTorch model-serving framework that
     has been jointly developed by AWS and Facebook.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从讨论一些常见的方法开始，这些方法可以用来在生产环境中服务PyTorch模型，从定义简单的模型推断函数开始，一直到使用模型微服务。然后，我们将介绍TorchServe，这是一个可扩展的PyTorch模型服务框架，由AWS和Facebook联合开发。
 - en: We will then dive into the world of exporting PyTorch models using **TorchScript**,
     which, through **serialization**, makes our models independent of the Python ecosystem
     so that they can be, for instance, loaded in a **C++** based environment . We
     will also look beyond the Torch framework and the Python ecosystem as we explore
     **ONNX** – an open source universal format for machine learning models – which
     will help us export PyTorch trained models to non-PyTorch and non-Pythonic environments.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将深入探讨使用**TorchScript**导出PyTorch模型的世界，通过**序列化**使我们的模型独立于Python生态系统，从而可以在基于**C++**的环境中加载，例如。我们还将超越Torch框架和Python生态系统，探索**ONNX**
+    - 一种用于机器学习模型的开放源代码通用格式，这将帮助我们将PyTorch训练的模型导出到非PyTorch和非Python环境中。
 - en: Finally, we will briefly discuss how to use PyTorch for model serving with some
     of the well-known cloud platforms such as **Amazon Web Services** (**AWS**), **Google
     Cloud**, and **Microsoft Azure**.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将简要讨论如何使用PyTorch在一些著名的云平台（如**亚马逊网络服务**（**AWS**）、**Google Cloud**和**Microsoft
+    Azure**）上提供模型服务。
 - en: Throughout this chapter, we will use the handwritten digits image classification
     **convolutional neural network** (**CNN**) model that we trained in *Chapter 1,
     Overview of Deep Learning Using PyTorch*, as our reference. We will demonstrate
     how that trained model can be deployed and exported using the different approaches
     discussed in this chapter.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将使用我们在《第1章，使用PyTorch进行深度学习概述》中训练的手写数字图像分类**卷积神经网络**（**CNN**）模型作为参考。我们将演示如何使用本章讨论的不同方法部署和导出该训练过的模型。
 - en: 'This chapter is broken down into the following sections:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章分为以下几个部分：
 - en: Model serving in PyTorch
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: PyTorch中的模型服务
 - en: Serving a PyTorch model using TorchServe
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用TorchServe提供PyTorch模型服务
 - en: Exporting universal PyTorch models using TorchScript and ONNX
+  id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用TorchScript和ONNX导出通用PyTorch模型
 - en: Serving PyTorch model in the cloud
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在云中提供PyTorch模型服务
 - en: Model serving in PyTorch
+  id: totrans-15
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: PyTorch中的模型服务
 - en: In this section, we will begin with building a simple PyTorch inference pipeline
     that can make predictions given some input data and the location of a previously
     trained and saved PyTorch model. We will proceed thereafter to place this inference
     pipeline on a model server that can listen to incoming data requests and return
     predictions. Finally, we will advance from developing a model server to creating
     a model microservice using Docker.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将开始构建一个简单的PyTorch推断管道，该管道可以在给定一些输入数据和先前训练和保存的PyTorch模型的位置的情况下进行预测。之后，我们将把这个推断管道放在一个模型服务器上，该服务器可以监听传入的数据请求并返回预测结果。最后，我们将从开发模型服务器进阶到使用Docker创建模型微服务。
 - en: Creating a PyTorch model inference pipeline
+  id: totrans-17
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 创建PyTorch模型推断管道
 - en: We will be working on the handwritten digits image classification CNN model
     that we built in *Chapter 1*, *Overview of Deep Learning Using PyTorch*, on the
     `MNIST` dataset. Using this trained model, we will build an inference pipeline
     that shall be able to predict a digit between 0 to 9 for a given handwritten-digit
     input image.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将继续在*第1章，PyTorch使用深度学习的概述*中构建的手写数字图像分类CNN模型上进行工作，使用`MNIST`数据集。利用这个训练过的模型，我们将构建一个推断管道，能够为给定的手写数字输入图像预测0到9之间的数字。
 - en: For the process of building and training the model, please refer to the *Training
     a neural network using PyTorch* section of *Chapter 1,* *Overview of Deep Learning
     Using PyTorch*. For the full code of this exercise, you can refer to our github
     repository [13.1 .
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于构建和训练模型的过程，请参考*第1章，PyTorch使用深度学习的概述*中的*训练神经网络使用PyTorch*部分。关于这个练习的完整代码，您可以参考我们的github仓库[13.1]。
 - en: Saving and loading a trained model
+  id: totrans-20
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 保存和加载训练好的模型
 - en: In this section, we will demonstrate how to efficiently load a saved pre-trained
     PyTorch model, which will later be used for serving requests.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将演示如何有效地加载保存的预训练PyTorch模型，这些模型稍后将用于处理请求。
 - en: So, using the notebook code from *Chapter 1,* *Overview of Deep Learning Using
     PyTorch*, we have trained a model and evaluated it against test data samples.
     But what next? In real life, we would like to close this notebook and, later on,
     still be able to use this model that we worked hard on training to make inferences
     on handwritten-digit images. This is where the concept of serving a model comes
     in.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，使用来自*第1章，PyTorch使用深度学习的概述*的笔记本代码，我们训练了一个模型，并对测试数据样本进行了评估。但接下来呢？在现实生活中，我们希望关闭这个笔记本，并且以后仍然能够使用我们辛苦训练过的模型来推断手写数字图像。这就是模型服务概念的应用之处。
 - en: 'From here, we will get into a position where we can use the preceding trained
     model in a separate Jupyter notebook without having to do any (re)training. The
     crucial next step is to save the model object into a file that can later be restored/de-serialized.
     PyTorch provides two main ways of doing this:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这里开始，我们将处于一个位置，可以在一个单独的Jupyter笔记本中使用先前训练过的模型，而无需进行任何（重新）训练。关键的下一步是将模型对象保存到一个文件中，稍后可以恢复/反序列化。PyTorch提供了两种主要的方法来实现这一点：
 - en: 'The less recommended way is to save the entire model object as follows:'
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不推荐的方式是保存整个模型对象，如下所示：
 - en: '[PRE0]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'And then, the saved model can be later read as follows:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，稍后可以按如下方式读取保存的模型：
 - en: '[PRE1]'
+  id: totrans-27
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: Although this approach looks the most straightforward, this can be problematic
     in some cases. This is because we are not only saving the model parameters, but
     also the model classes and directory structure used in our source code. If our
     class signatures or directory structures change later, loading the model will
     fail in potentially unfixable ways.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这种方法看起来最直接，但在某些情况下可能会有问题。这是因为我们不仅保存了模型参数，还保存了我们源代码中使用的模型类和目录结构。如果以后我们的类签名或目录结构发生变化，加载模型可能会以无法修复的方式失败。
 - en: 'The second and more recommended way is to only save the model parameters as
     follows:'
+  id: totrans-29
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 第二种更推荐的方法是仅保存模型参数，如下所示：
 - en: '[PRE2]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Later, when we need to restore the model, first we instantiate an empty model
     object and then load the model parameters into that model object as follows:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们需要恢复模型时，首先我们实例化一个空模型对象，然后将模型参数加载到该模型对象中，如下所示：
 - en: '[PRE3]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'We will use the more recommended way to save the model as shown in the following
     code:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将使用更推荐的方式保存模型，如下代码所示：
 - en: '[PRE4]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The `convnet.pth` file is essentially a pickle file containing model parameters.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: '`convnet.pth`文件本质上是一个包含模型参数的pickle文件。'
 - en: 'At this point, we can safely close the notebook we were working on and open
     another one, which is available at our github repository [13.2] :'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，我们可以安全地关闭我们正在工作的笔记本，并打开另一个可以在我们的github仓库[13.2]中找到的笔记本：
 - en: 'As a first step, we will once again need to import libraries:'
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 作为第一步，我们再次需要导入库：
 - en: '[PRE5]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Next, we need to instantiate an empty CNN model once again. Ideally, the model
     definition done in *step 1* would be written in a Python script (say, `cnn_model.py`),
     and then we would simply need to write this:'
+  id: totrans-39
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要再次实例化一个空的 CNN 模型。理想情况下，模型定义可以写在一个 Python 脚本中（比如 `cnn_model.py`），然后我们只需要写如下代码：
 - en: '[PRE6]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'However, since we are operating in Jupyter notebooks in this exercise, we shall
     rewrite the model definition and then instantiate it as follows:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在这个练习中，由于我们正在使用 Jupyter 笔记本，我们将重写模型定义，然后像这样实例化它：
 - en: '[PRE7]'
+  id: totrans-42
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'We can now restore the saved model parameters into this instantiated model
     object as follows:'
+  id: totrans-43
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们可以将保存的模型参数恢复到实例化的模型对象中，方法如下：
 - en: '[PRE8]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'You shall see the following output:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 您将看到以下输出：
 - en: '![Figure 13 .1 – Model parameter loading](img/file107.jpg)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .1 – 模型参数加载](img/file107.jpg)'
 - en: Figure 13 .1 – Model parameter loading
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .1 – 模型参数加载
 - en: This essentially means that the parameter loading is successful. That is, the
     model that we have instantiated has the same structure as the model whose parameters
     were saved and are now being restored. We specify that we are loading the model
     on a CPU device as opposed to GPU (CUDA).
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 这基本上意味着参数加载成功。也就是说，我们实例化的模型与保存并现在正在恢复其参数的模型具有相同的结构。我们指定在 CPU 设备上加载模型，而不是 GPU（CUDA）。
 - en: 'Finally, we want to specify that we do not wish to update or change the parameter
     values of the loaded model, and we will do so with the following line of code:'
+  id: totrans-49
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们希望指定不希望更新或更改加载模型的参数值，并将使用以下代码行来执行：
 - en: '[PRE9]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'This should give the following output:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该给出以下输出：
 - en: '![Figure 13 .2 – Loaded model in evaluation mode](img/file108.jpg)'
+  id: totrans-52
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .2 – 加载模型并进行评估模式](img/file108.jpg)'
 - en: Figure 13 .2 – Loaded model in evaluation mode
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .2 – 加载模型并进行评估模式
 - en: This again verifies that we are indeed working with the same model (architecture)
     that we trained.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 这再次验证我们确实使用与训练过的相同模型（架构）进行工作。
 - en: Building the inference pipeline
+  id: totrans-55
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 构建推断流水线
 - en: 'Having successfully loaded a pre-trained model in a new environment (notebook)
     in the previous section, we shall now build our model inference pipeline and use
     it to run model predictions:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一节成功在新环境（笔记本）中加载了预训练模型后，我们现在将构建我们的模型推断流水线，并用它来运行模型预测：
 - en: 'At this point, we have the previously trained model object fully restored to
     us. We shall now load an image that we can run the model prediction on using the
     following code:'
+  id: totrans-57
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此时，我们已经完全恢复了之前训练过的模型对象。现在，我们将加载一张图像，然后可以使用以下代码对其进行模型预测：
 - en: '[PRE10]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'The image file should be available in the exercise folder and is as follows:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 图像文件应该在练习文件夹中，并且如下所示：
 - en: '![Figure 13 .3 – Model inference input image](img/file109.jpg)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .3 – 模型推断输入图像](img/file109.jpg)'
 - en: Figure 13 .3 – Model inference input image
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .3 – 模型推断输入图像
 - en: It is not necessary to use this particular image in the exercise. You may use
     any image you want, to check how the model reacts to it.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本练习中不必使用此特定图像。您可以使用任何图像来检查模型对其的反应。
 - en: 'In any inference pipeline, there are three main components at the core of it:
     (a) the data preprocessing component, (b) the model inference (forward pass in
     the case of neural networks), and (c) the post-processing step.'
+  id: totrans-63
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在任何推断流水线中，核心有三个主要组件：(a) 数据预处理组件，(b) 模型推断（神经网络的前向传播），以及 (c) 后处理步骤。
 - en: 'We will begin with the first part by defining a function that takes in an image
     and transforms it into the tensor that shall be fed to the model as input as follows:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从第一部分开始，通过定义一个函数，该函数接收图像并将其转换为作为模型输入的张量：
 - en: '[PRE11]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'This can be seen as a series of steps as follows:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可以看作是以下一系列步骤的一部分：
 - en: First, the RGB image is converted to a grayscale image.
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，RGB 图像转换为灰度图像。
 - en: The image is then resized to a `28x28` pixels image because this is the image
     size the model is trained with.
+  id: totrans-68
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，将图像调整为 `28x28` 像素的图像，因为这是模型训练时使用的图像尺寸。
 - en: Then, the image array is converted to a PyTorch tensor.
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，将图像数组转换为 PyTorch 张量。
 - en: And finally, the pixel values in the tensor are normalized with the same mean
     and standard deviation values as those used during model training time.
+  id: totrans-70
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，对张量中的像素值进行归一化，归一化使用与模型训练时相同的均值和标准差值。
 - en: 'Having defined this function, we call it to convert our loaded image into a
     tensor:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 定义了此函数后，我们调用它将加载的图像转换为张量：
 - en: '[PRE12]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Next, we define the **model inference functionality**. This is where the model
     takes in a tensor as input and outputs the predictions. In this case, the prediction
     will be any digit between 0 to 9 and the input tensor will be the tensorized form
     of the input image:'
+  id: totrans-73
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们定义**模型推断功能**。这是模型接收张量作为输入并输出预测的地方。在这种情况下，预测将是 0 到 9 之间的任何数字，输入张量将是输入图像的张量化形式：
 - en: '[PRE13]'
+  id: totrans-74
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: '`model_output` contains the raw predictions of the model, which contains a
     list of predictions for each image. Because we have only one image in the input,
     this list of predictions will just have one entry at index `0`. The raw prediction
     at index `0` is essentially a tensor with 10 probability values for digits 0,1,2...9,
     in that order. This tensor is converted to a `numpy` array, and finally, we choose
     the digit that has the highest probability.'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: '`model_output`包含模型的原始预测，其中包含每个图像预测的列表。因为我们只有一个输入图像，所以这个预测列表只有一个在索引`0`处的条目。索引`0`处的原始预测本质上是一个张量，其中有
+    10 个数字 0 到 9 的概率值，按顺序排列。这个张量被转换为一个`numpy`数组，最后我们选择具有最高概率的数字。'
 - en: 'We can now use this function to generate our model prediction. The following
     code uses the `run_model` model inference function from *step 3* to generate the
     model prediction for the given input data, `input_tensor`:'
+  id: totrans-76
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们可以使用这个函数生成我们的模型预测。下面的代码使用*第 3 步*的`run_model`模型推断函数来为给定的输入数据`input_tensor`生成模型预测：
 - en: '[PRE14]'
+  id: totrans-77
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'This should output the following:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该会输出以下内容：
 - en: '![Figure 13 .4 – Model inference output](img/file110.jpg)'
+  id: totrans-79
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .4 – 模型推断输出](img/file110.jpg)'
 - en: Figure 13 .4 – Model inference output
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .4 – 模型推断输出
 - en: As we can see from the preceding screenshot, the model outputs a `numpy` integer.
     And based on the image shown in *Figure 13* *.3*, the model output seems rather
     correct.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前面的截图所示，模型输出为一个`numpy`整数。基于*图 13 .3*中显示的图像，模型输出似乎相当正确。
 - en: 'Besides just outputting the model prediction, we can also write a debug function
     to dig deeper into metrics such as raw prediction probabilities, as shown in the
     following code snippet:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了仅输出模型预测外，我们还可以编写调试函数来更深入地了解诸如原始预测概率等指标，如下面的代码片段所示：
 - en: '[PRE15]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: This function is exactly the same as the `run_model` function except that it
     returns the raw list of probabilities for each digit. The model originally returns
     the logarithm of softmax outputs because of the `log_softmax` layer being used
     as the final layer in the model (refer to *step 2* of this exercise).
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个函数与`run_model`函数完全相同，只是它返回每个数字的原始概率列表。由于模型最终层使用了`log_softmax`层，所以模型原始返回的是
+    softmax 输出的对数（参考本练习的*第 2 步*）。
 - en: 'Hence, we need to exponentiate those numbers to return the softmax outputs,
     which are equivalent to model prediction probabilities. Using this debug function,
     we can look at how the model is performing in more detail, such as whether the
     probability distribution is flat or has clear peaks:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们需要对这些数字进行指数运算，以返回 softmax 输出，这些输出等同于模型预测的概率。使用这个调试函数，我们可以更详细地查看模型的表现，比如概率分布是否平坦或者是否有明显的峰值：
 - en: '[PRE16]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'This should produce an output similar to the following:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该会产生类似以下的输出：
 - en: '![Figure 13 .5 – Model inference debug output](img/file111.jpg)'
+  id: totrans-88
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .5 – 模型推断调试输出](img/file111.jpg)'
 - en: Figure 13 .5 – Model inference debug output
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .5 – 模型推断调试输出
 - en: We can see that the third probability in the list is the highest by far, which
     corresponds to digit 2.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到列表中第三个概率远远最高，对应数字 2。
 - en: Finally, we shall post-process the model prediction so that it can be used by
     other applications. In our case, we are just going to transform the digit predicted
     by the model from the integer type to the string type.
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们将对模型预测进行后处理，以便其他应用程序可以使用。在我们的情况下，我们将仅将模型预测的数字从整数类型转换为字符串类型。
 - en: 'The post-processing step can be more complex in other scenarios, such as speech
     recognition, where we might want to process the output waveform by smoothening,
     removing outliers, and so on:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 在其他场景中，后处理步骤可能会更复杂，比如语音识别，我们可能希望通过平滑处理、移除异常值等方式处理输出波形：
 - en: '[PRE17]'
+  id: totrans-93
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Because string is a serializable format, this enables the model predictions
     to be communicated easily across servers and applications. We can check whether
     our final post-processed data is as expected:'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为字符串是可序列化格式，这使得模型预测可以在服务器和应用程序之间轻松传递。我们可以检查我们的最终后处理数据是否符合预期：
 - en: '[PRE18]'
+  id: totrans-95
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'This should provide you with the following output:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该会为您提供以下输出：
 - en: '![Figure 13 .6 – Post-processed model prediction](img/file112.jpg)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .6 – 后处理模型预测](img/file112.jpg)'
 - en: Figure 13 .6 – Post-processed model prediction
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .6 – 后处理模型预测
 - en: As expected, the output is now of the `type` string.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 如预期，现在输出的类型为字符串。
 - en: This concludes our exercise of loading a saved model architecture, restoring
     its trained weights, and using the loaded model to generate predictions for sample
     input data (an image). We loaded a sample image, pre-processed it to transform
     it into a PyTorch tensor, passed it to the model as input to obtain the model
     prediction, and post-processed the prediction to generate the final output.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 这结束了我们加载保存的模型架构，恢复其训练权重，并使用加载的模型为样本输入数据（一张图像）生成预测的练习。我们加载了一个样本图像，对其进行预处理以将其转换为PyTorch张量，将其作为输入传递给模型以获取模型预测，并对预测进行后处理以生成最终输出。
 - en: This is a step forward in the direction of serving trained models with a clearly
     defined input and output interface. In this exercise, the input was an externally
     provided image file and the output was a generated string containing a digit between
     0 to 9\. Such a system can be embedded by copying and pasting the provided code
     into any application that requires the functionality of digitizing hand-written
     digits.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是朝着为经过训练的模型提供明确定义的输入和输出接口的方向迈出的一步。在这个练习中，输入是一个外部提供的图像文件，输出是一个包含0到9之间数字的生成字符串。这样的系统可以通过复制并粘贴提供的代码嵌入到任何需要手写数字转换功能的应用程序中。
 - en: In the next section, we will go a level deeper into model serving, where we
     aim to build a system that can be interacted with by any application to use the
     digitizing functionality without copying and pasting any code.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将深入探讨模型服务的更高级别，我们的目标是构建一个可以被任何应用程序交互使用的系统，以使用数字化功能，而无需复制和粘贴任何代码。
 - en: Building a basic model server
+  id: totrans-103
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 构建一个基本的模型服务器
 - en: We have so far built a model inference pipeline that has all the code necessary
     to independently perform predictions from a pre-trained model. Here, we will work
     on building our first model server, which is essentially a machine that hosts
     the model inference pipeline, actively listens to any incoming input data via
     an interface, and outputs model predictions on any input data through the interface.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经构建了一个模型推断管道，其中包含独立执行预训练模型预测所需的所有代码。在这里，我们将致力于构建我们的第一个模型服务器，这本质上是一个托管模型推断管道的机器，通过接口主动监听任何传入的输入数据，并通过接口对任何输入数据输出模型预测。
 - en: Writing a basic app using Flask
+  id: totrans-105
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用Flask编写一个基本应用
 - en: 'To develop our server, we will use a popular Python library – Flask [13.3].
     **Flask** will enable us to build our model server in a few lines of code . A
     good example of how this library works is shown with the following code:'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了开发我们的服务器，我们将使用一个流行的Python库 – Flask [13.3]。**Flask**将使我们能够用几行代码构建我们的模型服务器。关于该库如何工作的一个很好的示例如下所示：
 - en: '[PRE19]'
+  id: totrans-107
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Say we saved this Python script as `example.py` and ran it from the terminal:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们将这个Python脚本保存为`example.py`并从终端运行它：
 - en: '[PRE20]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'It would show the following output in the terminal:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 它将在终端显示以下输出：
 - en: '![Figure 13 .7 – Flask example app launch](img/file113.jpg)'
+  id: totrans-111
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .7 – Flask示例应用启动](img/file113.jpg)'
 - en: Figure 13 .7 – Flask example app launch
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .7 – Flask示例应用启动
 - en: 'Basically, it will launch a Flask server that will serve an app called **example**.
     Let''s open a browser and go to the following URL:'
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 基本上，它将启动一个Flask服务器，用于提供名为**example**的应用程序。让我们打开一个浏览器，并转到以下URL：
 - en: '[PRE21]'
+  id: totrans-114
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'It will result in the following output in the browser:'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 它将在浏览器中产生以下输出：
 - en: '![Figure 13 .8 – Flask example app testing](img/file114.jpg)'
+  id: totrans-116
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .8 – Flask示例应用测试](img/file114.jpg)'
 - en: Figure 13 .8 – Flask example app testing
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .8 – Flask示例应用测试
 - en: Essentially, the Flask server is listening to port number `8890` on the IP address
     `0.0.0.0 (localhost)` at the endpoint `/`. As soon as we input `localhost:8890/`
     in a browser search bar and press *Enter*, a request is received by this server.
     The server then runs the `hello_world` function, which in turn returns the string
     `Hello, World!` as per the function definition provided in `example.py`.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 本质上，Flask服务器在IP地址为`0.0.0.0（localhost）`的端口号`8890`上监听端点`/`。当我们在浏览器搜索栏中输入`localhost:8890/`并按*Enter*时，该服务器将接收到一个请求。然后，服务器运行`hello_world`函数，该函数根据`example.py`中提供的函数定义返回字符串`Hello,
+    World!`。
 - en: Using Flask to build our model server
+  id: totrans-119
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用Flask构建我们的模型服务器
 - en: Using the principles of running a Flask server demonstrated in the preceding
     section, we will now use the model inference pipeline built in the previous section
     to create our first model server. At the end of the exercise, we will launch the
     server that will be listening to incoming requests (image data input).
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用前面部分演示的运行 Flask 服务器的原则，我们现在将使用前一部分构建的模型推理管道来创建我们的第一个模型服务器。 在练习结束时，我们将启动服务器以侦听传入请求（图像数据输入）。
 - en: We will furthermore write another Python script that will make a request to
     this server by sending the sample image shown in *Figure 13* *.3*. The Flask server
     shall run the model inference on this image and output the post-processed predictions.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，我们还将编写另一个 Python 脚本，通过向此服务器发送*图 13* *.3*中显示的示例图像，向此服务器发出请求。 Flask 服务器将对该图像进行模型推理并输出后处理的预测结果。
 - en: The full code for this exercise is available on GitHub incuding the Flask server
     code [13.4] and the client (request-maker) code [13.5].
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 此练习的完整代码在 GitHub 上可用，包括 Flask 服务器代码 [13.4] 和客户端（请求生成器）代码 [13.5]。
 - en: Setting up model inference for Flask serving
+  id: totrans-123
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 为 Flask 服务设置模型推理
 - en: 'In this section, we will load a pre-trained model and write the model inference
     pipeline code:'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将加载预训练模型并编写模型推理管道代码：
 - en: 'First, we will build the Flask server. And for that, we once again start by
     importing the necessary libraries:'
+  id: totrans-125
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们将构建 Flask 服务器。 为此，我们再次开始导入必要的库：
 - en: '[PRE22]'
+  id: totrans-126
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: Both `flask` and `torch` are vital necessities for this task, besides other
     basic libraries such as `numpy` and `json`.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了`numpy`和`json`等其他基本库外，`flask`和`torch`对于这个任务都是至关重要的。
 - en: 'Next, we will need to define the model class (architecture):'
+  id: totrans-128
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要定义模型类（架构）：
 - en: '[PRE23]'
+  id: totrans-129
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Now that we have the empty model class defined, we can instantiate a model
     object and load the pre-trained model parameters into this model object as follows:'
+  id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了空模型类，我们可以实例化一个模型对象，并将预训练模型参数加载到该模型对象中，方法如下：
 - en: '[PRE24]'
+  id: totrans-131
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'We will reuse the exact `run_model` function defined in *step 3* of the *Building
     the inference pipeline* section:'
+  id: totrans-132
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重复使用在“构建推理管道”部分“步骤 3”中定义的精确`run_model`函数：
 - en: '[PRE25]'
+  id: totrans-133
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: As a reminder, this function takes in the tensorized input image and outputs
     the model prediction, which is any digit between 0 to 9.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为提醒，此函数接受张量化的输入图像并输出模型预测，即介于 0 到 9 之间的任何数字。
 - en: 'Next, we will reuse the exact `post_process` function defined in *step 6* of
     the *Building the inference pipeline* section:'
+  id: totrans-135
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将重复使用在“构建推理管道”部分的“第 6 步”中定义的精确`post_process`函数：
 - en: '[PRE26]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: This will essentially convert the integer output from the `run_model` function
     to a string.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将从`run_model`函数的整数输出转换为字符串。
 - en: Building a Flask app to serve model
+  id: totrans-138
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 构建一个用于提供模型的 Flask 应用
 - en: 'Having established the inference pipeline in the previous section, we will
     now build our own Flask app and use it to serve the loaded model:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一节中建立了推理管道之后，我们现在将构建我们自己的 Flask 应用并使用它来提供加载的模型服务：
 - en: 'We will instantiate our Flask app as shown in the following line of code:'
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将如下代码示例化我们的 Flask 应用：
 - en: '[PRE27]'
+  id: totrans-141
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: This creates a Flask app with the same name as the Python script, which in our
     case is `server(.py)`.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将创建一个与 Python 脚本同名的 Flask 应用，这在我们的案例中是`server(.py)`。
 - en: 'This is the critical step, where we will be defining an endpoint functionality
     of the Flask server. We will expose a `/test` endpoint and define what happens
     when a `POST` request is made to that endpoint on the server as follows:'
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这是关键步骤，我们将在 Flask 服务器中定义端点功能。 我们将暴露`/test`端点并定义在服务器上进行`POST`请求时发生的事件如下：
 - en: '[PRE28]'
+  id: totrans-144
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Let''s go through the steps one by one:'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们逐步进行这些步骤：
 - en: First, we add a decorator to the function – `test` – defined underneath. This
     decorator tells the Flask app to run this function whenever someone makes a `POST`
     request to the `/test` endpoint.
+  id: totrans-146
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，在函数下面定义一个装饰器`test`。 此装饰器告诉 Flask 应用程序，每当有人向`/test`端点发出`POST`请求时，运行此函数。
 - en: Next, we get to defining what exactly happens inside the `test` function. First,
     we read the data and metadata from the `POST` request. Because the data is in
     serialized form, we need to convert it into a numerical format – we convert it
     to a `numpy` array. And from a `numpy` array, we swiftly cast it as a PyTorch
     tensor.
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将定义`test`函数内部发生的确切事件。 首先，我们从`POST`请求中读取数据和元数据。 因为数据是序列化形式，所以我们需要将其转换为数值格式
+    - 我们将其转换为`numpy`数组。 从`numpy`数组中，我们迅速将其转换为 PyTorch 张量。
 - en: Next, we use the image dimensions provided in the metadata to reshape the tensor.
+  id: totrans-148
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们使用元数据中提供的图像尺寸来重塑张量。
 - en: Finally, we run a forward pass of the model loaded earlier with this tensor.
     This gives us the model prediction, which is then post-processed and returned
     by our test function.
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们对之前加载的模型执行前向传播。这会给我们模型的预测结果，然后经过后处理并由我们的测试函数返回。
 - en: 'We have all the necessary ingredients to launch our Flask app. We will add
     these last two lines to our `server.py` Python script:'
+  id: totrans-150
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经准备好启动我们的 Flask 应用程序所需的所有组件。我们将这最后两行添加到我们的`server.py` Python 脚本中：
 - en: '[PRE29]'
+  id: totrans-151
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'This indicates that the Flask server will be hosted at IP address `0.0.0.0`
     (also known as `localhost`) and port number `8890`. We may now save the Python
     script and in a new terminal window simply execute the following:'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 这表明 Flask 服务器将托管在 IP 地址`0.0.0.0`（也称为`localhost`）和端口号`8890`。我们现在可以保存 Python 脚本，并在新的终端窗口中执行以下操作：
 - en: '[PRE30]'
+  id: totrans-153
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'This will run the entire script written in the previous steps and you shall
     see the following output:'
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将运行前面步骤中编写的整个脚本，并将看到以下输出：
 - en: '![Figure 13 .9 – Flask server launch](img/file115.jpg)'
+  id: totrans-155
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .9 - Flask 服务器启动](img/file115.jpg)'
 - en: Figure 13 .9 – Flask server launch
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .9 - Flask 服务器启动
 - en: This looks similar to the example demonstrated in *Figure 13* *.7*. The only
     difference is the app name.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 这看起来类似于图 13 *.7* 中演示的示例。唯一的区别是应用程序名称。
 - en: Using a Flask server to run predictions
+  id: totrans-158
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用 Flask 服务器运行预测。
 - en: 'We have successfully launched our model server, which is actively listening
     to requests. Let''s now work on making a request:'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已成功启动了我们的模型服务器，它正在积极监听请求。现在让我们继续处理发送请求的工作：
 - en: 'We will write a separate Python script in the next few steps to do this job.
     We begin with importing libraries:'
+  id: totrans-160
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来的几步我们将编写一个单独的 Python 脚本来完成这项工作。我们首先导入库：
 - en: '[PRE31]'
+  id: totrans-161
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: The `requests` library will help us make the actual `POST` request to the Flask
     server. `Image` helps us to read a sample input image file, and `transforms` will
     help us to preprocess the input image array.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: '`requests`库将帮助我们向 Flask 服务器发起实际的`POST`请求。`Image`帮助我们读取样本输入图像文件，而`transforms`则帮助我们预处理输入图像数组。'
 - en: 'Next, we read an image file:'
+  id: totrans-163
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们读取一个图像文件：
 - en: '[PRE32]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: The image read here is an RGB image and may have any dimensions (not necessarily
     28x28 as expected by the model as input).
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里读取的图像是 RGB 图像，可能具有任意尺寸（不一定是模型期望的 28x28 尺寸）。
 - en: 'We now define a preprocessing function that converts the read image into a
     format that is readable by the model:'
+  id: totrans-166
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们定义一个预处理函数，将读取的图像转换为模型可读取的格式：
 - en: '[PRE33]'
+  id: totrans-167
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Having defined the function, we can execute it:'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 定义了函数之后，我们可以执行它：
 - en: '[PRE34]'
+  id: totrans-169
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: '`image_tensor` is what we need to send as input data to the Flask server.'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: '`image_tensor`是我们需要发送给 Flask 服务器的输入数据。'
 - en: 'Let''s now get into packaging our data together to send it over. We want to
     send both the pixel values of the image as well as the shape of the image (28x28)
     so that the Flask server at the receiving end knows how to reconstruct the stream
     of pixel values as an image:'
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们将数据打包在一起发送过去。我们希望发送图像的像素值以及图像的形状（28x28），这样接收端的 Flask 服务器就知道如何将像素值流重构为图像：
 - en: '[PRE35]'
+  id: totrans-172
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: We stringify the shape of our tensor and convert the image array into bytes
     to make it all serializable.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将张量的形状转换为字符串，并将图像数组转换为字节，使其可序列化。
 - en: 'This is the most critical step in this client code . This is where we actually
     make the `POST` request:'
+  id: totrans-174
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这是客户端代码中最关键的一步。这是我们实际发起`POST`请求的地方：
 - en: '[PRE36]'
+  id: totrans-175
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: Using the `requests` library, we make the `POST` request at the URL `localhost:8890/test`.
     This is where the Flask server is listening for requests. We send both the actual
     image data (as bytes) and the metadata (as string) in the form of a dictionary
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用`requests`库，我们在 URL`localhost:8890/test`发起`POST`请求。这是 Flask 服务器监听请求的地方。我们将实际图像数据（以字节形式）和元数据（以字符串形式）发送为字典的形式。
 - en: 'The `r` variable in the preceding code will receive the response of the request
     from the Flask server. This response should contain the post-processed model prediction.
     We will now read that output:'
+  id: totrans-177
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在上述代码中，`r`变量将接收来自 Flask 服务器请求的响应。这个响应应该包含经过后处理的模型预测结果。我们现在读取该输出：
 - en: '[PRE37]'
+  id: totrans-178
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: The `response` variable will essentially contain what the Flask server outputs,
     which is a digit between 0 and 9 as a string.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: '`response`变量实际上将包含 Flask 服务器输出的内容，这是一个介于 0 和 9 之间的数字字符串。'
 - en: 'We can print the response just to be sure:'
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以打印响应以确保一切正常：
 - en: '[PRE38]'
+  id: totrans-181
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'At this point, we can save this Python script as `make_request.py` and execute
     the following command in the terminal:'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，我们可以将此 Python 脚本保存为`make_request.py`，并在终端中执行以下命令：
 - en: '[PRE39]'
+  id: totrans-183
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'This should output the following:'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该输出以下内容：
 - en: '![Figure 13 .10 – Flask server response](img/file116.jpg)'
+  id: totrans-185
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .10 – Flask 服务器响应](img/file116.jpg)'
 - en: Figure 13 .10 – Flask server response
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .10 – Flask 服务器响应
 - en: Based on the input image (see *Figure 13* *.3*), the response seems rather correct.
     This concludes our current exercise.
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 基于输入图像（见*图 13* *.3*），响应看起来相当正确。这结束了我们当前的练习。
 - en: Thus, we have successfully built a standalone model server that can render predictions
     for handwritten digit images. The same set of steps can easily be extended to
     any other machine learning model, and so this opens up endless possibilities with
     regards to creating machine learning applications using PyTorch and Flask.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们已成功构建了一个独立的模型服务器，可以为手写数字图像进行预测。同样的步骤集可以轻松扩展到任何其他机器学习模型，因此使用PyTorch和Flask创建机器学习应用程序的可能性是无限的。
 - en: So far, we have moved from simply writing inference functions to creating model
     servers that can be hosted remotely and render predictions over the network. In
     our next and final model serving venture, we will go a level further. You might
@@ -798,46 +1182,63 @@
     certain libraries, save and load the models at particular locations, read image
     data, and so on. All of these manual steps slow down the development of a model
     server.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经不仅仅是编写推理函数，而是创建了可以远程托管并在网络上进行预测的模型服务器。在我们接下来和最后的模型服务冒险中，我们将再进一步。您可能已经注意到，在遵循前两个练习的步骤时，有一些固有的依赖需要考虑。我们需要安装某些库，保存和加载模型在特定位置，读取图像数据等等。所有这些手动步骤都会减慢模型服务器的开发速度。
 - en: Up next, we will work on creating a model microservice that can be spun up with
     one command and replicated across several machines .
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将致力于创建一个可以通过一条命令快速启动并在多台机器上复制的模型微服务。
 - en: Creating a model microservice
+  id: totrans-191
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 创建模型微服务
 - en: Imagine you know nothing about training machine learning models but want to
     use an already-trained model without having to get your hands dirty with any PyTorch
     code. This is where a paradigm such as the machine learning model microservice
     [13.6] comes into play.
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一下，您对训练机器学习模型一无所知，但希望使用已经训练好的模型，而不必涉及任何PyTorch代码。这就是诸如机器学习模型微服务 [13.6] 这样的范式发挥作用的地方。
 - en: A machine learning model microservice can be thought of as a black box to which
     you send input data and it sends back predictions to you. Moreover, it is easy
     to spin up this black box on a given machine with just a few lines of code. The
     best part is that it scales effortlessly. You can scale a microservice vertically
     by using a bigger machine (more memory, more processing power) as well as horizontally,
     by replicating the microservice across multiple machines.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以将机器学习模型微服务看作是一个黑盒子，您向其发送输入数据，它向您发送预测。而且，仅需几行代码就可以在给定的机器上快速启动这个黑盒子。最好的部分是它可以轻松扩展。您可以通过使用更大的机器（更多内存、更多处理能力）来垂直扩展微服务，也可以通过在多台机器上复制微服务来水平扩展。
 - en: How do we go about deploying a machine learning model as a microservice? Thanks
     to the work done using Flask and PyTorch in the previous exercise, we are already
     a few steps ahead. We have already built a standalone model server using Flask.
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们如何部署一个机器学习模型作为微服务？多亏了在前面的练习中使用Flask和PyTorch所做的工作，我们已经领先了几步。我们已经使用Flask构建了一个独立的模型服务器。
 - en: In this section, we will take that idea forward and build a standalone model-serving
     environment using **Docker**. Docker helps containerize software, which essentially
     means that it helps virtualize the entire **operating system** (**OS**), including
     software libraries, configuration files, and even data files.
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将这个想法推向前进，并构建一个独立的模型服务环境，使用**Docker**。 Docker有助于容器化软件，这基本上意味着它帮助虚拟化整个**操作系统**（**OS**），包括软件库、配置文件，甚至数据文件。
 - en: '**Note**'
+  id: totrans-196
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-197
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
@@ -845,562 +1246,828 @@
     focused on PyTorch, we will only cover the basic concepts and usage of Docker
     for our limited purposes. If you are interested in reading about Docker further,
     their own documentation is a great place to start [13.7] .
+  id: totrans-198
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: Docker本身是一个广泛讨论的话题。然而，由于本书专注于PyTorch，我们只会涵盖Docker的基本概念和用法，以适应我们有限的目的。如果您有兴趣进一步了解Docker，他们自己的文档是一个很好的起点
+    [13.7] 。
 - en: 'In our case, we have so far used the following libraries in building our model
     server:'
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的案例中，到目前为止，在构建我们的模型服务器时，我们已经使用了以下库：
 - en: Python
+  id: totrans-200
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Python
 - en: PyTorch
+  id: totrans-201
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: PyTorch
 - en: Pillow (for image I/O)
+  id: totrans-202
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Pillow（用于图像I/O）
 - en: Flask
+  id: totrans-203
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Flask
 - en: 'And, we have used the following data file:'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，我们使用了以下数据文件：
 - en: Pre-trained model checkpoint file (`convnet.pth`)
+  id: totrans-205
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 预训练模型检查点文件 (`convnet.pth`)
 - en: We have had to manually arrange for these dependencies by installing the libraries
     and placing the file in the current working directory. What if we have to redo
     all of this in a new machine? We would have to manually install the libraries
     and copy and paste the file once again. This way of working is neither efficient
     nor failproof, as we might end up installing different library versions across
     different machines, for example.
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们不得不通过安装库并将文件放置在当前工作目录中手动安排这些依赖关系。如果我们需要在新机器上重新执行所有操作会怎样？我们将不得不手动安装库并再次复制粘贴文件。这种工作方式既不高效，也不可靠，例如，我们可能会在不同的机器上安装不同版本的库。
 - en: To solve this problem, we would like to create an OS-level blueprint that can
     be consistently repeated across machines. This is where Docker comes in handy.
     Docker lets us create that blueprint in the form of a Docker image. This image
     can then be built on any empty machine with no assumptions regarding pre-installed
     Python libraries or an already-available model.
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解决这个问题，我们想创建一个可以在各个机器上一致重复的操作系统级蓝图。这就是 Docker 发挥作用的地方。Docker 让我们可以创建一个 Docker
+    镜像的形式来实现这个蓝图。这个镜像可以在任何空白的机器上构建，不需要假设预先安装了 Python 库或已经可用的模型。
 - en: 'Let''s actually create such a blueprint using Docker for our digits classification
     model. In the form of an exercise, we will go from a Flask-based standalone model
     server to a Docker-based model microservice. Before delving into the exercise,
     you will need to install Docker [13.8] :'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们实际上使用 Docker 为我们的数字分类模型创建这样的蓝图。作为一个练习，我们将从基于 Flask 的独立模型服务器转向基于 Docker 的模型微服务。在深入练习之前，您需要安装
+    Docker [13.8]：
 - en: 'First, we need to list the Python library requirements for our Flask model
     server. The requirements (with their versions) are as follows:'
+  id: totrans-209
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们需要列出 Flask 模型服务器的 Python 库需求。需求（及其版本）如下：
 - en: '[PRE40]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: As a general practice, we will save this list as a text file – `requirements.txt`.
     This file is also available in our github repository [13.9] . This list will come
     in handy for installing the libraries consistently in any given environment.
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为一般惯例，我们将把这个列表保存为一个文本文件 – `requirements.txt`。这个文件也可以在我们的 GitHub 仓库中找到 [13.9]。这个列表将有助于在任何给定的环境中一致地安装这些库。
 - en: Next, we get straight to the blueprint, which, in Docker terms, will be the
     `Dockerfile`. A `Dockerfile` is a script that is essentially a list of instructions.
     The machine where this `Dockerfile` is run needs to execute the listed instructions
     in the file. This results in a Docker image, and the process is called *building
     an image*.
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们直接进入蓝图，用 Docker 术语来说，这将是 `Dockerfile`。`Dockerfile` 是一个脚本，实质上是一系列的指令。运行这个
+    `Dockerfile` 的机器需要执行文件中列出的指令。这会生成一个 Docker 镜像，这个过程称为 *构建镜像*。
 - en: An **image** here is a system snapshot that can be effectuated on any machine,
     provided that the machine has the minimum necessary hardware resources (for example,
     installing PyTorch alone requires multiple GBs of disk space).
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，一个 **镜像** 是一个系统快照，可以在任何机器上执行，只要该机器具备最低必要的硬件资源（例如，仅安装 PyTorch 就需要多个 GB 的磁盘空间）。
 - en: Let's look at our `Dockerfile` and try to understand what it does step by step.
     The full code for the `Dockerfile` is available in our guthub repository [13.10]
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的`Dockerfile`并逐步理解它的作用。完整的`Dockerfile`代码可在我们的 GitHub 仓库中找到 [13.10]。
 - en: .
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 。
 - en: 'The `FROM` keyword instructs Docker to fetch a standard Linux OS with `python
     3.8` baked in:'
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`FROM` 关键字指示 Docker 获取一个预先安装了 `python 3.8` 的标准 Linux 操作系统：'
 - en: '[PRE41]'
+  id: totrans-217
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: This ensures that we will have Python installed.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 这确保我们将安装 Python。
 - en: 'Next, install `wget`, which is a Unix command useful for downloading resources
     from the internet via the command line:'
+  id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，安装 `wget`，这是一个 Unix 命令，有助于通过命令行下载互联网资源：
 - en: '[PRE42]'
+  id: totrans-220
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: The `&&` symbol indicates the sequential execution of commands written before
     and after the symbol.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: '`&&` 符号表示在符号前后写的命令是顺序执行的。'
 - en: 'Here, we are copying two files from our local development environment into
     this virtual environment:'
+  id: totrans-222
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这里，我们正在将两个文件从我们的本地开发环境复制到这个虚拟环境中：
 - en: '[PRE43]'
+  id: totrans-223
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: We copy the requirements file as discussed in *step 1* as well as the Flask
     model server code that we worked on in the previous exercise.
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们复制了在 *步骤 1* 中讨论过的 requirements 文件，以及在前一个练习中工作过的 Flask 模型服务器代码。
 - en: 'Next, we download the pre-trained PyTorch model checkpoint file:'
+  id: totrans-225
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们下载预训练的 PyTorch 模型检查点文件：
 - en: '[PRE44]'
+  id: totrans-226
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: This is the same model checkpoint file that we had saved in the *Saving and
     loading a trained model* section of this chapter.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是我们在本章的*保存和加载训练好的模型*部分中保存的同一模型检查点文件。
 - en: 'Here, we are installing all the relevant libraries listed under `requirements.txt`:'
+  id: totrans-228
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这里，我们正在安装`requirements.txt`下列出的所有相关库：
 - en: '[PRE45]'
+  id: totrans-229
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: This `txt` file is the one we wrote under *step 1*.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个`txt`文件是我们在*步骤 1*下编写的文件。
 - en: 'Next, we give `root` access to the Docker client:'
+  id: totrans-231
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们给 Docker 客户端赋予`root`访问权限：
 - en: '[PRE46]'
+  id: totrans-232
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: This step is important in this exercise as it ensures that the client has the
     credentials to perform all necessary operations on our behalf, such as saving
     model inference logs on the disk.
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 这一步在本练习中非常重要，因为它确保客户端具有执行所有必要操作的凭据，例如在磁盘上保存模型推断日志。
 - en: '**Note**'
+  id: totrans-234
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-235
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
 - en: In general, though, it is advised not to give root privileges to the client
     as per the principle of least privilege in data security [13.11] .
+  id: totrans-236
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 总体而言，建议根据数据安全的最小特权原则[13.11]，不要赋予客户端 root 权限。
 - en: 'Finally, we specify that after performing all the previous steps, Docker should
     execute the `python server.py` command:'
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们指定在执行了所有前面的步骤之后，Docker 应该执行`python server.py`命令：
 - en: '[PRE47]'
+  id: totrans-238
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: This will ensure the launch of a Flask model server in the virtual machine.
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将确保在虚拟机中启动一个 Flask 模型服务器。
 - en: 'Let''s now run this Dockerfile. In other words, let''s build a Docker image
     using the Dockerfile from *step 2*. In the current working directory, on the command
     line, simply run this:'
+  id: totrans-240
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们运行这个 Dockerfile。换句话说，让我们使用*步骤 2*中的 Dockerfile 构建一个 Docker 镜像。在当前工作目录中，只需在命令行上运行以下命令：
 - en: '[PRE48]'
+  id: totrans-241
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'We are allocating a tag with the name `digit_recognizer` to our Docker image.
     This should output the following:'
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们正在为我们的 Docker 镜像分配一个名为`digit_recognizer`的标签。这应该输出以下内容：
 - en: '![Figure 13 .11 – Building a Docker image](img/file117.jpg)'
+  id: totrans-243
   prefs: []
   type: TYPE_IMG
+  zh: '![图13 .11 – 构建 Docker 镜像](img/file117.jpg)'
 - en: Figure 13 .11 – Building a Docker image
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13 .11 – 构建 Docker 镜像
 - en: '*Figure 13* *.11* shows the sequential execution of the steps mentioned in
     *step 2*. Running this step might take a while, depending on your internet connection,
     as it downloads the entire PyTorch library among others to build the image.'
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图13* *.11*显示了*步骤 2*中提到的步骤的顺序执行。根据您的互联网连接速度，此步骤的运行时间可能会有所不同，因为它需要下载整个 PyTorch
+    库等内容以构建镜像。'
 - en: 'At this stage, we already have a Docker image with the name `digit_recognizer`.
     We are all set to deploy this image on any machine. In order to deploy the image
     on your own machine for now, just run the following command:'
+  id: totrans-246
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这个阶段，我们已经有一个名为`digit_recognizer`的 Docker 镜像。我们已经准备好在任何机器上部署这个镜像。为了暂时在您自己的机器上部署这个镜像，只需运行以下命令：
 - en: '[PRE49]'
+  id: totrans-247
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'With this command, we are essentially starting a virtual machine inside our
     machine using the `digit_recognizer` Docker image. Because our original Flask
     model server was designed to listen to port `8890`, we have forwarded our actual
     machine''s port `8890` to the virtual machine''s port `8890` using the `-p` argument.
     Running this command should output this:'
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这个命令，我们本质上是在我们的机器内部启动一个虚拟机，使用`digit_recognizer` Docker 镜像。因为我们原来的 Flask 模型服务器设计为监听端口`8890`，我们使用`-p`参数将我们实际机器的端口`8890`转发到虚拟机的端口`8890`。运行这个命令应该输出以下内容：
 - en: '![Figure 13 .12 – Running a Docker instance](img/file118.jpg)'
+  id: totrans-249
   prefs: []
   type: TYPE_IMG
+  zh: '![图13 .12 – 运行 Docker 实例](img/file118.jpg)'
 - en: Figure 13 .12 – Running a Docker instance
+  id: totrans-250
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13 .12 – 运行 Docker 实例
 - en: The preceding screenshot is remarkably similar to *Figure 13* *.9* from the
     previous exercise, which is no surprise because the Docker instance is running
     the same Flask model server that we were manually running in our previous exercise.
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的截图与上一练习中的*图13* *.9*非常相似，这并不奇怪，因为 Docker 实例正在运行我们之前手动运行的相同 Flask 模型服务器。
 - en: 'We can now test whether our Dockerized Flask model server (model microservice)
     works as expected by using it to make model predictions. We will once again use
     the `make_request.py` file used in the previous exercise to send a prediction
     request to our model. From the current local working directory, simply execute
     this:'
+  id: totrans-252
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们可以测试我们的 Docker 化 Flask 模型服务器（模型微服务）是否按预期工作，方法是使用前一练习中使用的`make_request.py`文件向我们的模型发送预测请求。从当前本地工作目录，简单执行以下命令：
 - en: '[PRE50]'
+  id: totrans-253
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'This should output the following:'
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该输出以下内容：
 - en: '![Figure 13 .13 – Microservice model prediction](img/file119.jpg)'
+  id: totrans-255
   prefs: []
   type: TYPE_IMG
+  zh: '![图13 .13 – 微服务模型预测](img/file119.jpg)'
 - en: Figure 13 .13 – Microservice model prediction
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13 .13 – 微服务模型预测
 - en: The microservice seems to be doing the job, and thus we have successfully built
     and tested our own machine learning model microservice using Python, PyTorch,
     Flask, and Docker.
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: 微服务似乎在发挥作用，因此我们成功地使用 Python、PyTorch、Flask 和 Docker 构建和测试了自己的机器学习模型微服务。
 - en: 'Upon successful completion of the preceding steps, you can close the launched
     Docker instance from *step 4* by pressing *Ctrl*+*C* as indicated in *Figure 13*
     *.12*. And once the running Docker instance is stopped, you can delete the instance
     by running the following command:'
+  id: totrans-258
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 完成前面的步骤后，可以按照 *第 4 步* 中指示的方式，通过按下 *Ctrl*+*C* 关闭启动的 Docker 实例（见 *图 13* *.12*）。一旦运行的
+    Docker 实例停止，可以通过运行以下命令删除该实例：
 - en: '[PRE51]'
+  id: totrans-259
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: This command basically removes the most recent inactive Docker instance, which
     in our case is the Docker instance that we just stopped.
+  id: totrans-260
   prefs: []
   type: TYPE_NORMAL
+  zh: 此命令基本上移除了最近不活跃的 Docker 实例，也就是我们刚刚停止的 Docker 实例。
 - en: 'Finally, you can also delete the Docker image that we had built under *step
     3*, by running the following command:'
+  id: totrans-261
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，还可以通过运行以下命令删除我们在 *第 3 步* 下构建的 Docker 镜像：
 - en: '[PRE52]'
+  id: totrans-262
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: This will basically remove the image that has been tagged with the `digit_recognizer`
     tag.
+  id: totrans-263
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将基本上删除已标记为 `digit_recognizer` 标签的镜像。
 - en: This concludes our section for serving models written in PyTorch. We started
     off by designing a local model inference system. We took this inference system
     and wrapped a Flask-based model server around it to create a standalone model
     serving system.
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 这结束了我们为 PyTorch 编写模型服务的部分。我们首先设计了一个本地模型推理系统。然后，我们将这个推理系统包装成基于 Flask 的模型服务器，创建了一个独立的模型服务系统。
 - en: Finally, we used the Flask-based model server inside a Docker container to essentially
     create a model serving microservice. Using both the theory as well as the exercises
     discussed in this section, you should be able to get started with hosting/serving
     your trained models across different use cases, system configurations, and environments.
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们使用基于 Flask 的模型服务器放置在 Docker 容器内，实质上创建了一个模型服务微服务。使用本节讨论的理论和练习，您应该能够开始在不同的用例、系统配置和环境中托管/提供您训练好的模型。
 - en: 'In the next section, we will stay with the model-serving theme but will discuss
     a particular tool that has been developed precisely to serve PyTorch models: **TorchServe**.
     We will also do a quick exercise to demonstrate how to use this tool.'
+  id: totrans-266
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分中，我们将继续与模型服务主题保持一致，但会讨论一种特定的工具，该工具正是为了精确为 PyTorch 模型提供服务而开发的：**TorchServe**。我们还将进行一个快速练习，演示如何使用这个工具。
 - en: Serving a PyTorch model using TorchServe
+  id: totrans-267
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 TorchServe 服务 PyTorch 模型
 - en: TorchServe, released in April 2020, is a dedicated PyTorch model-serving framework.
     Using the functionalities offered by TorchServe, we can serve multiple models
     at the same time with low prediction latency and without having to write much
     custom code. Furthermore, TorchServe offers features such as model versioning,
     metrics monitoring, and data preprocessing and post-processing.
+  id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: TorchServe 是一个专用的 PyTorch 模型服务框架，于 2020 年 4 月发布。使用 TorchServe 提供的功能，我们可以同时为多个模型提供服务，具有低预测延迟，并且无需编写大量自定义代码。此外，TorchServe
+    还提供模型版本控制、指标监控以及数据预处理和后处理等功能。
 - en: This clearly makes TorchServe a more advanced model-serving alternative than
     the model microservice we developed in the previous section. However, making custom
     model microservices still proves to be a powerful solution for complicated machine
     learning pipelines (which is more common than we might think).
+  id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，TorchServe 是一个更高级的模型服务替代方案，比我们在前一节中开发的模型微服务更为先进。然而，创建定制的模型微服务仍然被证明是解决复杂机器学习流水线问题的强大解决方案（这比我们想象的更常见）。
 - en: In this section, we will continue working with our handwritten digits classification
     model and demonstrate how to serve it using TorchServe. After reading this section,
     you should be able to get started with TorchServe and go further in utilizing
     its full set of features.
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将继续使用我们的手写数字分类模型，并演示如何使用 TorchServe 进行服务。阅读本节后，您应该能够开始使用 TorchServe 并进一步利用其完整的功能集。
 - en: Installing TorchServe
+  id: totrans-271
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 安装 TorchServe
 - en: 'Before starting with the exercise, we will need to install Java 11 SDK as a
     requirement. For Linux OS, run the following:'
+  id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始练习之前，我们需要安装 Java 11 SDK 作为先决条件。对于 Linux 操作系统，请运行以下命令：
 - en: '[PRE53]'
+  id: totrans-273
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'And for macOS, we need to run the following command on the command line:'
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 macOS，我们需要在命令行上运行以下命令：
 - en: '[PRE54]'
+  id: totrans-275
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'And thereafter, we need to install `torchserve` by running this:'
+  id: totrans-276
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们需要运行以下命令安装 `torchserve`：
 - en: '[PRE55]'
+  id: totrans-277
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: For detailed installation instructions, refer to torchserve documentation [13.12]
     .
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 有关详细的安装说明，请参阅 torchserve 文档 [13.12]。
 - en: Notice that we also install a library called `torch-model-archiver` [13.13].
     This archiver aims at creating one model file that will contain both the model
     parameters as well as the model architecture definition in an independent serialized
     format as a `.mar` file.
+  id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们还安装了一个名为`torch-model-archiver`的库 [13.13]。这个归档工具旨在创建一个模型文件，该文件将包含模型参数以及模型架构定义，以独立序列化格式存储为`.mar`文件。
 - en: Launching and using a TorchServe server
+  id: totrans-280
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 启动和使用TorchServe服务器。
 - en: 'Now that we have installed all that we need, we can start putting together
     our existing code from the previous exercises to serve our model using TorchServe.
     We will hereon go through a number of steps in the form of an exercise:'
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经安装了所有需要的东西，可以开始组合先前练习中的现有代码来使用TorchServe提供我们的模型。以下是我们将通过练习步骤进行的几个步骤：
 - en: 'First, we will place the existing model architecture code in a model file saved
     as `convnet.py`:'
+  id: totrans-282
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们将现有的模型架构代码放入一个名为`convnet.py`的模型文件中：
 - en: '[PRE56]'
+  id: totrans-283
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: We will need this model file as one of the inputs to `torch-model-archiver`
     to produce a unified `.mar` file. You can find the full model file in our github
     repository [13.14] .
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将需要将这个模型文件作为`torch-model-archiver`的输入之一，以产生一个统一的`.mar`文件。您可以在我们的GitHub仓库 [13.14]
+    中找到完整的模型文件。
 - en: 'Remember we had discussed the three parts of any model inference pipeline:
     data pre-processing, model prediction, and post-processing. TorchServe provides
     *handlers*, which handle the pre-processing and post-processing parts of popular
     kinds of machine learning tasks: `image_classifier`, `image_segmenter`, `object_detector`,
     and `text_classifier`.'
+  id: totrans-285
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得我们曾讨论过模型推断流程的三个部分：数据预处理、模型预测和后处理。TorchServe提供了*处理程序*来处理流行的机器学习任务的预处理和后处理部分：`image_classifier`、`image_segmenter`、`object_detector`和`text_classifier`。
 - en: This list might grow in the future as TorchServe is actively being developed
     at the time of writing this book.
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于在撰写本书时TorchServe正在积极开发中，因此这个列表可能会在未来增加。
 - en: 'For our task, we will create a custom image handler that is inherited from
     the default `Image_classifier` handler. We choose to create a custom handler because
     as opposed to the usual image classification models that deal with color (RGB)
     images, our model deals with grayscale images of a specific size (28x28 pixels).
     The following is the code for our custom handler, which you can also find in our
     github repository [13.15] :'
+  id: totrans-287
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对于我们的任务，我们将创建一个自定义的图像处理程序，它是从默认的`Image_classifier`处理程序继承而来。我们选择创建一个自定义处理程序，因为与处理彩色（RGB）图像的常规图像分类模型不同，我们的模型处理特定尺寸（28x28像素）的灰度图像。以下是我们的自定义处理程序的代码，您也可以在我们的GitHub仓库
+    [13.15] 中找到：
 - en: '[PRE57]'
+  id: totrans-288
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: First, we imported the `image_classifer` default handler, which will provide
     most of the basic image classification inference pipeline handling capabilities.
     Next, we inherit the `ImageClassifer` handler class to define our custom `ConvNetClassifier`
     handler class.
+  id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们导入了`image_classifier`默认处理程序，它将提供大部分基本的图像分类推断流程处理能力。接下来，我们继承`ImageClassifer`处理程序类来定义我们的自定义`ConvNetClassifier`处理程序类。
 - en: 'There are two blocks of custom code:'
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里有两个自定义代码块：
 - en: The data pre-processing step, where we apply a sequence of transformations to
     the data exactly as we did in *step 3* of the *Building the inference pipeline*
     section.
+  id: totrans-291
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 数据预处理步骤，我们将数据应用一系列变换，正如我们在“构建推断流程”部分的“步骤3”中所做的那样。
 - en: The postprocessing step, defined under the `postprocess` method, where we extract
     the predicted class label from the list of prediction probabilities of all classes
+  id: totrans-292
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 后处理步骤，在`postprocess`方法下定义，我们从所有类别预测概率的列表中提取预测的类标签。
 - en: 'We already produced a `convnet.pth` file in *the Saving and loading a trained
     model section* of this chapter while creating the model inference pipeline. Using
     `convnet.py`, `convnet_handler.py`, and `convnet.pth`, we can finally create the
     `.mar` file using `torch-model-archiver` by running the following command:'
+  id: totrans-293
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在本章的“保存和加载训练模型”部分我们已经生成了一个`convnet.pth`文件用于创建模型推断流程。使用`convnet.py`、`convnet_handler.py`和`convnet.pth`，我们最终可以通过运行以下命令使用`torch-model-archiver`来创建`.mar`文件：
 - en: '[PRE58]'
+  id: totrans-294
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: This command should result in a `convnet.mar` file written to the current working
     directory. We have specified a `model_name` argument, which names the `.mar` file.
     We have specified a `version` argument, which will be helpful in model versioning
     while working with multiple variations of a model at the same time.
+  id: totrans-295
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个命令应该会在当前工作目录写入一个`convnet.mar`文件。我们指定了一个`model_name`参数，它为`.mar`文件命名。我们指定了一个`version`参数，在同时处理多个模型变体时有助于模型版本控制。
 - en: We have located where our `convnet.py` (for model architecture), `convnet.pth`
     (for model weights) and `convnet_handler.py` (for pre- and post-processing) files
     are, using the `model_file`, `serialzed_file`, and `handler` arguments, respectively.
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经找到了我们的 `convnet.py`（用于模型架构）、`convnet.pth`（用于模型权重）和 `convnet_handler.py`（用于前处理和后处理）文件的位置，分别使用了
+    `model_file`、`serialzed_file` 和 `handler` 参数。
 - en: 'Next, we need to create a new directory in the current working directory and
     move the `convnet.mar` file created in *step 3* to that directory, by running
     the following on the command line:'
+  id: totrans-297
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要在当前工作目录中创建一个新目录，并将*第 3 步* 中创建的 `convnet.mar` 文件移动到该目录中，通过以下命令完成：
 - en: '[PRE59]'
+  id: totrans-298
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: We have to do so to follow the design requirements of the TorchServe framework.
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们必须这样做来遵循 TorchServe 框架的设计要求。
 - en: 'Finally, we may launch our model server using TorchServe. On the command line,
     simply run the following:'
+  id: totrans-300
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以使用 TorchServe 启动我们的模型服务器。在命令行上，只需运行以下命令：
 - en: '[PRE60]'
+  id: totrans-301
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: 'This will silently start the model inference server and you will see some logs
     on the screen, including the following:'
+  id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将静默地启动模型推断服务器，并在屏幕上显示一些日志，包括以下内容：
 - en: '![Figure 13 .14 – TorchServe launch output](img/file120.jpg)'
+  id: totrans-303
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .14 – TorchServe 启动输出](img/file120.jpg)'
 - en: Figure 13 .14 – TorchServe launch output
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .14 – TorchServe 启动输出
 - en: 'As you can see, TorchServe investigates the available devices on the machine
     among other details. It allocates three separate URLs for *inference*, *management*,
     and *metrics*. To check whether the launched server is indeed serving our model,
     we can ping the management server with the following command:'
+  id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所见，TorchServe 会检查机器上可用的设备及其他详细信息。它为*推断*、*管理*和*指标*分配了三个独立的 URL。为了检查启动的服务器是否确实在为我们的模型提供服务，我们可以使用以下命令来
+    ping 管理服务器：
 - en: '[PRE61]'
+  id: totrans-306
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'This should output the following:'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该输出以下内容：
 - en: '![Figure 13 .15 – TorchServe-served models](img/file121.jpg)'
+  id: totrans-308
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .15 – TorchServe 服务模型](img/file121.jpg)'
 - en: Figure 13 .15 – TorchServe-served models
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .15 – TorchServe 服务模型
 - en: This verifies that the TorchServe server is indeed hosting the model.
+  id: totrans-310
   prefs: []
   type: TYPE_NORMAL
+  zh: 这验证了 TorchServe 服务器确实在托管模型。
 - en: 'Finally, we can test our TorchServe model server by making an inference request.
     This time, we won''t need to write a Python script, because the handler will already
     take care of processing any input image file. So, we can directly make a request
     using the `digit_image.jpg` sample image file by running this:'
+  id: totrans-311
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以通过发送推断请求来测试我们的 TorchServe 模型服务器。这一次，我们不需要编写 Python 脚本，因为处理程序已经处理任何输入图像文件。因此，我们可以通过运行以下命令，直接使用
+    `digit_image.jpg` 示例图像文件进行请求：
 - en: '[PRE62]'
+  id: totrans-312
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: This should output `2` in the terminal, which is indeed the correct prediction
     as evident from *Figure 13* *.3*.
+  id: totrans-313
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该在终端输出 `2`，这确实是正确的预测，正如*图 13* *.3* 所示。
 - en: 'Finally, once we are done with using the model server, it can be stopped by
     running the following on the command line:'
+  id: totrans-314
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，一旦我们完成了对模型服务器的使用，可以通过在命令行上运行以下命令来停止它：
 - en: '[PRE63]'
+  id: totrans-315
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: This concludes our exercise on how to use TorchServe to spin up our own PyTorch
     model server and use it to make predictions. There is a lot more to unpack here,
     such as model monitoring (metrics), logging, versioning, benchmarking, and so
     on [13.16]. TorchServe’s website is a great place to pursue these advanced topics
     in detail.
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: 这结束了我们如何使用 TorchServe 快速启动自己的 PyTorch 模型服务器并用其进行预测的练习。这里还有很多内容需要挖掘，比如模型监控（指标）、日志记录、版本控制、性能基准测试等
+    [13.16] 。TorchServe 的网站是深入研究这些高级主题的好地方。
 - en: After finishing this section, you should be able to use TorchServe to serve
     your own models. I encourage you to write custom handlers for your own use cases,
     explore the various TorchServe configuration settings [13.17] , and try out other
     advanced features of TorchServe [13.18] .
+  id: totrans-317
   prefs: []
   type: TYPE_NORMAL
+  zh: 完成本节后，您将能够使用 TorchServe 来为自己的模型提供服务。我鼓励您为自己的用例编写自定义处理程序，探索各种 TorchServe 配置设置
+    [13.17] ，并尝试 TorchServe 的其他高级功能 [13.18] 。
 - en: '**Note**'
+  id: totrans-318
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-319
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
 - en: TorchServe is constantlt evolving , with a lot of promise. My advice would be
     to keep an eye on the rapid updates in this territory of PyTorch.
+  id: totrans-320
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: TorchServe 在不断发展中，充满了许多潜力。我的建议是密切关注 PyTorch 领域的快速更新。
 - en: In the next section, we will take a look at exporting PyTorch models so that
     they can be used in different environments, programming languages, and deep learning
     libraries.
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将探讨如何导出 PyTorch 模型，以便在不同的环境、编程语言和深度学习库中使用。
 - en: Exporting universal PyTorch models using TorchScript and ONNX
+  id: totrans-322
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 TorchScript 和 ONNX 导出通用 PyTorch 模型
 - en: We have discussed serving PyTorch models extensively in the previous sections
     of this chapter, which is perhaps the most critical aspect of operationalizing
     PyTorch models in production systems. In this section, we will look at another
     important aspect – exporting PyTorch models. We have already learned how to save
     PyTorch models and load them back from disk in the classic Python scripting environment.
     But we need more ways of exporting PyTorch models. Why?
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经在本章前几节广泛讨论了提供 PyTorch 模型服务，这也许是在生产系统中实现 PyTorch 模型操作的最关键方面。在这一部分，我们将探讨另一个重要方面
+    – 导出 PyTorch 模型。我们已经学会了如何在经典的 Python 脚本环境中保存 PyTorch 模型并从磁盘加载它们。但是，我们需要更多导出 PyTorch
+    模型的方式。为什么呢？
 - en: Well, for starters, the Python interpreter allows only one thread to run at
     a time using the **global interpreter lock** (**GIL**). This keeps us from parallelizing
     operations. Secondly, Python might not be supported in every system or device
@@ -1408,26 +2075,38 @@
     support for exporting its models in an efficient format and in a platform- or
     language-agnostic manner such that a model can be run in environments different
     from the one it was trained in.
+  id: totrans-324
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于初学者来说，Python 解释器一次只允许一个线程运行，使用**全局解释器锁**（**GIL**）。这使得我们无法并行操作。其次，Python 可能不受我们希望在其上运行模型的每个系统或设备的支持。为了解决这些问题，PyTorch
+    提供了支持以高效的格式导出其模型，并以与平台或语言无关的方式，使模型能够在与其训练环境不同的环境中运行。
 - en: We will first explore TorchScript, which enables us to export serialized and
     optimized PyTorch models into an intermediate representation that can then be
     run in a Python-independent program (say, a C++ program).
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将探讨 TorchScript，它使我们能够将序列化和优化的 PyTorch 模型导出为一个中间表示，然后可以在独立于 Python 的程序（比如说，C++
+    程序）中运行。
 - en: And then , we will look at ONNX and how it lets us save PyTorch models into
     a universal format that can then be loaded into other deep learning frameworks
     and different programming languages.
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将看看 ONNX 及其如何让我们将 PyTorch 模型保存为通用格式，然后加载到其他深度学习框架和不同编程语言中。
 - en: Understanding the utility of TorchScript
+  id: totrans-327
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 理解 TorchScript 的实用性
 - en: 'There are two key reasons why TorchScript is a vital tool when it comes to
     putting PyTorch models into production:'
+  id: totrans-328
   prefs: []
   type: TYPE_NORMAL
+  zh: 当涉及将 PyTorch 模型投入生产时，TorchScript 是一个至关重要的工具的两个关键原因：
 - en: PyTorch works on an eager execution basis, as discussed in *Chapter 1, Overview
     of Deep Learning Using PyTorch*, of this book. This has its advantages, such as
     easier debugging. However, executing steps/operations one by one by writing and
@@ -1435,658 +2114,996 @@
     as well as limiting us from overall operational optimizations. To tackle this
     problem, PyTorch provides its own **just-in-time** (**JIT**) compiler, which is
     based on the PyTorch-centered parts of Python.
+  id: totrans-329
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: PyTorch 基于急切执行，正如本书第1章“使用 PyTorch 进行深度学习概述”中讨论的那样。这有其优点，如更容易调试。然而，逐步执行步骤/操作，通过写入和读取中间结果到内存，可能导致高推理延迟，同时限制整体操作优化。为了解决这个问题，PyTorch
+    提供了自己的**即时**（**JIT**）编译器，基于 Python 的 PyTorch 中心部分。
 - en: The JIT compiler compiles PyTorch models instead of interpreting, which is equivalent
     to creating one composite graph for the entire model by looking at all of its
     operations at once. The JIT-compiled code is TorchScript code, which is basically
     a statically typed subset of Python. This compilation leads to several performance
     improvements and optimizations, such as getting rid of the GIL and thereby enabling
     multithreading.
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
+  zh: JIT 编译器编译 PyTorch 模型而不是解释，这相当于一次性查看模型的所有操作并创建一个复合图。JIT 编译的代码是 TorchScript 代码，它基本上是
+    Python 的静态类型子集。这种编译带来了多种性能改进和优化，比如去除 GIL，从而实现多线程。
 - en: PyTorch is essentially built to be used with the Python programming language.
     Remember, we have used Python in almost the entirety of this book too. However,
     when it comes to productionizing models, there are more performant (that is, quicker)
     languages than Python, such as C++. And also, we might want to deploy our trained
     models on systems or devices that do not work with Python.
+  id: totrans-331
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: PyTorch 本质上是与 Python 编程语言一起使用的。请记住，本书几乎完全使用了 Python。然而，在将模型投入生产时，有比 Python 更高效（即更快）的语言，如
+    C++。而且，我们可能希望在不支持 Python 的系统或设备上部署训练过的模型。
 - en: This is where TorchScript kicks in. As soon as we compile our PyTorch code into
     TorchScript code, which is an intermediate representation of our PyTorch model,
     we can serialize this representation into a C++-friendly format using the TorchScript
     compiler. Thereafter, this serialized file can be read in a C++ model inference
     program using LibTorch – the PyTorch C++ API.
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是 TorchScript 的作用。一旦我们将 PyTorch 代码编译成 TorchScript 代码，这是我们的 PyTorch 模型的中间表示，我们可以使用
+    TorchScript 编译器将这个表示序列化为一个符合 C++ 格式的文件。此后，可以在 C++ 模型推理程序中使用 LibTorch（PyTorch 的
+    C++ API）读取这个序列化文件。
 - en: We have mentioned JIT compilation of PyTorch models several times in this section.
     Let's now look at two of the possible options of compiling our PyTorch models
     into TorchScript format.
+  id: totrans-333
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在本节中已多次提到 PyTorch 模型的 JIT 编译。现在让我们看看将我们的 PyTorch 模型编译成 TorchScript 格式的两种可能选项中的两种。
 - en: Model tracing with TorchScript
+  id: totrans-334
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用 TorchScript 进行模型跟踪
 - en: One way of translating PyTorch code to TorchScript is tracing the PyTorch model.
     Tracing requires the PyTorch model object along with a dummy example input to
     the model. As the name suggests, the tracing mechanism traces the flow of this
     dummy input through the model (neural network), records the various operations,
     and renders a TorchScript **Intermediate Representation** (**IR**), which can
     be visualized both as a graph as well as TorchScript code.
+  id: totrans-335
   prefs: []
   type: TYPE_NORMAL
+  zh: 将 PyTorch 代码转换为 TorchScript 的一种方法是跟踪 PyTorch 模型。跟踪需要 PyTorch 模型对象以及一个模型的虚拟示例输入。正如其名称所示，跟踪机制跟踪这个虚拟输入通过模型（神经网络）的流程，记录各种操作，并生成
+    TorchScript **中间表示**（**IR**），可以将其视为图形以及 TorchScript 代码进行可视化。
 - en: We will now walk through the steps involved in tracing a PyTorch model using
     our handwritten digits classification model. The full code for this exercise is
     available in our github repository [13.19] .
+  id: totrans-336
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将逐步介绍使用手写数字分类模型跟踪 PyTorch 模型的步骤。此练习的完整代码可在我们的 github 仓库 [13.19] 中找到。
 - en: 'The first five steps of this exercise are the same as the steps of the *Saving
     and loading a trained model* and *Building the inference pipeline* sections, where
     we built the model inference pipeline:'
+  id: totrans-337
   prefs: []
   type: TYPE_NORMAL
+  zh: 此练习的前五个步骤与“保存和加载训练模型”和“构建推理流水线”部分的步骤相同，我们在这些部分构建了模型推理流水线：
 - en: 'We will start with importing libraries by running the following code:'
+  id: totrans-338
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将通过运行以下代码开始导入库：
 - en: '[PRE64]'
+  id: totrans-339
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Next, we will define and instantiate the `model` object:'
+  id: totrans-340
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将定义并实例化 `model` 对象：
 - en: '[PRE65]'
+  id: totrans-341
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: 'Next, we will restore the model weights using the following lines of code:'
+  id: totrans-342
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将使用以下代码恢复模型权重：
 - en: '[PRE66]'
+  id: totrans-343
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: 'We then load a sample image:'
+  id: totrans-344
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后我们加载一个示例图像：
 - en: '[PRE67]'
+  id: totrans-345
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: 'Next, we define the data pre-processing function:'
+  id: totrans-346
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们定义数据预处理函数：
 - en: '[PRE68]'
+  id: totrans-347
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: 'And we then apply the pre-processing function to the sample image:'
+  id: totrans-348
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将对样本图像应用预处理函数：
 - en: '[PRE69]'
+  id: totrans-349
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: 'In addition to the code under *step 3*, we also execute the following lines
     of code:'
+  id: totrans-350
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了 *步骤 3* 下的代码之外，我们还执行以下代码：
 - en: '[PRE70]'
+  id: totrans-351
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: If we do not do this, the traced model will have all parameters requiring gradients
     and we will have to load the model within the `torch.no_grad()` context.
+  id: totrans-352
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们不这样做，跟踪的模型将具有所有需要梯度的参数，我们将不得不在 `torch.no_grad()` 上下文中加载模型。
 - en: 'We already have the loaded PyTorch model object with pre-trained weights. We
     are ready to trace the model with a dummy input as shown next:'
+  id: totrans-353
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经加载了带有预训练权重的 PyTorch 模型对象。接下来，我们将使用一个虚拟输入跟踪该模型：
 - en: '[PRE71]'
+  id: totrans-354
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: The dummy input is an image with all pixel values set to `1`.
+  id: totrans-355
   prefs: []
   type: TYPE_NORMAL
+  zh: 虚拟输入是一个所有像素值都设为 `1` 的图像。
 - en: 'We can now look at the traced model graph by running this:'
+  id: totrans-356
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们可以通过运行这个来查看跟踪的模型图：
 - en: '[PRE72]'
+  id: totrans-357
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: 'This should output the following:'
+  id: totrans-358
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将输出以下内容：
 - en: '![Figure 13 .16 – Traced model graph](img/file122.jpg)'
+  id: totrans-359
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .16 – 跟踪模型图](img/file122.jpg)'
 - en: Figure 13 .16 – Traced model graph
+  id: totrans-360
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .16 – 跟踪模型图
 - en: Intuitively, the first few lines in the graph show the initialization of layers
     of this model, such as `cn1`, `cn2`, and so on. Toward the end, we see the last
     layer, that is, the softmax layer. Evidently, the graph is written in a lower-level
     language with statically typed variables and closely resembles the TorchScript
     language.
+  id: totrans-361
   prefs: []
   type: TYPE_NORMAL
+  zh: 直观地，图中的前几行展示了该模型层的初始化，如`cn1`、`cn2`等。到了最后，我们看到了最后一层，也就是 softmax 层。显然，该图是用静态类型变量编写的低级语言，与
+    TorchScript 语言非常相似。
 - en: 'Besides the graph, we can also look at the exact TorchScript code behind the
     traced model by running this:'
+  id: totrans-362
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了图形之外，我们还可以通过运行以下内容查看跟踪模型背后的确切 TorchScript 代码：
 - en: '[PRE73]'
+  id: totrans-363
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: 'This should output the following lines of Python-like code that define the
     forward pass method for the model:'
+  id: totrans-364
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将输出以下类似 Python 代码的行，定义了模型的前向传递方法：
 - en: '![Figure 13 .17 – Traced model code](img/file123.jpg)'
+  id: totrans-365
   prefs: []
   type: TYPE_IMG
+  zh: '![Figure 13 .17 – 跟踪模型代码](img/file123.jpg)'
 - en: Figure 13 .17 – Traced model code
+  id: totrans-366
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13.17 – 跟踪模型代码
 - en: This precisely is the TorchScript equivalent for the code that we wrote using
     PyTorch in *step 2*.
+  id: totrans-367
   prefs: []
   type: TYPE_NORMAL
+  zh: 这恰好是我们在*步骤2*中使用PyTorch编写的代码的TorchScript等效代码。
 - en: 'Next, we will export or save the traced model:'
+  id: totrans-368
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将导出或保存跟踪模型：
 - en: '[PRE74]'
+  id: totrans-369
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: 'Now we load the saved model:'
+  id: totrans-370
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们加载保存的模型：
 - en: '[PRE75]'
+  id: totrans-371
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: Note that we didn't need to load the model architecture and parameters separately.
+  id: totrans-372
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们无需分别加载模型的架构和参数。
 - en: 'Finally, we can use this model for inference:'
+  id: totrans-373
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以使用此模型进行推断：
 - en: '[PRE76]'
+  id: totrans-374
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: 'The output is as follows:'
+  id: totrans-375
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: This should output the following:![Figure 13 .18 – Traced model inference](img/file124.jpg)
+  id: totrans-376
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该输出以下内容：![Figure 13 .18 – 跟踪模型推断](img/file124.jpg)
 - en: Figure 13 .18 – Traced model inference
+  id: totrans-377
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13.18 – 跟踪模型推断
 - en: 'We can check these results by re-running model inference on the original model:'
+  id: totrans-378
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以通过在原始模型上重新运行模型推断来检查这些结果：
 - en: '[PRE77]'
+  id: totrans-379
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: This should produce the same output as in *Figure 13* *.18*, which verifies
     that our traced model is working properly.
+  id: totrans-380
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该产生与*图13* *.18*相同的输出，从而验证我们的跟踪模型正常工作。
 - en: You can use the traced model instead of the original PyTorch model object to
     build more efficient Flask model servers and Dockerized model microservices, thanks
     to the GIL-free nature of TorchScript. While tracing is a viable option for JIT
     compiling PyTorch models, it has some drawbacks.
+  id: totrans-381
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以使用跟踪模型而不是原始PyTorch模型对象来构建更高效的Flask模型服务器和Docker化的模型微服务，这要归功于TorchScript无GIL的特性。尽管跟踪是JIT编译PyTorch模型的可行选项，但它也有一些缺点。
 - en: For instance, if the forward pass of the model consists of control flows such
     as `if` and `for` statements, then the tracing will only render one of the multiple
     possible paths in the flow. In order to accurately translate PyTorch code to TorchScript
     code for such scenarios, we will use the other compilation mechanism called scripting.
+  id: totrans-382
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果模型的前向传播包含诸如`if`和`for`语句等控制流，则跟踪只会呈现流程中的一条可能路径。为了准确地将PyTorch代码转换为TorchScript代码，以处理这种情况，我们将使用另一种称为脚本化的编译机制。
 - en: Model scripting with TorchScript
+  id: totrans-383
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用TorchScript进行模型脚本化
 - en: 'Please follow *steps 1 to 6* from the previous exercise and then follow up
     with the steps given in this exercise. The full code is available in our github
     repository [13.20] :'
+  id: totrans-384
   prefs: []
   type: TYPE_NORMAL
+  zh: 请按照*上一练习*中的1到6步骤，然后按照此练习中给出的步骤进行操作。完整代码可在我们的github仓库[13.20]中找到：
 - en: 'For scripting, we need not provide any dummy input to the model, and the following
     line of code transforms PyTorch code to TorchScript code directly:'
+  id: totrans-385
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对于脚本化，我们无需为模型提供任何虚拟输入，并且以下代码行将PyTorch代码直接转换为TorchScript代码：
 - en: '[PRE78]'
+  id: totrans-386
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: 'Let''s look at the scripted model graph by running the following line of code:'
+  id: totrans-387
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们通过运行以下代码来查看脚本化模型图：
 - en: '[PRE79]'
+  id: totrans-388
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: 'This should output the scripted model graph in a similar fashion as the traced
     model graph, as shown in the following figure:'
+  id: totrans-389
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该以与跟踪模型代码图类似的方式输出脚本化模型图，如下图所示：
 - en: '![Figure 13 .19 – Scripted model graph](img/file125.jpg)'
+  id: totrans-390
   prefs: []
   type: TYPE_IMG
+  zh: '![Figure 13 .19 – 脚本模型图](img/file125.jpg)'
 - en: Figure 13 .19 – Scripted model graph
+  id: totrans-391
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13.20 – 脚本模型代码
 - en: Once again, we can see similar, verbose, low-level script that lists the various
     edges of the graph per line. Notice that the graph here is not the same as in
     *Figure 13* *.16*, which indicates differences in code compilation strategy in
     using tracing rather than scripting.
+  id: totrans-392
   prefs: []
   type: TYPE_NORMAL
+  zh: 再次可以看到类似的冗长低级脚本，按行列出图的各种边缘。请注意，此处的图表与*图13* *.16*中的不同，这表明在使用跟踪而不是脚本化的代码编译策略时存在差异。
 - en: 'We can also look at the equivalent TorchScript code by running this:'
+  id: totrans-393
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还可以通过运行此命令查看等效的TorchScript代码：
 - en: '[PRE80]'
+  id: totrans-394
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: 'This should output the following:'
+  id: totrans-395
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该输出以下内容：
 - en: '![Figure 13 .20 – Scripted model code](img/file126.jpg)'
+  id: totrans-396
   prefs: []
   type: TYPE_IMG
+  zh: '![Figure 13 .20 – Scripted model code](img/file126.jpg)'
 - en: Figure 13 .20 – Scripted model code
+  id: totrans-397
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13.20 – 脚本模型代码
 - en: In essence, the flow is similar to that in *Figure 13* *.17*; however, there
     are subtle differences in the code signature resulting from differences in compilation
     strategy.
+  id: totrans-398
   prefs: []
   type: TYPE_NORMAL
+  zh: 本质上，流程与*图13* *.17*中的流程类似；但是，由于编译策略的不同，代码签名中存在细微差异。
 - en: 'Once again, the scripted model can be exported and loaded back in the following
     way:'
+  id: totrans-399
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 再次，可以按以下方式导出脚本化模型并重新加载：
 - en: '[PRE81]'
+  id: totrans-400
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: 'Finally, we use the scripted model for inference using this:'
+  id: totrans-401
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们使用此脚本化模型进行推断：
 - en: '[PRE82]'
+  id: totrans-402
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: This should produce the exact same results as in *Figure 13* *.18,* which verifies
     that the scripted model is working as expected.
+  id: totrans-403
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应该产生与*图13* *.18*完全相同的结果，从而验证脚本化模型按预期工作。
 - en: 'Similar to tracing, a scripted PyTorch model is GIL-free and hence can improve
     model serving performance when used with Flask or Docker. *Table 13* *.1* shows
     a quick comparison between the model tracing and scripting approaches:'
+  id: totrans-404
   prefs: []
   type: TYPE_NORMAL
+  zh: 与追踪类似，脚本化的 PyTorch 模型是 GIL-free 的，因此在与 Flask 或 Docker 一起使用时，可以提高模型服务的性能。*表 13*
+    *.1* 快速比较了模型追踪和脚本化的方法：
 - en: '![Table 13 .1 – Tracing versus scripting](img/file127.jpg)'
+  id: totrans-405
   prefs: []
   type: TYPE_IMG
+  zh: '![表 13 .1 – 追踪与脚本化的比较](img/file127.jpg)'
 - en: Table 13 .1 – Tracing versus scripting
+  id: totrans-406
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 13 .1 – 追踪与脚本化的比较
 - en: We have so far demonstrated how PyTorch models can be translated and serialized
     as TorchScript models. In the next section, we will completely get rid of Python
     for a moment and demonstrate how to load the TorchScript serialized model using
     C++.
+  id: totrans-407
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经演示了如何将 PyTorch 模型转换并序列化为 TorchScript 模型。在接下来的部分中，我们将完全摆脱 Python，并演示如何使用
+    C++ 加载 TorchScript 序列化模型。
 - en: Running a PyTorch model in C++
+  id: totrans-408
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 在 C++ 中运行 PyTorch 模型
 - en: Python can sometimes be limiting or we might be unable to run machine learning
     models trained using PyTorch and Python. In this section, we will use the serialized
     TorchScript model objects (using tracing and scripting) that we exported in the
     previous section to run model inferences inside C++ code.
+  id: totrans-409
   prefs: []
   type: TYPE_NORMAL
+  zh: Python 有时可能有限，或者我们可能无法运行使用 PyTorch 和 Python 训练的机器学习模型。在本节中，我们将使用在前一节中导出的序列化
+    TorchScript 模型对象（使用追踪和脚本化）来在 C++ 代码中运行模型推理。
 - en: '**Note**'
+  id: totrans-410
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-411
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
 - en: Basic working knowledge of C++ is assumed for this section [13.21] . This section
     specifically talks a lot about C++ code compilation [13.22]
+  id: totrans-412
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 假设你具备基本的 C++ 工作知识 [13.21] 。本节专门讨论了关于 C++ 代码编译的内容 [13.22]
 - en: 'For this exercise, we need to install CMake following the steps mentioned in
     [13.23] to be able to build the C++ code. After that, we will create a folder
     named `cpp_convnet` in the current working directory and work from that directory:'
+  id: totrans-413
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了完成这个练习，我们需要按照 [13.23] 中提到的步骤安装 CMake 以便能够构建 C++ 代码。之后，我们将在当前工作目录下创建一个名为 `cpp_convnet`
+    的文件夹，并从该目录中工作：
 - en: 'Let''s get straight into writing the C++ file that will run the model inference
     pipeline. The full C++ code is available here in our github respository [13.24]:'
+  id: totrans-414
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们直接开始编写运行模型推理流水线的 C++ 文件。完整的 C++ 代码可以在我们的 github 仓库 [13.24] 中找到：
 - en: '[PRE83]'
+  id: totrans-415
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: First the .`jpg` image file is read as a grayscale image using the OpenCV library.
     You will need to install the OpenCV library for C++ as per your OS requirements
     - Mac [13.25], Linux [13.26] or Windows [13.27].
+  id: totrans-416
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，使用 OpenCV 库将 .`jpg` 图像文件读取为灰度图像。你需要根据你的操作系统要求安装 OpenCV 库 - Mac [13.25]，Linux
+    [13.26] 或 Windows [13.27]。
 - en: 'The grayscale image is then resized to `28x28` pixels as that is the requirement
     for our CNN model:'
+  id: totrans-417
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 灰度图像随后被调整大小为 `28x28` 像素，因为这是我们 CNN 模型的要求：
 - en: '[PRE84]'
+  id: totrans-418
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: 'The image array is then converted to a PyTorch tensor:'
+  id: totrans-419
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，将图像数组转换为 PyTorch 张量：
 - en: '[PRE85]'
+  id: totrans-420
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: For all `torch`-related operations as in this step, we use the `libtorch` library,
     which is the home for all `torch` C++-related APIs. If you have PyTorch installed,
     you need not install LibTorch separately.
+  id: totrans-421
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于所有与 `torch` 相关的操作，如本步骤中所示，我们使用 `libtorch` 库，这是所有 `torch` C++ 相关 API 的家园。如果你已经安装了
+    PyTorch，就不需要单独安装 LibTorch。
 - en: 'Because OpenCV reads the grayscale in (28, 28, 1) dimension, we need to turn
     it around as (1, 28, 28) to suit the PyTorch requirements. The tensor is then
     reshaped to shape (1,1,28,28), where the first `1` is `batch_size` for inference
     and the second `1` is the number of channels, which is `1` for grayscale:'
+  id: totrans-422
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 因为 OpenCV 读取的灰度图像维度是 (28, 28, 1)，我们需要将其转换为 (1, 28, 28) 以符合 PyTorch 的要求。然后，张量被重塑为形状为
+    (1,1,28,28)，其中第一个 `1` 是推断的 `batch_size`，第二个 `1` 是通道数，对于灰度图像为 `1`：
 - en: '[PRE86]'
+  id: totrans-423
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: Because OpenCV read images have pixel values ranging from `0` to `255`, we normalize
     these values to the range of `0` to `1`. Thereafter, we standardize the image
     with mean `0.1302` and std `0.3069`, as we did in a previous section (see *step
     2* of the *Building the inference pipeline* section).
+  id: totrans-424
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为 OpenCV 读取的图像像素值范围是从 `0` 到 `255`，我们将这些值归一化到 `0` 到 `1` 的范围。然后，我们使用平均值 `0.1302`
+    和标准差 `0.3069` 对图像进行标准化，就像我们在前面的章节中做的那样（参见*构建推理流水线的第二步*）。
 - en: 'In this step, we load the JIT-ed TorchScript model object that we exported
     in the previous exercise:'
+  id: totrans-425
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这一步中，我们加载了在前一个练习中导出的 JIT-ed TorchScript 模型对象：
 - en: '[PRE87]'
+  id: totrans-426
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: 'Finally, we come to the model prediction, where we use the loaded model object
     to make a forward pass with the supplied input data (an image, in this case):'
+  id: totrans-427
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们来到模型预测阶段，在这里我们使用加载的模型对象对提供的输入数据进行前向传播（在本例中是一幅图像）：
 - en: '[PRE88]'
+  id: totrans-428
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: 'The `output_` variable contains a list of probabilities for each class. Let''s
     extract the class label with the highest probability and print it:'
+  id: totrans-429
   prefs: []
   type: TYPE_NORMAL
+  zh: '`output_` 变量包含每个类别的概率列表。让我们提取具有最高概率的类别标签并打印出来：'
 - en: '[PRE89]'
+  id: totrans-430
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: 'Finally, we successfully exit the C++ routine:'
+  id: totrans-431
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们成功退出 C++ 程序：
 - en: '[PRE90]'
+  id: totrans-432
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: 'While *steps 1-6* concern the various parts of our C++, we also need to write
     a `CMakeLists.txt` file in the same working directory. The full code for this
     file is available in our github repository [13.28] :'
+  id: totrans-433
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 虽然 *步骤 1-6* 关注于我们 C++ 的各个部分，但我们还需要在相同的工作目录下编写一个 `CMakeLists.txt` 文件。此文件的完整代码可在我们的
+    github 仓库 [13.28] 中找到：
 - en: '[PRE91]'
+  id: totrans-434
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: 'This file is basically the library installation and building script similar
     to `setup.py` in a Python project. In addition to this code, the `OpenCV_DIR`
     environment variable needs to be set to the path where the OpenCV build artifacts
     are created, shown in the following code block:'
+  id: totrans-435
   prefs: []
   type: TYPE_NORMAL
+  zh: 此文件基本上是类似于 Python 项目中的 `setup.py` 的库安装和构建脚本。除此代码外，还需要将 `OpenCV_DIR` 环境变量设置为
+    OpenCV 构建产物的路径，如下面的代码块所示：
 - en: '[PRE92]'
+  id: totrans-436
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: 'Next, we need to actually run the `CMakeLists` file to create build artifacts.
     We do so by creating a new directory in the current working directory and run
     the build process from there. In the command line, we simply need to run the following:'
+  id: totrans-437
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要实际运行 `CMakeLists` 文件以创建构建产物。我们通过在当前工作目录中创建一个新目录并从那里运行构建过程来完成这一步。在命令行中，我们只需运行以下命令：
 - en: '[PRE93]'
+  id: totrans-438
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE93]'
 - en: 'In the third line, you shall provide the path to LibTorch. To find your own,
     open Python and execute this:'
+  id: totrans-439
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第三行中，您应提供 LibTorch 的路径。要找到您自己的路径，请打开 Python 并执行以下操作：
 - en: '[PRE94]'
+  id: totrans-440
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE94]'
 - en: 'For me, it outputs this:'
+  id: totrans-441
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于我来说，输出如下所示：
 - en: '[PRE95]'
+  id: totrans-442
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE95]'
 - en: 'Executing the third line shall output the following:'
+  id: totrans-443
   prefs: []
   type: TYPE_NORMAL
+  zh: 执行第三行将输出以下内容：
 - en: '![Figure 13 .21 – The C++ CMake output](img/file128.png)'
+  id: totrans-444
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .21 – C++ CMake 输出](img/file128.png)'
 - en: Figure 13 .21 – The C++ CMake output
+  id: totrans-445
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .21 – C++ CMake 输出的结果
 - en: 'And the fourth line should result in this:'
+  id: totrans-446
   prefs: []
   type: TYPE_NORMAL
+  zh: 第四行应输出如下内容：
 - en: '![Figure 13 .22 – C++ model building](img/file129.jpg)'
+  id: totrans-447
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .22 – C++ 模型构建](img/file129.jpg)'
 - en: Figure 13 .22 – C++ model building
+  id: totrans-448
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .22 – C++ 模型构建
 - en: 'Upon successful execution of the previous step, we will have produced a C++
     compiled binary with the name `cpp_convnet`. It is now time to execute this binary
     program. In other words, we can now supply a sample image to our C++ model for
     inference. We may use the scripted model as input:'
+  id: totrans-449
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在成功执行上一步骤后，我们将生成一个名为 `cpp_convnet` 的 C++ 编译二进制文件。现在是执行这个二进制程序的时候了。换句话说，我们现在可以向我们的
+    C++ 模型提供一个样本图像进行推断。我们可以使用脚本化的模型作为输入：
 - en: '[PRE96]'
+  id: totrans-450
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE96]'
 - en: 'Alternatively, we may use the traced model as input:'
+  id: totrans-451
   prefs: []
   type: TYPE_NORMAL
+  zh: 或者，我们可以使用跟踪的模型作为输入：
 - en: '[PRE97]'
+  id: totrans-452
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE97]'
 - en: 'Either of these should result in the following output:'
+  id: totrans-453
   prefs: []
   type: TYPE_NORMAL
+  zh: 任何一种方法都应该产生以下输出：
 - en: '![Figure 13 .23 – C++ model prediction](img/file130.jpg)'
+  id: totrans-454
   prefs: []
   type: TYPE_IMG
+  zh: '![图 13 .23 – C++ 模型预测](img/file130.jpg)'
 - en: Figure 13 .23 – C++ model prediction
+  id: totrans-455
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 13 .23 – C++ 模型预测
 - en: According to *Figure 13* *.3*, the C++ model seems to be working correctly.
     Because we have used a different image handling library in C++ (that is, OpenCV)
     as compared to in Python (PIL), the pixel values are slightly differently encoded,
     which will result in slightly different prediction probabilities, but the final
     model prediction in the two languages should not differ significantly if correct
     normalizations are applied.
+  id: totrans-456
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据 *图 13* *.3*，C++ 模型似乎工作正常。由于我们在 C++ 中使用了不同的图像处理库（即 OpenCV），与 Python（PIL）相比，像素值稍有不同编码，这将导致略有不同的预测概率，但如果应用正确的归一化，两种语言的最终模型预测应该没有显著差异。
 - en: This concludes our exploration of PyTorch model inference using C++. This exercise
     shall help you get started with transporting your favorite deep learning models
     written and trained using PyTorch into a C++ environment, which should make predictions
     more efficient as well as opening up the possibility of hosting models in Python-less
     environments (for example, certain embedded systems, drones, and so on).
+  id: totrans-457
   prefs: []
   type: TYPE_NORMAL
+  zh: 这结束了我们关于使用 C++ 进行 PyTorch 模型推断的探索。这个练习将帮助您开始将使用 PyTorch 编写和训练的喜爱深度学习模型转移到 C++
+    环境中，这样做不仅可以使预测更高效，还可以在无 Python 环境（例如某些嵌入式系统、无人机等）中托管模型成为可能。
 - en: In the next section, we will move away from TorchScript and discuss a universal
     neural network modeling format – ONNX – that has enabled model usage across deep
     learning frameworks, programming languages, and OSes. We will work on loading
     a PyTorch trained model for inference in TensorFlow.
+  id: totrans-458
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将远离 TorchScript，并讨论一个通用的神经网络建模格式 – ONNX，它使得模型可以跨深度学习框架、编程语言和操作系统进行使用。我们将在
+    TensorFlow 中加载一个 PyTorch 训练的模型进行推断。
 - en: Using ONNX to export PyTorch models
+  id: totrans-459
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用 ONNX 导出 PyTorch 模型
 - en: There are scenarios in production systems where most of the already-deployed
     machine learning models are written in a certain deep learning library, say, TensorFlow,
     with its own sophisticated model-serving infrastructure. However, if a certain
     model is written using PyTorch, we would like it to be runnable using TensorFlow
     to conform to the serving strategy. This is one among various other use cases
     where a framework such as ONNX is useful.
+  id: totrans-460
   prefs: []
   type: TYPE_NORMAL
+  zh: 在生产系统的某些场景中，大多数已部署的机器学习模型都是使用某种特定的深度学习库编写的，比如TensorFlow，并配备了自己复杂的模型服务基础设施。但是，如果某个模型是使用PyTorch编写的，我们希望它能够在TensorFlow中运行，以符合服务策略。这是ONNX等框架在各种其他用例中有用的一个例子。
 - en: ONNX is a universal format where the essential operations of a deep learning
     model such as matrix multiplications and activations, written differently in different
     deep learning libraries, are standardized. It enables us to interchangeably use
     different deep learning libraries, programming languages, and even operating environments
     to run the same deep learning model.
+  id: totrans-461
   prefs: []
   type: TYPE_NORMAL
+  zh: ONNX是一个通用格式，用于标准化深度学习模型的基本操作，例如矩阵乘法和激活函数，在不同的深度学习库中编写时会有所不同。它使我们能够在不同的深度学习库、编程语言甚至操作环境中互换地运行相同的深度学习模型。
 - en: Here, we will demonstrate how to run a model, trained using PyTorch, in TensorFlow.
     We will first export the PyTorch model into ONNX format and then load the ONNX
     model inside TensorFlow code.
+  id: totrans-462
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们将演示如何在TensorFlow中运行使用PyTorch训练的模型。我们首先将PyTorch模型导出为ONNX格式，然后在TensorFlow代码中加载ONNX模型。
 - en: 'ONNX works with restricted versions of TensorFlow and hence we will work with
     `tensorflow==1.15.0`. And because of this we will work with python 3.7, as tensorflow==1.15.0
     is not available in the newer versions of python. You can create and activate
     a new conda environment with python 3.7 with the following command:'
+  id: totrans-463
   prefs: []
   type: TYPE_NORMAL
+  zh: ONNX与受限版本的TensorFlow兼容，因此我们将使用`tensorflow==1.15.0`。由于这个原因，我们将使用Python 3.7，因为`tensorflow==1.15.0`在更新的Python版本中不可用。您可以使用以下命令创建并激活一个新的带有Python
+    3.7的conda环境：
 - en: '[PRE98]'
+  id: totrans-464
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE98]'
 - en: 'We will also need to install the `onnx==1.7.0` and `onnx-tf==1.5.0` libraries
     for the exercise. The full code for this exercise is available in our github repository
     [13.29] . Please follow *steps 1 to 11* from the *Model tracing with TorchScript*
     section, and then follow up with the steps given in this exercise:'
+  id: totrans-465
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要为本练习安装`onnx==1.7.0`和`onnx-tf==1.5.0`库。本练习的完整代码可在我们的github仓库[13.29]中找到。请按照*TorchScript模型跟踪*部分的第1到11步，然后执行本练习中的步骤：
 - en: 'Similar to model tracing, we again pass a dummy input through our loaded model:'
+  id: totrans-466
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 类似于模型跟踪，我们再次通过加载的模型传递一个虚拟输入：
 - en: '[PRE99]'
+  id: totrans-467
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE99]'
 - en: This should save a model `onnx` file. Under the hood, the same mechanism is
     used for serializing the model as was used in model tracing.
+  id: totrans-468
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将保存一个模型`onnx`文件。在底层，序列化模型所使用的机制与模型跟踪中使用的相同。
 - en: 'Next, we load the saved `onnx` model and convert it into a TensorFlow model:'
+  id: totrans-469
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们加载保存的`onnx`模型并将其转换为TensorFlow模型：
 - en: '[PRE100]'
+  id: totrans-470
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE100]'
 - en: 'Next, we load the serialized `tensorflow` model to parse the model graph. This
     will help us in verifying that we have loaded the model architecture correctly
     as well as in identifying the input and output nodes of the graph:'
+  id: totrans-471
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们加载序列化的`tensorflow`模型以解析模型图。这将帮助我们验证已正确加载模型架构并标识图的输入和输出节点：
 - en: '[PRE101]'
+  id: totrans-472
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE101]'
 - en: 'This should output the following:'
+  id: totrans-473
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应输出以下内容：
 - en: '![Figure 13 .24 – TensorFlow model graph](img/file131.jpg)'
+  id: totrans-474
   prefs: []
   type: TYPE_IMG
+  zh: '![图13 .24 – TensorFlow模型图](img/file131.jpg)'
 - en: Figure 13 .24 – TensorFlow model graph
+  id: totrans-475
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13 .24 – TensorFlow模型图
 - en: From the graph, we are able to identify the input and output nodes, as marked.
+  id: totrans-476
   prefs: []
   type: TYPE_NORMAL
+  zh: 从图中，我们能够识别标记的输入和输出节点。
 - en: 'Finally, we can assign variables to the input and output nodes of the neural
     network model, instantiate a TensorFlow session, and run the graph to generate
     predictions for our sample image:'
+  id: totrans-477
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以为神经网络模型的输入和输出节点分配变量，实例化TensorFlow会话，并运行图以生成样本图像的预测：
 - en: '[PRE102]'
+  id: totrans-478
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE102]'
 - en: 'This should output the following:'
+  id: totrans-479
   prefs: []
   type: TYPE_NORMAL
+  zh: 这应输出以下内容：
 - en: '![Figure 13 .25 – TensorFlow model prediction](img/file132.jpg)'
+  id: totrans-480
   prefs: []
   type: TYPE_IMG
+  zh: '![图13 .25 – TensorFlow模型预测](img/file132.jpg)'
 - en: Figure 13 .25 – TensorFlow model prediction
+  id: totrans-481
   prefs: []
   type: TYPE_NORMAL
+  zh: 图13 .25 – TensorFlow模型预测
 - en: As you can see, in comparison with *Figure 13* *.18*, the predictions are exactly
     the same for the TensorFlow and PyTorch versions of our model. This validates
     the successful functioning of the ONNX framework. I encourage you to dissect the
     TensorFlow model further and understand how ONNX helps regenerate the exact same
     model in a different deep learning library by utilizing the underlying mathematical
     operations in the model graph.
+  id: totrans-482
   prefs: []
   type: TYPE_NORMAL
+  zh: 如您所见，在与 *Figure 13* *.18* 进行比较后，我们模型的 TensorFlow 和 PyTorch 版本的预测完全相同。这验证了 ONNX
+    框架成功运行的有效性。我鼓励您进一步分析 TensorFlow 模型，了解 ONNX 如何通过利用模型图中的基础数学操作，在不同的深度学习库中重现完全相同的模型。
 - en: This concludes our discussion of the different ways of exporting PyTorch models.
     The techniques covered here will be useful in deploying PyTorch models in production
     systems as well as in working across various platforms. As new versions of deep
     learning libraries, programming languages, and even OSes keep coming, this is
     an area that will rapidly evolve accordingly.
+  id: totrans-483
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经讨论了导出 PyTorch 模型的不同方式。本节介绍的技术将在将 PyTorch 模型部署到生产系统以及在各种平台上使用时非常有用。随着深度学习库、编程语言甚至操作系统的新版本不断推出，这一领域将迅速发展。
 - en: Hence, it is highly advisable to keep an eye on the developments and make sure
     to use the latest and most efficient ways of exporting models as well as operationalizing
     them into production.
+  id: totrans-484
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，强烈建议密切关注发展动态，并确保使用最新和最高效的模型导出和操作化方法。
 - en: So far, we have been working on our local machines for serving and exporting
     our PyTorch models. In the next and final section of this chapter, we will briefly
     look at serving PyTorch models on some of the well-known cloud platforms, such
     as AWS, Google Cloud, and Microsoft Azure.
+  id: totrans-485
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们一直在本地机器上为服务和导出 PyTorch 模型进行工作。在本章的下一个也是最后一个部分中，我们将简要介绍如何在一些知名的云平台上为
+    PyTorch 模型提供服务，例如 AWS、Google Cloud 和 Microsoft Azure。
 - en: Serving PyTorch models in the cloud
+  id: totrans-486
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在云中提供 PyTorch 模型
 - en: Deep learning is computationally expensive and therefore demands powerful and
     sophisticated computational hardware. Not everyone might have access to a local
     machine that has enough CPUs and GPUs to train gigantic deep learning models in
@@ -2094,8 +3111,10 @@
     a local machine that is serving a trained model for inference. For reasons such
     as these, cloud computing platforms are a vital alternative for both training
     and serving deep learning models.
+  id: totrans-487
   prefs: []
   type: TYPE_NORMAL
+  zh: 深度学习计算成本高，因此需要强大和复杂的计算硬件。并非每个人都能访问到本地机器，其具备足够的 CPU 和 GPU 来在合理时间内训练庞大的深度学习模型。此外，对于为推断服务提供训练好的模型的本地机器，我们无法保证其百分之百的可用性。出于这些原因，云计算平台是训练和服务深度学习模型的重要选择。
 - en: In this section, we will discuss how to use PyTorch with some of the most popular
     cloud platforms – **AWS**, **Google Cloud**, and **Microsoft Azure**. We will
     explore the different ways of serving a trained PyTorch model in each of these
@@ -2103,30 +3122,46 @@
     this chapter were executed on a local machine. The goal of this section is to
     enable you to perform similar exercises using **virtual machines** (**VMs**) on
     the cloud.
+  id: totrans-488
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将讨论如何在一些最流行的云平台上使用 PyTorch — **AWS**、**Google Cloud** 和 **Microsoft Azure**。我们将探讨在每个平台上为训练好的
+    PyTorch 模型提供服务的不同方式。我们在本章早期部分讨论的模型服务练习是在本地机器上执行的。本节的目标是让您能够使用云上的 **虚拟机** (**VMs**)
+    执行类似的练习。
 - en: Using PyTorch with AWS
+  id: totrans-489
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用 PyTorch 和 AWS
 - en: AWS is the oldest and one of the most popular cloud computing platforms. It
     has deep integrations with PyTorch. We have already seen an example of it in the
     form of TorchServe, which is jointly developed by AWS and Facebook.
+  id: totrans-490
   prefs: []
   type: TYPE_NORMAL
+  zh: AWS 是最古老和最流行的云计算平台之一。它与 PyTorch 有深度集成。我们已经在 TorchServe 中看到了一个例子，它是由 AWS 和 Facebook
+    共同开发的。
 - en: In this section, we will look at some of the common ways of serving PyTorch
     models using AWS. First, we will simply learn how to use an AWS instance as a
     replacement for our local machine (laptop) to serve PyTorch models. Then, we will
     briefly discuss Amazon SageMaker, which is a fully dedicated cloud machine learning
     platform. We will briefly discuss how TorchServe can be used together with SageMaker
     for model serving.
+  id: totrans-491
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将介绍一些使用 AWS 为服务 PyTorch 模型的常见方法。首先，我们将简单了解如何使用 AWS 实例来替代我们的本地机器（笔记本电脑）来服务
+    PyTorch 模型。然后，我们将简要讨论 Amazon SageMaker，这是一个专门的云机器学习平台。我们将简要讨论如何将 TorchServe 与
+    SageMaker 结合使用进行模型服务。
 - en: '**Note**'
+  id: totrans-492
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-493
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
@@ -2134,451 +3169,657 @@
     on topics such as what an AWS EC2 instance is, what AMIs are, how to create an
     instance, and so on [13.30]. . We will instead focus on the components of AWS
     that are related to PyTorch.
+  id: totrans-494
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 本节假设您对 AWS 有基本的了解。因此，我们不会详细讨论诸如 AWS EC2 实例是什么、AMI 是什么、如何创建实例等主题[13.30]。相反，我们将专注于与
+    PyTorch 相关的 AWS 组件的组成部分。
 - en: Serving a PyTorch model using an AWS instance
+  id: totrans-495
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 AWS 实例为 PyTorch 模型提供服务
 - en: In this section, we will demonstrate how we can use PyTorch within a VM – an
     AWS instance, in this case. After reading this section, you will be able to execute
     the exercises discussed in the *Model serving in PyTorch* section inside an AWS
     instance.
+  id: totrans-496
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将演示如何在 VM 中使用 PyTorch —— 在这种情况下是 AWS 实例。阅读本节后，您将能够在 AWS 实例中执行 *PyTorch
+    模型服务* 部分讨论的练习。
 - en: First, you will need to create an AWS account if you haven't done so already.
     Creating an account requires an email address and a payment method (credit card)
     [13.31]. .
+  id: totrans-497
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，如果您还没有 AWS 账户，您需要创建一个。创建账户需要一个电子邮件地址和支付方式（信用卡）[13.31]。
 - en: 'Once you have an AWS account, you may log in to enter the AWS console [13.32]
     . From here, we basically need to instantiate a VM (AWS instance) where we can
     start using PyTorch for training and serving models. Creating a VM requires two
     decisions [13.33]:'
+  id: totrans-498
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦您拥有 AWS 账户，您可以登录 AWS 控制台[13.32] 。从这里，我们基本上需要实例化一个虚拟机（AWS 实例），在这里我们可以开始使用 PyTorch
+    进行模型训练和服务。创建虚拟机需要做出两个决定[13.33]：
 - en: Choosing the hardware configuration of the VM, also known as the **AWS instance
     type**
+  id: totrans-499
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择虚拟机的硬件配置，也称为**AWS 实例类型**
 - en: Choosing the **Amazon Machine Image** (**AMI**), which entails all the required
     software, such as the OS (Ubuntu or Windows), Python, PyTorch, and so on
+  id: totrans-500
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择**Amazon Machine Image**（**AMI**），它包含了所需的所有软件，如操作系统（Ubuntu 或 Windows）、Python、PyTorch
+    等
 - en: . Typically, when we refer to an AWS instance, we are referring to an **Elastic
     Cloud Compute** instance, also known as an **EC2** instance.
+  id: totrans-501
   prefs: []
   type: TYPE_NORMAL
+  zh: . 通常情况下，当我们提到 AWS 实例时，我们指的是**弹性云计算**实例，也称为**EC2**实例。
 - en: Based on the computational requirements of the VM (RAM, CPUs, and GPUs), you
     can choose from a long list of EC2 instances provided by AWS[13.34] . Because
     PyTorch heavily leverages GPU compute power, it is recommended to use EC2 instances
     that include GPUs, though they are generally costlier than CPU-only instances.
+  id: totrans-502
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据虚拟机的计算需求（RAM、CPU 和 GPU），您可以从 AWS 提供的 EC2 实例长列表中进行选择[13.34] 。由于 PyTorch 需要大量
+    GPU 计算能力，建议选择包含 GPU 的 EC2 实例，尽管它们通常比仅有 CPU 的实例更昂贵。
 - en: Regarding AMIs, there are two possible approaches to choosing an AMI. You may
     go for a barebones AMI that only has an OS installed, such as Ubuntu (Linux).
     In this case, you can then manually install Python [13.35] and subsequently install
     PyTorch [13.36] .
+  id: totrans-503
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于 AMI，选择 AMI 有两种可能的方法。您可以选择仅安装操作系统（如 Ubuntu（Linux））的基本 AMI。在这种情况下，您可以手动安装 Python[13.35]
+    ，随后安装 PyTorch[13.36] 。
 - en: An alternative and more recommended way is to start with a pre-built AMI that
     has PyTorch installed already. AWS offers Deep Learning AMIs, which make the process
     of getting started with PyTorch on AWS much faster and easier [13.37] .
+  id: totrans-504
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种更推荐的方法是从已安装了 PyTorch 的预构建 AMI 开始。AWS 提供了深度学习 AMI，这大大加快了在 AWS 上开始使用 PyTorch
+    的过程[13.37] 。
 - en: Once you have launched an instance successfully using either of the suggested
     approaches, you may simply connect to the instance using one of the various available
     methods [13.38] .
+  id: totrans-505
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦您成功启动了一个实例，可以使用各种可用的方法简单地连接到该实例[13.38] 。
 - en: SSH is one of the most common ways of connecting to an instance. Once you are
     inside the instance, it will have the same layout as working on a local machine.
     One of the first logical steps would then be to test whether PyTorch is working
     inside the machine.
+  id: totrans-506
   prefs: []
   type: TYPE_NORMAL
+  zh: SSH 是连接实例的最常见方式之一。一旦您进入实例，它将与在本地机器上工作的布局相同。然后，其中一个首要逻辑步骤将是测试 PyTorch 是否在该机器内正常工作。
 - en: 'To test, first open a Python interactive session by simply typing `python`
     on the command line. Then, execute the following line of code:'
+  id: totrans-507
   prefs: []
   type: TYPE_NORMAL
+  zh: 要进行测试，首先在命令行上输入 `python` 来打开 Python 交互会话。然后执行以下代码：
 - en: '[PRE103]'
+  id: totrans-508
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE103]'
 - en: If it executes without error, it means that you have PyTorch installed on the
     system.
+  id: totrans-509
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果执行时没有错误，这意味着您已经在系统上安装了 PyTorch。
 - en: 'At this point, you can simply fetch all the code that we wrote in the preceding
     sections of this chapter on model serving. On the command line inside your home
     directory, simply clone this book''s GitHub repository by running this:'
+  id: totrans-510
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，您可以简单地获取本章前几节中编写的所有代码。在您的主目录命令行中，通过运行以下命令简单地克隆本书的GitHub仓库：
 - en: '[PRE104]'
+  id: totrans-511
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE104]'
 - en: Then, within the `Chapter13` subfolder, you will have all the code to serve
     the MNIST model that we worked on in the previous sections. You can basically
     re-run the exercises, this time on the AWS instance instead of your local computer.
+  id: totrans-512
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，在`Chapter13`子文件夹内，您将拥有在前几节中处理的MNIST模型的所有代码。您可以基本上重新运行这些练习，这次在AWS实例上而不是您的本地计算机上。
 - en: 'Let''s review the steps we need to take for working with PyTorch on AWS:'
+  id: totrans-513
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们回顾一下在AWS上使用PyTorch需要采取的步骤：
 - en: Create an AWS account.
+  id: totrans-514
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个AWS账号。
 - en: Log in to the AWS console.
+  id: totrans-515
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 登录到AWS控制台。
 - en: Click on the **Launch a virtual machine** button in the console.
+  id: totrans-516
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在控制台上，单击**启动虚拟机**按钮。
 - en: Select an AMI. For example, select the Deep Learning AMI (Ubuntu).
+  id: totrans-517
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 选择一个AMI。例如，选择Deep Learning AMI（Ubuntu）。
 - en: Select an AWS instance type. For example, select **p.2x large**, as it contains
     a GPU.
+  id: totrans-518
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 选择一个AWS实例类型。例如，选择**p.2x large**，因为它包含GPU。
 - en: Click **Launch**.
+  id: totrans-519
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 单击**启动**。
 - en: Click **Create a new key pair**. Give the key pair a name and download it locally.
+  id: totrans-520
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 单击**创建新的密钥对**。为密钥对命名并在本地下载。
 - en: 'Modify permissions of this key-pair file by running this on the command line:'
+  id: totrans-521
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在命令行上运行以下命令修改此密钥对文件的权限：
 - en: '[PRE105]'
+  id: totrans-522
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE105]'
 - en: On the console, click on **View Instances** to see the details of the launched
     instance and specifically note the public IP address of the instance.
+  id: totrans-523
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在控制台上，单击**查看实例**以查看启动实例的详细信息，并特别注意实例的公共IP地址。
 - en: 'Using SSH, connect to the instance by running this on the command line:'
+  id: totrans-524
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用SSH，在命令行上运行以下命令连接到实例：
 - en: '[PRE106]'
+  id: totrans-525
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE106]'
 - en: The public IP address is the same as obtained in the previous step.
+  id: totrans-526
   prefs: []
   type: TYPE_NORMAL
+  zh: 公共IP地址与上一步获取的相同。
 - en: Once connected, start a `python` shell and run `import torch` in the shell to
     ensure that PyTorch is correctly installed on the instance.
+  id: totrans-527
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 连接后，在`python` shell中启动并运行`import torch`，确保PyTorch正确安装在实例上。
 - en: 'Clone this book''s GitHub repository by running the following on the instance''s
     command line:'
+  id: totrans-528
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在实例的命令行上运行以下命令，克隆本书的GitHub仓库：
 - en: '[PRE107]'
+  id: totrans-529
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE107]'
 - en: Go to the `chapter13` folder within the repository and start working on the
     various model-serving exercises that are covered in the preceding sections of
     this chapter.
+  id: totrans-530
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 转到仓库中的`chapter13`文件夹，并开始处理本章前几节中涉及的各种模型服务练习。
 - en: This brings us to the end of this section, where we have essentially learned
     how to start working with PyTorch on a remote AWS instance [13.39] . Next, we
     will look at AWS's fully dedicated cloud machine learning platform –Amazon SageMaker.
+  id: totrans-531
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将带我们来到本节的结束，我们基本上学会了如何在远程AWS实例上开始使用PyTorch [13.39]。接下来，我们将了解AWS的完全专用云机器学习平台
+    – Amazon SageMaker。
 - en: Using TorchServe with Amazon SageMaker
+  id: totrans-532
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用TorchServe与Amazon SageMaker
 - en: We have already discussed TorchServe in detail in the preceding section. As
     we know, TorchServe is a PyTorch model-serving library developed by AWS and Facebook.
     Instead of manually defining a model inference pipeline, model-serving APIs, and
     microservices, you can use TorchServe, which provides all of these functionalities.
+  id: totrans-533
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经在前面的章节详细讨论了TorchServe。正如我们所知，TorchServe是由AWS和Facebook开发的PyTorch模型服务库。您可以使用TorchServe而不是手动定义模型推理流水线、模型服务API和微服务，TorchServe提供所有这些功能。
 - en: 'Amazon SageMaker, on the other hand, is a cloud machine learning platform that
     offers functionalities such as the training of massive deep learning models as
     well as deploying and hosting trained models on custom instances. When working
     with SageMaker, all we need to do is this:'
+  id: totrans-534
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，Amazon SageMaker是一个云机器学习平台，提供诸如训练大规模深度学习模型以及在自定义实例上部署和托管训练模型等功能。在使用SageMaker时，我们只需执行以下操作：
 - en: Specify the type and number of AWS instances we would like to spin up to serve
     the model.
+  id: totrans-535
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 指定我们想要启动以服务模型的AWS实例类型和数量。
 - en: Provide the location of the stored pre-trained model object.
+  id: totrans-536
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 提供存储的预训练模型对象的位置。
 - en: We do not need to manually connect to the instance and serve the model using
     TorchServe. SageMaker takes care of all that. AWS website has some useful blogs
     t o get started with using SageMaker and TorchServe to serve PyTorch models on
     an industrial scale and within a few clicks [13.40] .AWS blogs also provides the
     use cases of Amazon SageMaker when working with PyTorch [13.41] .
+  id: totrans-537
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们不需要手动连接到实例并使用 TorchServe 提供模型服务。SageMaker 会处理所有事务。AWS 网站有一些有用的博客文章，可以帮助您开始使用
+    SageMaker 和 TorchServe 在工业规模上使用 PyTorch 模型，并在几次点击内完成 [13.40] 。AWS 博客还提供了在使用 PyTorch
+    时使用 Amazon SageMaker 的用例 [13.41] 。
 - en: Tools such as SageMaker are incredibly useful for scalability during both model
     training and serving. However, while using such one-click tools, we often tend
     to lose some flexibility and debuggability. Therefore, it is for you to decide
     what set of tools works best for your use case. This concludes our discussion
     on using AWS as a cloud platform for working with PyTorch. Next, we will look
     at another cloud platform – Google Cloud.
+  id: totrans-538
   prefs: []
   type: TYPE_NORMAL
+  zh: 诸如 SageMaker 等工具在模型训练和服务期间非常有用。然而，在使用这类一键式工具时，我们通常会失去一些灵活性和可调试性。因此，您需要决定哪一套工具最适合您的用例。这结束了我们关于使用
+    AWS 作为 PyTorch 的云平台的讨论。接下来，我们将看看另一个云平台 - Google Cloud。
 - en: Serving PyTorch model on Google Cloud
+  id: totrans-539
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 在 Google Cloud 上提供 PyTorch 模型
 - en: Similar to AWS, you first need to create a Google account (*@gmail.com) if you
     do not have one already. Furthermore, to be able to log in to the Google Cloud
     console [13.42] , you will need to add a payment method (credit card details).
+  id: totrans-540
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 AWS 类似，如果您还没有 Google 账户（*@gmail.com），则首先需要创建一个。此外，要能够登录 Google Cloud 控制台 [13.42]
+    ，您需要添加一个付款方式（信用卡详细信息）。
 - en: '**Note**'
+  id: totrans-541
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-542
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
 - en: We will not be covering the basics of Google Cloud here [13.43]. We will instead
     focus on using Google Cloud for serving PyTorch models within a VM.
+  id: totrans-543
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 我们这里不会涵盖 Google Cloud 的基础知识 [13.43] 。相反，我们将专注于在 VM 中用于提供 PyTorch 模型的 Google
+    Cloud 使用方法。
 - en: 'Once inside the console, we need to follow the steps similar to AWS to launch
     a VM where we can serve our PyTorch model. You can always start with a barebones
     VM and manually install PyTorch. But we will be using Google''s Deep Learning
     VM Image [13.44] , which has PyTorch pre-installed. Here are the steps for launching
     a Google Cloud VM and using it to serve PyTorch models:'
+  id: totrans-544
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦进入控制台，我们需要按照类似 AWS 的步骤启动一个 VM，在其中可以提供我们的 PyTorch 模型。您始终可以从基础的 VM 开始，并手动安装
+    PyTorch。但是，我们将使用预先安装了 PyTorch 的 Google Deep Learning VM 镜像 [13.44] 。以下是启动 Google
+    Cloud VM 并用其提供 PyTorch 模型的步骤：
 - en: Launch Deep Learning VM Image on Google Cloud using the Google Cloud marketplace
     [13.45] .
+  id: totrans-545
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 Google Cloud Marketplace 上启动深度学习 VM 镜像 [13.45] 。
 - en: 'Input the deployment name in the command window. This name suffixed with `-vm`
     acts as the name of the launched VM. The command prompt inside this VM will look
     like this:'
+  id: totrans-546
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在命令窗口中输入部署名称。该名称后缀为 `-vm` 作为已启动 VM 的名称。该 VM 内的命令提示符如下：
 - en: '[PRE108]'
+  id: totrans-547
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE108]'
 - en: Here, `user` is the client connecting to the VM and `deployment-name` is the
     name of the VM chosen in this step.
+  id: totrans-548
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，`user` 是连接到 VM 的客户端，`deployment-name` 是在此步骤中选择的 VM 的名称。
 - en: Select `PyTorch` as the `Framework` in the next command window. This tells the
     platform to pre-install PyTorch in the VM.
+  id: totrans-549
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在下一个命令窗口中选择 `PyTorch` 作为 `Framework` 。这告诉平台在 VM 中预安装 PyTorch。
 - en: Select the zone for this machine. Preferably, choose the zone geographically
     closest to you. Also, different zones have slightly different hardware offerings
     (VM configurations) and hence you might want to choose a specific zone for a specific
     machine configuration.
+  id: totrans-550
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为此机器选择区域。最好选择地理位置最接近您的区域。此外，不同的区域有略微不同的硬件配置（VM 配置），因此您可能需要为特定的机器配置选择特定的区域。
 - en: Having specified the software requirement in *step 3*, we shall now specify
     the hardware requirements. In the GPU section of the command window, we need to
     specify the GPU type and subsequently the number of GPUs to be included in the
     VM.
+  id: totrans-551
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 *步骤 3* 中指定了软件要求后，现在我们将指定硬件要求。在命令窗口的 GPU 部分，我们需要指定 GPU 类型，并随后指定要包含在 VM 中的 GPU
+    数量。
 - en: Google Cloud provides various GPU devices/configuratins [13.46] . In the GPU
     section, also tick the checkbox that will automatically install the NVIDIA drivers
     that are necessary to utilize the GPUs for deep learning.
+  id: totrans-552
   prefs: []
   type: TYPE_NORMAL
+  zh: Google Cloud 提供各种 GPU 设备/配置 [13.46] 。在 GPU 部分，还要勾选自动安装 NVIDIA 驱动程序的复选框，这是利用深度学习
+    GPU 所必需的。
 - en: Similarly, under the CPU section, we need to provide the machine type [13.47]
     . Regarding *step 5* and *step 6*, please be aware that different zones provide
     different machine and GPU types as well as different combinations of GPU types
     and GPU numbers.
+  id: totrans-553
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 同样，在CPU部分下，我们需要提供机器类型[13.47]。关于*步骤5*和*步骤6*，请注意，不同区域提供不同的机器和GPU类型，以及不同的GPU类型和GPU数量的组合。
 - en: Finally, click on the **Deploy** button. This will launch the VM and lead you
     to a page that will have all the instructions needed to connect to the VM from
     your local computer.
+  id: totrans-554
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，点击**Deploy**按钮。这将启动虚拟机，并带您到一个页面，该页面包含连接本地计算机到虚拟机所需的所有指令。
 - en: At this point, you may connect to the VM and ensure that PyTorch is correctly
     installed by trying to import PyTorch from within a Python shell. Once verified,
     clone this book's GitHub repository. Go to the `Chapter13` folder and start working
     on the model-serving exercises within this VM.
+  id: totrans-555
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在此时，您可以连接到虚拟机，并通过尝试在Python shell中导入PyTorch来确保PyTorch已正确安装。验证后，克隆本书的GitHub存储库。转到`Chapter13`文件夹，并开始在该虚拟机中进行模型服务练习。
 - en: You can read more about creating the PyTorch deep learning VM on Google Cloud
     blogs [13.48]. This concludes our discussion of using Google Cloud as a cloud
     platform to work with PyTorch model serving. As you may have noticed, the process
     is very similar to that of AWS. In the next and final section, we will briefly
     look at using Microsoft's cloud platform, Azure, to work with PyTorch.
+  id: totrans-556
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以阅读有关在Google Cloud博客上创建PyTorch深度学习虚拟机的更多信息[13.48]。这结束了我们关于使用Google Cloud作为与PyTorch模型服务相关的云平台的讨论。正如您可能注意到的那样，该过程与AWS非常相似。在接下来的最后一节中，我们将简要介绍使用Microsoft的云平台Azure来使用PyTorch。
 - en: Serving PyTorch models with Azure
+  id: totrans-557
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 在Azure上提供PyTorch模型
 - en: Once again, similar to AWS and Google Cloud, Azure requires a Microsoft-recognized
     email ID for signing up, along with a valid payment method.
+  id: totrans-558
   prefs: []
   type: TYPE_NORMAL
+  zh: 再次强调，与AWS和Google Cloud类似，Azure需要一个Microsoft认可的电子邮件ID来注册，以及一个有效的支付方式。
 - en: '**Note**'
+  id: totrans-559
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: ''
+  id: totrans-560
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
 - en: We assume a basic understanding of the Microsoft Azure cloud platform for this
     section [13.49] .
+  id: totrans-561
   prefs:
   - PREF_BQ
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 我们假设您对Microsoft Azure云平台有基本的了解[13.49]。
 - en: 'Once you have access to the Azure portal [13.50] , there are broadly two recommended
     ways of getting started with using PyTorch on Azure:'
+  id: totrans-562
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦您访问到Azure门户[13.50]，有两种推荐的方法可以开始使用PyTorch在Azure上进行工作：
 - en: '**Data Science Virtual Machine** (**DSVM**)'
+  id: totrans-563
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**数据科学虚拟机**（**DSVM**）'
 - en: '**Azure Machine Learning**'
+  id: totrans-564
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Azure机器学习**'
 - en: We will now discuss these approaches briefly.
+  id: totrans-565
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将简要讨论这些方法。
 - en: Working on Azure's Data Science Virtual Machine
+  id: totrans-566
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在Azure的数据科学虚拟机上工作
 - en: Similar to Google Cloud's Deep Learning VM Image, Azure offers its own DSVM
     image [13.51] , which is a fully dedicated VM image for data science and machine
     learning, including deep learning.
+  id: totrans-567
   prefs: []
   type: TYPE_NORMAL
+  zh: 与Google Cloud的深度学习虚拟机映像类似，Azure提供了其自己的DSVM映像[13.51]，这是一个专门用于数据科学和机器学习（包括深度学习）的完全专用虚拟机映像。
 - en: These images are available for Windows [13.52] as well as Linux/Ubuntu [13.53].
+  id: totrans-568
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些映像适用于Windows[13.52]以及Linux/Ubuntu[13.53]。
 - en: The steps to create a DSVM instance using this image are quite similar to the
     steps discussed for Google Cloud for both Windows [13.54] as well as Linux/Ubuntu
     [13.55].
+  id: totrans-569
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用此映像创建DSVM实例的步骤与讨论的Google Cloud的步骤非常相似，适用于Windows[13.54]和Linux/Ubuntu[13.55]。
 - en: Once you have created the DSVM, you can launch a Python shell and try to import
     the PyTorch library to ensure that it is correctly installed. You may further
     test the functionalities available in this DSVM for Linux [13.56] as well as Windows
     [13.57] .
+  id: totrans-570
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建DSVM后，您可以启动Python shell并尝试导入PyTorch库，以确保其已正确安装。您还可以进一步测试Linux[13.56]和Windows[13.57]上此DSVM可用的功能。
 - en: Finally, you may clone this book's GitHub repository within the DSVM instance
     and use the code within the `Chapter13` folder to work on the PyTorch model-serving
     exercises discussed in this chapter.
+  id: totrans-571
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，您可以在DSVM实例内克隆本书的GitHub存储库，并使用`Chapter13`文件夹中的代码来进行本章讨论的PyTorch模型服务练习。
 - en: Discussing Azure Machine Learning Service
+  id: totrans-572
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 讨论Azure机器学习服务
 - en: 'Similar to and predating Amazon''s SageMaker, Azure provides an end-to-end
     cloud machine learning platform. The Azure Machine Learning Service (AMLS) comprises
     the following (to name just a few):'
+  id: totrans-573
   prefs: []
   type: TYPE_NORMAL
+  zh: 与Amazon SageMaker相似且早于其，Azure提供了一个端到端的云机器学习平台。Azure机器学习服务（AMLS）包括以下内容（仅举几例）：
 - en: Azure Machine Learning VMs
+  id: totrans-574
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Azure机器学习虚拟机
 - en: Notebooks
+  id: totrans-575
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 笔记本
 - en: Virtual environments
+  id: totrans-576
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 虚拟环境
 - en: Datastores
+  id: totrans-577
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 数据存储
 - en: Tracking machine learning experiments
+  id: totrans-578
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 跟踪机器学习实验
 - en: Data labeling
+  id: totrans-579
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 数据标记
 - en: A key difference between AMLS VMs and DSVMs is that the former are fully managed.
     For instance, they can be scaled up or down based on the model training or serving
     requirements [13.58] .
+  id: totrans-580
   prefs: []
   type: TYPE_NORMAL
+  zh: AMLS VMs 和 DSVMs 之间的一个关键区别在于前者是完全托管的。例如，它们可以根据模型训练或服务的需求进行横向扩展或缩减 [13.58]。
 - en: Just like SageMaker, Azure Machine Learning is useful both for training large-scale
     models as well as deploying and serving those models. Azure website has a great
     tutorial for training PyTorch models on AMLS as well as for deploying PyTorch
     models on AMLS for Windows [13.59] as well as Linux [13.60] .
+  id: totrans-581
   prefs: []
   type: TYPE_NORMAL
+  zh: 就像 SageMaker 一样，Azure 机器学习既适用于训练大规模模型，也适用于部署和提供这些模型的服务。Azure 网站提供了一个很好的教程，用于在
+    AMLS 上训练 PyTorch 模型，以及在 Windows [13.59] 和 Linux [13.60] 上部署 PyTorch 模型。
 - en: Azure Machine Learning aims at providing a one-click interface to the user for
     all machine learning tasks. Hence, it is important to keep in mind the flexibility
     trade-off. Although we have not covered all the details about Azure Machine Learning
     here, Azure's website is a good resource for further reading [13.61] .
+  id: totrans-582
   prefs: []
   type: TYPE_NORMAL
+  zh: Azure 机器学习旨在为用户提供一键式界面，用于所有机器学习任务。因此，重要的是要考虑灵活性的权衡。虽然我们在这里没有涵盖 Azure 机器学习的所有细节，但
+    Azure 的网站是进一步阅读的好资源 [13.61]。
 - en: This brings us to the end of discussing what Azure has to offer as a cloud platform
     for working with PyTorch [13.62] .
+  id: totrans-583
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是我们对 Azure 作为云平台为处理 PyTorch 提供的一切的讨论的结束 [13.62]。
 - en: And that also concludes our discussion of using PyTorch to serve models on the
     cloud. We have discussed AWS, Google Cloud, and Microsoft Azure in this section.
     Although there are more cloud platforms available out there, the nature of their
     offerings and the ways of using PyTorch within those platforms will be similar
     to what we have discussed. This section will help you in getting started with
     working on your PyTorch projects on a VM in the cloud.
+  id: totrans-584
   prefs: []
   type: TYPE_NORMAL
+  zh: 这也结束了我们关于在云端使用 PyTorch 为模型提供服务的讨论。在本节中，我们讨论了 AWS、Google Cloud 和 Microsoft Azure。虽然还有更多的云平台可供选择，但它们的提供方式以及在这些平台上使用
+    PyTorch 的方式与我们讨论的类似。这一节将帮助您开始在云端的 VM 上处理您的 PyTorch 项目。
 - en: Summary
+  id: totrans-585
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 总结
 - en: In this chapter, we have explored the world of deploying trained PyTorch deep
     learning models in production systems.
+  id: totrans-586
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们探讨了在生产系统中部署训练好的 PyTorch 深度学习模型的世界。
 - en: In the next chapter, we will look at another practical aspect of working with
     models in PyTorch that helps immensely in saving time and resources while training
     and validating deep learning models .
+  id: totrans-587
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将探讨与在 PyTorch 中使用模型相关的另一个实用方面，这在训练和验证深度学习模型时能极大地节省时间和资源。
