@@ -1,0 +1,1150 @@
+- en: What Is a Neural Network and How Do I Train One?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While we've now discussed Go and the libraries available for it, we haven't
+    yet discussed what constitutes a neural network. Toward the end of the previous
+    chapter, we used Gorgonia to construct a graph that, when executed by an appropriate
+    VM, performs several basic operations (specifically, addition and multiplication)
+    on a series of matrices and vectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now talk about how to build a neural network and get it working. This
+    will teach you about the components necessary to build the more advanced neural
+    network architectures we will be discussing later in this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A basic neural network
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Activation functions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Gradient descent and backpropagation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Advanced gradient descent algorithms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A basic neural network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's first build a simple neural network. This network will use the basic operations
+    of addition and multiplication to take a 4 x 3 matrix of integers, initialize
+    a weight coefficient represented by a 3 x 1 column vector, and gradually adjust
+    those weights until they predict, for a given sequence of inputs (and after the
+    application of a Sigmoid nonlinearity), an output that matches the validation
+    dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The structure of a neural network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The purpose of this example is clearly not to build a cutting-edge computer
+    vision system but, rather, to demonstrate how to use these fundamental operations
+    (and how Gorgonia handles them) in the context of a parameterized function where
+    the parameters are learned over time. The key goal of this section is to understand
+    the idea of a network that learns. This *learning* really just means the continuous,
+    deliberate re-parameterization of the network (updating the weights). This is
+    done by an optimization method that is, essentially, a small amount of code representing
+    some basic undergraduate-level calculus.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Sigmoid function (and activation functions more generally), **Stochastic
+    Gradient Descent** (**SGD**), and backpropagation will each receive detailed treatment
+    in later sections of this chapter. For now, we will talk about them in the context
+    of the code; that is, where and how they are used and what their role is in the
+    function we are computing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the time you reach the end of this book, or if you are an experienced ML
+    practitioner, the following will look like an absurdly simple first step into
+    the world of neural network architectures. But if this is your first rodeo, pay
+    close attention. All of the fundamentals that make the magic happen are here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What is the network made of? The following are the major components of our
+    toy example neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**I****nput data**: This is a 4 x 3 matrix.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Validation data**: This is a 1 x 4 column vector, or in reality, a four-rowed
+    matrix with one column. This is expressed in Gorgonia as `WithShape(4,1)`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**An activation (Sigmoid) function**: This introduces nonlinearity into our
+    network and the function we are learning.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**A synapse:** This is also called a **trainable weight**, which is the key
+    parameter of the network we will be optimizing with SGD.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Each of these components and their associated operations are represented as
+    nodes on our computational graph. As we move through the explanation of what the
+    network is doing, we will generate visualizations of the graph using the techniques
+    we learned in [Chapter 1](8619502c-0d23-44ef-95b1-0ad1ae411a2b.xhtml), *Introduction
+    to Deep Learning in Go*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are also going to over-engineer our network a little. What does this mean?
+    Consider the following chunk of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are embedding the key components of the network in a `struct` named `nn`.
+    This not only makes our code readable, but it scales well when we want to perform
+    our optimization process (SGD/backpropagation) on a number of weights for each
+    layer of a deep (many-layered) network. As you can see, beyond the weights for
+    each layer, we also have a node representing the prediction our network makes,
+    as well as `*ExprGraph` itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our network has two layers. These are computed during the forward pass of our
+    network. A forward pass represents all of the numerical transformations we want
+    to perform on the value nodes in our computation graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, we have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`l0`: The input matrix, our `X`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`w0`: The trainable parameter, our network weight that will be optimized by
+    the SGD algorithm'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`l1`: The value of the Sigmoid applied to the dot product of `l0` and `w0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pred`: A node that represents the *prediction* of the network, fed back to
+    the appropriate field in `nn struct`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So, what are we aiming to achieve here?
+  prefs: []
+  type: TYPE_NORMAL
+- en: We want to build a system that learns a function that best models the columnar
+    sequence of 0, 0, 1, 1\. Time to dive in!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Your first neural network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s start with the basic naming our package and importing the packages we
+    will need. This process is carried out in the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this example, we will be using a `tensor` library provided by the same
+    developers as Gorgonia. We will use it for the backing tensors that are attached
+    to their respective nodes in the computation graph:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Create a variable that will catch errors with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now define the main `struct` for embedding the neural network''s graph,
+    weights, and prediction (output). In a deeper network, we would have `w0`, `w1`,
+    `w2`, `w3`, and so on, until `wn`. There are additional network parameters we
+    might capture in this `struct`, which we will cover in detail in later chapters.
+    For example, in a **Convolutional Neural Network** (**CNN**), you would also have
+    the per-layer dropout probabilities, which assist us in preventing our network
+    from *overfitting* to our training data. The point here is that no matter how
+    advanced the architecture or how new the paper, you could conceivably scale up
+    the following `struct` to express the properties of any network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we'll consider the method to instantiate a new `nn`. Here, we create the
+    node for our weight matrix or, in this specific case, our row vector. This process
+    generalizes to the creation of any node we are backing with an *n*-rank tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following method returns `ExprGraph` with the new node attached:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have added a node to the graph and backed it with a real-valued
+    tensor, we should inspect our computational graph to see how this weight appears,
+    as shown in the following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b40810d3-64ad-402d-9611-a7da5ba9f6e8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The properties to notice here are the type (a matrix of `float64`), `Shape`
+    of `(3, 1)`, and, of course, the three values occupying this vector. This is not
+    much of a graph; indeed, our node is lonely, but we will add to it soon. In more
+    complex networks, there will be a node backed by a weight matrix for each layer
+    we use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we do this, we must add another feature that will allow us to scale
+    our code to these more complex networks. Here, we are defining the network''s
+    learnables, key for computing the gradient. It is this list of nodes that the
+    `Grad()` function will operate on. Grouping these nodes in such a way allows us
+    to calculate the gradients for the weights across *n*-layers of our network in
+    a single function. Scaling this just means adding `w1`, `w2`, `w3`, and `wn`,
+    as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we are getting to the core part of the network. The following function,
+    *when executed*, will expand our graph with operations and nodes representing
+    the input and hidden layer. It is important to note that, of course, this is a
+    function that will be called in the main part of our network; for now, we are
+    defining it upfront:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see the application of the `Sigmoid` function on the hidden layer, `l1`,
+    as we briefly discussed when elaborating the components of our network. We will
+    cover it in detail in the next section of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now write our `main` function where we will instantiate our network
+    and all of the various methods described previously. Let''s step through it in
+    detail. The first step of this process is shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define our input matrix, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we define what will effectively be our validation dataset, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s take a look at what our graph looks like now with the addition of `X`
+    and `y`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f92ec352-577d-4dfb-9f7f-ed8f73db9f7f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see the individual nodes, `w`, `X`, and `y`. As we did when we looked
+    at `w`, note the type, `Shape`, and `Value` of each.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we call the `fwd` method of our `nn` and really build out our graph to
+    include the computational relationships between `X`, `y` and `w`, as shown in
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is where the process of optimization begins. Our network has made its first
+    prediction, so we will now define and compute a `cost` function that will allow
+    us to determine how wrong our weights are and, later, how much we need to adjust
+    the weights by to get us closer to the target, `y` (our validation dataset). In
+    this example, we will repeat this process a fixed number of times to allow this
+    relatively simple network to converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code first computes the loss (that is, *how much did we miss
+    by?*). Then, we take `cost` as `Mean` of the validation data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s also create `var` to track the change in `cost` over time, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before we go ahead and calculate the gradients in our network, let''s produce
+    a visualization of the state of our graph using the following line of code, which
+    should, by now, look familiar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Convert into PNG using the following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now have a graph that connects the nodes that contain our data (input, weights,
+    and validation) and the operations we will be performing on them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The graph is getting too large to include in a single page, so we will now
+    consider only the important parts of this step. Firstly, note that our weight
+    node now has a `Grad` field that currently has no value (a forward pass has been
+    run, but we are yet to calculate the gradients), as shown in the following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e4f44f41-cab9-4749-a1f7-2a1c2b7ca779.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We also now have a number of gradient operations; here''s an excerpt in the
+    following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/63b1e8a5-c576-4740-a549-d813bd02c682.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s compute the gradient, the cost relative to the weights (represented
+    as `m.learnables`). This step is shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now instantiate the VM that will be processing our graph. We also select
+    our `solver`, in this case, a vanilla SGD, as shown in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A new option we''re providing our `vm` with is `BindDualValues`. This option
+    ensures that the gradients we calculate are bound to the node that contains the
+    value for which the derivative is being obtained. This means that, instead of
+    the node saying, *go to node x to find the value of the gradient*, the value is
+    immediately accessible to `vm`. This is what the change to our weight node looks
+    like on the graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bae536f0-fde1-488e-b9ad-44ef29afab96.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `Value` field now contains the partial derivative of the output with respect
+    to the node. We are now finally ready to run our full training loop. For a simple
+    example such as this, we will run the loop an arbitrary number of times, specifically, `10000`
+    loops, as shown in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: While we are already familiar with the idea of using a VM to compute our graph,
+    we have added a step here of calling `solver`, which we defined previously. `Step`
+    works its way through the sequence of trainable nodes (that is, our weights),
+    adding the gradient and multiplying it by the learn rate we specified previously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'And that''s it! Now, we run our program and expect a post-training output of
+    0, 0, 1, 1, as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's close enough to declare that our network has converged!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Activation functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that you know how to build a basic neural network, let's go through the
+    purpose of some of the elements of your model. One of those elements was the *Sigmoid*,
+    which is an activation function. Sometimes these are also called **transfer functions**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you have learned previously, a given layer can be simply defined as weights
+    applied to inputs; add some bias and then decide on activation. An activation
+    function decides whether a neuron is *fired*. We also put this into the network
+    to help to create more complex relationships between input and output. While doing
+    this, we also need it to be a function that works with our backpropagation, so
+    that we can easily optimize our weighs via an optimization method (that is, gradient
+    descent). This means that we need the output of the function to be differentiable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a few things to consider when choosing an activation function, as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Speed**: Simple activation functions are quicker to execute than more complex
+    activation functions. This is important since, in deep learning, we tend to run
+    the model through large amounts of data, and therefore, will be executing each
+    function over a reasonably large dataset many times.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Differentiability**: As we have already noted, being able to differentiate
+    the function is useful during backpropagation. Having a gradient allows us to
+    adjust our weights in a direction that brings our network closer to convergence.
+    In brief, it allows us to calculate errors to improve our model by minimizing
+    our cost function.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Continuity**: It should return a value across the entire range of the inputs.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Monotonicity**: While this property is not strictly necessary, it helps to
+    optimize the neural network since it will converge faster during gradient descent.
+    Using non-monotonic functions is possible, but we are likely to run into longer
+    training times overall.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Step functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Of course, the most basic activation function would be a step function. If
+    the value of `x` is more than a fixed value, `a`, then `y` is either `0` or `1`,
+    as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see in the following diagram, the `step` function is extremely simple;
+    it takes a value and then returns `0` or `1`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/44305818-e4dc-44ab-a004-cd15a4c79b90.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is a very simple function and one that is not particularly useful for deep
+    learning. This is because the gradient of this function is a constant zero, meaning
+    that, when we are doing backpropagation, it will constantly produce zeroes, which
+    results in very little (if any at all) improvement when we are performing backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linear functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A possible extension to the `step` function might be to use a `linear` function,
+    as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is still very simple and, if we were to chart it out, it would look something
+    like the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c00a5095-3b10-473f-ae98-f457da43bc20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: However, this function is still not very useful. If we were to look at the gradient,
+    we'll see that, when we differentiate this function, all we get is a straight
+    line equal to the value of `a`. This means it suffers the same problem as the
+    `step` function; that is to say, we won't see much improvement from backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, if we were to stack several layers of this, you'll find that really
+    all we get is not too different from having just one layer. This isn't useful
+    if we are trying to build models with multiple layers, especially with non-linear
+    relationships.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rectified Linear Units
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Rectified Linear Unit** (**ReLU**) is the most popular activation function
+    in use. We will be using it as the primary activation function in a number of
+    advanced architectures in later chapters.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It can be described as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we were to chart it out, it looks something like the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/48a91226-96be-44e0-a206-f212c1d3cfae.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, it is extremely similar to a linear function, except that it
+    goes to zero (therefore indicating that the neuron is not activated).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'ReLU also has many useful properties, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**It is nonlinear**: Therefore, stacking several layers of these will not necessarily
+    result in being the same as one layer'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**It is differentiable**: Therefore, it works with backpropagation'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**It is quick**: It calculates quickly, which is important when we are running
+    this calculation numerous times across layers or training passes of our network'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ReLU goes to zero if the input is negative. This can be useful, since this results
+    in fewer neurons being activated, and, therefore, this can potentially speed up
+    our calculations. However, since it can result in `0`, this can very quickly cause
+    a neuron to *die* and never activate again, given certain inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leaky ReLU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can modify the ReLU function to have a small gradient when the input is
+    negative—this can very quickly be accomplished, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The chart for the preceding function will look like the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/408fb0c4-ef31-4cec-a20e-9c6011ff540c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that this chart has been altered for emphasis, so the slope of *y* with
+    respect to *x* is actually `0.1` instead of `0.01`, as is typical for what is
+    considered a leaky ReLU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As it will always produce a small gradient, this should help to prevent the
+    neuron from *dying* on a more permanent basis while still giving us many of the
+    benefits of ReLU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sigmoid functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A Sigmoid or logistic function is also relatively popular, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b641db4b-4acd-4996-8161-ea2354647b0a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Sigmoid has a property that is also useful: it can map any real number back
+    down to a range between `0` and `1`. This can be very useful for producing models
+    that prefer an output between `0` and `1` (for example, a model for predicting
+    the probability of something).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It also has most of the properties we are looking for, as listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is **nonlinear**. Therefore, stacking several layers of these will not necessarily
+    result in being the same as one layer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is **differentiable**. Therefore, it works with backpropagation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is **monotonic**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: However, one drawback is that it is more costly to compute compared to ReLU,
+    and therefore, it will take longer overall to train a model with this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tanh
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'It can also be helpful to have a steeper gradient during training; as such,
+    we can use the `tanh` function instead of the `Sigmoid` function, as shown in
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We get the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e435f740-e8fa-42bf-bcbe-c6b245d05254.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The `tanh` function has another useful property: its slope is much steeper
+    than the `Sigmoid` function; this helps networks with `tanh` activation functions
+    to descend the gradient faster when adjusting weights. The output for both functions
+    is plotted in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8bf7e7eb-c7e7-4095-b8cc-98e3dc16daf1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: But which one should we use?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Each of these activation functions is useful; however, as ReLU has the most
+    useful features of all of the activation functions and is easy to calculate, this
+    should be the function you are using most of the time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It can be a good idea to switch to leaky ReLU if you run into stuck gradients
+    frequently. However, you can usually lower the learning rate to help to prevent
+    this or use it in the earlier layers, instead of all of your layers, in order
+    to maintain the edge of having fewer activations overall across the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Sigmoid` is most valuable as an output layer, preferably with a probability
+    as the output. The `tanh` function can also be valuable, for example, where we
+    would like layers to constantly adjust values upward and downward (rather than
+    being biased upward like ReLU and Sigmoid).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, the short answer is: it depends on your network and the kind of output
+    you are expecting.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It should, however, be noted that while a number of activation functions have
+    been presented here for you to consider, other activation functions have been
+    proposed such as PReLU, softmax, and Swish, which can also be considered, depending
+    on the task at hand. This is still an active area of research and is considered
+    to be far from solved, so stay tuned!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradient descent and backpropagation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We've talked about backpropagation and gradient descent in the context of example
+    code in the first section of this chapter, but it can be hard to really understand
+    the concepts at play when Gorgonia is doing a lot of the heavy lifting for us.
+    So, we will now take a look at the actual process itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradient descent
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Backpropagation is how we really train our model; it's an algorithm we use to
+    minimize the prediction error by adjusting our model's weights. We usually do
+    this via a method called **gradient descent**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s begin with a basic example—let''s say we want to train a simple neural
+    network to do the following, by multiplying a number by 0.5:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Input** | **Target** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0.5 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 1.0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 1.5 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 2.0 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'We have a basic model to start with, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*y = W * x*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, to start, let''s guess that *W* is actually two. The following table shows
+    these results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Input** | **Target** | **W * x** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0.5 | 2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 1.0 | 4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 1.5 | 6 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 2.0 | 8 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Now that we have the output of our *guess*, we can compare this *guess* to
+    the answer we are expecting and calculate the relative error. For example, in
+    this table, we are using the sum of the squared errors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0.5 | 2 | -1.5 | 2.25 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 1.0 | 4 | -3.0 | 9 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 1.5 | 6 | -4.5 | 20.25 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 2.0 | 8 | -6.0 | 36 |'
+  prefs: []
+  type: TYPE_TB
+- en: By adding up the values in the last column of the preceding tables, we now have
+    a sum of the squared errors, a total of 67.5.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can certainly brute force all of the values from -10 to +10 to get an answer,
+    but surely there must be a better way? Ideally, we want a more efficient way that
+    scales to datasets that are not simple tables with four inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A better method is to check the derivative (or gradient). One way we can do
+    this is to do this same calculation again, but with a slightly higher weight;
+    for example, let''s try *W = 2.01*. The following table shows these results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0.5 | 2.01 | -1.51 | 2.2801 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 1.0 | 4.02 | -3.02 | 9.1204 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 1.5 | 6.03 | -4.53 | 20.5209 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 2.0 | 8.04 | -6.04 | 36.4816 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'This gives us a sum of the squared errors of 68.403; this is higher! This means
+    that, intuitively, if we increase the weight, we''re likely to see an increase
+    in the error. The inverse is also true; if we decrease the weight, we are likely
+    to see a decrease in the error. For example, let''s try *W = 1.99*, as shown in
+    the following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 0 | 0 | 0 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 2 | 4.04 | -1.996 | 3.984016 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 8 | 4 | 8.08 | -3.992 | 15.93606 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 16 | 8 | 15.84 | -7.984 | 63.74426 |'
+  prefs: []
+  type: TYPE_TB
+- en: This gives us a lower error of 83.66434.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we were to plot the error for a given range of *W*, you can see that there
+    is a natural bottom point. This is how we can descend on the gradient to minimize
+    the errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this specific example, we can easily plot the error as a function of our
+    weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The goal is to follow the slope to the bottom, where the error is zero:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1e475b0f-acd8-420e-a0ec-113854ab4e41.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s try applying a weight update to our example to illustrate how this works.
+    In general, we follow something called the **delta learning rule**, which is basically
+    similar to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*new_W = old_W - eta * derivative*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this formula, *eta* is a constant, sometimes also called the **learning
+    rate**. Recall that when we call `solver` in Gorgonia, we include a learning rate
+    as one of the options, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: You will also often see a 0.5 term added to the derivative for the error with
+    respect to the output. This is because, if our error function is a square function,
+    the derivative will be 2, so the 0.5 term is put there to cancel it out; however,
+    *eta* is a constant anyway (so you can also just consider it absorbed into the
+    *eta* term).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, first, we need to work out what the derivative is for the error with respect
+    to the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we were to say that our learning rate was `0.001`, this makes our new weight
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we were to compute this, `new_W` would be `1.89866`. This is closer to our
+    eventual target weight of 0.5, and, with enough repetition, we would eventually
+    get there. You''ll notice that our learning rate is small. If we set it too large
+    (let''s say, 1), we would''ve ended up adjusting our weight way too far into the
+    negative instead, so we would end up going round and round our gradient, instead
+    of descending it. Our choice of learning rate is important: too small and our
+    model will take too long to converge, and too large and it may even diverge instead.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backpropagation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This is a simple example. For complicated models with thousands, or even millions,
+    of parameters across a number of layers, there are convolutional networks and
+    we need to be more intelligent about how we propagate these updates back through
+    our network. This is true for networks with a number of layers (increasing the
+    number of parameters accordingly), with new research coming out that, in an extreme
+    example, includes CNNs of 10,000 layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, how can we go about this? The easiest way is to build your neural network
+    out of functions for which we know the derivative. We can do this symbolically
+    or on a more practical basis; if we build it out of functions where we know how
+    to apply the function and where we know how to backpropagate (by virtue of knowing
+    how to write a function for the derivative), we can build a neural network out
+    of these functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, building these functions can be time-consuming. Fortunately, Gorgonia
+    already has all of these, hence allowing us to do what we call auto-differentiation.
+    As I have mentioned previously, we create a directed graph for computation; this
+    allows to do not only the forward pass but the backward pass as well!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, let''s consider something with more layers (although still simple)
+    like the following, where **i** is the input, **f** is the first layer with weight
+    *w1,* **g** is the second layer with the weight, *w2,* and **o** is the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d3f713e0-acf6-4fb8-b4dc-27ae1083482b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: First, we have the error, which is a function of *o*. Let's call this *E*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to update our weights in *g*, we need to know the derivative of the
+    error with respect to the input of *g*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From the chain rule when dealing with derivatives, we know that this is actually
+    equivalent to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*dE_dg = dE_do * do_dg * dg_dw2*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That is to say, the derivative of the error with respect to the input of *g
+    (dE_dg)* is actually equivalent to the derivative of the error with respect to
+    the output, (*dE_do*), multiplied by the derivative of the output with respect
+    to the function, *g (do_dg),* and then multiplied by the derivative of the function, *g*,
+    with respect to *w2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This gives us the derivative rate we need to update our weights in *g*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now need to do the same for *f*. How? It is a matter of repeating the process.
+    We need the derivative of the error with respect to the input of *f*. Using the
+    chain rule again, we know that the following is true:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*dE_df = dE_do * do_dg * dg_df * df_dw1*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You'll notice that there is something in common here with the previous derivative,
+    *dE_do * do_dg*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This presents us with an opportunity for further optimization. We don't have
+    to calculate the entirety of the derivative each time; we only need to know the
+    derivative of the layer we are backpropagating from and the derivative of the
+    layer we are backpropagating to, and this is true all of the way through the entire
+    network. This is called the backpropagation algorithm, which allows us to update
+    weights throughout our entire network without constantly needing to recalculate
+    the derivatives of the error with respect to the specific weight that we are targeting
+    from scratch, and we can reuse the result of previous calculations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stochastic gradient descent
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can further optimize the training process with a simple change. With basic
+    (or batch) gradient descent, we calculate the adjustment by looking at the entire
+    dataset. Therefore, the next obvious step for optimization is: can we calculate
+    the adjustment by looking at less than the entire dataset?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As it turns out, the answer is yes! As we are expecting to train the network
+    over numerous iterations, we can take advantage of the fact that we expect the
+    gradient to be updated multiple times by calculating it for fewer examples. We
+    can even do it by calculating it for a single example. By performing fewer calculations
+    for each network update, we can significantly reduce the amount of computation
+    required, meaning faster training times. This is essentially a stochastic approximation
+    to gradient descent and, hence, how it got its name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advanced gradient descent algorithms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have an understanding of SGD and backpropagation, let's look at
+    a number of advanced optimization methods (building on SGD) that offer us some
+    kind of advantage, usually an improvement in training time (or the time it takes
+    to minimize the cost function to the point where our network converges).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These *improved* methods include a general notion of velocity as an optimization
+    parameter. Quoting from Wibisono and Wilson, in the opening to their paper on
+    *Accelerated Methods in* *Optimization*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '"In convex optimization, there is an acceleration phenomenon in which we can
+    boost the convergence rate of certain gradient-based algorithms."'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In brief, a number of these advanced algorithms all rely on a similar principle—that
+    they can pass through local optima quickly, carried by their *momentum—*essentially,
+    a moving average of our gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Momentum
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When thinking about optimization of gradient descent, we can certainly use intuition
+    from real life to help to inform our methods. One example of this is momentum.
+    If we imagine that most error gradients are really like a bowl, with the desired
+    point in the middle, if we start from the highest point of the bowl, it could
+    take us a long time to get to the bottom of the bowl.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we think about some real-life physics, the steeper the side of the bowl,
+    the quicker a ball would fall along the side as it gained momentum. Taking this
+    as inspiration, we get what we can consider the momentum variation of SGD; we
+    try to help to accelerate the descent down the gradient by considering that, if
+    the gradient continues to go down the same direction, we give it more momentum.
+    Alternatively, if we found that the gradient was changing direction, we'd reduce
+    the amount of momentum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While we don''t want to get bogged down in heavy maths, there is a simple formula
+    to calculate *momentum*. It is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*V = momentum * m - lr * g*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, *m* is the previous weight update, *g* is the current gradient with respect
+    to parameter *p*, *lr* is the learning rate of our solver, and *momentum* is a
+    constant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, if we want to understand exactly how to update our network parameters,
+    we can adjust the formula in the following way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*P(new) = p + v = p + momentum * m - lr * g*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What does this mean in practice? Let's look at some code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly, in Gorgonia, the basic interface for all optimization methods or solvers
+    looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then have the following function that provides construction options for
+    a `Solver`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The primary option to set is, of course, to use momentum itself; the `SolverOpt` option
+    for this is `WithMomentum`. Solver options that apply include `WithL1Reg`, `WithL2Reg`,
+    `WithBatchSize`, `WithClip`, and `WithLearnRate`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s use our code example from the beginning of this chapter, but, instead
+    of vanilla SGD, let''s use the momentum solver in its most basic form, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it! But that doesn't tell us much, just that Gorgonia is, like any good
+    machine learning library, flexible and modular enough that we can simply swap
+    out our solvers (and measure relative performance!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let''s take a look at the function we are calling, as shown in the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see here the `momentum` constant we referenced in the original formula
+    for this method, together with `eta`, which is our learning rate. This is all
+    we need to do; apply the momentum solver to our model!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nesterov momentum
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In Nesterov momentum, we are changing where/when we compute the gradient. We
+    make a big jump in the direction of the previously accumulated gradient. Then,
+    we measure the gradient at this new position and make a correction/update accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This correction prevents the ordinary momentum algorithm from updating too quickly,
+    hence producing fewer oscillations as the gradient descent tries to converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RMSprop
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can also think about optimization in a different way: what if we adjust
+    the learning rate based on feature importance? We could decrease the learning
+    rate when we are updating parameters on common features and then increase it when
+    we are looking at more uncommon ones. This also means that we can spend less time
+    optimizing the learning rate. There are several variations of this idea that have
+    been proposed, but the most popular by far is called RMSprop.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: RMSprop is a modified form of SGD that, while unpublished, is elaborated in
+    Geoffrey Hinton's *Neural Networks for Machine Learning*. RMSprop sounds fancy,
+    but it could just as easily be called **adaptive gradient descent**. The basic
+    idea is you modify your learning rate based on certain conditions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These conditions can be stated simply as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the gradient of the function is small but consistent, then increase the learning
+    rate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the gradient of the function is large but inconsistent, then decrease the
+    learning rate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RMSprop's specific method of doing this is by dividing the learning rate for
+    a weight by a decaying average of the previous gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Gorgonia supports RMSprop natively. As with the momentum example, you simply
+    swap out your `solver`. Here is how you define it, together with a number of `solveropts`
+    you would want to pass in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Inspecting the underlying function, we see the following options and their
+    associated defaults for decay factor, smoothing factor, and learning rate, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered how to build a simple neural network and how to
+    inspect your graph, as well as many of the commonly used activation functions.
+    We then covered the basics of how a neural network is trained via backpropagation
+    and gradient descent. Finally, we discussed some of the different options for
+    gradient descent algorithms and optimizations for your neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next chapter will cover building a practical feedforward neural network
+    and autoencoders, as well as **Restricted Boltzmann Machines** (**RBMs**).
+  prefs: []
+  type: TYPE_NORMAL

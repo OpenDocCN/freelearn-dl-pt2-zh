@@ -1,0 +1,911 @@
+- en: Beyond Basic Neural Networks - Autoencoders and RBMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have learned how to build and train a simple neural network, we
+    should build some models that are suitable for real-world problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will discuss how to build a model to recognize and generate
+    handwriting, as well as perform collaborative filtering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading data – the **Modified National Institute of Standards and Technology **(**MNIST**)
+    database
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a neural network for handwriting recognition
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building an autoencoder – generating MNIST digits
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a **Restricted Boltzmann Machine** (**RBM**) for Netflix-style collaborative
+    filtering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Loading data – MNIST
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we can even begin to train or build our model, we first need to get some
+    data. As it turns out, a lot of people have made data available online for us
+    to use for this purpose. One of the best-curated datasets around is MNIST, which
+    we will use for the first two examples in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll learn how to download MNIST and load it into our Go program so that we
+    can use it in our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is MNIST?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Throughout this chapter, we're going to make use of a popular dataset called
+    the MNIST database. This has been made available by Yann LeCun, Corinna Cortes,
+    and Christopher Burges at [http://yann.lecun.com/exdb/mnist](http://yann.lecun.com/exdb/mnist).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The database gets its name from the fact that it was made by mixing two databases
+    that contain black and white images of handwritten digits. It is an example of
+    an ideal dataset that has been preprocessed and formatted nicely for us so that
+    we can immediately start using it. When you download it, it is already divided
+    into training and testing (validation) sets, with 60,000 labeled examples in the
+    training set and 10,000 labeled examples in the test set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each image is exactly 28 x 28 pixels and contains a value from 1 to 255 (reflecting
+    the pixel intensity or grayscale value). This greatly simplifies things for us,
+    as it means that we can immediately put the image into a matrix/tensor and start
+    training our models on it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading MNIST
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Gorgonia comes with an MNIST loader in its `examples` folder, and we can easily use
+    this in our code by putting the following in our imports:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we can add the following lines to our code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: This loads our images into a tensor named `inputs` and our labels into a tensor
+    named `targets` (given that you have uncompressed the relevant files into an `mnist`
+    folder, which should be where your executable is running).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, we are loading the training set of MNIST, so it will produce
+    a two-dimensional tensor with a size of 60,000 x 784 for the images, and another
+    one with a size of 60,000 x 10 for the labels. The loader in Gorgonia will also
+    helpfully rescale all the numbers to be between 0 and 1; we like small, normalized
+    numbers when training our models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a neural network for handwriting recognition
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have loaded all that useful data, let's put it to good use. Since
+    it's full of handwritten digits, we should most certainly build a model to recognize
+    this handwriting and what it says.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml), *What is a Neural
+    Network and How Do I Train One**?*, we demonstrated how to build a simple neural
+    network. Now, it''s time to build something more substantial: a model for recognizing
+    handwriting from the MNIST database.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to the model structure
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First, let''s think back to the original example: we had a single-layer network,
+    which we wanted to get from a 4 x 3 matrix to a 4 x 1 vector. Now, we have to
+    get from an MNIST image that is 28 x 28 pixels to one single number. This number
+    is our network''s guess about which number the image actually represents.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot represents a rough example of what we can expect to
+    find in the MNIST data: some grayscale images of handwritten digits next to their
+    labels (which are stored separately):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5b39bdad-3532-4e10-92e3-71ed72237ed9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Remember that we are working with tensors, and so we need to relate this data
+    back to those data formats. A single image can be a 28 x 28 matrix, or it can
+    be a 784 value long vector. Our labels are currently integers from 0 to 9\. However,
+    as these are really categorical values—not a continuous numerical value from 0
+    to 9—it is best if we turn the results into a vector. Instead of requiring our
+    model to produce this outright, we should think of the output as a vector of 10
+    values, with a 1 in the position telling us which digit it thinks it is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This gives us the parameters that we are working with; we have to input 784
+    values, and then get 10 values out of our trained network. For this example, we
+    are constructing our layers as per the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e1e90645-3505-49bb-80cf-6b5a953f34fa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This structure would typically be described as a network with two hidden layers
+    of **300** and **100** units each. This can be implemented in Gorgonia with the
+    following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are also using the ReLU activation function you learned about in [Chapter
+    2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml), *What Is a Neural Network and
+    How Do I Train One?*.As it turns out, ReLU is well suited for this task. So, a
+    forward pass of our network looks like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can see that our network''s final output is passed to the Gorgonia `SoftMax`
+    function. This squashes our outputs to a sum of `1` by rescaling all the values
+    to a value between `0` and `1`. This is useful as we are using ReLU activation
+    units, which can go into very large numbers. We want an easy way to keep our values
+    as close as possible to our labels, which look something like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A model trained by `SoftMax` will produce values that are like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: By taking the element of this vector with the maximum value, we can see that
+    the predicted label is `4`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training a model requires several important components. We have the inputs,
+    but we also need to have a loss function and a way to interpret the outputs, as
+    well as setting a few other hyperparameters for our model training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Loss functions play an important part in training our network. We haven't discussed
+    them in much detail, but their role is to tell our model when it gets things wrong,
+    so it can learn from its mistakes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, we are using a version of cross-entropy loss that has been
+    modified to be as efficient as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It should be noted that cross-entropy loss would typically be expressed in
+    pseudocode, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, in our case, we are going for a simpler version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So, we are implementing the loss function as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, you can modify the loss function to the more commonly used cross-entropy
+    loss and compare your results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Epochs, iterations, and batch sizes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As our dataset is much larger now, we need to also think about the practicalities
+    of training it. Performing training on an item-by-item basis is fine, but we can
+    train items in batches as well. Instead of training on all 60,000 items in MNIST,
+    we can split up our data into 600 iterations, with batches of 100 items each.
+    For our dataset, this means feeding our model 100 x 784 matrices as input instead
+    of a 784-value-long vector. We could also feed it a three-dimensional tensor of
+    100 x 28 x 28, but we'll do that in a later chapter when we cover a model architecture
+    that makes good use of this structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we are doing this in a programming language, we can just build a loop
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And then, within each loop, we can insert our logic to extract the necessary
+    information to feed into our machine:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another term you''ll hear a lot in deep learning is epochs. Epochs really just
+    run your input data into your data multiple times. If you recall, gradient descent
+    is an iterative process: it depends heavily on repetition to converge to the optimal
+    solution. This means that we have a simple way to improve our model despite having
+    only 60,000 training images: we can repeat the process a number of times until
+    our network converges.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can certainly manage this in several different ways. For example, we can
+    stop repetition when the difference in our loss function between the previous
+    epoch and the current epoch is small enough. We can also run a champion-challenger
+    approach and take the weights from the epochs that emerge as champions on our
+    test set. However, as we want to keep our example simple, we'll pick an arbitrary
+    number of epochs; in this case, 100.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While we''re at it, let''s also add a progress bar so we can watch our model
+    train:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Testing and validation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training is all well and good, but we also need to know whether or not our model
+    is actually doing what it claims to be doing. We can reuse our training code,
+    but let's make a few changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s remove the `solver` command. We''re testing our model, not training
+    it, so we shouldn''t be updating weights:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Second, let''s actually get an image out of our dataset into a convenient file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see, the following points are true:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`b` is our batch number'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`j` is the item number in said batch'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`rowLabel` is the MNIST-provided label'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`rowGuess` is our model''s guess or prediction'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now, let's add some ways for us to extract both our data labels and our predictions
+    into more human-readable formats (that is, as integers from 0 to 9).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For our data labels, let''s add the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For our predictions, we first need to extract them into a familiar format.
+    In this case, let''s put them into a tensor so we can reuse all of our earlier
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the output coming out of `m.predVal`, which contains our prediction
+    values, is an array of `float64`. You can also retrieve the original shape of
+    the object, which helps you to make a tensor of the correct shape. In this case,
+    we know the shape already, so we'll just put those parameters straight in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The prediction code is, of course, similar to extracting our labels from our
+    preprocessed MNIST dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For all that hard work, you''ll be rewarded with a folder full of image files
+    with the following labels and guesses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/67b13aba-0122-4f41-9098-22e70d235005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You'll see that in its current form, our model struggles with some (potentially
+    poor) handwriting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taking a closer look
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Alternatively, you may also want to inspect the predictions coming out, in
+    order to get a better understanding of what''s happening in your model. In that
+    case, you may wish to extract your results into a `.csv` file, which you can do
+    with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output for the offending digit can be seen in the following screenshot and
+    code output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is the screenshot output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/83c522b4-e303-45c7-95d7-6be78ea024c0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'You can also observe the same output in code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Likewise, you can see it wavers from a good guess if only slightly, as shown
+    in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/84ce9f72-9a9a-4ef9-bbc8-384ba1e4bb57.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In code format, this is also the same:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercises
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We''ve expanded our simple example from the [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml), *What
+    is a Neural Network and How Do I Train One?* quite a bit. At this point, it would
+    be a good idea to have a little fun. Try the following and observe for yourself
+    what happens, in order to get a better understanding of the impact your choices
+    may have. For example, you should try all of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Change the loss function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Change the number of units in each layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Change the number of layers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Change the number of epochs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Change the batch size
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building an autoencoder – generating MNIST digits
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'An autoencoder is exactly what it sounds like: it automatically learns how
+    to encode data. Typically, the goal for an autoencoder is to train it to automatically
+    encode data in fewer dimensions, or to pick out certain details or other useful
+    things in the data. It can also be used for removing noise from the data or compressing
+    the data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, an autoencoder has two parts; an encoder half and a decoder half.
+    We tend to train these two parts in tandem, with the goal being to get the output
+    of the decoder to be as close as possible to our inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Just like before, we need to consider our input and output. We are using MNIST
+    again, since encoding digits is a useful feature. As such, we know that our input
+    is 784 pixels, and we know that our output must also have 784 pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we already have helper functions to decode our input and output into
+    tensors, we can just leave that work aside and go straight to our neural network.
+    Our network is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/59013001-e839-43de-83d6-0d5eae84747c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can reuse most of our code from the last example and just change up our
+    layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, this time, we won''t use ReLU activation functions, as we know our
+    output has to be zeros and ones. We are using the `Sigmoid` activation function,
+    as this gives us a convenient output. As you can see in the following code block,
+    while we are using it for every layer, you could also just use ReLU activation
+    functions everywhere except the last layer, since the output layer should ideally
+    be constrained to values between `0` and `1`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As before, we need a loss function for training purposes. The input and output
+    for an autoencoder are also different!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'This time, our loss function is different. We are using the mean of the squared
+    errors that have pseudocode, which looks something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This can be trivially implemented in Gorgonia as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Input and output
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Note that, this time, our input and output are the same. This means that we
+    do not need to get the labels for our dataset and that when we are running the
+    virtual machine, we can set both `x` and `y` to be our input data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Epochs, iterations, and batch sizes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'This problem is much harder to solve. You''ll find that in order to get a feel
+    for how our output improves, running for several epochs is very valuable here
+    since we can write our model''s output as the training takes place, with the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we''re training the model, we can now watch it improve over every epoch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4a955319-e0f1-4444-a4ac-b86763072c17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that we start with almost pure noise, and then very quickly get
+    to a blurry shape, which slowly gets sharper as we progress through the epochs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test and validation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We won''t cover the code for testing in extensive detail as we''ve already
+    covered how to get our images out of our output, but note that `y` is now also
+    `784` columns wide:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, here''s the fun part; getting results out of our autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/99aa8eea-c18d-4fb1-b57f-766adac96015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You'll notice that the results are noticeably less well defined than the input
+    images. However, it also removes some of the noise in the images!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an RBM for Netflix-style collaborative filtering
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will now explore a different kind of unsupervised learning technique that,
+    in our example, is capable of working with data that reflects a given group of
+    users' preferences for particular pieces of content. This section will introduce
+    new concepts around network architecture and probability distributions, as well
+    as how they can be used in practical implementations of recommendation systems,
+    specifically for recommending films that a given user may find interesting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to RBMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By their textbook definition, RBMs are **probabilistic graphical models**, which—given
+    what we've already covered regarding the structure of neural networks—simply means
+    a bunch of neurons that have weighted connections to another bunch of neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These networks have two layers: a **visible** layer and a **hidden** layer.
+    A visible layer is a layer into which you feed the data, and a hidden layer is
+    a layer that isn''t exposed to your data directly, but has to develop a meaningful
+    representation of it for the task at hand. These tasks include dimensionality
+    reduction, collaborative filtering, binary classification, and others. The restricted
+    means that the connections are not lateral (that is, between nodes of the same
+    layer), but rather that each hidden unit is connected to each visible unit across
+    the layers of the network. The graph is undirected, meaning that data is not fixed
+    into flowing in one direction. This is illustrated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0da31393-6c89-4254-b0b9-c37b5f52c3a5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The training process is fairly straightforward and differs from our vanilla
+    neural networks in that we are not only making a prediction, testing the strength
+    of that prediction, and then backpropagating the error back through the network.
+    In the case of our RBM, this is only half of the story.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To break the training process down further, a forward pass on an RBM looks
+    like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visible layer node values are multiplied by connection weights
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A hidden unit bias is added to the sum of all nodes of the resulting value (forcing
+    activations)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The activation function is applied
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The value of the hidden node is given (activation probability)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Were this a deep network, the output for the hidden layer would be passed on
+    as input to another layer. An example of this kind of architecture is a **Deep
+    Belief Network** (**DBN**), which is another important piece of work by Geoff
+    Hinton and his group at the University of Toronto, that uses multiple RBMs stacked
+    on top of each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our RBM is not, however, a deep network. Thus, we will do something different
+    with the hidden unit output. We will use it to attempt to reconstruct the input
+    (visible units) of the network. We will do this by using the hidden units as input
+    for the backward or reconstruction phase of network training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The backward pass looks similar to the forward pass, and is performed by following
+    these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The activation of the hidden layer as input is multiplied by the connection
+    weights
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The visible unit bias is added to the sum of all nodes of the result from the
+    multiplication
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Calculate the reconstruction error, or the difference between the predicted
+    input, and the actual input (known to us from our forward pass)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The error is used to update the weights in an effort to minimize the reconstruction
+    error
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Together, the two states (the predicted activation of the hidden layer and the
+    predicted input of the visible layer) form a joint probability distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you''re mathematically inclined, the formulas for both passes are given as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Forward pass**: The probability of a (hidden node activation) is given a
+    weighted input, *x*:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p(a|x; w)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Backward pass**: The probability of *x* (visible layer input) is given a
+    weighted activation, *a*:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p(x|a; w)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The joint probability distribution is therefore given simply by the following:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p(a, x)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Reconstruction can thus be thought of differently from the kinds of techniques
+    we have discussed so far. It is neither regression (predicting a continuous output
+    for a given set of inputs) nor classification (applying a class label for a given
+    set of inputs). This is made clear by the way in which we calculate the error
+    in the reconstruction phase. We do not merely measure input versus predicted input
+    as a real number (a difference of the output); rather, we compare the probability
+    distribution for all values of the `x` input versus all values of the *reconstructed*
+    input. We use a method called **Kullback-Leibler divergence** to perform this
+    comparison. Essentially, this approach measures the area under the curve of each
+    probability distribution that does not overlap. We then try to make our weight
+    adjustments and rerun the training loop in an attempt to reduce this divergence
+    (error), thus bringing the curves closer together, as shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b661799c-c5b3-4e91-a0cf-65d936f27cc7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: At the end of the training, when this error has been minimized, we are then
+    able to make a prediction about what other films a given user might give the thumbs-up
+    to.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RBMs for collaborative filtering
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As discussed in the introduction to this section, RBMs can be used in a number
+    of situations, in either a supervised or unsupervised manner. **Collaborative
+    filtering** refers to a strategy for predicting user preferences on the underlying
+    assumption that if user *A* likes item *Z*, and user *B* also likes item *Z*,
+    then user *B* might also like something else that user *A* likes (say, item *Y*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We see this use case in action every time Netflix recommends something to us
+    or every time Amazon recommends us a new vacuum cleaner (because, of course, we
+    bought a vacuum cleaner and are now very clearly into domestic appliances).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So now that we've covered a bit of theory on what RBMs are, how they work, and
+    how they are used, let's jump into building one!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing our data – GroupLens movie ratings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We are using the GroupLens dataset. It contains a collection of users, movies,
+    and ratings collected from MovieLens ([http://www.movielens.org](http://www.movielens.org)),
+    and is run by a number of academic researchers at the University of Minnesota.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to parse the `ratings.dat` file, delimited with a colon, for `userids`,
+    `ratings`, and `movieids`. We can then match up `movieids` with those in `movies.dat`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s look at the code we need to build our index of movies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we write a function to import the raw data and turn it into an *m* x *n*
+    matrix. In this, the rows represent individual users and the columns are their
+    (normalized) ratings across every movie in our dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following is the main loop where we process each line from the CSV, and
+    then add to the master slices of users and sub-slices of movie ratings with the
+    correct index:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Building an RBM in Gorgonia
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've cleaned up our data, created a training or test set, and written
+    the code necessary to produce the input required by our network, we can begin
+    coding up the RBM itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we begin with our now standard `struct`, the scaffold onto which we
+    attach the various components of our network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we add the helper functions that attach to our RBM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we add `func` for our `ContrastiveDivergence` learning algorithm (with
+    Gibbs sampling):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we add functions to sample our respective visible or hidden layers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we add a couple of functions to handle the propagation of weight updates:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we add a function for Gibbs sampling (as used in our previous `ContrastiveDivergence`
+    function) as well as a function to perform the reconstruction step in our network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After that, we add the function that instantiates our RBM:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before we execute the code, we need to preprocess our data a little bit. This
+    is because the delimiter used in our dataset is `::` but we want to change it
+    to `,`. The repository for this chapter includes `preprocess.sh` in the root of
+    the folder, which does the following for us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have our data formatted nicely, let''s execute the code for our
+    RBM and observe the output as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/89483ba0-81b9-4fc5-af89-96331c709723.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we see our data import functions processing the ratings and movie index
+    files, as well as building the per-user vectors of a length of `3706` that index
+    all the users'' ratings (normalized to `0`/`1`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1493bb5a-51fd-497f-b5ad-4f96229aafa2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: After the training phase is complete (here, it is set at 1,000 iterations),
+    the RBM generates a set of recommendations for a randomly selected user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can now experiment with the different hyperparameters and try feeding in
+    your own data!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about how to build a simple multilayer neural network
+    and an autoencoder. We also explored the design and implementation of a probabilistic
+    graphical model, the RBM, used in an unsupervised manner to create a recommendation
+    engine for films.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is highly recommended that you try these models and architectures on other
+    pieces of data to see how they perform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will have a look at the hardware side of deep learning,
+    and also find out how exactly CPUs and GPUs serve our computational needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Restricted Boltzmann Machines for Collaborative Filtering*, the original paper
+    of the research group at the University of Toronto, available at [https://www.cs.toronto.edu/~rsalakhu/papers/rbmcf.pdf](https://www.cs.toronto.edu/~rsalakhu/papers/rbmcf.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Restricted Boltzmann Machines Modeling Human Choice*, a paper that explores
+    the notion that RBMs are effective at modeling *human choice* (in our example,
+    a preference for a type of film), and suggests applications in other fields such
+    as psychology, available at[://papers.nips.cc/paper/5280-restricted-boltzmann-machines-modeling-human-choice.pdf](https://papers.nips.cc/paper/5280-restricted-boltzmann-machines-modeling-human-choice.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

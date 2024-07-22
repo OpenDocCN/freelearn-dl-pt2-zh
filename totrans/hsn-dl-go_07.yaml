@@ -1,0 +1,515 @@
+- en: Next Word Prediction with Recurrent Neural Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've covered a number of basic neural network architectures and their
+    learning algorithms. These are the necessary building blocks for designing networks
+    that are capable of more advanced tasks, such as machine translation, speech recognition,
+    time series prediction, and image segmentation. In this chapter, we'll cover a
+    class of algorithms/architectures that excel at these and other tasks due to their
+    ability to model sequential dependencies in the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These algorithms have proven to be incredibly powerful, and their variants have
+    found wide application in industry and consumer use cases. This runs the gamut
+    of machine translation, text generation, named entity recognition, and sensor
+    data analysis. When you say *Okay, Google!* or *Hey, Siri!*, behind the scenes,
+    a type of trained **recurrent neural network** (**RNN**) is doing inference. The
+    common theme of all of these applications is that these sequences (such as sensor
+    data at time *x*, or occurrence of a word in a corpus at position *y*) can all
+    be modeled with *time* as their regulating dimension. As we will see, we can represent
+    our data and structure our tensors accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A great example of a hard problem is natural language processing and comprehension.
+    If we have a large body of text, say the collected works of Shakespeare, what
+    might we be able to say about this text? We could elaborate on the statistical
+    properties of the text, that is, how many words there are, how many of these words
+    are unique, the total number of characters, and so on, but we also inherently
+    know from our own experience of reading that an important property of text/language
+    is **sequence**; that is, the order in which words appear. That order contributes
+    to our understanding of syntax and grammar, not to mention meaning itself. It
+    is when analyzing this kind of data that the networks we've covered so far fall
+    short.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn about the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a basic RNN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to train RNNs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improvements of the RNN architecture, including **Gated Recurrent Unit **(**GRU**)/**Long
+    Short-Term Memory** (**LSTM**) networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to implement an RNN with LSTM units in Gorgonia
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Vanilla RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'According to their more utopian description, RNNs are able to do something
+    that the networks we''ve covered so far cannot: remember. More precisely, in a
+    simple network with a single hidden layer, the network''s output, as well as the
+    state of that hidden layer, are combined with the next element in a training sequence
+    to form the input for a new network (with its own trainable, hidden state). A
+    *vanilla* RNN can be visualized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a9747787-4cb2-4224-be45-34022f24be3a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let's unpack this a bit. The two networks in the preceding diagram are two different
+    representations of the same thing. One is in a **Rolled** state, which is simply
+    an abstract representation of the computation graph, where an infinite number
+    of timesteps is represented by **(t)**. We then use the **Unrolled** **RNN** as
+    we feed the network data and train it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For a given forward pass, this network takes two inputs, where **X** is a representation
+    of a piece of training data, and a previous *hidden* state **S** (initialized
+    at **t0** as a vector of zeros) and a timestep **t** (the position in the sequence)
+    repeats operations (vector concatenation of the inputs, that is, `Sigmoid` activation)
+    on the products of these inputs and their trainable parameters. We then apply
+    our learning algorithm, a slight twist on backpropagation, which we will cover
+    next, and thus have the basic model of what an RNN is, what it's made of, and
+    how it works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The way we train these networks is by using **backpropagation through time**
+    (**BPTT**). This is an exotic name for a slight variation of something you already
+    know of from [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml), *What is
+    a Neural Network and How Do I Train One?*. In this section, we will explore this
+    variation in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backpropagation through time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With RNNs, we have multiple copies of the same network, one for each timestep.
+    Therefore, we need a way to backpropagate the error derivatives and calculate
+    weight updates for each of the parameters in every timestep. The way we do this
+    is simple. We're following the contours of a function so that we can try and optimize
+    its shape. We have multiple copies of the trainable parameters, one at each timestep,
+    and we want these copies to be consistent with each other so that when we calculate
+    all the gradients for a given parameter, we take their average. We use this to
+    update the parameter at *t0* for each iteration of the learning process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The goal is to calculate the error as that accumulates across timesteps, and
+    unroll/roll the network and update the weights accordingly. There is, of course,
+    a computational cost to this; that is, the amount of computation required increases
+    with the number of timesteps. The method for dealing with this is to *truncate*
+    (hence, *truncated BPTT*) the sequence of input/output pairs, meaning that we
+    only roll/unroll a sequence of 20 timesteps at once, making the problem tractable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additional information for those who are interested in exploring the math behind
+    this can be found in the *Further reading* section of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cost function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The cost function that we use with RNNs is cross-entropy loss. There is nothing
+    special about its implementation for RNNs versus a simple binary classification
+    task. Here, we are comparing the two probability distributions—one predicted,
+    one expected. We calculate the error at each time step and sum them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNNs and vanishing gradients
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: RNNs themselves are an important architectural innovation, but run into problems
+    in terms of their gradients *vanishing*. When gradient values become so small
+    that the updates are equally tiny, this slows or even halts learning. Your digital
+    neurons die, and your network doesn't do what you want it to do. But is a neural
+    network with a bad memory better than one with no memory at all?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s zoom in a bit and discuss what''s actually going on when you run into
+    this problem. Recall the formula for calculating the value for a given weight
+    during backpropagation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*W = W - LR*G*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, the weight value equals the weight minus (learning rate multiplied by
+    the gradient).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Your network is propagating error derivatives across layers and across timesteps.
+    The larger your dataset, the greater the number of timesteps and parameters, and
+    so the greater the number of layers. At each step, the unrolled RNN contains an
+    activation function that squashes the output of the network to be between 0 and
+    1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The repetition of these operations on gradient values that are very close to
+    zero means that neurons *die*, or cease to *fire*. The mathematical representation
+    on our computation graph of the neuronal model becomes brittle. This is because
+    if the changes in the parameter we are learning about are too small to have an
+    effect on the output of the network itself, then the network will fail to learn
+    the value for that parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, instead of using the entirety of the hidden state from the previous timestep,
+    is there another way to make the network a bit smarter in terms of what information
+    it chooses to keep as we step our network through time during the training process?
+    The answer is yes! Let's consider these changes to the network architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmenting your RNN with GRU/LSTM units
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So, what if you wanted to build a machine that writes like a dead author? Or
+    understands that a pop in the price of a stock two weeks ago might mean that the
+    stock will pop again today? For sequence prediction tasks where key information
+    is observed early on in training, say at *t+1*, but necessary to make an accurate
+    prediction at *t+250*, vanilla RNNs struggle. This is where LSTM (and, for some
+    tasks, GRU) networks come into the picture. Instead of a simple cell, you have
+    multiple, conditional *mini* neural networks, each determining whether or not
+    to carry information across timesteps. We will now discuss each of these variations
+    in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Long Short-Term Memory units
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Special thanks to the group of Swiss researchers who published a paper titled *Long
+    Short-Term Memory *in 1997, which described a method for further augmenting RNNs
+    with a more advanced *memory*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, what does *memory* in this context actually mean? LSTMs take the *dumb*
+    RNN cell and add another neural network (consisting of inputs, operations, and
+    activations), which will be selective about what information is carried from one
+    timestep to another. It does this by maintaining a *cell state* (like a vanilla
+    RNN cell) and a new hidden state, both of which are then fed into the next step.
+    These *gates*, as indicated in the following diagram, learn about what information
+    should be maintained in the hidden state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ece2f76d-c95f-4967-bb34-ee6440867053.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we can see that multiple gates are contained within **r(t)**, **z(t)**,
+    and **h(t)**. Each has an activation function: Sigmoid for **r** and **z** and
+    **tanh** for **h(t)**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gated Recurrent Units
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: An alternative to LSTM units are GRUs. These were first described by a team
+    that was led by another significant figure in the history of deep learning, Yoshua
+    Bengio. Their initial paper, *Learning Phrase Representations using RNN Encoder–Decoder
+    for Statistical Machine Translation* (2014), offers an interesting way of thinking
+    about these ways of augmenting the effectiveness of our RNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Specifically, they draw an equivalence between the `Tanh` activation function
+    in a vanilla RNN and LSTM/GRU units, also describing them as *activations*. The
+    difference in the nature of their activation is whether information is retained,
+    unchanged, or updated in the units themselves. In effect, the use of the `Tanh`
+    function means that your network becomes even more selective about the information
+    that takes it from one step to the next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GRUs differ from LSTMs in that they get rid of the *cell state*, thus reducing
+    the overall number of tensor operations your network is performing. They also
+    use a single reset gate instead of the LSTM's input and forget gates, further
+    simplifying the network's architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is a logical representation of the GRU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/edaf938d-d2ab-4fd9-84ec-ced8c2bda57d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, we can see a combination of the forget/input gates in a single reset gate
+    (**z(t)** and **r(t)**), with the single state **S(t)** carried forward to the
+    next timestep.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bias initialization of gates
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Recently, at an ML conference, the *International Conference on Learning Representations*,
+    a paper was delivered by a team from Facebook AI Research that described the progress
+    of RNNs. This paper was concerned with the effectiveness of RNNs that had been
+    augmented with GRU/LSTM units. Though a deep dive into the paper is outside the
+    scope of this book, you can read more about it in the *Further reading* section,
+    at the end of this chapter. An interesting hypothesis fell out of their research:
+    that these units could have their bias vector initialized in a certain way, and
+    that this would improve the network''s ability to learn very long-term dependencies.
+    They published their results, and it was shown that there seems to be an improvement
+    in the training time and the speed with which perplexity is reduced:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cd383a11-ad1c-4bb9-9f55-50f4172d12ea.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This graph, taken from the paper, represents the network's loss on the *y* axis,
+    and the number of training iterations on the *x* axis. The red indicates c*hrono
+    initialization*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is very new research, and there is definite scientific value in understanding
+    why LSTM/GRU-based networks perform as well as they do. The main practical implications
+    of this paper, namely the initialization of the gated unit's biases, offer us
+    yet another tool to improve model performance and save those precious GPU cycles.
+    For now, these performance improvements are the most significant (though still
+    incremental) on the word-level PTB and character-level text8 datasets. The network
+    we will build in the next section can be easily adapted to test out the relative
+    performance improvements of this change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an LSTM in Gorgonia
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've discussed what RNNs are, how to train them, and how to modify
+    them for improved performance, let's build one! The next few sections will cover
+    how we process and represent data for an RNN that uses LSTM units. We will also
+    look at what the network itself looks like, the code for GRU units, and some tools
+    for understanding what our network is doing, too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Representing text data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While our aim is to predict the next word in a given sentence, or (ideally)
+    predict a series of words that make sense and conform to some measure of English
+    syntax/grammar, we will actually be encoding our data at the character level.
+    This means that we need to take our text data (in this example, the collected
+    works of William Shakespeare) and generate a sequence of tokens. These tokens
+    might be whole sentences, individual words, or even characters themselves, depending
+    on what type of model we are training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we've tokenized out text data, we need to turn these tokens into some kind
+    of numeric representation that's amenable to computation. As we've discussed,
+    in our case, these representations are tensors. These tokens are then turned into
+    some tensors and perform a number of operations on the text to extract different
+    properties of the text, hereafter referred to as our *corpus*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The aim here is to generator a vocabulary vector (a vector of length *n*, where
+    *n* is the number of unique characters in your corpus). We will use this vector
+    as a template to encode each character.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Importing and processing input
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's start by creating a `vocab.go` file in the root of our project directory.
+    In here, you will define a number of reserved unicode characters that will represent
+    the beginning/end of our sequences, as well as a `BLANK` character for padding
+    out our sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that we do not include our `shakespeare.txt` input file here. Instead,
+    we build a vocabulary and index, and split up our input `corpus` into chunks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now create the next chunk of code, which provides us with helper functions
+    that we will need later on. More specifically, we will add two sampling functions:
+    one is temperature-based, where the probability of already-high probability words
+    is increased, and decreased in the case of low-probability words. The higher the
+    temperature, the greater the probability bump in either direction. This gives
+    you another tunable feature in your LSTM-RNN.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lastly, we will include some functions to work with `byte` and `uint` slices,
+    allowing you to easily compare/swap/evaluate them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will create an `lstm.go` file, where we will define our LSTM units.
+    They will look like little neural networks, because as we've discussed previously,
+    that's what they are. The input, forget, and output gates will be defined, along
+    with their associated weights/biases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `MakeLSTM()` function will add these units to our graph. The LSTM has a
+    number of methods too; that is, `learnables()` is used for producing our learnable
+    parameters, and `Activate()` is used to define the operations our units perform
+    when processing input data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we mentioned earlier, we will be including the code for a GRU-RNN too. This
+    code is modular, so you will be able to swap out your LSTM for a GRU, extending
+    the kinds of experiments you can do and the range of use cases you can address.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create a file named `gru.go`. It will follow the same structure as `lstm.go`,
+    but will have a reduced number of gates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we continue to pull the pieces of our network together, we need a final layer
+    of abstraction on top of our LSTM/GRU code—that of the network itself. The naming
+    convention we are following is that of a *sequence-to-sequence* (or `s2s`) network.
+    In our example, we are predicting the next character of text. This sequence is
+    arbitrary, and can be words or sentences, or even a mapping between languages.
+    Hence, we will be creating a `s2s.go` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since this is effectively a larger neural network for containing the mini neural
+    networks we defined in `lstm.go`/`gru.go` previously, the structure is similar.
+    We can see that the LSTM is handling the input to our network (instead of the
+    vanilla RNN cell), and that we have `dummy` nodes for handling inputs at `t-0`,
+    as well as output nodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since we''re using a static graph, Gorgonia''s `TapeMachine`, we will need
+    a function to build our network when it is initialized. A number of these values
+    will be replaced at runtime:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now define the training loop of the network itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need a `predict` function so that after our model has been trained,
+    we can sample it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Training on a large text corpus can take a long time, so it will be useful
+    to have a means of checkpointing our model so that we can save/load it from an
+    arbitrary point in the training cycle:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we can define the `meta-training` loop. This is the loop that takes
+    the `s2s` network, a solver, our data, and various hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before we build and execute our network, we will add a small visualization tool
+    that will assist in any troubleshooting we need to do. Visualization is a powerful
+    tool when working with data generally, and in our case, it allows us to peek inside
+    our neural network so that we can understand what it is doing. Specifically, we
+    will generate heatmaps that we can use to track changes in our network's weights
+    throughout the training process. This way, we can ensure that they are changing
+    (that is, that our network is learning).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a file called `heatmap.go`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now pull all the pieces together and create our `main.go` file. Here,
+    we will set our hyperparameters, parse our input, and kick off our main training
+    loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s run `go run *.go` and observe the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that early in our network's life, the cost, which measures the degree
+    to which our network is optimized, is high and fluctuating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After the designated number of epochs, an output prediction will be made:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can now experiment with hyperparameters and tweaks, such as using GRU instead
+    of LSTM units, and explore bias initialization in an effort to optimize your network
+    further and produce better predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have covered what an RNN is and how to train one. We have
+    seen that, in order to effectively model long-term dependencies and overcome training
+    challenges, changes to a standard RNN are necessary, including additional information-across-time
+    control mechanisms that are provided by GRU/LSTM units. We built such a network
+    in Gorgonia.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In next chapter, we will learn how to build a CNN and how to tune some of the
+    hyperparameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Training Recurrent Neural Networks*, *Ilya Sutskever*, available at [http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf](http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Long Short-Term Memory*, *Hochreiter*, *Sepp*, and *Jurgen Schmidhuber*, available
+    at [https://www.researchgate.net/publication/13853244_Long_Short-term_Memory](https://www.researchgate.net/publication/13853244_Long_Short-term_Memory)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling*, *Bengio
+    et al*, available at [https://arxiv.org/abs/1412.3555](https://arxiv.org/abs/1412.3555)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

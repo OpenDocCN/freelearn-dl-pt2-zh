@@ -1,0 +1,571 @@
+- en: Maze Solving with Deep Q-Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine for a moment that your data is not a discrete body of text or a carefully
+    cleaned set of records from your organization's data warehouse. Perhaps you would
+    like to train an agent to navigate an environment. How would you begin to solve
+    this problem? None of the techniques that we have covered so far are suitable
+    for such a task. We need to think about how we can train our model in quite a
+    different way to make this problem tractable. Additionally, with use cases where
+    the problem can be framed as an agent exploring and attaining a reward from an
+    environment, from game playing to personalized news recommendations, **Deep Q-Networks**
+    (**DQNs**) are useful tools in our arsenal of deep learning techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Reinforcement learning** (**RL**) has been described by Yann LeCun (who was
+    instrumental in the development of **Convolutional Neural Networks** (**CNNs**)
+    and, at the time of writing, the director of Facebook AI Research) as the cherry
+    on the cake of machine learning methods. In this analogy, unsupervised learning
+    is the cake and supervised learning is the icing. What''s important for us to
+    understand here is that RL only solves a very specific case of problems, despite
+    offering the promise of model-free learning, where you simply offer some scalar
+    reward as your model optimizes successfully toward the goal you have specified.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will offer a brief background on why this is, and how RL fits
+    into the picture more generally. Specifically, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a DQN?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning about the Q-learning algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning about how to train a DQN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a DQN for solving mazes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is a DQN?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As you will learn, a DQN is not that different from the standard feedforward
+    and convolutional networks that we have covered so far. Indeed, all the standard
+    ingredients are present:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A representation of our data (in this example, the state of our maze and the
+    agent trying to navigate through it)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Standard layers to process a representation of our maze, which also includes
+    standard operations between these layers, such as the `Tanh` activation function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An output layer with a linear activation, which gives you predictions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Here, our predictions represent possible moves affecting the state of our input.
+    In the case of maze solving, we are trying to predict moves that produce the maximum
+    (and cumulative) expected reward for our player, which ultimately leads to the
+    maze's exit. These predictions occur as part of a training loop, where the learning
+    algorithm uses a *Gamma* variable as a decaying-over-time variable that balances
+    the exploration of the environment's state space and the exploitation of knowledge
+    gleaned by building up a map of actions, states, or rewards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's introduce a number of new concepts. First, we need an *m* x *n* matrix
+    that represents the rewards, *R*, for a given *state* (that is, a row) and *action*
+    (that is, a column). We also need a *Q* table. This is a matrix (initialized with
+    zero values) that represents the memory of the agent (that is, our player trying
+    to find its way through the maze), or a history of states, actions taken, and
+    their rewards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These two matrices relate to each other. We can determine the memory (*Q* table)
+    of our agent with respect to the table of known rewards with the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Q(state, action) = R(state, action) + Gamma * Max[Q(next state, all actions)]*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, our epoch is an **episode**. Our agent performs an *action* and receives
+    updates or rewards from the environment until the state of the system is terminal.
+    In our example, this means getting stuck in the maze.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The thing we are trying to learn is a policy. This policy is a function or a
+    map of states to actions. It is a giant *n*-dimensional table of optimal actions
+    given every possible state in our system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our ability to assess a state, *S*, is dependent on the assumption that it is
+    a **Markov Decision Process** (**MDP**). As we've pointed out previously, this
+    book is more concerned with implementation rather than theory; however, MDPs are
+    fundamental to any real understanding of RL, so it's worth going over them in
+    a bit of detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use a capital *S* to denote all the possible states of our system. In the
+    case of a maze, this is every possible location of an agent within the boundaries
+    of the maze.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use a lowercase *s* to denote a single state. The same applies to all actions, *A*,
+    and an individual action, *a*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each pair *(s**, a)* produces a distribution of the rewards, *R*. It also produces
+    *P*, which is referred to as the transition probability, where for a given *(s,
+    a)*, the distribution of possible next states is *s(t + 1)*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also have a hyperparameter, which is the discount factor (*gamma*). In the
+    vein of hyperparameters generally, this is something we set ourselves. This is
+    the relative value assigned to the predicted reward for a given time step. For
+    example, let''s say we want to assign a greater value to the predicted rewards
+    in the next time step, rather than after three time steps. We can represent this
+    in the context of our objective in order to learn an optimal policy; the pseudocode
+    looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*OptimalPolicy = max(sum(gamma x reward) for timestep t*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Breaking down the conceptual components of our DQN further, we can now talk
+    about the value function. This function indicates the cumulative reward for a
+    given state. For example, early on in our maze exploration, the cumulative expected
+    reward is low. This is because of the number of possible actions or states our
+    agent could take or occupy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, we come to the real meat of our system: the Q-value function. This includes
+    the cumulative expected reward for actions *a1*, *a2*, and a given state, *s*.
+    We are, of course, interested in finding the optimal Q-value function. This means
+    that not only do we have a given *(s, a)*, but we have trainable parameters (the
+    sum of the product) of the weights and biases in our DQN that we modify or update
+    as we train our network. These parameters allow us to define an optimal policy,
+    that is, a function to apply to any given states and actions available to the
+    agent. This yields an optimal Q-value function, one that theoretically tells our
+    agent what the best course of action is at any step. A bad football analogy might
+    be the Q-value function as the coach yelling instructions into the rookie agent''s
+    ear.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, when written in pseudocode, our quest for an optimal policy looks like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*OptimalPolicy = (state, action, theta)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, *theta* refers to the trainable parameters of our DQN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, what is a DQN? Let's now examine the structure of our network in detail and,
+    more importantly, how it is used. Here, we will bring in our Q-value functions
+    and use our neural network to calculate the expected reward for a given state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Like the networks we have covered so far, there are a number of hyperparameters
+    we set upfront:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gamma (the discount factor of future rewards, for example, 0.95)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Epsilon (exploration or exploitation, 1.0, skewed to exploration)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Epsilon decay (the shift to the exploitation of learned knowledge over time,
+    for example, 0.995)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Epsilon decay minimum (for example, 0.01)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning rate (this is still set by default despite using the **Adaptive Moment
+    Estimation** (**Adam**))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: State size
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Action size
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Batch size (in powers of two; start with 32 and tune your way from there)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Number of episodes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We also need a fixed sequential memory for the experience replay feature, sizing
+    it at 2,000 entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimization and network architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As for our optimization method, we use Adam. You may recall from [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml),
+    *What is a Neural Network and How Do I Train One?*, that the Adam solver belongs
+    to the class of solvers that use a dynamic learning rate. In vanilla SGD, we fix
+    the learning rate. Here, the learning rate is set per parameter, giving us more
+    control in cases where sparsity of data (vectors) is a problem. Additionally,
+    we use the root MSE propagation versus the previous gradient, understanding the
+    rate of change in the shape of our optimization surface and, by doing so, improving
+    how our network handles noise in the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s talk about the layers of our neural network. Our first two layers
+    are standard feedforward networks with **Rectified Linear Unit** (**ReLU**) activation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*output = activation(dotp(input, weights) + bias)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first is sized according to the state size (that is, a vector representation
+    of all the possible states in the system).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our output layer is restricted to the number of possible actions. These are
+    achieved by applying a linear activation to our second hidden dimension's output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our loss function depends on the task and data we have; in general, we will
+    use MSE or cross-entropy loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember, act, and replay!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Beyond the usual suspects involved in our neural network, we need to define
+    additional functions for our agent''s memory. The remember function takes a number
+    of inputs, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: State
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Action
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reward
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Is done
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It appends these values to the memory (that is, a sequentially ordered list).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now define how an agent takes an action in an act function. This is where
+    we manage the balance between the exploration of the state space and the exploitation
+    of learned knowledge. These are the steps to follow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It takes in one value, that is, the `state`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From there, it applies `epsilon`; that is, if a random value between 0 and 1
+    is less than `epsilon`, then take a random action. Over time, our epsilon decays,
+    reducing the randomness of the action!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then feed the state into our model to make a prediction about what action
+    to take.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From this function, we return `max(a)`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The additional function we need is for the experience replay. The steps that
+    this function take are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a random sample (of `batch_size`) selected from our 2,000-unit memory,
+    which was defined and added to by the preceding remember function
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Iterate over the `state`, `action`, `reward`, `next_state`, and `isdone` inputs,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set `target` = `reward`
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If not done, then use the following formula:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*Estimated future reward = current reward + (discounting factor (gamma) * call
+    to model(predicted max expected reward) of next_state)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Map the future `reward` input to the model (that is, the predicted future `reward`
+    input from the current state)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, `replay` the memory by passing the current state and the targeted future
+    reward for a single epoch of training
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Decrement `epsilon` by using `epsilon_decay`
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This covers the theory of DQNs and Q-learning more generally; now, it's time
+    to write some code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving a maze using a DQN in Gorgonia
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now, it's time to build our maze solver!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using a DQN to solve a little ASCII maze is a bit like bringing a bulldozer
+    to the beach to make sandcastles for your kids: it''s completely unnecessary,
+    but you get to play with a big machine. However, as a tool for learning about
+    DQNs, mazes are invaluable. This is because the number of states or actions in
+    the game is limited, and the representation of constraints is also simple (such
+    as the *walls* of our maze that our agent cannot move through). This means that
+    we can step through our program and easily inspect what our network is doing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a `maze.go` file for this bit of code
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Import our libraries and set our data type
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define our `Maze{}`
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Write a `NewMaze()` function to instantiate this `struct`
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We also need to define our `Maze{}` helper functions. These include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`CanMoveTo()`: Check whether a move is valid'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Move()`: Move our player to a co-ordinate in the maze'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Value()`: Return the reward for a given action'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Reset()`: Set player to start co-ordinates'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the start of the code for our maze generator. This is
+    an excerpt, and the remainder of the code can be found in the book''s GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we''ve got the code that we need to generate and interact with a maze,
+    we need to define the simple feedforward, fully connected network. This code should
+    be familiar to us by now. Let''s create `nn.go`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now begin to define the DQN that will make use of this neural network.
+    First, let''s create a `memory.go` file with the basic `struct` type that captures
+    information about a given episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will make a memory of `[]Memories` and use it to store the per-play X/Y state
+    co-ordinates, move vectors, expected reward, next states/possible moves, and whether
+    the maze is solved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we can edit our `main.go` and pull everything together. First, we define
+    our possible moves across the *m x n* matrix that represents our maze:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we need our main `DQN{}` structure to which we attach the neural network
+    we defined earlier, our VM/Solver, and our DQN-specific hyper parameters. We also
+    need an `init()` function to build the embedded feedforward network as well as
+    the `DQN` object itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next is our experience `replay()` function. Here, we first create batches of
+    memory from which we retrain and update our network, gradually updating our epsilon:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `predict()` function—called when we are determining the best possible move
+    (or move with the greatest predicted reward)—is next. It takes a player''s position
+    in the maze and a single move, and returns our neural network''s projected reward
+    for that move:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then define our main training loop for `n` episodes, moving around the maze
+    and building our DQN''s memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need a `bestAction()` function that selects the best possible move
+    to take, given a slice of options and an instance of our maze:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we define a `getPossibleActions()` function to produce a slice of
+    possible moves, given our maze and our little `max()` helper function for finding
+    the maximum value in a slice of `float32s`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With all those pieces in place, we can write our `main()` function to complete
+    our DQN. We begin by setting `vars`, which includes our epsilon. Then, we initialize `DQN{}`
+    and instantiate `Maze`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then kick off our training loop and, once complete, try to solve our maze:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s execute our program and observe the outputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ec332bbe-2012-41eb-9c88-4328f20b0ace.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see the dimensions of the maze, as well as a simple representation of
+    walls (`1`), a clear path (`o`), our player (`2`), and our maze exit (`3`). The
+    next line, `{1 0} {9 20}`, tells us the exact *(X, Y)* co-ordinates of our player's
+    starting point and the maze's exit, respectively. We then loop through the movement
+    vectors as a sanity check and begin our training run across `n` episodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our agent now moves through the maze:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4413ba38-a2c7-4478-bd05-3597ff7882e7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can experiment with different numbers of episodes (and episode lengths),
+    and generate larger and more complex mazes!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we had look into the background of RL and what a DQN is, including
+    the Q-learning algorithm. We have seen how DQNs offer a unique (relative to the
+    other architectures that we've discussed so far) approach to solving problems.
+    We are not supplying *output labels* in the traditional sense as with, say, our
+    CNN from [Chapter 5](b22a0573-9e14-46a4-9eec-e3f2713cb5f8.xhtml), *Next Word Prediction
+    with Recurrent Neural Networks*, which processed CIFAR image data. Indeed, our
+    output label was a cumulative reward for a given action relative to an environment's
+    state, so you may now see that we have dynamically created output labels. But
+    instead of them being an end goal for our network, these labels help a virtual
+    agent make intelligent decisions within a discrete space of possibilities. We
+    also looked into what types of predictions we can make around rewards or actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now you can think about other possible applications for a DQN and, more generally,
+    for problems where you have a simple reward of some kind but no labels for your
+    data—the canonical example being an agent in some sort of environment. The *agent*
+    and *environment* should be defined in the most general way possible, as you are
+    not limited to a bit of math playing Atari games or trying to solve a maze. For
+    example, a user of your website can be considered an agent, and an environment
+    is a space in which you have some kind of feature-based representation of your
+    content. You could use this approach to build a recommendation engine for news.
+    You can refer to the *Further reading* section for a link to a paper that you
+    may want to implement as an exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look into building a **Variational Autoencoder**
+    (**VAE**) and learn about the advantages that a VAE has over a standard autoencoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Playing Atari with Deep Reinforcement Learning*, available at [https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*DRN: A Deep Reinforcement Learning Framework for News Recommendation*, available
+    at [http://www.personal.psu.edu/~gjz5038/paper/www2018_reinforceRec/www2018_reinforceRec.pdf](http://www.personal.psu.edu/~gjz5038/paper/www2018_reinforceRec/www2018_reinforceRec.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

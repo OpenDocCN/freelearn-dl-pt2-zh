@@ -1,0 +1,503 @@
+- en: Scaling Deployment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've been introduced to a tool that manages data pipelines, it's time
+    to peer completely under the hood. Our models ultimately run on the kinds of hardware
+    we talked about in [Chapter 5](b22a0573-9e14-46a4-9eec-e3f2713cb5f8.xhtml), *Next
+    Word Prediction with Recurrent Neural Networks*, abstracted through many layers
+    of software until we get to the point where we can use code such as `go build
+    --tags=cuda`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our deployment of the image recognition pipeline built on top of Pachyderm was
+    local. We did it in a way that was functionally identical to deploying it to cloud
+    resources, without getting into the detail of what that would look like. This
+    detail will now be our focus.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you should be able to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identify and understand cloud resources, including those specific to our platform
+    example (AWS)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Know how to migrate your local deployment to the cloud
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understand what Docker and Kubernetes are and how they work
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understand the computation-versus-cost trade-off
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lost (and found) in the cloud
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Having a beefy desktop machine with a GPU and an Ubuntu build is great for prototyping
+    and research, but when it comes time to getting your model into production, and
+    to actually making the day-to-day predictions required by your use case, you need
+    compute resources that are highly available and scalable. What does that actually
+    mean?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine you've taken our **Convolutional Neural Network** (**CNN**) example,
+    tweaked the model and trained it on your own data, and created a simple REST API
+    frontend to call the model. You want to build a little business around providing
+    clients with a service whereby they pay some money, get an API key, and can submit
+    an image to an endpoint and get a reply stating what that image contains. Image
+    recognition as a service! Does this sound good?
+  prefs: []
+  type: TYPE_NORMAL
+- en: How would we make sure our service is always available and fast? After all,
+    people are paying you good money, and even a small outage or dip in reliability
+    could cause you to lose customers to one of your competitors. Traditionally, the
+    solution was to buy a bunch of expensive *server-grade* hardware, usually a rack-mounted
+    server with multiple power supplies and network interfaces to ensure service continuity
+    in the case of hardware failure. You'd need to examine options for redundancy
+    at every level, from disk or storage all the way through to the network and even
+    internet connection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The rule of thumb was that you needed two of everything, and this all came at
+    a considerable, even prohibitive, cost. If you were a large, well-funded start-up, you
+    had many options, but of course, as the funding curve dropped off, so did your
+    options. It was inevitable that self-hosting became managed hosting (not always,
+    but for most small or start-up use cases), which in turn became a standardized
+    layer of compute stored in someone else's data center to the extent that you simply
+    didn't need to care about the underlying hardware or infrastructure at all.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, in reality, this is not always the case. A cloud provider such as
+    AWS takes most of the boring, painful (but necessary) stuff, such as hardware
+    replacements and general maintenance, out of the equation. You're not going to
+    lose a disk or fall prey to a faulty network cable, and if you decide (*hey, this
+    is all working well*) to serve 100,000 customers a day, then you can push a simple
+    infrastructure spec change. No calls to a hosting provider, negotiating outages,
+    or trips to the computer hardware store required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is an incredibly powerful idea; the literal nuts and bolts of your solution—the
+    mix of silicon and gadgetry that your model will use to make predictions—can almost
+    be treated as an afterthought, at least compared to a few short years ago. The
+    skill set, or approach, that is generally required to maintain cloud infrastructure
+    is called **DevOps**. This means that an individual has feet in two (or more!)
+    camps. They understand what all these AWS resources are meant to represent (servers,
+    switches, and load balancers), and how to write the code necessary to specify
+    and manage them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An evolving role is that of the *machine learning engineer*. This is the traditional
+    DevOps skill set, but as more of the *Ops* side becomes automated or abstracted
+    away, the individual can also focus on model training or deployment and, indeed,
+    scaling. It is beneficial to have engineers involved in the entire stack. Understanding
+    how parallelizable a model is, the kinds of memory requirements a particular model
+    may have, and how to build the distributed infrastructure necessary to perform
+    inference at scale all results in a model-serving infrastructure where the various
+    design elements are not the product of domain specialization but rather an integrated
+    whole.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building deployment templates
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will now put together the various templates required to deploy and train
+    our model at scale. These templates include:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**AWS cloud formation templates**: Virtual instances and related resources'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Kubernetes or KOPS configuration**: K8s cluster management'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Docker templates or Makefile**: Create images to deploy on our K8s cluster'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We are choosing a particular path here. AWS has services such as **Elastic Container
+    Service** (**ECS**) and **Elastic Kubernetes Service** (**EKS**) that are accessible
+    via simple API calls. Our purpose here is to engage with the nitty-gritty details,
+    so that you can make informed choices about how to scale the deployment of your
+    own use case. For now, you have greater control over container options and how
+    processing is distributed, as well as how your model is called when deploying
+    containers to a vanilla EC2 instance. These services are also expensive, as we'll
+    see in a later section regarding cost and performance trade-offs when making these
+    decisions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: High-level steps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Our mini CI/CD pipeline includes the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create or push training or inference Docker images to AWS ECS.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create or deploy an AWS stack with Kubernetes cluster on an EC2 instance that
+    allows us to do the next step.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train a model or make some predictions!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will now go through the details of each of these steps in turn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating or pushing Docker images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Docker is certainly a tool that has attracted a lot of hype. The main reason
+    for this, beyond human fashion, is that Docker simplifies things such as dependency
+    management and model integration, allowing reproducible, widely deployable builds.
+    We can define the things we need from an OS up front and parcel them all up at
+    a point in time where we know the dependencies are fresh so that all our tweaking
+    and troubleshooting will not be in vain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will need two things to create our image and get it to where we want it
+    to go:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Dockerfile**: This defines our image, the version of Linux, the commands
+    to run, and the default command to run when the container is launched'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Makefile**: This creates the image and pushes it to AWS ECS'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s first look at the Dockerfile:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can discern the general approach just by looking at the capitalized declarations
+    at the start of each line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pick the base OS image with `FROM`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set boot with `ARG`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run a bunch of commands with `RUN` to get our Docker image into the desired
+    state. Then `ADD` a directory of the `staging` data, mounted to `/app`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Change to a new `WORKDIR`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute the `CMD` command and our container will run.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We now need a Makefile. This file contains the commands that will build the
+    images we just defined in our Dockerfile and push them to Amazon's container-hosting
+    service, ECS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is our Makefile:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: As with the other examples that we have already covered, we are using the `sp-southeast-2`
+    region; however, feel free to specify your own. You will also need to include
+    your own 12-digit AWS account ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this directory (when the time comes, not just yet!) we can now create and
+    push Docker images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing your AWS account
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You will see a notification of API access to AWS in order for KOPS to manage
+    your EC2 and related compute resources. The account associated with this API key
+    will need the following IAM permissions too:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: AmazonEC2FullAccess
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AmazonRoute53FullAccess
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AmazonS3FullAccess
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AmazonVPCFullAccess
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can enable programmatic or API access by going into your AWS console and
+    going through the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Click IAM
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From the left-hand menu, select Users and then your user
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select Security credentials. You will then see the Access Keys section
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click Create access key and follow the instructions
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The resulting key and key ID will be used in your `~/.aws/credentials` file
+    or exported as a shell variable for use with KOPS and related deployment and cluster-management
+    tools.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating or deploying a Kubernetes cluster
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Our docker images have to run on something, so why not a collection of Kubernetes
+    pods? This is where the magic of distributed cloud computing is apparent. Using
+    a central data source, in our case AWS S3, many microinstances for either training
+    or inference are spun up, maximizing AWS resource utilization, saving you money
+    and giving you the stability and performance you need for enterprise-grade machine
+    learning applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, navigate to the `/k8s/` directory in the repository that accompanies
+    these chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin by creating the templates necessary to deploy a cluster. In our
+    case, we are going to use a frontend for `kubectl`, the default Kubernetes command
+    that interacts with the main API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kubernetes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `k8s_cluster.yaml` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s look at our `k8s_master.yaml` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s look at our `k8s_nodes.yaml` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: These templates will be fed into Kubernetes in order to spin up our cluster.
+    The tool we will use to deploy the cluster and associated AWS resources is *KOPS*.
+    At the time of writing the current version of this tool is 1.12.1, and all deployments
+    have been tested with this version; earlier versions may have compatibility issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to install KOPS. As with all our previous examples, these steps
+    also apply to macOS. We use the Homebrew tool to manage dependencies and keep
+    the installation localized and sane:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that KOPS has been installed, along with `kubectl`, which is the
+    default K8s cluster-management tool that interacts directly with the API. Note
+    that Homebrew often spits out warning-type messages regarding command completion,
+    and it is safe to ignore these; however, if you get an error regarding the configuration
+    of symlinks, follow the instructions to resolve conflicts with any existing local
+    installation of `kubectl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cluster management scripts
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We also need to write a few scripts to allow us to set environment variables
+    and spin up or bring down a Kubernetes cluster on demand. Here, we will bring
+    together the templates we have written, KOPS or `kubectl`, and the AWS configuration
+    we completed in previous sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `vars.sh` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see here that the main variables are the container names, the K8s cluster
+    details, and a bunch of specs for the kinds of AWS resources we want to spin up
+    (and the zone to place them in). You will need to replace these values with your
+    own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we can make a corresponding script to unset the variables in our shell,
+    an important part of cleaning up after we're done deploying or managing K8s clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `unsetvars.sh` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The script to bring up our cluster will now use these variables to determine
+    what to call the cluster, how many nodes it has, and where it should be deployed.
+    You will see that we use a little trick to pass environment variables into our
+    Kubernetes templates or KOPS in a single line; in future versions, this may not
+    be necessary, but it is a serviceable workaround for now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `cluster-up.sh` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The corresponding `down` script will kill our cluster and ensure that any AWS
+    resources are cleaned up accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `cluster-down.sh` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Building and pushing Docker containers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've done the hard work of preparing all our templates and scripts,
+    we can get on with actually making the Docker images and pushing them to ECR ahead
+    of a full cluster deployment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we export the AWS credentials we generated earlier in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we get the container repository login. This is necessary to allow us to
+    push the created Docker image to ECR, which in turn will be pulled down by our
+    Kubernetes nodes at model training or inference time. Note that this step assumes
+    you have AWS CLI installed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of this command should resemble the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can then execute `make cifarcnn-image` and `make cifarcnn-push` This will
+    build the docker image we specified in the Dockerfile and push it to AWS's container
+    storage service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a model on a K8s cluster
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can now edit the `vars.sh` file we created earlier and set the appropriate
+    values using your favorite command-line text editor. You will also need to create
+    the bucket where k8s stores cluster information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have done this, you can bring up your Kubernetes cluster:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'KOPS is now interacting with Kubernetes via `kubectl` to spin up the AWS resources
+    that will run your cluster and then configure K8s itself on these same resources.
+    You will need to verify that your cluster has been brought up successfully before
+    proceeding:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once all K8s masters return `Ready`, you can proceed with deploying your model
+    across the cluster's nodes!
+  prefs: []
+  type: TYPE_NORMAL
+- en: The script to do this is simple, and calls `kubectl` to apply the template in
+    the same manner as our `cluster_up.sh` script.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at our `deploy-model.sh` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Having now walked you through the under-the-hood details of how Kubernetes,
+    Docker, and AWS can be used to throw as many resources at your model as your wallet
+    will allow, there are a number of steps you can take to customize these examples
+    to your use case or take your level of knowledge even further:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrate this approach into your CI or CD tool (Bamboo, CircleCI, Puppet, and
+    so on)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Integrate Pachyderm into your Docker, Kubernetes, or AWS solution
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Experiment with the parameter server to do things such as distributed gradient
+    descent and further optimize your model pipeline
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

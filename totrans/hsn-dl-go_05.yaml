@@ -1,0 +1,708 @@
+- en: CUDA - GPU-Accelerated Training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter will look at the hardware side of deep learning. First, we will
+    take a look at how CPUs and GPUs serve our computational needs for building **Deep
+    Neural Networks **(**DNNs**), how they are different, and what their strengths
+    are. The performance improvements offered by GPUs are central to the success of
+    deep learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will learn about how to get Gorgonia working with our GPU and how to accelerate
+    our Gorgonia models using **CUDA**: NVIDIA's software library for facilitating
+    the easy construction and execution of GPU-accelerated deep learning models. We
+    will also learn about how to build a model that uses GPU-accelerated operations
+    in Gorgonia, and then benchmark the performance of these models versus their CPU
+    counterparts to determine which is the best option for different tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, the following topics will be covered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPUs versus GPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Gorgonia and CUDA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a model in Gorgonia with CUDA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Performance benchmarking of CPU versus GPU models for training and inference
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: CPUs versus GPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At this point, we've covered much of the basic theory and practice of neural
+    networks, but we haven't given much consideration to the processors running them.
+    So let's take a break from coding and go into more depth about the little slices
+    of silicon that are actually doing the work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The 30,000-foot view is that CPUs were originally designed to favor scalar operations,
+    which are performed sequentially, and GPUs are designed for vector operations,
+    which are performed in parallel. Neural networks perform a large number of independent
+    calculations within a layer (say, each neuron multiplied by its weight), and so
+    they are a processing workload amenable to a chip design that favors massive parallelism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s make this a little more concrete by walking through an example of the
+    types of operations that take advantage of the performance characteristics of
+    each. Take the two-row vectors of [1, 2, 3] and [4, 5, 6]. If we were to perform
+    element-wise matrix multiplication on these, it would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the CPU performed the computation sequentially, while the GPU
+    performed it in parallel. This resulted in the GPU taking less time to complete
+    the computation than the CPU. This is a fundamental difference between the two
+    types of processors that we care about for the workloads associated with DNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computational workloads and chip design
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'How does this difference manifest in terms of the actual design of the processor
+    itself? This diagram, taken from NVIDIA''s own CUDA documentation, illustrates
+    these differences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0bdb4464-70b6-4df5-a217-e1d027a3a3c9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Control or cache units are reduced, while there is a significant increase in
+    the number of cores or ALUs. This results in improvement of an order of magnitude
+    (or more) in performance. The caveat to this is that GPU efficiency is far from
+    perfect with respect to memory, compute, and power. This is why a number of companies
+    are racing to design a processor for DNN workloads from the ground up, to optimize
+    the ratio of cache units/ALUs, and to improve the way in which data is pulled
+    into memory and then fed into the compute units. Currently, memory is a bottleneck
+    in GPUs, as illustrated by the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bfcece11-f4c4-4dc6-9a86-012ddebb635f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The ALUs can only work if they have something to work on. If we exhaust the
+    on-die memory, we have to go to the L2 cache, which is faster in a GPU than in
+    a CPU, but still takes far longer than on-die L1 memory to access. We will discuss
+    these shortcomings in the context of new and competing chip designs in a later
+    chapter. For now, the important thing to understand is that, ideally, we want
+    to have as many ALUs and as much on-die cache as we can cram into a chip, in the
+    right ratio, and with fast communication between the processors and their memory.
+    For this process, CPUs do work, but GPUs are far better. And for now, they are
+    the most suitable hardware for machine learning that is widely available to consumers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Memory access in GPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By now, it should hopefully be clear to you that fast and local memory is key
+    to the performance of the kinds of workloads we are offloading to our processor
+    when doing deep learning. It is, however, not just the quantity and proximity
+    of memory that matters, but also how this memory is accessed. Think of sequential
+    access versus random access performance on hard drives, as the principle is the
+    same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why does this matter for DNNs? Put simply, they are high-dimensional structures
+    that have to be embedded, ultimately, in a 1D space for the memory that feeds
+    our ALUs. Modern (vector) GPUs, built for graphics workloads, assume that they
+    will be accessing adjacent memory, which is where one part of a 3D scene will
+    be stored next to a related part (adjacent pixels in a frame). Thus, they are
+    optimized for this assumption. Our networks are not 3D scenes. The layout of their
+    data is sparse and dependent on network (and, in turn, graph) structure and the
+    information they hold.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram represents the memory access motifs for these different
+    workloads:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b7d762a5-eb4d-4f84-bb1b-6ea46e2e761e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: For DNNs, we are looking to get as close to **Strided** memory access patterns
+    as possible when we write our operations. After all, matrix multiplication happens
+    to be one of the more common operations in DNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Real-world performance
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To get a feel for the real-world performance differences, let's compare one
+    of the CPUs that's best suited for neural network workloads, the Intel Xeon Phi,
+    versus an NVIDIA Maxwell GPU from 2015.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intel Xeon Phi CPU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are some hard performance numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chip's compute units are capable of 2,400 Gflops/sec, and pulls 88 Gwords/sec
+    from DRAM, with a ratio of 27/1
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This means that there are 27 floating-point operations per word fetched from
+    memory
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NVIDIA Maxwell GPU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, here are the numbers for a reference NVIDIA GPU. Pay specific attention
+    to the change in ratio:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 6,100 Gflops/sec
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 84 Gwords/sec
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Ratio is 72/1
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So, just in terms of raw operations per chunk of memory, GPUs have a clear advantage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A full detour into microprocessor design is of course outside the scope of this
+    book, but it is useful to think about the processor's distribution of memory and
+    compute units. The design philosophy for modern chips can be summed up as *cram
+    as many floating-point units onto the chip as possible to achieve the m**aximum
+    computation relative to the power required/heat generated*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The idea is to keep those ALUs as full as possible, thus minimizing the amount
+    of time they sit idle while memory gets filled.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Gorgonia and CUDA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we step into how Gorgonia works with CUDA, let's quickly introduce you
+    to CUDA and what it is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CUDA is NVIDIA's programming language for its GPUs. This means your AMD card
+    does not support CUDA. In the growing landscape of deep learning libraries, languages,
+    and tools, it is a de facto standard. The C implementation is freely available,
+    but of course, it is only compatible with NVIDIA's own hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basic Linear Algebra Subprograms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we've seen in the networks we've built so far, tensor operations are fundamental
+    to machine learning. GPUs are designed for these types of vector or matrix operations,
+    but our software also needs to be designed to take advantage of these optimizations.
+    Enter **BLAS**!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'BLAS provide the building blocks for linear algebra operations, commonly used
+    in graphics programming as well as machine learning. BLAS libraries are low level,
+    originally written in Fortran, and group the functionality they offer into three
+    *levels*, defined by the types of operations covered, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Level 1**: Vector operations on strided arrays, dot products, vector norms,
+    and generalized vector addition'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Level 2**: Generalized matrix-vector multiplication, solver for linear equations
+    involving triangular matrices'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Level 3**: Matrix operations, including **General Matrix Multiplication**
+    (**GEMM**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Level 3 operations are what we're really interested in for deep learning. Here's
+    an example from the CUDA-fied convolution operation in Gorgonia.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA in Gorgonia
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Gorgonia has implemented support for NVIDIA's CUDA as part of its `cu` package.
+    It abstracts out almost all the complexity, so all we have to do is simply specify
+    the `--tags=cuda` flag at build time and ensure the operations we are calling
+    are in fact present in the Gorgonia API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Not every possible operation is implemented, of course. The emphasis is on operations
+    that benefit from parallel execution, amenable to GPU acceleration. As we will
+    cover in [Chapter 5](b22a0573-9e14-46a4-9eec-e3f2713cb5f8.xhtml), *Next Word Prediction
+    with Recurrent Neural Networks*, many of the operations involved in **Convolutional
+    Neural Networks** (**CNNs**) meet this criterion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, what''s available? The following list outlines the options:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1D or 2D convolutions (used in CNNs)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 2D max pooling (also used in CNNs!)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dropout (kill some neurons!)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ReLU (recall activation functions in [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml),
+    *What is a Neural Network and How Do I Train One?*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Batch normalization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will now look at the implementation of each, in turn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Looking at `gorgonia/ops/nn/api_cuda.go`, we see the function for a 2D convolution
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following 1D convolution function returns an instance of `Conv2d()`, which
+    is a neat way of providing us with both options:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next is the `MaxPool2D()` function. In a CNN, the max pooling layer is part
+    of the process of feature extraction. The dimensionality of the input is reduced,
+    before being passed on to the subsequent convolutional layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we create an instance of `MaxPool` that carries our `XY` parameters,
+    and we return the result of running `ApplyOp()` across our input node, as shown
+    in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`Dropout()` is a regularization technique that is used to prevent our networks
+    from overfitting. We want to learn the most general representation of our input
+    data possible, and dropout helps us do that.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The structure of `Dropout()` should be familiar by now. It is another operation
+    that can be parallelized within a layer, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The standard ReLU function we covered in [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml),
+    *What is a Neural Network and How Do I Train One?*, is also available, as shown
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`BatchNorm()` is slightly more complicated. Looking back at the original paper
+    that described batch normalization, by Szegedy and Ioffe (2015), we see how, for
+    a given batch, we normalize the output of the previous layer by subtracting the
+    mean of the batch and dividing by the standard deviation. We can also observe
+    the addition of two parameters that we will train with SGD.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'And now, we can see the CUDA-fied Gorgonia implementation as follows. First,
+    let''s perform the function definition and a data type check:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, it needs to create some scratch variables to allow the VM to allocate
+    spare memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then create the equivalent variables in our computation graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then create our scale and bias variables in the graph, before applying our
+    function and returning the results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let's take a look at how to build a model in Gorgonia that leverages CUDA.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a model in Gorgonia with CUDA support
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building a model in Gorgonia with CUDA support that we do a few things first.
+    We need to install Gorgonia's `cu` interface to CUDA, and then have a model ready
+    to train!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing CUDA support for Gorgonia
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To make use of CUDA, you need a computer with a GPU made by NVIDIA. Unfortunately,
+    setting up CUDA to work with Gorgonia is a slightly more involved process, as
+    it involves setting up a C compiler environment to work with Go, as well as a
+    C compiler environment that works with CUDA. NVIDIA has kindly ensured that its
+    compiler works with the common toolchain for each platform: Visual Studio on Windows,
+    Clang-LLVM on macOS, and GCC on Linux.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing CUDA and ensuring that everything works correctly requires a fair
+    bit of work. We'll look at doing this for Windows and Linux. As Apple has not
+    made a computer featuring an NVIDIA GPU for several years (as of writing this),
+    we will not cover how to do this on macOS. You can still use CUDA by connecting
+    an external GPU to your macOS, but this is a fairly involved process and Apple
+    does not (as of writing this) have an officially supported setup with an NVIDIA
+    GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linux
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we've discussed, once CUDA is set up nicely, running your Gorgonia code on
+    your GPU is as simple as adding `-tags=cuda` when building it. But how do we get
+    to a point where that is possible? Let's find out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This guide requires you to install standard Ubuntu 18.04\. NVIDIA provides
+    distribution-independent instructions (and troubleshooting steps) at: [https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At a high level, you need to install the following packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: NVIDIA driver
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: CUDA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: cuDNN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: libcupti-dev
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'First, you need to ensure you have NVIDIA''s proprietary (not the open source
+    default) driver installed. A quick way to check whether you are running it is
+    to execute `nvidia-smi`. You should see output similar to the following, which
+    indicates the driver version number and other details about your GPU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/34e90c45-3eef-4f47-9c8c-9ffed01c4adf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If you get `command not found`, you have a couple of options, depending on
+    the distribution of Linux you are running. The latest Ubuntu distribution allows
+    you to install most of CUDA''s dependencies (including the proprietary NVIDIA
+    driver) from the default repositories. This can be done by executing the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alternatively, you can follow the steps in the official NVIDIA guide (linked
+    previously) to manually install the various dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the installation has completed and you have rebooted your system, confirm
+    that the drivers are installed by running `nvidia-smi` again. You also need to
+    verify that the CUDA C compiler (part of the `nvidia-cuda-toolkit` package) is
+    installed by executing `nvcc --version`. The output should look similar to the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f3df211d-9e0b-4cfd-aac2-f5b616ae25b5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Once CUDA itself is installed, there are some additional steps you need to
+    perform to ensure that Gorgonia has the necessary CUDA libraries compiled and
+    available for use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ensure that the target directory for the modules you are building exists. If
+    not, create it with the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Run `cudagen` to build the modules as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After the program executes, verify that the `/target` directory is populated
+    with files representing CUDA-fied operations that we will use when building our
+    networks, as shown in the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/3c52c837-75d7-4f5b-a77e-993d56bb3dcf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now that the preliminaries are out of the way, let''s test that everything
+    is working using the following commands:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You should see output similar to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0e17b690-3ae4-41f0-a06d-453389811d1b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You're now ready to take advantage of all the computing capacity provided by
+    your GPU!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Windows
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The setup for Windows is very similar, but you also need to provide the C compilers
+    that are required for both Go and CUDA. This setup is outlined in the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Install a GCC environment; the easiest way to do this on Windows is to install
+    MSYS2\. You can download MSYS2 from [https://www.msys2.org/](https://www.msys2.org/).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'After installing MSYS2, update your installation with the following commands:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Restart MSYS2 and run the following again:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Install the GCC package as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Install Visual Studio 2017 to get a compiler compatible with CUDA. At the time
+    of writing, you can download this from [https://visualstudio.microsoft.com/downloads/](https://visualstudio.microsoft.com/downloads/).
+    The Community Edition works fine; if you have a license for any of the other editions,
+    they will do as well.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Install CUDA. Download this from the NVIDIA website at: [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
+    In my experience, the network installer is less reliable than the local installer,
+    so do try the local installer if you cannot get the network installer to work.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Following that, you should also install cuDNN from NVIDIA: [https://developer.nvidia.com/cudnn](https://developer.nvidia.com/cudnn).
+    The installation process is literally a copy and paste operation and is fairly
+    straightforward.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Set up the environment variables so that Go and the NVIDIA CUDA compiler driver
+    (`nvcc`) know where to find the relevant compilers. You should replace paths,
+    where appropriate, with the location where CUDA, MSYS2, and Visual Studio are
+    installed. The items you need to add and the relevant variable names are as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Your environment should now be set up correctly to compile CUDA-enabled Go binaries.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, for Gorgonia, you need to do a few things first, as outlined in the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly, ensure the following `target` directory for the modules you will be
+    building exists:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, run `cudagen` to build the modules as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that you have everything in place, you should install `cudatest`, like
+    so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you run `cudatest` now and all is well, you will get something similar to
+    the following output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Performance benchmarking of CPU versus GPU models for training and inference
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we've done all that work, let's explore some of the advantages of using
+    a GPU for deep learning. First, let's go through how to actually get your application
+    to use CUDA, and then we'll go through some of the CPU and GPU speeds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to use CUDA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'If you''ve completed all the previous steps to get CUDA working, then using
+    CUDA is a fairly simple affair. You simply need to compile your application with
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: This builds your executable with CUDA support and uses CUDA, rather than the
+    CPU, to run your deep learning model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To illustrate, let''s use an example we''re already familiar with – a neural
+    network with weights:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is just our simple feedforward neural network that we built to use on the
+    MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'By running the code, we get output telling us when we started each epoch, and
+    roughly what our cost function value was for the last execution. For this specific
+    task, we''re only running it for 10 epochs and the results can be seen as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that every epoch takes around 26–27 seconds on this CPU, an Intel
+    Core i7-2700K.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can do the same for the GPU build of the executable. This allows us to compare
+    how long an epoch takes to train through the model. As our model is not complex,
+    we don''t expect to see that much of a difference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: On this GPU (an NVIDIA Geforce GTX960), we can see that this is marginally faster
+    for this simple task, at 23–24 seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we had a look at the hardware side of deep learning. We also
+    had a look at how CPUs and GPUs serve our computational needs. We also looked
+    at how CUDA, NVIDIA's software,  facilitates GPU-accelerated deep learning that
+    is implemented in Gorgonia, and finally, we looked at how to build a model that
+    uses the features implemented by CUDA Gorgonia.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look into vanilla RNNs and the issues involved
+    with RNNs. We will also learn about how to build an LSTM in Gorgonia as well.
+  prefs: []
+  type: TYPE_NORMAL

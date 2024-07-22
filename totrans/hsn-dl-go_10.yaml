@@ -1,0 +1,371 @@
+- en: Generative Models with Variational Autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we have looked into what DQN is and what types of predictions
+    we can make around rewards or actions. In this chapter, we will look into how
+    to build a VAE and about the advantages of a VAE over a standard autoencoder.
+    We will also look into the effect of varying latent space dimensions on the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's take a look at another autoencoder. We've looked at autoencoders once
+    before in [Chapter 3](200c9784-4718-47d4-84ce-95e41854a151.xhtml), *Beyond Basic
+    Neural Networks – Autoencoders and RBMs*, with a simple example, generating MNIST
+    digits. Now we'll take a look at using it for a very different task—that is, generating
+    new digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, the following topics will be covered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to **variational autoencoders** (**VAEs**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a VAE on MNIST
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Assessing the results and changing the latent dimensions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to VAEs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A VAE is extremely similar in nature to the more basic autoencoder; it learns
+    how to encode the data that it is fed into a simplified representation, and it
+    is then able to recreate it on the other side based on that encoding. Unfortunately,
+    standard autoencoders are usually limited to tasks such as denoising. Using standard
+    autoencoders for generation is problematic, as the latent space in standard autoencoders
+    does not lend itself to this purpose. The encodings they produce may not be continuous—they
+    may cluster around very specific portions, and may be difficult to perform interpolation
+    on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as we want to build a more generative model, and we don't want to replicate
+    the same image that we put in, we need variations on the input. If we attempt
+    to do this with a standard autoencoder, there is a good chance that the end result
+    will be rather absurd, especially if the input differs a fair amount from the
+    training set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The standard autoencoder structure looks a little like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f2dddc46-b9a4-446f-a80f-c940504c54b8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We''ve already built this standard autoencoder; however, a VAE has a slightly
+    different way of encoding, which makes it look more like the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a3e4423b-cb5c-4eeb-8931-01f9cb94f9b9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'A VAE is different from the standard autoencoder; it has a continuous latent
+    space by design, making it easier for us to do random sampling and interpolation.
+    It does this by encoding its data into two vectors: one to store its estimate
+    of means, and another to store its estimate of the standard deviation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using these mean and standard deviations, we then sample an encoding that we
+    then pass onto the decoder. The decoder then works off the sampled encoding to
+    generate a result. Because we are inserting an amount of random noise during sampling,
+    the actual encoding will vary slightly every time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By allowing this variation to occur, the decoder isn't limited to specific encodings;
+    instead, it can function across a much larger area in the latent space, as it
+    is exposed to not just variations in the data but to variations in the encoding
+    as well, during the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to ensure that the encodings are close to each other on the latent
+    space, we include a measure called the **Kullback-Leibler** (**KL**) divergence
+    into our loss function during training. KL divergence measures the difference
+    between two probability functions. In this case, by minimizing this divergence,
+    we can reward the model for having the encodings close by, and vice versa for
+    when the model attempts to cheat by creating more distance between the encodings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In VAEs, we measure KL divergence against the standard normal (which is a Gaussian
+    distribution with a mean of 0 and a standard deviation of 1). We can calculate
+    this using the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*klLoss = 0.5 * sum(mean^2 + exp(sd) - (sd + 1))*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, just using KL divergence is insufficient, as all we are doing
+    is ensuring that the encodings are not spread too far apart; we still need to
+    ensure that the encodings are meaningful, and not just mixed with one another.
+    As such, for optimizing a VAE, we also add another loss function to compare the
+    input with the output. This will cause the encodings for similar objects (or,
+    in the case of MNIST, handwritten digits) to cluster closer together. This will
+    enable the decoder to reconstruct the input better and allow us, via manipulation
+    of the input, to produce different results along the continuous axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a VAE on MNIST
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Being familiar with the MNIST dataset, as well as the results of a normal autoencoder,
+    makes an excellent starting point for your future work. As you may recall, MNIST
+    consists of many images of handwritten digits, each measuring 28 x 28 pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoding
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As this is an autoencoder, the first step is to build the encoding portion,
+    which will look something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/968aa964-0fea-47d4-a355-033352f268b4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'First, we have our two fully connected layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We give each layer a ReLU activation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we connect these to our mean and standard deviation layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These layers are used as they are, so they do not require a specific activation
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Sampling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now comes one part of the magic behind VAEs: sampling to create the encoding
+    that we will feed into the decoder. For reference, we are building something a
+    little like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/554e13bb-17a8-4630-95d9-76435785ee56.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If you recall from earlier in the chapter, we need to add some noise during
+    the sampling process, and we''ll call this noise `epsilon`. This feeds into our
+    sampled encoding; in Gorgonia, we can implement this with `GaussianRandomNode`
+    with a mean of `0` and standard deviation of `1` as input parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then feed this into our formula to create our sampled encoding:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code might be difficult to read. In simpler terms, what we are
+    doing is the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This gives us a sampled encoding using both the mean and standard deviation
+    vectors plus a noise component. This ensures that the result is not quite the
+    same every time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoding
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'After we have got our sampled encoding, we then feed it to our decoder, which
+    is essentially the same structure as our encoder, but in reverse. The arrangement
+    looks a little like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/65f816b1-012b-47b4-ac5f-bba260f295ac.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The actual implementation in Gorgonia looks like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We put a `Sigmoid` activation on the last layer, as we want the output to be
+    more continuous than ReLU usually provides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss or cost function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As discussed in the first part of the chapter, we optimize for two different
+    sources of loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first loss we optimize for is the actual difference between the input image
+    and the output image; this is ideal for us if the difference is minimal. To do
+    this, we expose the output layer and then calculate the difference to the input.
+    For this example, we are using the sum of the squared errors between the input
+    and output, nothing fancy. In pseudocode, this looks like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In Gorgonia, we can implement it as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our other loss component is the KL divergence measure, for which the pseudocode
+    looks like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our implementation in Gorgonia is more verbose, with a generous use of `Must`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, all that''s left is a little bit of housekeeping and tying everything
+    together. We will be using the Adam''s `solver` for this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's now assess the results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assessing the results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You''ll notice that the results of our VAE model are a fair bit fuzzier than
+    our standard autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6597464d-58b8-4720-8092-27a5015cac42.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In some cases, it also appears to be undecided between several different digits,
+    like in the following example, where it appears to be getting close to decoding
+    to a 7 instead of a 9:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/042e54bc-4e38-429e-b706-8a98276d0119.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This is because we have specifically enforced the distributions to be close
+    to each other. If we were to try to visualize this on a two-dimensional plot,
+    it would look a little bit like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1db7260f-8158-4d64-8cef-518d1d2f8779.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see from this last example that it can generate several different variations
+    of each of the handwritten digits, and also that there are certain areas in between
+    the different digits where it appears to morph between several different digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Changing the latent dimensions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: VAEs on MNIST typically perform reasonably well with two dimensions after enough
+    epochs, but the best way to know this for certain is to test that assumption and
+    try a few other sizes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the implementation described in this book, this is a fairly quick change:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The basic implementation here is with eight dimensions; all we have to do to
+    get it to work on two dimensions is to change all instances of `8` to `2`, resulting
+    in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now all we have to do is recompile the code and then run it, which allows us
+    to see what happens when we try a latent space with more dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we can see, it''s quite clear that 2 Dimensions is at a disadvantage, but
+    it isn''t quite so clear as we move up the ladder. You can see that 20 Dimensions
+    produces appreciably sharper results on average, but really it looks like the
+    5 Dimension version of the model may already be more than sufficient for most
+    purposes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ba71c845-ea42-4efc-b9c6-3b3ef61f3b43.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have now learned how to build a VAE and about the advantages of using a
+    VAE over a standard autoencoder. You have also learned about the effect of varying
+    latent space dimensions on the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise, you should try training this model to work on the CIFAR-10 dataset
+    and using convolutional layers instead of simple fully connected layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at what data pipelines are and why we use
+    Pachyderm to build or manage them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Auto-Encoding Variational Bayes,* *Diederik P. Kingma*, and *Max Wlling*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Tutorial on* *Variational Autoencoders,* *Carl Doersh*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*ELBO surgery: yet another way to carve up the variational evidence lower bound, **Matthew
+    D. Hoffman* and *Matthew J. Johnson*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Latent Alignment and Variational Attention, **Yuntian Deng*, *Yoon Kim*, *Justin
+    Chiu*, *Demi Guo*, and *Alexander M. Rush*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
