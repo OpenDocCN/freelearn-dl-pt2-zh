@@ -1,15 +1,21 @@
 - en: '17'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '17'
 - en: Applications of Stable Diffusion
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 稳定扩散的应用
 - en: In the previous chapter, we learned about how diffusion models work, the architecture
     of Stable Diffusion, and diffusers – the library.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章中，我们学习了扩散模型的工作原理、稳定扩散的架构以及扩散器 - 这个库。
 - en: 'While we learned about generating images, unconditional and conditional (from
     a text prompt), we still did not learn about having the ability to control the
     images – for example, I might want to replace a cat in an image with a dog, make
@@ -17,246 +23,361 @@
     of interest. In this chapter, we will learn about the model training process and
     coding some of the applications of diffusion that help in achieving the above.
     In particular, we will cover the following topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然我们已经了解了生成图像（无条件和条件，从文本提示），但我们仍然没有学会如何控制图像 - 例如，我可能想要将图像中的猫替换为狗，使人以特定姿势站立，或者用感兴趣的主题替换超级英雄的面孔。在本章中，我们将学习有关帮助实现上述目标的扩散应用模型训练过程和编码的一些应用。具体来说，我们将涵盖以下主题：
 - en: In-painting to replace objects within an image from a text prompt
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 从文本提示中进行涂抹以替换图像中的对象。
 - en: Using ControlNet to generate images in a specific pose from a text prompt
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用ControlNet从文本提示中生成特定姿势的图像。
 - en: Using DepthNet to generate images using a depth-of-reference image and text
     prompt
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用DepthNet使用参考深度图像和文本提示生成图像。
 - en: Using SDXL Turbo to generate images faster from a text prompt
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用SDXL Turbo从文本提示中更快地生成图像。
 - en: Using Text2Video to generate video from a text prompt
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用Text2Video从文本提示生成视频。
 - en: The code used in this chapter is available in the `Chapter17` folder in the
     GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). You can run the
     code from the notebooks and leverage them to understand all the steps.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章使用的代码位于GitHub仓库的`Chapter17`文件夹中，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。您可以从笔记本运行代码并利用它们来理解所有步骤。
 - en: As the field evolves, we will periodically add valuable supplements to the GitHub
     repository. Do check the `supplementary_sections` folder within each chapter’s
     directory for new and useful content.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着领域的发展，我们将会定期向GitHub仓库添加有价值的补充内容。请检查每章目录中的`supplementary_sections`文件夹获取新的和有用的内容。
 - en: In-painting
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 涂抹
 - en: 'In-painting is the task of replacing a certain portion of an image with another
     image. An example of in-painting is as follows:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 涂抹是用另一幅图像替换图像的某一部分的任务。涂抹的一个示例如下：
 - en: '![A black rectangle with white text  Description automatically generated](img/B18457_17_01.png)'
+  id: totrans-13
   prefs: []
   type: TYPE_IMG
+  zh: '![一个黑色矩形带有白色文字说明自动生成](img/B18457_17_01.png)'
 - en: 'Figure 17.1: The first three items—image, mask_image, and prompt—serve as the
     inputs, while the rightmost image represents the output of the inpainting process.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.1：前三项 - 图像、mask_image和prompt作为输入，右侧的图像表示涂抹过程的输出。
 - en: In the preceding image, we provide the mask corresponding to the subject that
     we want to replace – a dog. Additionally, we provide the prompt that we want to
     use to generate an image. Using the mask and prompt, we should generate an output
     that satisfies the prompt while keeping the rest of the image intact.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一幅图像中，我们提供了一个与我们想要替换的主题 - 一只狗对应的掩模。此外，我们提供了我们想要用来生成图像的提示。使用掩模和提示，我们应该生成一个满足提示的输出，同时保持图像的其余部分不变。
 - en: An in the following section, we will understand the model training workflow
     of in-painting.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将了解涂抹模型训练的工作流程。
 - en: Model training workflow
+  id: totrans-17
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 模型训练工作流程
 - en: 'In-painting model is trained as follows:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 涂抹模型训练如下：
 - en: The input requires an image and a caption associated with the input.
+  id: totrans-19
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 输入要求图像和与输入相关的标题。
 - en: Pick a subject (a dog in *Figure 17.1*) that is mentioned in the caption and
     obtain a mask corresponding to the subject.
+  id: totrans-20
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 选择一个主题（*图17.1中的一只狗*），并获取与该主题相对应的掩模。
 - en: Use the caption as a prompt.
+  id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用标题作为提示。
 - en: Pass the original image through a variational auto-encoder that downscales the
     input image (let’s say from a 512x512 image to a 64x64 image) to extract the latents
     corresponding to the original image.
+  id: totrans-22
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将原始图像通过变分自动编码器传递，将输入图像（例如从512x512图像缩小到64x64图像）以提取对应于原始图像的潜变量。
 - en: Create text latents (that is, embeddings, using OpenAI CLIP or any other embeddings
     model) corresponding to the prompt. Pass the text embeddings and noise as input
     to train a U-Net model that outputs the latents.
+  id: totrans-23
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建文本潜变量（即使用OpenAI CLIP或任何其他潜变模型进行嵌入）以对应提示。将文本潜变量和噪声作为输入传递到U-Net模型以输出潜变量。
 - en: Fetch the original latents (obtained in *step 4*), resized mask (obtained in
     *step 2*), and latents (obtained in *step 5*) to segregate the background latents
     and the latents corresponding to the mask region. In essence, the latents in this
     step are calculated as `original_image_latents * (1-mask) + text_based_latents
     * mask`.
+  id: totrans-24
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取原始的潜变量（在*步骤4*中获得）、调整大小的掩模（在*步骤2*中获得）和潜变量（在*步骤5*中获得）以分离背景潜变量和与掩模区域相对应的潜变量。实质上，这一步中的潜变量计算为`original_image_latents
+    * (1-mask) + text_based_latents * mask`。
 - en: Once all the timesteps are finished, we obtain the latents that correspond to
     the prompt.
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 完成所有时间步后，我们获得与提示相对应的潜变量。
 - en: These latents are passed through a **variational autoencoder** (**VAE**) decoder
     to get the final image. The VAE ensures harmony within the generated image.
+  id: totrans-26
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这些潜变量通过**变分自动编码器**（**VAE**）解码器传递，以获得最终图像。VAE确保生成的图像内部协调一致。
 - en: 'The overall workflow of in-painting is as follows:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 修复绘制的整体工作流程如下：
 - en: '![](img/B18457_17_02.png)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_17_02.png)'
 - en: 'Figure 17.2: Workflow of in-painting'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.2：修复绘制的工作流程
 - en: Now that we understand the workflow, let us go ahead and learn about using Stable
     Diffusion to perform in-painting in the next section.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了工作流程，让我们继续学习如何在下一节中使用稳定扩散进行修复绘制。
 - en: In-painting using Stable Diffusion
+  id: totrans-31
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用稳定扩散进行修复绘制
 - en: 'To perform in-painting on an image, we will use the `diffusers` package and
     the Stable Diffusion pipeline within it. Let us code up in-painting as follows:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 要对图像进行修复绘制，我们将使用`diffusers`软件包和其中的稳定扩散流程。让我们编写修复绘制的代码如下：
 - en: The following code is available in the `image_inpainting.ipynb` file in the
     `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码在GitHub存储库的`Chapter17`文件夹中的`image_inpainting.ipynb`文件中提供，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)
 - en: 'Install the required packages:'
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的软件包：
 - en: '[PRE0]'
+  id: totrans-35
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Import the required libraries:'
+  id: totrans-36
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的库：
 - en: '[PRE1]'
+  id: totrans-37
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Define the pipeline for in-painting:'
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义修复绘制的流程：
 - en: '[PRE2]'
+  id: totrans-39
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: In the preceding code, we leverage the in-painting model developed by `runwayml`.
     Further, we specify that all the weights have a precision of float16 and not float32
     to reduce the memory footprint.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们利用了由`runwayml`开发的修复绘制模型。此外，我们指定所有权重精度为float16而不是float32，以减少内存占用。
 - en: 'Get the image and its corresponding mask from the corresponding URLs:'
+  id: totrans-41
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从相应的URL获取图像及其对应的掩模：
 - en: '[PRE3]'
+  id: totrans-42
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The original image and the corresponding mask are as follows:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 原始图像及其相应的掩模如下：
 - en: '![A dog sitting on a bench  Description automatically generated](img/B18457_17_03.png)'
+  id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![一只坐在长椅上的狗 自动生成描述](img/B18457_17_03.png)'
 - en: 'Figure 17.3: The image and the mask of the object you want to replace'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.3：您要替换的图像及其掩模
 - en: You can use standard tools like MS-Paint or GIMP to create the masks.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以使用标准工具如MS-Paint或GIMP创建掩模。
 - en: 'Define the prompt and pass the image, mask, and the prompt through the pipeline:'
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义提示并通过流程传递图像、掩模和提示：
 - en: '[PRE4]'
+  id: totrans-48
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Now, we can generate the image that corresponds to the prompt as well as the
     input image.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以生成与提示及输入图像相对应的图像。
 - en: '![A cat on a bench  Description automatically generated](img/B18457_17_04.png)'
+  id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![一只坐在长椅上的猫 自动生成描述](img/B18457_17_04.png)'
 - en: 'Figure 17.4: The in-painted image'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.4：修复绘制后的图像
 - en: In this section, we learned about replacing the subject of an image with another
     subject of our choice. In the next section, we’ll learn about having the generated
     image in a certain pose of interest.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们学习了如何用我们选择的另一个主题替换图像的主题。在下一节中，我们将学习如何使生成的图像具有特定的兴趣姿势。
 - en: ControlNet
+  id: totrans-53
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: ControlNet
 - en: Imagine a scenario where we want the subject of an image to have a certain pose
     that we prescribe it to have – ControlNet helps us to achieve that. In this section,
     we will learn about how to leverage a diffusion model and modify the architecture
     of ControlNet and achieve this objective.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个场景，我们希望图像的主题具有我们指定的某个姿势 – ControlNet帮助我们实现这一目标。在本节中，我们将学习如何利用扩散模型修改ControlNet的架构，并实现这一目标。
 - en: Architecture
+  id: totrans-55
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 架构
 - en: 'ControlNet works as follows:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: ControlNet的工作原理如下：
 - en: We take human images and pass them through the OpenPose model to get stick figures
     (keypoints) corresponding to the image. The OpenPose model is a pose detector
     that is very similar to the human pose detection model that we explored in *Chapter
     10*.
+  id: totrans-57
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将人体图像传递给OpenPose模型，以获取与图像对应的Stick Figures（关键点）。OpenPose模型是一种姿势检测器，与我们在*第10章*中探索的人类姿势检测模型非常相似。
 - en: The inputs to the model are a stick figure and a prompt corresponding to the
     image, and the expected output is the original human image.
+  id: totrans-58
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 模型的输入是一个人物轮廓图和与图像对应的提示，期望的输出是原始的人类图像。
 - en: We create a replica of the downsampling blocks of the UNet2DConditionModel (the
     copies of the downsampling blocks are shown in *Figure 17.5*).
+  id: totrans-59
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们创建 UNet2DConditionModel 的下采样块的副本。
 - en: The replica blocks are passed through a zero-convolution layer (a layer with
     the weight initialization set to zero). This is done so that we can train the
     model faster. If they were not passed through zero-convolution layer, the addition
@@ -265,547 +386,810 @@
     the upsampling blocks, resulting in a distribution that the upsamplers have not
     seen before (for example, facial attributes in the input image are preserved when
     the replica blocks do not contribute much initially).
+  id: totrans-60
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 复制块通过零卷积层传递（权重初始化设置为零的层）。这样做是为了能更快地训练模型。如果没有通过零卷积层传递，复制块的添加可能会修改输入（包括文本潜变量、嘈杂图像的潜变量和输入人物轮廓的潜变量）到上采样块，导致上采样器之前没有见过的分布（例如，当复制块最初没有贡献时，输入图像中的面部属性得到保留）。
 - en: The output of the replica blocks is then added to the output from the original
     downsampling blocks while performing upsampling.
+  id: totrans-61
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 复制块的输出然后添加到原始下采样块的输出中，在进行上采样时。
 - en: The original blocks are frozen, and only the replica blocks are set to train.
+  id: totrans-62
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 原始块已冻结，只有复制块被设置为训练。
 - en: The model is trained to predict the output (in a given pose, that of the stick
     figure) when the prompt and stick figure are the inputs.
+  id: totrans-63
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当提示和人物轮廓图作为输入时，模型被训练用于预测输出（在给定姿势下，即人物轮廓图的姿势）。
 - en: 'This workflow is illustrated in the following diagram:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个工作流程在下图中有所体现：
 - en: '![](img/B18457_17_05.png)'
+  id: totrans-65
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_17_05.png)'
 - en: 'Figure 17.5: ControlNet workflow'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 17.5：ControlNet 工作流程
 - en: Note that the exact same pipeline can be extended to not only canny images but
     also rough lines, scribbles, image segmentation maps, and depth maps.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，相同的管道不仅可以扩展到精明图像，还可以扩展到粗略线条、涂鸦、图像分割地图和深度图。
 - en: Now that we understand the way in which ControlNet is trained, let us go ahead
     and code it up in the next section.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了 ControlNet 的训练方式，让我们继续在下一节中编写代码。
 - en: Implementing ControlNet
+  id: totrans-69
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实现 ControlNet
 - en: 'To implement ControlNet, we will leverage the `diffusers` library and a pre-trained
     model that is trained to predict an image given an image and prompt. Let us code
     it up:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 要实现 ControlNet，我们将利用 `diffusers` 库和一个预训练模型，该模型训练用于预测给定图像和提示的图像。让我们编写代码：
 - en: The following code is available in the `ControlNet_inference.ipynb` file of
     the `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码位于 GitHub 仓库中 `Chapter17` 文件夹中的 `ControlNet_inference.ipynb` 文件中，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required libraries and import them:'
+  id: totrans-72
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的库并导入它们：
 - en: '[PRE5]'
+  id: totrans-73
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Extract a canny edge image from a given image:'
+  id: totrans-74
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从给定图像中提取一个精明边缘图像：
 - en: '[PRE6]'
+  id: totrans-75
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'The preceding code results in a canny image, as follows:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果是一个精明图像，如下所示：
 - en: '[PRE7]'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: '![A person with glasses and a picture of a person  Description automatically
     generated](img/B18457_17_06.png)'
+  id: totrans-78
   prefs: []
   type: TYPE_IMG
+  zh: '![戴眼镜的人和一个人的图片 自动生成的描述](img/B18457_17_06.png)'
 - en: 'Figure 17.6: The original image (left) and the canny image (right)'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 17.6：原始图像（左）和精明图像（右）
 - en: 'Import the modules that help in implementing ControlNet from the `diffusers`
     library:'
+  id: totrans-80
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从 `diffusers` 库导入帮助实现 ControlNet 的模块：
 - en: '[PRE8]'
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Initialize ControlNet:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化 ControlNet：
 - en: '[PRE9]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: In the preceding code, we load the pretrained `ControlNet` model.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们加载了预训练的 `ControlNet` 模型。
 - en: 'Define the pipeline and noise scheduler to generate an image:'
+  id: totrans-85
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义管道和噪声调度程序以生成图像：
 - en: '[PRE10]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: The architecture of the pipeline defined above is provided in the GitHub notebook.
     The architecture contains the different models used to extract encoders from the
     input image and prompt.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述管道的架构在 GitHub 笔记本中提供。该架构包含了从输入图像和提示中提取编码器所使用的不同模型。
 - en: 'Pass the canny image through the pipeline:'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将精明图像通过管道传递：
 - en: '[PRE11]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果如下：
 - en: '![A person with a beard and glasses  Description automatically generated](img/B18457_17_07.png)'
+  id: totrans-91
   prefs: []
   type: TYPE_IMG
+  zh: '![戴胡须和眼镜的人 自动生成的描述](img/B18457_17_07.png)'
 - en: 'Figure 17.7: The output image'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 17.7：输出图像
 - en: Note that the generated image is very different from the person that was originally
     there in the image. However, while a new image is generated as per the prompt,
     the pose that is present in the original image is preserved in the generated image.
     In the next section, we will learn how to generate high-quality images quickly.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意生成的图像与原始图像中原本存在的人物非常不同。然而，在根据提示生成新图像的同时，保留了原始图像中的姿势。在下一节中，我们将学习如何快速生成高质量的图像。
 - en: SDXL Turbo
+  id: totrans-94
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: SDXL Turbo
 - en: Much like Stable Diffusion, a model called **SDXL** (**Stable Diffusion Extra
     Large**) has been trained that returns HD images that have dimensions of 1,024x1,024
     . Due to its large size, as well as the number of denoising steps, SDXL takes
     considerable time to generate images over increasing time steps. How do we reduce
     the time it takes to generate images while maintaining the consistency of images?
     SDXL Turbo comes to the rescue here.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似于稳定扩散，已经训练了一个名为**SDXL**（**稳定扩散特大**）的模型，返回具有1,024x1,024尺寸的高清图像。由于其尺寸巨大以及去噪步骤的数量，SDXL在生成图像时需要相当长的时间。我们如何在保持图像一致性的同时减少生成图像所需的时间？SDXL
+    Turbo在这里起到了救援作用。
 - en: Architecture
+  id: totrans-96
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 架构
 - en: 'SDXL Turbo is trained by performing the following steps:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: SDXL Turbo通过执行以下步骤进行训练：
 - en: Sample an image and the corresponding text from a pre-trained dataset (the **Large-scale
     Artificial Intelligence Open Network** (**LAION**) available at [https://laion.ai/blog/laion-400-open-dataset/](https://laion.ai/blog/laion-400-open-dataset/)).
+  id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从预训练数据集（在[https://laion.ai/blog/laion-400-open-dataset/](https://laion.ai/blog/laion-400-open-dataset/)上提供的**大规模人工智能开放网络**（**LAION**））中抽样一幅图像及其相应文本。
 - en: Add noise to the original image (the chosen time step can be a random number
     between 1 and 1,000)
+  id: totrans-99
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 向原始图像添加噪音（所选时间步长可以是1到1,000之间的随机数）
 - en: Train the student model (the Adversarial diffusion model) to generate images
     that can fool a discriminator.
+  id: totrans-100
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练学生模型（对抗扩散模型）生成能欺骗鉴别器的图像。
 - en: Further, train the student model in such a way that the output is very similar
     to the output of the teacher SDXL model (when the noise-added output from the
     student model is passed as input to the teacher model). This way, we optimize
     for two losses – discriminator loss (between the image generated from the student
     model and the original image) and MSE loss between the outputs of the student
     and teacher models. Note that we are training the student model only.
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 进一步地，以这样一种方式训练学生模型，使其输出与教师SDXL模型的输出非常相似（当从学生模型生成的添加噪声的输出作为输入传递给教师模型时）。这样，我们优化了两个损失
+    - 判别器损失（学生模型生成的图像与原始图像之间的差异）以及学生和教师模型输出之间的均方误差损失。请注意，我们只训练学生模型。
 - en: 'This is illustrated in the following diagram:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 这在以下图示中有所体现：
 - en: '![A diagram of a diagram of a spaceman on a horse  Description automatically
     generated with medium confidence](img/B18457_17_08.png)'
+  id: totrans-103
   prefs: []
   type: TYPE_IMG
+  zh: '![一个宇航员骑马的图示描述 自动中等置信度生成](img/B18457_17_08.png)'
 - en: 'Figure 17.8: SDXL turbo training'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.8：SDXL turbo训练
 - en: 'Source: [https://stability.ai/research/adversarial-diffusion-distillation](https://stability.ai/research/adversarial-diffusion-distillation)'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 来源：[https://stability.ai/research/adversarial-diffusion-distillation](https://stability.ai/research/adversarial-diffusion-distillation)
 - en: Training for both adversarial loss and distillation loss could help the model
     to generalize well even for minor modifications to the input image (the output
     of the teacher model).
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 对对抗损失和蒸馏损失的训练可以帮助模型对输入图像（教师模型的输出）的微小修改具有很好的泛化能力。
 - en: Implementing SDXL Turbo
+  id: totrans-107
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实施SDXL Turbo
 - en: 'SDXL Turbo is implemented in code as follows:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: SDXL Turbo的代码实现如下：
 - en: You can find the code in the `sdxl_turbo.ipynb` file in the `Chapter17` folder
     of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在GitHub仓库的`Chapter17`文件夹中的`sdxl_turbo.ipynb`文件中找到代码，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required libraries:'
+  id: totrans-110
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的库：
 - en: '[PRE12]'
+  id: totrans-111
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Import the required packages:'
+  id: totrans-112
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的包：
 - en: '[PRE13]'
+  id: totrans-113
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Define the `sdxl-turbo` pipeline:'
+  id: totrans-114
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`SDXL Turbo`流程：
 - en: '[PRE14]'
+  id: totrans-115
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Provide the prompt and the negative prompt (`n_prompt`) and fetch the output
     image. Note that the negative prompt (`n_prompt`) ensures that the attributes
     mentioned in it are not present in the generated image:'
+  id: totrans-116
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提供提示和负面提示（`n_prompt`），并获取输出图像。请注意，负面提示（`n_prompt`）确保生成图像中不包含其中提到的属性：
 - en: '[PRE15]'
+  id: totrans-117
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: '![A baby in a garment  Description automatically generated](img/B18457_17_09.png)'
+  id: totrans-118
   prefs: []
   type: TYPE_IMG
+  zh: '![一个穿着服装的婴儿 自动产生的描述](img/B18457_17_09.png)'
 - en: 'Figure 17.9: The generated image'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.9：生成的图像
 - en: The preceding code is executed in less than 2 seconds, while a typical SDXL
     model takes more than 40 seconds to generate one image.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的代码在不到2秒的时间内执行，而典型的SDXL模型生成一个图像需要超过40秒。
 - en: DepthNet
+  id: totrans-121
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: DepthNet
 - en: Imagine a scenario where you want to modify the background while keeping the
     subject of the image consistent. How would you go about solving this problem?
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个情景，您想修改背景，同时保持图像主题的一致性。您将如何解决这个问题？
 - en: 'One way to do this is by leveraging the **Segment Anything Model** (**SAM**),
     which we learned about in *Chapter 16*, and replacing the background with the
     background of your choice. However, there are two major problems associated with
     this method:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 一种方法是利用我们在*第16章*学到的**Segment Anything Model**（**SAM**），并将背景替换为您选择的背景。但是，这种方法存在两个主要问题：
 - en: The background is not generated, and so you will have to manually provide the
     background image.
+  id: totrans-124
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 背景没有生成，因此您必须手动提供背景图像。
 - en: The subject and background will not be color-consistent with each other because
     we have done patchwork.
+  id: totrans-125
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 主题和背景颜色不一致，因为我们进行了拼接。
 - en: DepthNet solves this problem by leveraging a diffusion approach, where we will
     use the model to understand which parts of an image are the background and foreground
     using a depth map.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: DepthNet通过利用扩散方法来解决这个问题，我们将使用模型来理解图像的哪些部分是背景和前景，使用深度图。
 - en: Workflow
+  id: totrans-127
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作流
 - en: 'DepthNet works as follows:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: DepthNet的工作原理如下：
 - en: 'We calculate the depth mask of an image (depth is calculated by leveraging
     a pipeline similar to the one mentioned in the *Vision Transformers for Dense
     Prediction* paper: [https://arxiv.org/abs/2103.13413](https://arxiv.org/abs/2103.13413)).'
+  id: totrans-129
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们计算图像的深度掩模（深度是通过类似于《Vision Transformers for Dense Prediction》论文中提到的管道计算的：[https://arxiv.org/abs/2103.13413](https://arxiv.org/abs/2103.13413)）。
 - en: The diffusion UNet2DConditionModel is modified to accept a five-channel input,
     where the first four channels are the standard noisy latents and the fifth channel
     is simply the latent depth mask.
+  id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Diffusion UNet2DConditionModel被修改为接受五通道输入，其中前四个通道是标准的噪声潜变量，第五个通道仅是潜变量深度掩模。
 - en: Now, train the model to predict the output image using the modified diffusion
     model, where, along with a prompt, we also have an additional depth map as input.
+  id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，训练模型以使用修改的扩散模型来预测输出图像，其中除了提示外，我们还有额外的深度图作为输入。
 - en: 'A typical image and its corresponding depth map are as follows:'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 典型的图像及其相应的深度图如下：
 - en: '![](img/B18457_17_10.png)'
+  id: totrans-133
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_17_10.png)'
 - en: 'Figure 17.10: An image and its depth map'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.10：一幅图像及其深度图
 - en: Let’s now go ahead and implement DepthNet.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们继续实现DepthNet。
 - en: Implementing DepthNet
+  id: totrans-136
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实施DepthNet
 - en: 'To implement DepthNet, you can use the following code:'
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 要实现DepthNet，您可以使用以下代码：
 - en: The full code can be found in the `DepthNet.ipynb` file of the `Chapter17` folder
     in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 完整代码可以在GitHub存储库中的`Chapter17`文件夹的`DepthNet.ipynb`文件中找到，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required packages:'
+  id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的软件包：
 - en: '[PRE16]'
+  id: totrans-140
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Import the required packages:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的软件包：
 - en: '[PRE17]'
+  id: totrans-142
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Define the pipeline:'
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义管道：
 - en: '[PRE18]'
+  id: totrans-144
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Specify the prompt and pass the image through the pipeline:'
+  id: totrans-145
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定提示并通过管道传递图像：
 - en: '[PRE19]'
+  id: totrans-146
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'The preceding code results in the following output (for the colored images,
     you can refer to the digital version of the book):'
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的代码导致以下输出（有关彩色图像，请参阅书的电子版本）：
 - en: '![A pair of glasses with lemons and limes  Description automatically generated](img/B18457_17_11.png)'
+  id: totrans-148
   prefs: []
   type: TYPE_IMG
+  zh: '![一副眼镜，上面放着柠檬和青柠，描述自动生成](img/B18457_17_11.png)'
 - en: 'Figure 17.11: (Left) The input image (Right) The output from DepthNet'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 图17.11：（左）输入图像（右）来自DepthNet的输出
 - en: Note that in the above picture, the depth in the original picture (the picture
     on the left) is maintained while the prompt modified the content/view of the image.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在上述图片中，原始图片中的深度（左侧的图片）被保留，而提示修改了图片的内容/视图。
 - en: Text to video
+  id: totrans-151
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 文本转视频
 - en: Imagine a scenario where you provide a text prompt and expect to generate a
     video from it. How do you implement this?
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情况，您提供文本提示并希望从中生成视频。您如何实现这一点？
 - en: 'So far, we have generated images from a text prompt. Generating videos from
     text requires us to control two aspects:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经从文本提示生成了图像。从文本生成视频需要我们控制两个方面：
 - en: '**Temporal consistency** across frames (the subject in one frame should look
     similar to the subject in a subsequent frame)'
+  id: totrans-154
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**时间一致性**跨帧（一个帧中的主题应与后续帧中的主题类似）'
 - en: '**Action consistency** across frames (if the text prompt is a rocket shooting
     into the sky, the rocket should have a consistent upward trajectory over increasing
     frames)'
+  id: totrans-155
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**帧间操作的一致性**（如果文本提示是一架火箭射向天空，则火箭在不断增加的帧数中应该有一致的向上轨迹）'
 - en: We should address the above two aspects while training a text-to-video model,
     and the way we address these aspects again uses diffusion models.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练文本到视频模型时，我们应该处理上述两个方面，我们再次使用扩散模型来处理这些方面。
 - en: To understand the model building process, we will learn about the text-to-video
     model built by damo-vilab. It leverages the `Unet3DConditionModel` instead of
     the `Unet2DConditionModel` that we saw in the previous chapter.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解模型构建过程，我们将学习由damo-vilab构建的文本到视频模型。它利用`Unet3DConditionModel`而不是我们在上一章节中看到的`Unet2DConditionModel`。
 - en: Workflow
+  id: totrans-158
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作流程
 - en: 'The Unet3DConditionModel contains the `CrossAttnDownBlock3D` block instead
     of the `CrossAttnDownBlock2D` block. In the `CrossAttnDownBlock3D` block, there
     are two modules in addition to the `resnet` and `attention` modules that we saw
     in the previous chapter:'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: '`Unet3DConditionModel`包含`CrossAttnDownBlock3D`块，而不是`CrossAttnDownBlock2D`块。在`CrossAttnDownBlock3D`块中，除了我们在上一章节看到的`resnet`和`attention`模块外，还有两个模块：'
 - en: '**temp_conv**: In the `temp_conv` module, we pass the inputs through a `Conv3D`
     layer. The inputs in this case take all the frames into account (while in 2D,
     it was one frame at a time). In essence, by considering all the frames together,
     our input is a 5D tensor with the shape [bs, frames, channels, height, width].
     You can consider this as a mechanism to maintain the temporal consistency of a
     subject across frames.'
+  id: totrans-160
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**temp_conv**：在`temp_conv`模块中，我们通过一个`Conv3D`层传递输入。在这种情况下，输入考虑了所有帧（而在2D中，一次只有一个帧）。实质上，通过同时考虑所有帧，我们的输入是一个5D张量，形状为[bs,
+    frames, channels, height, width]。您可以将此视为一种维持主题在帧间时间一致性的机制。'
 - en: '**temp_attn**: In the `temp_attn` module, we perform self-attention on the
     frame dimension instead of the channel dimension. This helps to maintain action
     consistency across frames.'
+  id: totrans-161
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**temp_attn**：在`temp_attn`模块中，我们对帧维度而不是通道维度执行自注意力。这有助于在帧间保持动作的一致性。'
 - en: The `CrossAttnUpBlock3D` and `CrossAttnMidBlock3D` blocks differ only in their
     submodules (which we have already discussed above) and have no functional differences
     compared to their 2D counterparts. We will leave gaining an in-depth understanding
     of these blocks as an activity for you.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: '`CrossAttnUpBlock3D`和`CrossAttnMidBlock3D`块仅在其子模块（我们已经讨论过的）方面有所不同，与它们的2D对应块相比没有功能上的差异。我们将留给您深入了解这些块的活动。'
 - en: Implementing text to video
+  id: totrans-163
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实现文本到视频
 - en: 'Let’s now go ahead and implement the code to perform text-to-video generation:'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们继续实现执行文本到视频生成的代码：
 - en: The following code is available in the `text_image_to_video.ipynb` file of the
     `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码位于GitHub存储库中`Chapter17`文件夹中的`text_image_to_video.ipynb`文件中，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required packages and import them:'
+  id: totrans-166
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的软件包并导入它们：
 - en: '[PRE20]'
+  id: totrans-167
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Define the pipeline for text-to-video generation:'
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义文本到视频生成的流程：
 - en: '[PRE21]'
+  id: totrans-169
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Provide the prompt, video duration, and number of frames per second to generate
     the video:'
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提供提示、视频持续时间以及每秒帧数来生成视频：
 - en: '[PRE22]'
+  id: totrans-171
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Pass the above parameters to the pipeline:'
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将上述参数传递给流水线：
 - en: '[PRE23]'
+  id: totrans-173
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Display the video using the following code:'
+  id: totrans-174
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用以下代码显示视频：
 - en: '[PRE24]'
+  id: totrans-175
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: With the above, we can now generate video from text. You can take a look at
     the generated video in the associated notebook.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 有了以上内容，我们现在可以从文本生成视频了。您可以在相关笔记本中查看生成的视频。
 - en: Summary
+  id: totrans-177
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概述
 - en: In this chapter, we learned about creative ways to leverage a diffusion model
     for multiple applications. In the process, we also learned about the working details
     of various architectures along with the code implementations.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了如何创意地利用扩散模型进行多种应用。在这个过程中，我们还了解了各种架构的工作细节以及代码实现。
 - en: This, in conjunction with the strong foundations of understanding how diffusion
     models work, will ensure that you are able to leverage Stable Diffusion models
     for multiple creative works, modify and fine-tune architectures for custom image
     generation, and combine/pipeline multiple models to get the output you’re looking
     for.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 这与深入理解扩散模型如何工作的坚实基础结合使用，将确保您能够利用稳定的扩散模型进行多种创意工作，修改和微调用于定制图像生成的架构，并结合/流水线多个模型以获得您所需的输出。
 - en: In the next chapter, we will learn about deploying computer vision models and
     the various aspects that you need to consider when doing so.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将学习部署计算机视觉模型以及在此过程中需要考虑的各种方面。
 - en: Questions
+  id: totrans-181
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: What is the key concept behind image in-painting using Stable Diffusion?
+  id: totrans-182
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用稳定扩散进行图像修复的关键概念是什么？
 - en: What are the key concepts behind ControlNet?
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: ControlNet 背后的关键概念是什么？
 - en: What makes SDXL Turbo faster than SDXL?
+  id: totrans-184
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: SDXL Turbo 比 SDXL 更快的原因是什么？
 - en: What is the key concept behind DepthNet?
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: DepthNet 背后的关键概念是什么？
 - en: Learn more on Discord
+  id: totrans-186
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加入我们的 Discord 了解更多信息
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者进行讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-189
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
