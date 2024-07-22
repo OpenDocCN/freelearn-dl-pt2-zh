@@ -1,54 +1,76 @@
 - en: What Is a Neural Network and How Do I Train One?
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 什么是神经网络，以及如何训练一个？
 - en: While we've now discussed Go and the libraries available for it, we haven't
     yet discussed what constitutes a neural network. Toward the end of the previous
     chapter, we used Gorgonia to construct a graph that, when executed by an appropriate
     VM, performs several basic operations (specifically, addition and multiplication)
     on a series of matrices and vectors.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然我们现在已经讨论了Go及其可用的库，但我们还没有讨论什么构成了神经网络。在上一章的末尾，我们使用Gorgonia构建了一个图，当通过适当的虚拟机执行时，对一系列矩阵和向量执行几个基本操作（特别是加法和乘法）。
 - en: We will now talk about how to build a neural network and get it working. This
     will teach you about the components necessary to build the more advanced neural
     network architectures we will be discussing later in this book.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在将讨论如何构建一个神经网络并使其正常工作。这将教会你如何构建后续在本书中讨论的更高级神经网络架构所需的组件。
 - en: 'This chapter will cover the following topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: A basic neural network
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个基本的神经网络
 - en: Activation functions
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 激活函数
 - en: Gradient descent and backpropagation
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 梯度下降和反向传播
 - en: Advanced gradient descent algorithms
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 高级梯度下降算法
 - en: A basic neural network
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 一个基本的神经网络
 - en: Let's first build a simple neural network. This network will use the basic operations
     of addition and multiplication to take a 4 x 3 matrix of integers, initialize
     a weight coefficient represented by a 3 x 1 column vector, and gradually adjust
     those weights until they predict, for a given sequence of inputs (and after the
     application of a Sigmoid nonlinearity), an output that matches the validation
     dataset.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们首先建立一个简单的神经网络。这个网络将使用加法和乘法的基本操作来处理一个4 x 3的整数矩阵，初始化一个由3 x 1列向量表示的权重系数，并逐渐调整这些权重，直到它们预测出，对于给定的输入序列（并在应用Sigmoid非线性后），输出与验证数据集匹配。
 - en: The structure of a neural network
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 神经网络的结构
 - en: The purpose of this example is clearly not to build a cutting-edge computer
     vision system but, rather, to demonstrate how to use these fundamental operations
     (and how Gorgonia handles them) in the context of a parameterized function where
@@ -57,123 +79,175 @@
     deliberate re-parameterization of the network (updating the weights). This is
     done by an optimization method that is, essentially, a small amount of code representing
     some basic undergraduate-level calculus.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个示例的目的显然不是建立一个尖端的计算机视觉系统，而是展示如何在参数化函数的背景下使用这些基本操作（以及Gorgonia如何处理它们），其中参数是随时间学习的。本节的关键目标是理解学习网络的概念。这个*学习*实际上只是网络的连续、有意识的重新参数化（更新权重）。这是通过一个优化方法完成的，本质上是一小段代码，代表了一些基础的本科水平的微积分。
 - en: The Sigmoid function (and activation functions more generally), **Stochastic
     Gradient Descent** (**SGD**), and backpropagation will each receive detailed treatment
     in later sections of this chapter. For now, we will talk about them in the context
     of the code; that is, where and how they are used and what their role is in the
     function we are computing.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: Sigmoid函数（以及更一般的激活函数）、**随机梯度下降**（**SGD**）和反向传播将在本章的后续部分中详细讨论。目前，我们将在代码的上下文中讨论它们；即，它们在何处以及如何使用，以及它们在我们计算的函数中的作用。
 - en: By the time you reach the end of this book, or if you are an experienced ML
     practitioner, the following will look like an absurdly simple first step into
     the world of neural network architectures. But if this is your first rodeo, pay
     close attention. All of the fundamentals that make the magic happen are here.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你读完这本书或者如果你是一个有经验的机器学习实践者时，下面的内容会看起来像是进入神经网络架构世界的一个极其简单的第一步。但如果这是你第一次接触，务必仔细注意。所有使魔法发生的基础都在这里。
 - en: 'What is the network made of? The following are the major components of our
     toy example neural network:'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 网络由什么构成？以下是我们玩具例子神经网络的主要组成部分：
 - en: '**I****nput data**: This is a 4 x 3 matrix.'
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**输入数据**：这是一个4 x 3矩阵。'
 - en: '**Validation data**: This is a 1 x 4 column vector, or in reality, a four-rowed
     matrix with one column. This is expressed in Gorgonia as `WithShape(4,1)`.'
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**验证数据**：这是一个1 x 4列向量，或者实际上是一个四行一列的矩阵。在Gorgonia中表示为`WithShape(4,1)`。'
 - en: '**An activation (Sigmoid) function**: This introduces nonlinearity into our
     network and the function we are learning.'
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**激活（Sigmoid）函数**：这为我们的网络和我们正在学习的函数引入了非线性。'
 - en: '**A synapse:** This is also called a **trainable weight**, which is the key
     parameter of the network we will be optimizing with SGD.'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**突触：** 也称为**可训练权重**，是我们将使用SGD优化的网络的关键参数。'
 - en: Each of these components and their associated operations are represented as
     nodes on our computational graph. As we move through the explanation of what the
     network is doing, we will generate visualizations of the graph using the techniques
     we learned in [Chapter 1](8619502c-0d23-44ef-95b1-0ad1ae411a2b.xhtml), *Introduction
     to Deep Learning in Go*.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的计算图中，每个组件及其相关操作都表示为节点。当我们逐步解释网络的操作时，我们将使用我们在[第1章](8619502c-0d23-44ef-95b1-0ad1ae411a2b.xhtml)，《Go深度学习入门》中学到的技术生成图形可视化。
 - en: 'We are also going to over-engineer our network a little. What does this mean?
     Consider the following chunk of code:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们也将稍微超前设计我们的网络。这意味着什么？考虑以下代码块：
 - en: '[PRE0]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: We are embedding the key components of the network in a `struct` named `nn`.
     This not only makes our code readable, but it scales well when we want to perform
     our optimization process (SGD/backpropagation) on a number of weights for each
     layer of a deep (many-layered) network. As you can see, beyond the weights for
     each layer, we also have a node representing the prediction our network makes,
     as well as `*ExprGraph` itself.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将网络的关键组件嵌入名为`nn`的`struct`中。这不仅使我们的代码易读，而且在我们希望对深度（多层）网络的每一层的多个权重执行优化过程（SGD/反向传播）时，它也能很好地扩展。正如你所见，除了每层的权重外，我们还有一个表示网络预测的节点，以及`*ExprGraph`本身。
 - en: Our network has two layers. These are computed during the forward pass of our
     network. A forward pass represents all of the numerical transformations we want
     to perform on the value nodes in our computation graph.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的网络有两层。这些是在网络的前向传递过程中计算的。前向传递代表我们在计算图中希望对值节点执行的所有数值转换。
 - en: 'Specifically, we have the following:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，我们有以下内容：
 - en: '`l0`: The input matrix, our `X`'
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`l0`：输入矩阵，我们的`X`'
 - en: '`w0`: The trainable parameter, our network weight that will be optimized by
     the SGD algorithm'
+  id: totrans-26
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`w0`：可训练参数，我们网络的权重，将通过SGD算法进行优化'
 - en: '`l1`: The value of the Sigmoid applied to the dot product of `l0` and `w0`'
+  id: totrans-27
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`l1`：对`l0`和`w0`的点积应用Sigmoid函数的值'
 - en: '`pred`: A node that represents the *prediction* of the network, fed back to
     the appropriate field in `nn struct`'
+  id: totrans-28
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`pred`：表示网络预测的节点，反馈到`nn struct`的适当字段'
 - en: So, what are we aiming to achieve here?
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，我们在这里的目标是什么？
 - en: We want to build a system that learns a function that best models the columnar
     sequence of 0, 0, 1, 1\. Time to dive in!
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们希望建立一个系统，该系统学习一个最能够模拟列序列`0, 0, 1, 1`的函数。现在，让我们深入研究一下！
 - en: Your first neural network
+  id: totrans-31
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 你的第一个神经网络
 - en: 'Let''s start with the basic naming our package and importing the packages we
     will need. This process is carried out in the following steps:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从基本的包命名和导入我们需要的包开始。这个过程分为以下步骤进行：
 - en: 'For this example, we will be using a `tensor` library provided by the same
     developers as Gorgonia. We will use it for the backing tensors that are attached
     to their respective nodes in the computation graph:'
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们将使用与Gorgonia相同开发者提供的`tensor`库。我们将用它来支持与计算图中的各自节点关联的张量：
 - en: '[PRE1]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Create a variable that will catch errors with the following code:'
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个变量，将使用以下代码捕获错误：
 - en: '[PRE2]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'We can now define the main `struct` for embedding the neural network''s graph,
     weights, and prediction (output). In a deeper network, we would have `w0`, `w1`,
     `w2`, `w3`, and so on, until `wn`. There are additional network parameters we
@@ -183,37 +257,53 @@
     from *overfitting* to our training data. The point here is that no matter how
     advanced the architecture or how new the paper, you could conceivably scale up
     the following `struct` to express the properties of any network:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以定义用于嵌入神经网络图、权重和预测（输出）的主`struct`。在更深的网络中，我们会有`w0`、`w1`、`w2`、`w3`等，一直到`wn`。这个`struct`还可能包含我们稍后章节详细讨论的额外网络参数。例如，在**卷积神经网络**（**CNN**）中，还会有每层的dropout概率，这有助于防止网络过度拟合我们的训练数据。重点是，无论架构有多高级或者论文有多新颖，你都可以扩展以下`struct`以表达任何网络的属性：
 - en: '[PRE3]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Now, we'll consider the method to instantiate a new `nn`. Here, we create the
     node for our weight matrix or, in this specific case, our row vector. This process
     generalizes to the creation of any node we are backing with an *n*-rank tensor.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将考虑实例化一个新的`nn`的方法。在这里，我们为我们的权重矩阵或者在这个特定情况下是我们的行向量创建节点。这个过程推广到支持*n*阶张量的任何节点的创建。
 - en: 'The following method returns `ExprGraph` with the new node attached:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下方法返回`ExprGraph`，并附加了新节点：
 - en: '[PRE4]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Now that we have added a node to the graph and backed it with a real-valued
     tensor, we should inspect our computational graph to see how this weight appears,
     as shown in the following table:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们已经向图中添加了一个节点，并且用实值张量支持它，我们应该检查我们的计算图，看看这个权重是如何出现的，如下表所示：
 - en: '![](img/b40810d3-64ad-402d-9611-a7da5ba9f6e8.png)'
+  id: totrans-43
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b40810d3-64ad-402d-9611-a7da5ba9f6e8.png)'
 - en: The properties to notice here are the type (a matrix of `float64`), `Shape`
     of `(3, 1)`, and, of course, the three values occupying this vector. This is not
     much of a graph; indeed, our node is lonely, but we will add to it soon. In more
     complex networks, there will be a node backed by a weight matrix for each layer
     we use.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里需要注意的属性是类型（一个`float64`的矩阵）、`Shape`为`(3, 1)`，当然，这个向量中占据的三个值。这不算是一个图；事实上，我们的节点很孤单，但我们很快就会添加到它上面。在更复杂的网络中，每个我们使用的层都会有一个由权重矩阵支持的节点。
 - en: 'Before we do this, we must add another feature that will allow us to scale
     our code to these more complex networks. Here, we are defining the network''s
     learnables, key for computing the gradient. It is this list of nodes that the
@@ -221,179 +311,267 @@
     to calculate the gradients for the weights across *n*-layers of our network in
     a single function. Scaling this just means adding `w1`, `w2`, `w3`, and `wn`,
     as shown in the following code:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们这样做之前，我们必须添加另一个功能，使我们能够将代码扩展到这些更复杂的网络。在这里，我们正在定义网络的可学习部分，这对计算梯度至关重要。正是这些节点的列表，`Grad()`函数将操作它们。以这种方式分组这些节点使我们能够在一个函数中计算跨*n*层网络的权重梯度。扩展这一点意味着添加`w1`、`w2`、`w3`和`wn`，如下面的代码所示：
 - en: '[PRE5]'
+  id: totrans-46
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Now, we are getting to the core part of the network. The following function,
     *when executed*, will expand our graph with operations and nodes representing
     the input and hidden layer. It is important to note that, of course, this is a
     function that will be called in the main part of our network; for now, we are
     defining it upfront:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们来到网络的核心部分。执行以下函数*时*，将使用操作和节点扩展我们的图，这些节点表示输入和隐藏层。重要的是要注意，这是一个将在我们网络的主要部分中调用的函数；现在，我们要提前定义它：
 - en: '[PRE6]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: We can see the application of the `Sigmoid` function on the hidden layer, `l1`,
     as we briefly discussed when elaborating the components of our network. We will
     cover it in detail in the next section of this chapter.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到在隐藏层`l1`上应用`Sigmoid`函数，正如我们在详细讨论网络组件时简要提到的那样。我们将在本章的下一部分详细介绍它。
 - en: 'We can now write our `main` function where we will instantiate our network
     and all of the various methods described previously. Let''s step through it in
     detail. The first step of this process is shown in the following code:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以编写我们的`main`函数，在其中实例化我们的网络和所有先前描述的各种方法。让我们详细地走一遍它。这个过程的第一步如下所示：
 - en: '[PRE7]'
+  id: totrans-51
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Next, we define our input matrix, as follows:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们定义我们的输入矩阵，如下所示：
 - en: '[PRE8]'
+  id: totrans-53
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Then, we define what will effectively be our validation dataset, like so:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们定义实际上将成为我们的验证数据集的部分，如下所示：
 - en: '[PRE9]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Let''s take a look at what our graph looks like now with the addition of `X`
     and `y`:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的图现在加入了`X`和`y`之后的样子：
 - en: '![](img/f92ec352-577d-4dfb-9f7f-ed8f73db9f7f.png)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f92ec352-577d-4dfb-9f7f-ed8f73db9f7f.png)'
 - en: We can see the individual nodes, `w`, `X`, and `y`. As we did when we looked
     at `w`, note the type, `Shape`, and `Value` of each.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到个别节点`w`、`X`和`y`。就像我们查看`w`时所做的那样，请注意每个节点的类型、`Shape`和`Value`。
 - en: 'Now, we call the `fwd` method of our `nn` and really build out our graph to
     include the computational relationships between `X`, `y` and `w`, as shown in
     the following code:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们调用我们的`nn`的`fwd`方法，并真正构建我们的图，包括`X`、`y`和`w`之间的计算关系，如下面的代码所示：
 - en: '[PRE10]'
+  id: totrans-60
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: This is where the process of optimization begins. Our network has made its first
     prediction, so we will now define and compute a `cost` function that will allow
     us to determine how wrong our weights are and, later, how much we need to adjust
     the weights by to get us closer to the target, `y` (our validation dataset). In
     this example, we will repeat this process a fixed number of times to allow this
     relatively simple network to converge.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 优化过程从这里开始。我们的网络已经做出了第一个预测，现在我们将定义并计算一个`cost`函数，这将帮助我们确定我们的权重有多大错误，并且之后我们需要调整权重以使我们更接近目标`y`（我们的验证数据集）。在这个例子中，我们将重复这个过程固定次数，以使这个相对简单的网络收敛。
 - en: 'The following code first computes the loss (that is, *how much did we miss
     by?*). Then, we take `cost` as `Mean` of the validation data:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码首先计算损失（即，*我们错过了多少？*）。然后，我们取`cost`作为验证数据的`Mean`：
 - en: '[PRE11]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Let''s also create `var` to track the change in `cost` over time, like so:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们创建一个`var`来跟踪时间内`cost`的变化，如下所示：
 - en: '[PRE12]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Before we go ahead and calculate the gradients in our network, let''s produce
     a visualization of the state of our graph using the following line of code, which
     should, by now, look familiar:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们继续计算网络中的梯度之前，让我们使用以下代码生成我们图表状态的可视化，这应该已经很熟悉了：
 - en: '[PRE13]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Convert into PNG using the following line:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用以下代码将其转换为PNG：
 - en: '[PRE14]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: We now have a graph that connects the nodes that contain our data (input, weights,
     and validation) and the operations we will be performing on them.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在有一个连接包含我们数据（输入、权重和验证）及我们将在其上执行的操作的图表。
 - en: 'The graph is getting too large to include in a single page, so we will now
     consider only the important parts of this step. Firstly, note that our weight
     node now has a `Grad` field that currently has no value (a forward pass has been
     run, but we are yet to calculate the gradients), as shown in the following table:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 图表变得过大，无法一次性包含在一页内，因此我们现在只考虑此步骤的重要部分。首先注意到我们的权重节点现在有一个`Grad`字段，当前没有值（已运行前向传播，但我们尚未计算梯度），如下表所示：
 - en: '![](img/e4f44f41-cab9-4749-a1f7-2a1c2b7ca779.png)'
+  id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/e4f44f41-cab9-4749-a1f7-2a1c2b7ca779.png)'
 - en: 'We also now have a number of gradient operations; here''s an excerpt in the
     following diagram:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在还有一些梯度操作；以下是关于这一步的摘录图表：
 - en: '![](img/63b1e8a5-c576-4740-a549-d813bd02c682.png)'
+  id: totrans-74
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/63b1e8a5-c576-4740-a549-d813bd02c682.png)'
 - en: 'Now, let''s compute the gradient, the cost relative to the weights (represented
     as `m.learnables`). This step is shown in the following code:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们计算梯度，相对于权重的cost（表示为`m.learnables`）。这一步在以下代码中显示：
 - en: '[PRE15]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'We can now instantiate the VM that will be processing our graph. We also select
     our `solver`, in this case, a vanilla SGD, as shown in the following:'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在可以实例化将处理我们图表的VM。我们也选择我们的`solver`，在本例中是一个普通的SGD，如下所示：
 - en: '[PRE16]'
+  id: totrans-78
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'A new option we''re providing our `vm` with is `BindDualValues`. This option
     ensures that the gradients we calculate are bound to the node that contains the
     value for which the derivative is being obtained. This means that, instead of
     the node saying, *go to node x to find the value of the gradient*, the value is
     immediately accessible to `vm`. This is what the change to our weight node looks
     like on the graph:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们为我们的`vm`提供的一个新选项是`BindDualValues`。这个选项确保我们计算的梯度与包含导数值的节点绑定。这意味着，不是节点说“去节点x找梯度的值”，而是值立即可被`vm`访问。这是我们在图表上修改权重节点的样子：
 - en: '![](img/bae536f0-fde1-488e-b9ad-44ef29afab96.png)'
+  id: totrans-80
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/bae536f0-fde1-488e-b9ad-44ef29afab96.png)'
 - en: 'The `Value` field now contains the partial derivative of the output with respect
     to the node. We are now finally ready to run our full training loop. For a simple
     example such as this, we will run the loop an arbitrary number of times, specifically, `10000`
     loops, as shown in the following example:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: '`Value`字段现在包含输出相对于节点的偏导数。我们现在终于准备好运行我们的完整训练循环。对于这样一个简单的示例，我们将运行循环一定次数，具体来说，`10000`次循环，如下例所示：'
 - en: '[PRE17]'
+  id: totrans-82
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: While we are already familiar with the idea of using a VM to compute our graph,
     we have added a step here of calling `solver`, which we defined previously. `Step`
     works its way through the sequence of trainable nodes (that is, our weights),
     adding the gradient and multiplying it by the learn rate we specified previously.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然我们已经熟悉使用VM计算图的概念，但是这里我们添加了一个调用`solver`的步骤，这是我们之前定义的。`Step`通过可训练节点的序列（也就是我们的权重）进行工作，添加梯度并乘以我们之前指定的学习率。
 - en: 'And that''s it! Now, we run our program and expect a post-training output of
     0, 0, 1, 1, as shown in the following code:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 就是这样！现在，我们运行我们的程序，并期望训练后的输出是0、0、1、1，如下面的代码所示：
 - en: '[PRE18]'
+  id: totrans-85
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: That's close enough to declare that our network has converged!
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 这已经足够接近了，可以宣布我们的网络已经收敛了！
 - en: Activation functions
+  id: totrans-87
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 激活函数
 - en: Now that you know how to build a basic neural network, let's go through the
     purpose of some of the elements of your model. One of those elements was the *Sigmoid*,
     which is an activation function. Sometimes these are also called **transfer functions**.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在你知道如何构建一个基本的神经网络了，让我们来看看模型中某些元素的目的。其中一个元素是*Sigmoid*，它是一个激活函数。有时也称为**传输函数**。
 - en: As you have learned previously, a given layer can be simply defined as weights
     applied to inputs; add some bias and then decide on activation. An activation
     function decides whether a neuron is *fired*. We also put this into the network
@@ -401,458 +579,686 @@
     this, we also need it to be a function that works with our backpropagation, so
     that we can easily optimize our weighs via an optimization method (that is, gradient
     descent). This means that we need the output of the function to be differentiable.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你之前学到的，一个给定的层可以简单地定义为应用于输入的权重；加上一些偏置然后决定激活。激活函数决定一个神经元是否被*激活*。我们还将这个函数放入网络中，以帮助创建输入和输出之间更复杂的关系。在此过程中，我们还需要它是一个能够与我们的反向传播一起工作的函数，这样我们可以通过优化方法（即梯度下降）轻松地优化我们的权重。这意味着我们需要函数的输出是可微的。
 - en: 'There are a few things to consider when choosing an activation function, as
     follows:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 在选择激活函数时有几个要考虑的因素，如下所示：
 - en: '**Speed**: Simple activation functions are quicker to execute than more complex
     activation functions. This is important since, in deep learning, we tend to run
     the model through large amounts of data, and therefore, will be executing each
     function over a reasonably large dataset many times.'
+  id: totrans-91
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**速度**：简单的激活函数比复杂的激活函数执行速度更快。这一点很重要，因为在深度学习中，我们倾向于通过大量数据运行模型，因此会多次执行每个函数。'
 - en: '**Differentiability**: As we have already noted, being able to differentiate
     the function is useful during backpropagation. Having a gradient allows us to
     adjust our weights in a direction that brings our network closer to convergence.
     In brief, it allows us to calculate errors to improve our model by minimizing
     our cost function.'
+  id: totrans-92
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**可微性**：正如我们已经注意到的，函数在反向传播过程中能够区分是有用的。具有梯度使我们能够调整权重，使网络更接近收敛。简言之，它允许我们计算错误，通过最小化成本函数来改进我们的模型。'
 - en: '**Continuity**: It should return a value across the entire range of the inputs.'
+  id: totrans-93
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**连续性**：它应该在整个输入范围内返回一个值。'
 - en: '**Monotonicity**: While this property is not strictly necessary, it helps to
     optimize the neural network since it will converge faster during gradient descent.
     Using non-monotonic functions is possible, but we are likely to run into longer
     training times overall.'
+  id: totrans-94
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**单调性**：虽然这个属性并不是严格必要的，但它有助于优化神经网络，因为它在梯度下降过程中会更快地收敛。使用非单调函数是可能的，但总体上会导致更长的训练时间。'
 - en: Step functions
+  id: totrans-95
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 阶跃函数
 - en: 'Of course, the most basic activation function would be a step function. If
     the value of `x` is more than a fixed value, `a`, then `y` is either `0` or `1`,
     as shown in the following code:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，最基本的激活函数可能是一个阶跃函数。如果`x`的值大于一个固定值`a`，那么`y`要么是`0`要么是`1`，如下面的代码所示：
 - en: '[PRE19]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'As you can see in the following diagram, the `step` function is extremely simple;
     it takes a value and then returns `0` or `1`:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 如你在下图中所见，`step`函数非常简单；它接受一个值然后返回`0`或`1`：
 - en: '![](img/44305818-e4dc-44ab-a004-cd15a4c79b90.png)'
+  id: totrans-99
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/44305818-e4dc-44ab-a004-cd15a4c79b90.png)'
 - en: This is a very simple function and one that is not particularly useful for deep
     learning. This is because the gradient of this function is a constant zero, meaning
     that, when we are doing backpropagation, it will constantly produce zeroes, which
     results in very little (if any at all) improvement when we are performing backpropagation.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个非常简单的函数，对深度学习来说并不特别有用。这是因为这个函数的梯度是一个恒定的零，这意味着当我们进行反向传播时，它将不断产生零，这在我们执行反向传播时几乎没有（如果有的话）任何改进。
 - en: Linear functions
+  id: totrans-101
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 线性函数
 - en: 'A possible extension to the `step` function might be to use a `linear` function,
     as shown in the following code:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 对`step`函数的可能扩展是使用`linear`函数，如下面的代码所示：
 - en: '[PRE20]'
+  id: totrans-103
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'This is still very simple and, if we were to chart it out, it would look something
     like the following diagram:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 这仍然非常简单，如果我们将其绘制出来，它看起来会像以下的图表：
 - en: '![](img/c00a5095-3b10-473f-ae98-f457da43bc20.png)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/c00a5095-3b10-473f-ae98-f457da43bc20.png)'
 - en: However, this function is still not very useful. If we were to look at the gradient,
     we'll see that, when we differentiate this function, all we get is a straight
     line equal to the value of `a`. This means it suffers the same problem as the
     `step` function; that is to say, we won't see much improvement from backpropagation.
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，这个函数仍然不是很有用。如果我们查看其梯度，我们会看到，当我们对该函数进行微分时，我们得到的是一个与值`a`相等的直线。这意味着它遇到了与步函数相同的问题；也就是说，我们不会从反向传播中看到太多的改进。
 - en: In addition, if we were to stack several layers of this, you'll find that really
     all we get is not too different from having just one layer. This isn't useful
     if we are trying to build models with multiple layers, especially with non-linear
     relationships.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，如果我们堆叠多层，你会发现我们得到的结果与仅有一层并没有太大不同。这在试图构建具有多层、特别是具有非线性关系的模型时并不实用。
 - en: Rectified Linear Units
+  id: totrans-108
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Rectified Linear Units
 - en: '**Rectified Linear Unit** (**ReLU**) is the most popular activation function
     in use. We will be using it as the primary activation function in a number of
     advanced architectures in later chapters.'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: '**修正线性单元**（**ReLU**）是目前最流行的激活函数。我们将在后面的章节中将其用作许多高级架构的主要激活函数。'
 - en: 'It can be described as follows:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以描述为：
 - en: '[PRE21]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'If we were to chart it out, it looks something like the following diagram:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们将其绘制出来，它看起来会像以下的图表：
 - en: '![](img/48a91226-96be-44e0-a206-f212c1d3cfae.png)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/48a91226-96be-44e0-a206-f212c1d3cfae.png)'
 - en: As you can see, it is extremely similar to a linear function, except that it
     goes to zero (therefore indicating that the neuron is not activated).
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所见，它与线性函数极为相似，除了它趋向于零（因此表明神经元未激活）。
 - en: 'ReLU also has many useful properties, as follows:'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: ReLU还具有许多有用的属性，如下所示：
 - en: '**It is nonlinear**: Therefore, stacking several layers of these will not necessarily
     result in being the same as one layer'
+  id: totrans-116
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**它是非线性的**：因此，堆叠多层这些单元不一定会导致与单层相同'
 - en: '**It is differentiable**: Therefore, it works with backpropagation'
+  id: totrans-117
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**它是可微的**：因此，可以与反向传播一起使用'
 - en: '**It is quick**: It calculates quickly, which is important when we are running
     this calculation numerous times across layers or training passes of our network'
+  id: totrans-118
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**它很快**：在我们多次运行这个计算以跨层或训练网络的传递时，计算速度很重要'
 - en: ReLU goes to zero if the input is negative. This can be useful, since this results
     in fewer neurons being activated, and, therefore, this can potentially speed up
     our calculations. However, since it can result in `0`, this can very quickly cause
     a neuron to *die* and never activate again, given certain inputs.
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果输入为负，ReLU趋向于零。这可能是有用的，因为这会导致较少的神经元被激活，从而可能加速我们的计算。然而，由于可能结果为`0`，这可能会迅速导致神经元*死亡*，并且永远不会再次激活，给定某些输入。
 - en: Leaky ReLU
+  id: totrans-120
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Leaky ReLU
 - en: 'We can modify the ReLU function to have a small gradient when the input is
     negative—this can very quickly be accomplished, as follows:'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以修改ReLU函数，在输入为负时具有较小的梯度 —— 这可以非常快速地完成，如下所示：
 - en: '[PRE22]'
+  id: totrans-122
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'The chart for the preceding function will look like the following diagram:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述函数的图表如下所示：
 - en: '![](img/408fb0c4-ef31-4cec-a20e-9c6011ff540c.png)'
+  id: totrans-124
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/408fb0c4-ef31-4cec-a20e-9c6011ff540c.png)'
 - en: Note that this chart has been altered for emphasis, so the slope of *y* with
     respect to *x* is actually `0.1` instead of `0.01`, as is typical for what is
     considered a leaky ReLU.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，此图表已经进行了强调修改，因此*y*对*x*的斜率实际上是`0.1`，而不是通常认为的`0.01`，这是被视为Leaky ReLU的特征之一。
 - en: As it will always produce a small gradient, this should help to prevent the
     neuron from *dying* on a more permanent basis while still giving us many of the
     benefits of ReLU.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于它总是产生一个小的梯度，这应该有助于防止神经元永久性地*死亡*，同时仍然给我们带来ReLU的许多好处。
 - en: Sigmoid functions
+  id: totrans-127
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Sigmoid函数
 - en: 'A Sigmoid or logistic function is also relatively popular, as shown here:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: Sigmoid或逻辑函数也相对流行，如下所示：
 - en: '[PRE23]'
+  id: totrans-129
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'The output is as follows:'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出如下：
 - en: '![](img/b641db4b-4acd-4996-8161-ea2354647b0a.png)'
+  id: totrans-131
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b641db4b-4acd-4996-8161-ea2354647b0a.png)'
 - en: 'Sigmoid has a property that is also useful: it can map any real number back
     down to a range between `0` and `1`. This can be very useful for producing models
     that prefer an output between `0` and `1` (for example, a model for predicting
     the probability of something).'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: Sigmoid还有一个有用的特性：它可以将任何实数映射回在`0`和`1`之间的范围内。这对于生成偏好于在`0`和`1`之间输出的模型非常有用（例如，用于预测某事物的概率模型）。
 - en: 'It also has most of the properties we are looking for, as listed here:'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 它也具有我们正在寻找的大多数属性，如下所列：
 - en: It is **nonlinear**. Therefore, stacking several layers of these will not necessarily
     result in being the same as one layer.
+  id: totrans-134
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它是**非线性**的。因此，堆叠多层这样的函数不一定会导致与单层相同的结果。
 - en: It is **differentiable**. Therefore, it works with backpropagation.
+  id: totrans-135
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它是**可微分**的。因此，它适用于反向传播。
 - en: It is **monotonic**.
+  id: totrans-136
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它是**单调递增**的。
 - en: However, one drawback is that it is more costly to compute compared to ReLU,
     and therefore, it will take longer overall to train a model with this.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，其中一个缺点是与ReLU相比，计算成本更高，因此总体来说，使用此模型进行训练将需要更长的时间。
 - en: Tanh
+  id: totrans-138
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Tanh
 - en: 'It can also be helpful to have a steeper gradient during training; as such,
     we can use the `tanh` function instead of the `Sigmoid` function, as shown in
     the following code:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练过程中保持较陡的梯度也可能有所帮助；因此，我们可以使用`tanh`函数而不是`Sigmoid`函数，如下面的代码所示：
 - en: '[PRE24]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'We get the following output:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们得到以下输出：
 - en: '![](img/e435f740-e8fa-42bf-bcbe-c6b245d05254.png)'
+  id: totrans-142
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/e435f740-e8fa-42bf-bcbe-c6b245d05254.png)'
 - en: 'The `tanh` function has another useful property: its slope is much steeper
     than the `Sigmoid` function; this helps networks with `tanh` activation functions
     to descend the gradient faster when adjusting weights. The output for both functions
     is plotted in the following output:'
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: '`tanh`函数还有另一个有用的特性：其斜率比`Sigmoid`函数陡峭得多；这有助于具有`tanh`激活函数的网络在调整权重时更快地下降梯度。两种函数的输出在以下输出中绘制：'
 - en: '![](img/8bf7e7eb-c7e7-4095-b8cc-98e3dc16daf1.png)'
+  id: totrans-144
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/8bf7e7eb-c7e7-4095-b8cc-98e3dc16daf1.png)'
 - en: But which one should we use?
+  id: totrans-145
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 但我们应该选择哪一个呢？
 - en: Each of these activation functions is useful; however, as ReLU has the most
     useful features of all of the activation functions and is easy to calculate, this
     should be the function you are using most of the time.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个激活函数都很有用；然而，由于ReLU具有所有激活函数中最有用的特性，并且易于计算，因此这应该是您大部分时间使用的函数。
 - en: It can be a good idea to switch to leaky ReLU if you run into stuck gradients
     frequently. However, you can usually lower the learning rate to help to prevent
     this or use it in the earlier layers, instead of all of your layers, in order
     to maintain the edge of having fewer activations overall across the network.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您经常遇到梯度陷入困境，切换到Leaky ReLU可能是一个好主意。然而，通常可以降低学习速率来防止这种情况，或者在较早的层中使用它，而不是在整个网络中使用它，以保持在整个网络中具有更少激活的优势。
 - en: '`Sigmoid` is most valuable as an output layer, preferably with a probability
     as the output. The `tanh` function can also be valuable, for example, where we
     would like layers to constantly adjust values upward and downward (rather than
     being biased upward like ReLU and Sigmoid).'
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: '`Sigmoid`作为输出层最有价值，最好以概率作为输出。例如，`tanh`函数也可能很有价值，例如，我们希望层次不断调整值（而不是向上偏置，如ReLU和Sigmoid）。'
 - en: 'So, the short answer is: it depends on your network and the kind of output
     you are expecting.'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，简短的答案是：这取决于您的网络以及您期望的输出类型。
 - en: It should, however, be noted that while a number of activation functions have
     been presented here for you to consider, other activation functions have been
     proposed such as PReLU, softmax, and Swish, which can also be considered, depending
     on the task at hand. This is still an active area of research and is considered
     to be far from solved, so stay tuned!
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 但是应该注意，虽然这里提出了许多激活函数供您考虑，但其他激活函数也已被提出，例如PReLU、softmax和Swish，这取决于手头的任务。这仍然是一个活跃的研究领域，并且被认为远未解决，因此请继续关注！
 - en: Gradient descent and backpropagation
+  id: totrans-151
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 梯度下降和反向传播
 - en: We've talked about backpropagation and gradient descent in the context of example
     code in the first section of this chapter, but it can be hard to really understand
     the concepts at play when Gorgonia is doing a lot of the heavy lifting for us.
     So, we will now take a look at the actual process itself.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章的第一部分示例代码的背景下，我们已经讨论了反向传播和梯度下降，但当 Gorgonia 为我们大部分工作时，真正理解起来可能会有些困难。因此，现在我们将看一下实际的过程本身。
 - en: Gradient descent
+  id: totrans-153
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 梯度下降
 - en: Backpropagation is how we really train our model; it's an algorithm we use to
     minimize the prediction error by adjusting our model's weights. We usually do
     this via a method called **gradient descent**.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 反向传播是我们真正训练模型的方法；这是一种通过调整模型权重来最小化预测误差的算法。我们通常通过一种称为**梯度下降**的方法来实现。
 - en: 'Let''s begin with a basic example—let''s say we want to train a simple neural
     network to do the following, by multiplying a number by 0.5:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从一个基本的例子开始 —— 比如说我们想要训练一个简单的神经网络来完成以下任务，即通过将一个数字乘以 0.5：
 - en: '| **Input** | **Target** |'
+  id: totrans-156
   prefs: []
   type: TYPE_TB
+  zh: '| **输入** | **目标** |'
 - en: '| 1 | 0.5 |'
+  id: totrans-157
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | 0.5 |'
 - en: '| 2 | 1.0 |'
+  id: totrans-158
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 1.0 |'
 - en: '| 3 | 1.5 |'
+  id: totrans-159
   prefs: []
   type: TYPE_TB
+  zh: '| 3 | 1.5 |'
 - en: '| 4 | 2.0 |'
+  id: totrans-160
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 2.0 |'
 - en: 'We have a basic model to start with, as follows:'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们有一个基本的模型可以开始使用，如下所示：
 - en: '*y = W * x*'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: '*y = W * x*'
 - en: 'So, to start, let''s guess that *W* is actually two. The following table shows
     these results:'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，首先，让我们猜测 *W* 实际上是两个。以下表格显示了这些结果：
 - en: '| **Input** | **Target** | **W * x** |'
+  id: totrans-164
   prefs: []
   type: TYPE_TB
+  zh: '| **输入** | **目标** | **W * x** |'
 - en: '| 1 | 0.5 | 2 |'
+  id: totrans-165
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | 0.5 | 2 |'
 - en: '| 2 | 1.0 | 4 |'
+  id: totrans-166
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 1.0 | 4 |'
 - en: '| 3 | 1.5 | 6 |'
+  id: totrans-167
   prefs: []
   type: TYPE_TB
+  zh: '| 3 | 1.5 | 6 |'
 - en: '| 4 | 2.0 | 8 |'
+  id: totrans-168
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 2.0 | 8 |'
 - en: 'Now that we have the output of our *guess*, we can compare this *guess* to
     the answer we are expecting and calculate the relative error. For example, in
     this table, we are using the sum of the squared errors:'
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了我们*猜测*的输出，我们可以将这个*猜测*与我们预期的答案进行比较，并计算相对误差。例如，在这个表格中，我们使用了平方误差的总和：
 - en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
     |'
+  id: totrans-170
   prefs: []
   type: TYPE_TB
+  zh: '| **输入** | **目标** | **W * x** | **绝对误差** | **平方误差** |'
 - en: '| 1 | 0.5 | 2 | -1.5 | 2.25 |'
+  id: totrans-171
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | 0.5 | 2 | -1.5 | 2.25 |'
 - en: '| 2 | 1.0 | 4 | -3.0 | 9 |'
+  id: totrans-172
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 1.0 | 4 | -3.0 | 9 |'
 - en: '| 3 | 1.5 | 6 | -4.5 | 20.25 |'
+  id: totrans-173
   prefs: []
   type: TYPE_TB
+  zh: '| 3 | 1.5 | 6 | -4.5 | 20.25 |'
 - en: '| 4 | 2.0 | 8 | -6.0 | 36 |'
+  id: totrans-174
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 2.0 | 8 | -6.0 | 36 |'
 - en: By adding up the values in the last column of the preceding tables, we now have
     a sum of the squared errors, a total of 67.5.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过将前述表格中最后一列的值相加，我们现在有了平方误差的总和，为 67.5。
 - en: We can certainly brute force all of the values from -10 to +10 to get an answer,
     but surely there must be a better way? Ideally, we want a more efficient way that
     scales to datasets that are not simple tables with four inputs.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们当然可以通过 brute force 方式计算从 -10 到 +10 的所有值来得出一个答案，但肯定还有更好的方法吧？理想情况下，我们希望有一种更高效的方法，适用于不是简单四个输入的数据集。
 - en: 'A better method is to check the derivative (or gradient). One way we can do
     this is to do this same calculation again, but with a slightly higher weight;
     for example, let''s try *W = 2.01*. The following table shows these results:'
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 更好的方法是检查导数（或梯度）。我们可以通过稍微增加权重再次进行同样的计算来做到这一点；例如，让我们试试 *W = 2.01*。以下表格显示了这些结果：
 - en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
     |'
+  id: totrans-178
   prefs: []
   type: TYPE_TB
+  zh: '| **输入** | **目标** | **W * x** | **绝对误差** | **平方误差** |'
 - en: '| 1 | 0.5 | 2.01 | -1.51 | 2.2801 |'
+  id: totrans-179
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | 0.5 | 2.01 | -1.51 | 2.2801 |'
 - en: '| 2 | 1.0 | 4.02 | -3.02 | 9.1204 |'
+  id: totrans-180
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 1.0 | 4.02 | -3.02 | 9.1204 |'
 - en: '| 3 | 1.5 | 6.03 | -4.53 | 20.5209 |'
+  id: totrans-181
   prefs: []
   type: TYPE_TB
+  zh: '| 3 | 1.5 | 6.03 | -4.53 | 20.5209 |'
 - en: '| 4 | 2.0 | 8.04 | -6.04 | 36.4816 |'
+  id: totrans-182
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 2.0 | 8.04 | -6.04 | 36.4816 |'
 - en: 'This gives us a sum of the squared errors of 68.403; this is higher! This means
     that, intuitively, if we increase the weight, we''re likely to see an increase
     in the error. The inverse is also true; if we decrease the weight, we are likely
     to see a decrease in the error. For example, let''s try *W = 1.99*, as shown in
     the following table:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给了我们一个平方误差和为 68.403；这更高了！这意味着，直觉上来说，如果我们增加权重，误差可能会增加。反之亦然；如果我们减少权重，误差可能会减少。例如，让我们尝试
+    *W = 1.99*，如下表所示：
 - en: '| **Input** | **Target** | **W * x** | **Absolute error** | **Squared error**
     |'
+  id: totrans-184
   prefs: []
   type: TYPE_TB
+  zh: '| **输入** | **目标** | **W * x** | **绝对误差** | **平方误差** |'
 - en: '| 0 | 0 | 0 | 0 | 0 |'
+  id: totrans-185
   prefs: []
   type: TYPE_TB
+  zh: '| 0 | 0 | 0 | 0 | 0 |'
 - en: '| 4 | 2 | 4.04 | -1.996 | 3.984016 |'
+  id: totrans-186
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 2 | 4.04 | -1.996 | 3.984016 |'
 - en: '| 8 | 4 | 8.08 | -3.992 | 15.93606 |'
+  id: totrans-187
   prefs: []
   type: TYPE_TB
+  zh: '| 8 | 4 | 8.08 | -3.992 | 15.93606 |'
 - en: '| 16 | 8 | 15.84 | -7.984 | 63.74426 |'
+  id: totrans-188
   prefs: []
   type: TYPE_TB
+  zh: '| 16 | 8 | 15.84 | -7.984 | 63.74426 |'
 - en: This gives us a lower error of 83.66434.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给了我们一个较低的误差值为 83.66434。
 - en: If we were to plot the error for a given range of *W*, you can see that there
     is a natural bottom point. This is how we can descend on the gradient to minimize
     the errors.
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们绘制给定范围内 *W* 的误差，你会发现有一个自然的底点。这是我们通过梯度下降来最小化误差的方式。
 - en: For this specific example, we can easily plot the error as a function of our
     weights.
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这个具体的例子，我们可以轻松地将误差作为权重函数来绘制。
 - en: 'The goal is to follow the slope to the bottom, where the error is zero:'
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标是沿着斜坡向下走，直到误差为零：
 - en: '![](img/1e475b0f-acd8-420e-a0ec-113854ab4e41.png)'
+  id: totrans-193
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/1e475b0f-acd8-420e-a0ec-113854ab4e41.png)'
 - en: 'Let''s try applying a weight update to our example to illustrate how this works.
     In general, we follow something called the **delta learning rule**, which is basically
     similar to the following:'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们尝试对我们的例子应用一个权重更新来说明这是如何工作的。一般来说，我们遵循的是所谓的**增量学习规则**，其基本原理与以下类似：
 - en: '*new_W = old_W - eta * derivative*'
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: '*new_W = old_W - eta * derivative*'
 - en: 'In this formula, *eta* is a constant, sometimes also called the **learning
     rate**. Recall that when we call `solver` in Gorgonia, we include a learning rate
     as one of the options, as shown here:'
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个公式中，*eta* 是一个常数，有时也被称为**学习率**。回想一下，在 Gorgonia 中调用 `solver` 时，我们将学习率作为其中的一个选项，如下所示：
 - en: '[PRE25]'
+  id: totrans-197
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: You will also often see a 0.5 term added to the derivative for the error with
     respect to the output. This is because, if our error function is a square function,
     the derivative will be 2, so the 0.5 term is put there to cancel it out; however,
     *eta* is a constant anyway (so you can also just consider it absorbed into the
     *eta* term).
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 你会经常看到一个 `0.5` 项被添加到关于输出的误差的导数中。这是因为，如果我们的误差函数是一个平方函数，那么导数将是 `2`，所以 `0.5` 项被放在那里来抵消它；然而，*eta*
+    是一个常数（所以你也可以考虑它被吸收到 *eta* 项中）。
 - en: So, first, we need to work out what the derivative is for the error with respect
     to the output.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，首先，我们需要计算关于输出的误差的导数是什么。
 - en: 'If we were to say that our learning rate was `0.001`, this makes our new weight
     the following:'
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们假设我们的学习率是 `0.001`，那么我们的新权重将会是以下内容：
 - en: '[PRE26]'
+  id: totrans-201
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'If we were to compute this, `new_W` would be `1.89866`. This is closer to our
     eventual target weight of 0.5, and, with enough repetition, we would eventually
     get there. You''ll notice that our learning rate is small. If we set it too large
@@ -860,78 +1266,114 @@
     negative instead, so we would end up going round and round our gradient, instead
     of descending it. Our choice of learning rate is important: too small and our
     model will take too long to converge, and too large and it may even diverge instead.'
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们要计算这个，`new_W` 将会是 `1.89866`。这更接近我们最终目标权重 `0.5`，并且通过足够的重复，我们最终会达到目标。你会注意到我们的学习率很小。如果我们设置得太大（比如说，设为
+    `1`），我们会调整权重到太负的方向，这样我们会在梯度周围打转，而不是向下降。学习率的选择非常重要：太小的话模型收敛会太慢，太大的话甚至可能会发散。
 - en: Backpropagation
+  id: totrans-203
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 反向传播
 - en: This is a simple example. For complicated models with thousands, or even millions,
     of parameters across a number of layers, there are convolutional networks and
     we need to be more intelligent about how we propagate these updates back through
     our network. This is true for networks with a number of layers (increasing the
     number of parameters accordingly), with new research coming out that, in an extreme
     example, includes CNNs of 10,000 layers.
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个简单的例子。对于具有数千甚至数百万参数的复杂模型，以及涉及多层的情况，我们需要更加智能地将这些更新传播回我们的网络。对于具有多层的网络（相应地增加了参数的数量），新的研究结果显示，例如包含
+    10,000 层的 CNNs 也不例外。
 - en: So, how can we go about this? The easiest way is to build your neural network
     out of functions for which we know the derivative. We can do this symbolically
     or on a more practical basis; if we build it out of functions where we know how
     to apply the function and where we know how to backpropagate (by virtue of knowing
     how to write a function for the derivative), we can build a neural network out
     of these functions.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，我们怎么做呢？最简单的方法是通过使用我们知道导数的函数来构建你的神经网络。我们可以在符号上或更实际地进行这样的操作；如果我们将其构建成我们知道如何应用函数以及我们知道如何反向传播（通过知道如何编写导数函数），我们就可以基于这些函数构建一个神经网络。
 - en: Of course, building these functions can be time-consuming. Fortunately, Gorgonia
     already has all of these, hence allowing us to do what we call auto-differentiation.
     As I have mentioned previously, we create a directed graph for computation; this
     allows to do not only the forward pass but the backward pass as well!
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，构建这些函数可能会耗费大量时间。幸运的是，Gorgonia 已经包含了所有这些功能，因此我们可以进行所谓的自动微分。正如我之前提到的，我们为计算创建了一个有向图；这不仅允许我们进行前向传播，还允许我们进行反向传播！
 - en: 'For example, let''s consider something with more layers (although still simple)
     like the following, where **i** is the input, **f** is the first layer with weight
     *w1,* **g** is the second layer with the weight, *w2,* and **o** is the output:'
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，让我们考虑一些更多层次的东西（虽然仍然简单），就像下面的这个例子，其中 **i** 是输入，**f** 是具有权重 *w1* 的第一层，**g**
+    是具有权重 *w2* 的第二层，**o** 是输出：
 - en: '![](img/d3f713e0-acf6-4fb8-b4dc-27ae1083482b.png)'
+  id: totrans-208
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/d3f713e0-acf6-4fb8-b4dc-27ae1083482b.png)'
 - en: First, we have the error, which is a function of *o*. Let's call this *E*.
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们有一个与 *o* 有关的错误，让我们称之为 *E*。
 - en: In order to update our weights in *g*, we need to know the derivative of the
     error with respect to the input of *g*.
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了更新我们在 *g* 中的权重，我们需要知道关于 *g* 的输入的误差的导数。
 - en: 'From the chain rule when dealing with derivatives, we know that this is actually
     equivalent to the following:'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据导数的链式法则，当处理导数时，我们知道这实际上等效于以下内容：
 - en: '*dE_dg = dE_do * do_dg * dg_dw2*'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: '*dE_dg = dE_do * do_dg * dg_dw2*'
 - en: That is to say, the derivative of the error with respect to the input of *g
     (dE_dg)* is actually equivalent to the derivative of the error with respect to
     the output, (*dE_do*), multiplied by the derivative of the output with respect
     to the function, *g (do_dg),* and then multiplied by the derivative of the function, *g*,
     with respect to *w2*.
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 也就是说，关于 *g (dE_dg)* 的误差导数实际上等同于关于输出的误差导数 (*dE_do*)，乘以关于函数 *g (do_dg)* 的输出的导数，然后乘以函数
+    *g* 关于 *w2* 的导数。
 - en: This gives us the derivative rate we need to update our weights in *g*.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给了我们更新权重在 *g* 中的导数速率。
 - en: 'We now need to do the same for *f*. How? It is a matter of repeating the process.
     We need the derivative of the error with respect to the input of *f*. Using the
     chain rule again, we know that the following is true:'
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们需要对 *f* 做同样的事情。怎么做？这是一个重复的过程。我们需要关于 *f* 的输入的误差的导数。再次使用链式法则，我们知道以下内容是正确的：
 - en: '*dE_df = dE_do * do_dg * dg_df * df_dw1*'
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
+  zh: '*dE_df = dE_do * do_dg * dg_df * df_dw1*'
 - en: You'll notice that there is something in common here with the previous derivative,
     *dE_do * do_dg*.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 你会注意到这里与先前导数的共同之处，*dE_do * do_dg*。
 - en: This presents us with an opportunity for further optimization. We don't have
     to calculate the entirety of the derivative each time; we only need to know the
     derivative of the layer we are backpropagating from and the derivative of the
@@ -940,18 +1382,24 @@
     weights throughout our entire network without constantly needing to recalculate
     the derivatives of the error with respect to the specific weight that we are targeting
     from scratch, and we can reuse the result of previous calculations.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 这为我们提供了进一步优化的机会。每次都不必计算整个导数；我们只需要知道我们正在反向传播的层的导数以及我们正在反向传播到的层的导数，这在整个网络中都是成立的。这被称为反向传播算法，它允许我们在整个网络中更新权重，而无需不断重新计算特定权重相对于错误的导数，并且我们可以重复使用先前计算的结果。
 - en: Stochastic gradient descent
+  id: totrans-219
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 随机梯度下降
 - en: 'We can further optimize the training process with a simple change. With basic
     (or batch) gradient descent, we calculate the adjustment by looking at the entire
     dataset. Therefore, the next obvious step for optimization is: can we calculate
     the adjustment by looking at less than the entire dataset?'
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过简单的改变进一步优化训练过程。使用基本（或批量）梯度下降，我们通过查看整个数据集来计算调整量。因此，优化的下一个明显步骤是：我们可以通过查看少于整个数据集来计算调整量吗？
 - en: As it turns out, the answer is yes! As we are expecting to train the network
     over numerous iterations, we can take advantage of the fact that we expect the
     gradient to be updated multiple times by calculating it for fewer examples. We
@@ -959,43 +1407,59 @@
     for each network update, we can significantly reduce the amount of computation
     required, meaning faster training times. This is essentially a stochastic approximation
     to gradient descent and, hence, how it got its name.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 事实证明答案是肯定的！由于我们预期要对网络进行多次迭代训练，我们可以利用我们预期梯度会被多次更新这一事实，通过为较少的示例计算来减少计算量。我们甚至可以仅通过计算单个示例来实现这一点。通过为每次网络更新执行较少的计算，我们可以显著减少所需的计算量，从而实现更快的训练时间。这本质上是梯度下降的随机逼近，因此它得名于此。
 - en: Advanced gradient descent algorithms
+  id: totrans-222
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 高级梯度下降算法
 - en: Now that we have an understanding of SGD and backpropagation, let's look at
     a number of advanced optimization methods (building on SGD) that offer us some
     kind of advantage, usually an improvement in training time (or the time it takes
     to minimize the cost function to the point where our network converges).
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了 SGD 和反向传播，让我们看看一些高级优化方法（基于 SGD），这些方法通常提供一些优势，通常是在训练时间（或将成本函数最小化到网络收敛点所需的时间）上的改进。
 - en: 'These *improved* methods include a general notion of velocity as an optimization
     parameter. Quoting from Wibisono and Wilson, in the opening to their paper on
     *Accelerated Methods in* *Optimization*:'
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些*改进*的方法包括速度作为优化参数的一般概念。引用 Wibisono 和 Wilson，在他们关于*优化中的加速方法*的论文开篇中说道：
 - en: '"In convex optimization, there is an acceleration phenomenon in which we can
     boost the convergence rate of certain gradient-based algorithms."'
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: '"在凸优化中，存在一种加速现象，可以提高某些基于梯度的算法的收敛速度。"'
 - en: In brief, a number of these advanced algorithms all rely on a similar principle—that
     they can pass through local optima quickly, carried by their *momentum—*essentially,
     a moving average of our gradients.
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，这些先进的算法大多依赖于类似的原则——它们可以快速通过局部最优点，受其*动量*的驱动——本质上是我们梯度的移动平均。
 - en: Momentum
+  id: totrans-227
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 动量
 - en: When thinking about optimization of gradient descent, we can certainly use intuition
     from real life to help to inform our methods. One example of this is momentum.
     If we imagine that most error gradients are really like a bowl, with the desired
     point in the middle, if we start from the highest point of the bowl, it could
     take us a long time to get to the bottom of the bowl.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 在考虑梯度下降的优化时，我们确实可以借鉴现实生活中的直觉来帮助我们的方法。其中一个例子就是动量。如果我们想象大多数误差梯度实际上就像一个碗，理想的点在中间，如果我们从碗的最高点开始，可能需要很长时间才能到达碗的底部。
 - en: If we think about some real-life physics, the steeper the side of the bowl,
     the quicker a ball would fall along the side as it gained momentum. Taking this
     as inspiration, we get what we can consider the momentum variation of SGD; we
@@ -1003,148 +1467,218 @@
     the gradient continues to go down the same direction, we give it more momentum.
     Alternatively, if we found that the gradient was changing direction, we'd reduce
     the amount of momentum.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们考虑一些真实的物理现象，碗的侧面越陡，球沿着侧面下降时速度越快。以此为灵感，我们可以得到我们可以考虑的 SGD 动量变体；我们试图通过考虑，如果梯度继续朝同一方向下降，我们给予它更多的动量来加速梯度下降。另外，如果我们发现梯度改变方向，我们会减少动量的量。
 - en: 'While we don''t want to get bogged down in heavy maths, there is a simple formula
     to calculate *momentum*. It is as follows:'
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然我们不想陷入繁重的数学中，但有一个简单的公式可以计算*动量*。如下所示：
 - en: '*V = momentum * m - lr * g*'
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: '*V = 动量 * m - lr * g*'
 - en: Here, *m* is the previous weight update, *g* is the current gradient with respect
     to parameter *p*, *lr* is the learning rate of our solver, and *momentum* is a
     constant.
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，*m* 是先前的权重更新，*g* 是关于参数 *p* 的当前梯度，*lr* 是我们求解器的学习率，而 *momentum* 是一个常数。
 - en: 'So, if we want to understand exactly how to update our network parameters,
     we can adjust the formula in the following way:'
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，如果我们想确切地了解如何更新我们的网络参数，我们可以通过以下方式调整公式：
 - en: '*P(new) = p + v = p + momentum * m - lr * g*'
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: '*P(新) = p + v = p + 动量 * m - lr * g*'
 - en: What does this mean in practice? Let's look at some code.
+  id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 这在实践中意味着什么？让我们看看一些代码。
 - en: 'Firstly, in Gorgonia, the basic interface for all optimization methods or solvers
     looks like this:'
+  id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，在 Gorgonia 中，所有优化方法或求解器的基本接口如下所示：
 - en: '[PRE27]'
+  id: totrans-237
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'We then have the following function that provides construction options for
     a `Solver`:'
+  id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们有以下函数，为`Solver`提供构建选项：
 - en: '[PRE28]'
+  id: totrans-239
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: The primary option to set is, of course, to use momentum itself; the `SolverOpt` option
     for this is `WithMomentum`. Solver options that apply include `WithL1Reg`, `WithL2Reg`,
     `WithBatchSize`, `WithClip`, and `WithLearnRate`.
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，设置的主要选项是使用动量本身；这个`SolverOpt`选项是`WithMomentum`。适用的求解器选项包括`WithL1Reg`、`WithL2Reg`、`WithBatchSize`、`WithClip`和`WithLearnRate`。
 - en: 'Let''s use our code example from the beginning of this chapter, but, instead
     of vanilla SGD, let''s use the momentum solver in its most basic form, as follows:'
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们使用本章开头的代码示例，但不使用普通的 SGD，而是使用动量求解器的最基本形式，如下所示：
 - en: '[PRE29]'
+  id: totrans-242
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: That's it! But that doesn't tell us much, just that Gorgonia is, like any good
     machine learning library, flexible and modular enough that we can simply swap
     out our solvers (and measure relative performance!).
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 就这样！但这并没有告诉我们太多，只是 Gorgonia 就像任何优秀的机器学习库一样，足够灵活和模块化，我们可以简单地替换我们的求解器（并衡量相对性能！）。
 - en: 'So, let''s take a look at the function we are calling, as shown in the following
     code:'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看我们正在调用的函数，如下所示的代码：
 - en: '[PRE30]'
+  id: totrans-245
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: We can see here the `momentum` constant we referenced in the original formula
     for this method, together with `eta`, which is our learning rate. This is all
     we need to do; apply the momentum solver to our model!
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以在这里看到我们在原始公式中引用的`momentum`常数，以及`eta`，这是我们的学习率。这就是我们需要做的一切；将动量求解器应用于我们的模型！
 - en: Nesterov momentum
+  id: totrans-247
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Nesterov动量
 - en: In Nesterov momentum, we are changing where/when we compute the gradient. We
     make a big jump in the direction of the previously accumulated gradient. Then,
     we measure the gradient at this new position and make a correction/update accordingly.
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: 在Nesterov动量中，我们改变了计算梯度的位置/时间。我们朝着先前累积梯度的方向跳得更远。然后，在这个新位置测量梯度，并相应地进行修正/更新。
 - en: This correction prevents the ordinary momentum algorithm from updating too quickly,
     hence producing fewer oscillations as the gradient descent tries to converge.
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种修正防止了普通动量算法更新过快，因此在梯度下降试图收敛时产生更少的振荡。
 - en: RMSprop
+  id: totrans-250
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: RMSprop
 - en: 'We can also think about optimization in a different way: what if we adjust
     the learning rate based on feature importance? We could decrease the learning
     rate when we are updating parameters on common features and then increase it when
     we are looking at more uncommon ones. This also means that we can spend less time
     optimizing the learning rate. There are several variations of this idea that have
     been proposed, but the most popular by far is called RMSprop.'
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们也可以从不同的角度思考优化：如果我们根据特征重要性调整学习率会怎样？当我们在更新常见特征的参数时，我们可以降低学习率，然后在处理不常见特征时增加学习率。这也意味着我们可以花更少的时间优化学习率。有几种变体的这种想法已被提出，但迄今最受欢迎的是RMSprop。
 - en: RMSprop is a modified form of SGD that, while unpublished, is elaborated in
     Geoffrey Hinton's *Neural Networks for Machine Learning*. RMSprop sounds fancy,
     but it could just as easily be called **adaptive gradient descent**. The basic
     idea is you modify your learning rate based on certain conditions.
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: RMSprop是SGD的修改形式，虽然未公开，但在Geoffrey Hinton的《机器学习的神经网络》中有详细阐述。RMSprop听起来很高级，但也可以简单地称为**自适应梯度下降**。基本思想是根据某些条件修改学习率。
 - en: 'These conditions can be stated simply as follows:'
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些条件可以简单地陈述如下：
 - en: If the gradient of the function is small but consistent, then increase the learning
     rate
+  id: totrans-254
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果函数的梯度很小但一致，那么增加学习率
 - en: If the gradient of the function is large but inconsistent, then decrease the
     learning rate
+  id: totrans-255
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果函数的梯度很大但不一致，那么降低学习率
 - en: RMSprop's specific method of doing this is by dividing the learning rate for
     a weight by a decaying average of the previous gradients.
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: RMSprop的具体做法是通过将权重的学习率除以先前梯度的衰减平均来实现的。
 - en: 'Gorgonia supports RMSprop natively. As with the momentum example, you simply
     swap out your `solver`. Here is how you define it, together with a number of `solveropts`
     you would want to pass in:'
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: Gorgonia本身支持RMSprop。与动量示例类似，您只需更换您的`solver`。以下是您如何定义它，以及您想要传递的多个`solveropts`：
 - en: '[PRE31]'
+  id: totrans-258
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Inspecting the underlying function, we see the following options and their
     associated defaults for decay factor, smoothing factor, and learning rate, respectively:'
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 检查底层函数时，我们看到以下选项及其相关的默认衰减因子、平滑因子和学习率：
 - en: '[PRE32]'
+  id: totrans-260
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: Summary
+  id: totrans-261
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: In this chapter, we covered how to build a simple neural network and how to
     inspect your graph, as well as many of the commonly used activation functions.
     We then covered the basics of how a neural network is trained via backpropagation
     and gradient descent. Finally, we discussed some of the different options for
     gradient descent algorithms and optimizations for your neural network.
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们介绍了如何构建简单的神经网络以及如何检查您的图表，以及许多常用的激活函数。然后，我们介绍了神经网络通过反向传播和梯度下降进行训练的基础知识。最后，我们讨论了一些不同的梯度下降算法选项以及神经网络的优化方法。
 - en: The next chapter will cover building a practical feedforward neural network
     and autoencoders, as well as **Restricted Boltzmann Machines** (**RBMs**).
+  id: totrans-263
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一章将介绍构建实用的前馈神经网络和自编码器，以及**受限玻尔兹曼机**（**RBMs**）。

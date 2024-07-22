@@ -1,7 +1,9 @@
 - en: '*Chapter 5*: Recurrent Neural Networks and Sentiment Analysis'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第5章*：递归神经网络和情感分析'
 - en: In this chapter, we will look at **Recurrent Neural Networks** (**RNNs**), a
     variation of the basic feed forward neural networks in PyTorch that we learned
     how to build in [*Chapter 1*](B12365_01_Final_JC_ePub.xhtml#_idTextAnchor015)*,
@@ -15,47 +17,68 @@
     a whole document as a sequence of vectors (or an order 3 tensor). We can then
     use RNNs (and a more sophisticated form of RNN known as **Long Short-Term Memory**
     (**LSTM**) to learn from our data.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将研究**递归神经网络**（**RNNs**），这是PyTorch中的基本前馈神经网络的变体，我们在[*第1章*](B12365_01_Final_JC_ePub.xhtml#_idTextAnchor015)*，机器学习基础*中学习了如何构建。通常情况下，RNNs可以用于数据可以表示为序列的任何任务。这包括诸如股票价格预测的事情，使用时间序列的历史数据表示为序列。我们通常在NLP中使用RNNs，因为文本可以被视为单词的序列并且可以建模为这样的序列。虽然传统神经网络将单个向量作为输入模型，但是RNN可以接受整个向量序列。如果我们将文档中的每个单词表示为向量嵌入，我们可以将整个文档表示为向量序列（或三阶张量）。然后，我们可以使用RNNs（以及称为**长短期记忆**（**LSTM**）的更复杂形式的RNN）从我们的数据中学习。
 - en: In this chapter, we will cover the basics of RNNs and the more advanced LSTM.
     We will then look at sentiment analysis and work through a practical example of
     how to build an LSTM to classify documents using PyTorch. Finally, we will host
     our simple model on Heroku, a simple cloud application platform, which will allow
     us to make predictions using our model.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖RNN的基础知识以及更高级的LSTM。然后，我们将看看情感分析，并通过一个实际例子演示如何使用PyTorch构建LSTM来对文档进行分类。最后，我们将在Heroku上托管我们的简单模型，这是一个简单的云应用平台，可以让我们使用我们的模型进行预测。
 - en: 'This chapter covers the following topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章涵盖以下主题：
 - en: Building RNNs
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 构建RNNs
 - en: Working with LSTMs
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用LSTM
 - en: Building a sentiment analyzer using LSTM
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用LSTM构建情感分析器
 - en: Deploying the application on Heroku
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在Heroku上部署应用程序
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: All the code used in this chapter can be found at [https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x/tree/master/Chapter5](https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x/tree/master/Chapter5).
     Heroku can be installed from [www.heroku.com](http://www.heroku.com). The data
     was taken from [https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences](https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中使用的所有代码都可以在 [https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x/tree/master/Chapter5](https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x/tree/master/Chapter5)
+    找到。Heroku 可以从 [www.heroku.com](http://www.heroku.com) 安装。数据来自 [https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences](https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences)。
 - en: Building RNNs
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 构建RNNs
 - en: RNNs consist of recurrent layers. While they are similar in many ways to the
     fully connected layers within a standard feed forward neural network, these recurrent
     layers consist of a hidden state that is updated at each step of the sequential
@@ -69,50 +92,74 @@
     over from the previous computation and updated, is why we refer to these networks
     as recurrent. This final hidden state is then connected to a further fully connected
     layer and a final classification is predicted.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: RNN由递归层组成。虽然在许多方面与标准前馈神经网络中的全连接层相似，但这些递归层包含一个在顺序输入的每个步骤中更新的隐藏状态。这意味着对于任何给定的序列，模型都以隐藏状态初始化，通常表示为一维向量。然后，我们的序列的第一步被送入模型，隐藏状态根据一些学习参数进行更新。然后再将第二个单词送入网络，隐藏状态再次根据其他学习参数进行更新。重复这些步骤，直到整个序列被处理完毕，我们得到最终的隐藏状态。这个计算*循环*，隐藏状态从先前的计算中传递并更新，是我们称之为递归的网络的原因。然后将这个最终的隐藏状态连接到更进一步的全连接层，并预测最终的分类。
 - en: 'Our recurrent layer looks something like the following, where *h* is the hidden
     state and *x* is our input at various time steps in our sequence. For each iteration,
     we update our hidden state at each time step, *x*:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的递归层大致如下所示，其中*h*为隐藏状态，*x*为我们序列中各个时间步的输入。对于每次迭代，我们更新每个时间步的隐藏状态*x*：
 - en: '![Figure 5.1 – Recurrent layer'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.1 – 循环层'
 - en: '](img/B12365_05_1.jpg)'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_1.jpg)'
 - en: Figure 5.1 – Recurrent layer
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.1 – 循环层
 - en: 'Alternatively, we can expand this out to the whole sequence of time steps,
     which looks like this:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 或者，我们可以将其扩展到整个时间步骤序列，如下所示：
 - en: '![Figure 5.2 – Sequence of time steps'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.2 – 时间步骤序列'
 - en: '](img/B12365_05_2.jpg)'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_2.jpg)'
 - en: Figure 5.2 – Sequence of time steps
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.2 – 时间步骤序列
 - en: This layer is for an input that is *n* time steps long. Our hidden state is
     initialized in state *h*0, and then uses our first input, *x*1, to compute the
     next hidden state, *h*1\. There are two sets of weight matrices that are also
     learned—matrix *U*, which learns how the hidden state changes between time steps,
     and matrix *W*, which learns how each input step affects the hidden state.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 此层适用于*n*个时间步骤的输入。我们的隐藏状态在状态*h*0中初始化，然后使用第一个输入*x*1来计算下一个隐藏状态*h*1。还有两组权重矩阵需要学习——矩阵*U*学习隐藏状态在时间步骤之间的变化，矩阵*W*学习每个输入步骤如何影响隐藏状态。
 - en: 'We also apply a *tanh* activation function to the resulting product, keeping
     the values of the hidden state between -1 and 1\. The equation for calculating
     any hidden state, *h*t, becomes the following:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还对结果乘积应用*tanh*激活函数，将隐藏状态的值保持在-1到1之间。计算任意隐藏状态*h*t的方程如下：
 - en: '![](img/Formula_05_001.png)'
+  id: totrans-22
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/Formula_05_001.png)'
 - en: This is then repeated for each time step within our input sequence, and the
     final output for this layer is our last hidden state, *h*n. When our network learns,
     we perform a forward pass through the network, as before, to compute our final
@@ -120,18 +167,24 @@
     through the network, as before, calculating gradients as we go. This backpropagation
     process occurs through all the steps within the recurrent layer, with the parameters
     between each input step and the hidden state being learned.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后对输入序列中的每个时间步骤重复此过程，该层的最终输出是我们的最后一个隐藏状态*h*n。当网络学习时，我们执行网络的前向传播，计算最终的分类。然后根据这个预测计算损失，并像以前一样反向传播，计算梯度。这个反向传播过程发生在递归层内的所有步骤中，学习每个输入步骤和隐藏状态之间的参数。
 - en: We will see later that we can actually take the hidden state at each time step,
     rather than using the final hidden state, which is useful for sequence-to-sequence
     translation tasks in NLP. However, for the time being, we will just take the hidden
     layer as output to the rest of the network.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 后面我们将看到，实际上我们可以获取每个时间步的隐藏状态，而不是使用最终的隐藏状态，这对于自然语言处理中的序列到序列翻译任务非常有用。然而，目前我们将隐藏层的输出作为网络的其余部分的输出。
 - en: Using RNNs for sentiment analysis
+  id: totrans-25
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用 RNN 进行情感分析
 - en: 'In the context of sentiment analysis, our model is trained on a sentiment analysis
     dataset of reviews that consists of a number of reviews in text and a label of
     0 or 1, depending on whether the review is negative or positive. This means that
@@ -142,25 +195,38 @@
     through another fully connected layer. Our model''s output is a single value between
     0 and 1, depending on whether our model predicts a negative or positive sentiment
     from the sentence. This means our complete classification model looks like this:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 在情感分析的背景下，我们的模型是在一个评论情感分析数据集上训练的，该数据集包含多个文本评论和一个标签，标签为 0 或 1，取决于评论是负面还是正面。这意味着我们的模型成为一个分类任务（其中两个类别是负面/正面）。我们的句子通过一个学习到的词嵌入层，形成包含多个向量（每个单词一个向量）的句子表示。然后，这些向量按顺序馈送到我们的
+    RNN 层，最终隐藏状态通过另一个全连接层。我们模型的输出是一个介于 0 和 1 之间的单个值，取决于我们的模型是否预测从句子中获得负面或正面情感。这意味着我们完整的分类模型看起来像这样：
 - en: '![Figure 5.3 – Classification model'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.3 – 分类模型'
 - en: '](img/B12365_05_3.jpg)'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_3.jpg)'
 - en: Figure 5.3 – Classification model
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.3 – 分类模型
 - en: Now, we will highlight one of the issues with RNNs—exploding and shrinking gradients—and
     how we can remedy this using gradient clipping.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将重点介绍 RNN 中的一个问题——梯度爆炸和梯度消失——以及我们如何使用梯度裁剪来解决这个问题。
 - en: Exploding and shrinking gradients
+  id: totrans-31
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 梯度爆炸和梯度消失
 - en: One issue that we are often faced with within RNNs is that of **exploding or
     shrinking gradients**. We can think of the recursive layer as a very deep network.
     When calculating the gradients, we do so at every iteration of the hidden state.
@@ -172,29 +238,44 @@
     very small, this will again have a multiplicative effect and the gradients will
     be close to 0\. This means that the gradients can become too small to accurately
     update our parameters via gradient descent, meaning our model fails to learn.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 RNN 中经常遇到的一个问题是**梯度爆炸或梯度消失**。我们可以将递归层视为一个非常深的网络。在计算梯度时，我们在每次隐藏状态迭代时进行。如果在任何给定位置，损失相对于权重的梯度变得非常大，这将在通过递归层所有迭代时产生乘性效应。这可能会导致梯度因快速增长而爆炸。如果我们有大的梯度，这可能会导致网络不稳定。另一方面，如果我们的隐藏状态中的梯度非常小，这将再次产生乘性效应，并且梯度将接近
+    0。这意味着梯度可能变得太小，无法通过梯度下降准确更新我们的参数，从而导致我们的模型无法学习。
 - en: 'One technique we can use to prevent our gradients from exploding is to use
     **gradient clipping**. This technique limits our gradients to prevent them from
     becoming too large. We simply choose a hyperparameter, *C*, and can calculate
     our clipped gradient, as follows:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以使用的一种技术来防止梯度爆炸是使用**梯度裁剪**。这种技术限制了我们的梯度，防止它们变得太大。我们只需选择一个超参数 *C*，可以计算我们的裁剪梯度如下：
 - en: '![](img/Formula_05_002.png)'
+  id: totrans-34
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/Formula_05_002.png)'
 - en: 'The following graph shows the relationship between the two variables:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 下图显示了两个变量之间的关系：
 - en: '![Figure 5.4 – Comparison of gradient clipping'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.4 – 梯度裁剪比较'
 - en: '](img/B12365_05_4.jpg)'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_4.jpg)'
 - en: Figure 5.4 – Comparison of gradient clipping
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.4 – 梯度裁剪比较
 - en: Another technique we can use to prevent exploding or disappearing gradients
     is to shorten our input sequence length. The effective depth of our recurrent
     layer depends on the length of our input sequence as the sequence length determines
@@ -203,17 +284,23 @@
     accumulation between hidden states will be. By intelligently picking the maximum
     sequence length as a hyperparameter in our model, we can help prevent exploding
     and vanishing gradients.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种防止梯度爆炸或消失的技术是缩短输入序列长度。我们的递归层的有效深度取决于输入序列的长度，因为序列长度决定了我们在隐藏状态上需要执行多少次迭代更新。在这个过程中步骤越少，隐藏状态之间的梯度累积的乘法效应就越小。通过在模型中智能地选择最大序列长度作为超参数，我们可以帮助防止梯度爆炸和消失。
 - en: Introducing LSTMs
+  id: totrans-40
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入LSTMs
 - en: While RNNs allow us to use sequences of words as input to our models, they are
     far from perfect. RNNs suffer from two main flaws, which can be partially remedied
     by using a more sophisticated version of the RNN, known as **LSTM**.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然RNN允许我们将单词序列作为模型的输入，但它们远非完美。RNN有两个主要缺陷，可以通过使用更复杂版本的RNN——**LSTM**——来部分解决。
 - en: The basic structure of RNNs means that it is very difficult for them to retain
     information long term. Consider a sentence that's 20 words long. From our first
     word in the sentence affecting the initial hidden state to the last word in the
@@ -223,16 +310,20 @@
     good at capturing long-term dependencies within sequences. This also ties in with
     the vanishing gradient problem mentioned earlier, where it is very inefficient
     to backpropagate through long, sparse sequences of vectors.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: RNN的基本结构意味着它们很难长期保留信息。考虑一个有20个单词的句子。从句子的第一个单词影响初始隐藏状态到句子的最后一个单词，我们的隐藏状态被更新了20次。从句子开头到最终的隐藏状态，对于RNN来说，很难保留句子开头单词的信息。这意味着RNN不擅长捕捉序列中的长期依赖关系。这也与前面提到的梯度消失问题相关联，即通过长而稀疏的向量序列反向传播非常低效。
 - en: Consider a long paragraph where we are trying to predict the next word. The
     sentence begins with `I study math…` and ends with `my final exam is in…`. Intuitively,
     we would expect the next word to be `math` or some math-related field. However,
     in an RNN model on a long sequence, our hidden state may struggle to retain the
     information for the beginning of the sentence by the time it reaches the end of
     the sentence as it takes multiple update steps.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑一个长段落，我们试图预测下一个单词。句子以`I study math…`开头，以`my final exam is in…`结束。直觉上，我们期望下一个单词是`math`或某个与数学相关的领域。然而，在一个长序列的RNN模型中，我们的隐藏状态可能在到达句子末尾时难以保留句子开头的信息，因为它经历了多次更新步骤。
 - en: We should also note that RNNs are poor at capturing the context of words within
     a sentence as a whole. We saw earlier, when looking at n-gram models, that the
     meaning of a word in a sentence is dependent on its context within the sentence,
@@ -245,96 +336,142 @@
     cumulative effect of the words that have occurred before it in the sentence up
     to that point. We do not consider any words that follow it, meaning we do not
     capture the full context of each word in the sentence.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还应该注意，RNN不擅长捕捉句子内单词的整体上下文。我们之前看到，在n-gram模型中，句子中的单词的含义取决于它在句子中的上下文，这由它之前出现的单词和之后出现的单词决定。在RNN中，我们的隐藏状态仅向一个方向更新。在单向传递中，我们的隐藏状态被初始化，并且序列中的第一个单词被传递给它。然后，这个过程被所有后续单词依次重复，直到我们留下最终的隐藏状态。这意味着对于句子中的任何给定单词，我们仅考虑到了在该点之前出现的单词的累积效应。我们不考虑其后的任何单词，这意味着我们未能捕捉到句子中每个单词的完整上下文。
 - en: In another example, we again want to predict the missing word in a sentence,
     but it now occurs toward the beginning as opposed to at the end. We have the sentence
     `I grew up in…so I can speak fluent Dutch`. Here, we can intuitively guess that
     the person grew up in the Netherlands from the fact that they speak Dutch. However,
     because an RNN parses this information sequentially, it would only use `I grew
     up in…` to make a prediction, missing the other key context within the sentence.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 在另一个例子中，我们再次想预测句子中的缺失词语，但这次出现在句子的开头而不是结尾。我们有这样的句子 `I grew up in…so I can speak
+    fluent Dutch`。在这里，我们可以直观地猜测这个人在荷兰长大了，因为他们说荷兰语。然而，因为 RNN 顺序解析信息，它只会使用 `I grew up
+    in…` 来做预测，错过了句子中的其他关键上下文。
 - en: Both of these issues can be partially addressed using LSTMs.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两个问题可以部分通过 LSTM 得到解决。
 - en: Working with LSTMs
+  id: totrans-47
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用长短期记忆网络（LSTM）
 - en: 'LSTMs are more advanced versions of RNNs and contain two extra properties—an
     **update gate** and a **forget gate**. These two additions make it easier for
     the network to learn long-term dependencies. Consider the following film review:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 是 RNN 的更高级版本，并包含两个额外的属性 —— **更新门** 和 **遗忘门**。这两个增加使得网络更容易学习长期依赖性。考虑以下电影评论：
 - en: '*The film was amazing. I went to see it with my wife and my daughters on Tuesday
     afternoon. Although I didn''t expect it to be very entertaining, it turned out
     to be loads of fun. We would definitely go back and see it again given the chance.*'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: '*这部电影太棒了。我周二下午和妻子以及女儿们一起去看的。虽然我没抱太大的期望，但结果却非常有趣。如果有机会的话，我们一定会再去看的。*'
 - en: 'In sentiment analysis, it is clear that not all of the words in the sentence
     are relevant in determining whether it is a positive or negative review. We will
     repeat this sentence, but this time highlighting the words that are relevant to
     gauging the sentiment of the review:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 在情感分析中，显然句子中并非所有词语都对判断评论是积极还是消极有帮助。我们将重复这个句子，但这次突出显示对评估评论情感有帮助的词语：
 - en: '*The film was amazing. I went to see it with my wife and my daughters on Tuesday
     afternoon. Although I didn''t expect it to be very entertaining, it turned out
     to be loads of fun. We would definitely go back and see it again given the chance.*'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: '*这部电影太棒了。我周二下午和妻子以及女儿们一起去看的。虽然我没抱太大的期望，但结果却非常有趣。如果有机会的话，我们一定会再去看的。*'
 - en: LSTMs attempt to do exactly this—remember the relevant words within a sentence
     while forgetting all the irrelevant information. By doing this, it stops the irrelevant
     information from diluting the relevant information, meaning long-term dependencies
     can be better learned across long sequences.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 尝试正是这样做 —— 在遗忘所有无关信息的同时记住句子中相关的词语。通过这样做，它阻止无关信息稀释相关信息，从而更好地学习长序列中的长期依赖性。
 - en: 'LSTMs are very similar in structure to RNNs. While there is a hidden state
     that is carried over between steps within the LSTM, the inner workings of the
     LSTM cell itself are different from that of the RNN:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM 在结构上与 RNN 非常相似。虽然在 LSTM 内部存在一个在步骤之间传递的隐藏状态，但 LSTM 细胞本身的内部工作与 RNN 不同：
 - en: '![Figure 5.5 – LSTM cell'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.5 – LSTM 细胞'
 - en: '](img/B12365_05_5.jpg)'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_5.jpg)'
 - en: Figure 5.5 – LSTM cell
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.5 – LSTM 细胞
 - en: LSTM cells
+  id: totrans-57
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: LSTM 细胞
 - en: 'While an RNN cell just takes the previous hidden state and the new input step
     and calculates the next hidden state using some learned parameters, the inner
     workings of an LSTM cell are significantly more complicated:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 而 RNN 细胞只需使用前一个隐藏状态和新的输入步骤，并使用一些学习参数计算下一个隐藏状态，LSTM 细胞的内部工作则复杂得多：
 - en: '![Figure 5.6 – Inner workings of an LSTM cell'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.6 – LSTM 细胞的内部工作原理'
 - en: '](img/B12365_05_6.jpg)'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_6.jpg)'
 - en: Figure 5.6 – Inner workings of an LSTM cell
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.6 – LSTM 细胞的内部工作原理
 - en: 'While this looks significantly more daunting than the RNN, we will explain
     each component of the LSTM cell in turn. We will first look at the **forget gate**
     (indicated by the bold rectangle):'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然看起来比 RNN 复杂得多，但我们会逐步解释 LSTM 细胞的每个组成部分。我们首先来看 **遗忘门**（用粗体矩形标示）：
 - en: '![Figure 5.7 – The forget gate'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.7 – 遗忘门'
 - en: '](img/B12365_05_7.jpg)'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_7.jpg)'
 - en: Figure 5.7 – The forget gate
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.7 – 遗忘门
 - en: The forget gate essentially learns which elements of the sequence to forget.
     The previous hidden state, *h*t-1, and the latest input step, *x*1, are concatenated
     together and passed through a matrix of learned weights on the forget gate and
@@ -342,20 +479,31 @@
     *ft*, is multiplied pointwise by the cell state from the previous step, *c*t-1\.
     This effectively applies a mask to the previous cell state so that only the relevant
     information from the previous cell state is brought forward.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 遗忘门基本上学习了要忘记序列中哪些元素。将前一个隐藏状态 *h*<sub>t-1</sub> 和最新的输入步骤 *x*<sub>1</sub> 连接在一起，通过遗忘门上的学习权重矩阵和将值压缩在
+    0 到 1 之间的 Sigmoid 函数进行处理。得到的矩阵 *ft* 与前一步的单元状态 *c*<sub>t-1</sub> 逐点相乘。这有效地对前一单元状态应用了一个蒙版，以便仅将前一单元状态中的相关信息带入下一个时间步。
 - en: 'Next, we will look at the **input gate**:'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将看看**输入门**：
 - en: '![Figure 5.8 – The input gate'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.8 – 输入门'
 - en: '](img/B12365_05_8.jpg)'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_8.jpg)'
 - en: Figure 5.8 – The input gate
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.8 – 输入门
 - en: The input gate again takes the concatenated previous hidden state, *h*t-1, and
     the current sequence input, *x*t, and passes this through a sigmoid function with
     learned parameters, which outputs another matrix, *i*t, consisting of values between
@@ -365,20 +513,32 @@
     *i*t effectively learn which elements should be kept from the current time step
     in our cell state. This is then added to the current cell state to get our final
     cell state, which will be carried over to the next time step.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 输入门再次接受连接的上一个隐藏状态 *h*<sub>t-1</sub> 和当前序列输入 *x*<sub>t</sub>，并通过一个带有学习参数的 Sigmoid
+    函数进行处理，输出另一个矩阵 *i*<sub>t</sub>，其值在 0 到 1 之间。连接的隐藏状态和序列输入还会经过一个 tanh 函数，将输出压缩在
+    -1 到 1 之间。然后将其与 *i*<sub>t</sub> 矩阵相乘。这意味着生成 *i*<sub>t</sub> 所需的学习参数有效地学习了在当前时间步中哪些元素应该被保留在我们的单元状态中。然后将此结果加到当前单元状态中，以获得我们的最终单元状态，该状态将传递到下一个时间步。
 - en: 'Finally, we have the last element of the LSTM cell—the **output gate**:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们来看 LSTM 单元的最后一个元素——**输出门**：
 - en: '![Figure 5.9 – The output gate'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.9 – 输出门'
 - en: '](img/B12365_05_9.jpg)'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_9.jpg)'
 - en: Figure 5.9 – The output gate
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.9 – 输出门
 - en: The output gate calculates the final output of the LSTM cell—both the cell state
     and the hidden state that is carried over to the next step. The cell state, *c*t,
     is unchanged from the previous two steps and is a product of the forget gate and
@@ -390,8 +550,13 @@
     *h*t. This means that the learned parameters on the output gate effectively control
     which elements of the previous hidden state and current output are combined with
     the final cell state to carry over to the next time step as the new hidden state.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出门计算 LSTM 单元的最终输出——包括单元状态和传递到下一步的隐藏状态。单元状态 *c*<sub>t</sub> 与前两步相同，是遗忘门和输入门的产物。最终的隐藏状态
+    *h*<sub>t</sub> 是通过取连接的前一个隐藏状态 *h*<sub>t-1</sub> 和当前时间步输入 *x*<sub>t</sub>，并通过带有一些学习参数的
+    Sigmoid 函数进行处理以获得输出门输出 *o*<sub>t</sub> 来计算的。最终的单元状态 *c*<sub>t</sub> 经过一个 tanh
+    函数并与输出门输出 *o*<sub>t</sub> 相乘，以计算最终的隐藏状态 *h*<sub>t</sub>。这意味着输出门上的学习参数有效地控制了前一个隐藏状态和当前输出的哪些元素与最终单元状态结合，以作为新的隐藏状态传递到下一个时间步。
 - en: In our forward pass, we simply iterate through the model, initializing our hidden
     state and cell state and updating them at each time step using the LSTM cells
     until we are left with a final hidden state, which is output to the next layer
@@ -400,8 +565,10 @@
     which direction to update our parameters through gradient descent. We get several
     matrices or parameters—one for the input gate, one for the output gate, and one
     for the forget gate.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的前向传播中，我们简单地迭代模型，初始化我们的隐藏状态和单元状态，并在每个时间步使用LSTM单元来更新它们，直到我们得到一个最终的隐藏状态，然后将其输出到神经网络的下一层。通过所有LSTM层的反向传播，我们可以计算相对于网络损失的梯度，因此我们知道通过梯度下降更新我们的参数的方向。我们得到几个矩阵或参数——一个用于输入门，一个用于输出门，一个用于遗忘门。
 - en: Because we get more parameters than for a simple RNN and our computation graph
     is more complex, the process of backpropagating through the network and updating
     the weights will likely take longer than for a simple RNN. However, despite the
@@ -411,12 +578,16 @@
     be used to update the hidden state and which elements of the hidden state should
     be forgotten going forward, which means the model is better able to form long-term
     dependencies and retain information from previous sequence steps.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们比简单RNN获得了更多的参数，且计算图更复杂，通过网络进行反向传播并更新权重的过程可能会比简单RNN更耗时。然而，尽管训练时间较长，我们已经证明LSTM在许多方面都比传统的RNN表现出显著优势，因为输出门、输入门和遗忘门的结合赋予了模型确定哪些输入元素用于更新隐藏状态，哪些隐藏状态元素在前进时应被遗忘的能力，这意味着模型更能形成长期依赖关系并保留以前序列步骤的信息。
 - en: Bidirectional LSTMs
+  id: totrans-79
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 双向LSTMs
 - en: We previously mentioned that a downside of simple RNNs is that they fail to
     capture the full context of a word within a sentence as they are backward-looking
     only. At each time step of the RNN, only the previously seen words are considered
@@ -424,22 +595,32 @@
     basic LSTMs are similarly backward-facing, we can use a modified version of LSTM,
     known as a **bidirectional LSTM**, which considers both the words before and after
     it at each time step within the sequence.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们之前提到简单RNN的一个缺点是它们无法捕捉单词在句子中的完整上下文，因为它们只能向后看。在RNN的每个时间步中，只考虑先前看到的单词，并且不考虑在句子中紧接在后面的单词。尽管基本的LSTMs同样是向后看的，但我们可以使用一种改进版的LSTM，称为**双向LSTM**，它在每个时间步内考虑单词的前后两侧。
 - en: 'Bidirectional LSTMs process sequences in regular order and reverse order simultaneously,
     maintaining two hidden states. We''ll call the forward hidden state *f*t and use
     *r*t for the reverse hidden state:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 双向LSTMs同时以正常顺序和反向顺序处理序列，保持两个隐藏状态。我们称前向隐藏状态为*f*t，并使用*r*t表示反向隐藏状态：
 - en: '![Figure 5.10 – The bidirectional LSTM process'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.10 – 双向LSTM处理过程'
 - en: '](img/B12365_05_10.jpg)'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_10.jpg)'
 - en: Figure 5.10 – The bidirectional LSTM process
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.10 – 双向LSTM处理过程
 - en: Here, we can see that we maintain these two hidden states throughout the whole
     process and use them to calculate a final hidden state, *h*t. Therefore, if we
     wish to calculate the final hidden state at time step *t*, we use the forward
@@ -450,12 +631,16 @@
     time step *t*. This means that the context of any given word within the whole
     sentence can be better captured. Bidirectional LSTMs have proven to offer improved
     performance on several NLP tasks over conventional unidirectional LSTMs.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，我们可以看到在整个过程中我们保持了这两个隐藏状态，并使用它们来计算最终的隐藏状态，*h*t。因此，如果我们希望计算时间步*t*处的最终隐藏状态，我们使用已看到包括输入*x*t的所有单词的前向隐藏状态*f*t，以及已看到包括*x*t之后所有单词的反向隐藏状态*r*t。因此，我们的最终隐藏状态*h*t包括了看到整个句子中所有单词的隐藏状态，而不仅仅是在时间步*t*之前发生的单词。这意味着可以更好地捕捉句子中任何给定单词的上下文。双向LSTM已被证明在几个自然语言处理任务中比传统的单向LSTM表现更好。
 - en: Building a sentiment analyzer using LSTMs
+  id: totrans-86
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用LSTMs构建情感分析器
 - en: 'We will now look at how to build our own simple LSTM to categorize sentences
     based on their sentiment. We will train our model on a dataset of 3,000 reviews
     that have been categorized as positive or negative. These reviews come from three
@@ -463,83 +648,127 @@
     to ensure that our sentiment analyzer is robust. The dataset is balanced so that
     it consists of 1,500 positive reviews and 1,500 negative reviews. We will start
     by importing our dataset and examining it:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将看看如何构建我们自己简单的 LSTM 来根据它们的情感分类句子。我们将在一个包含 3000 条评论的数据集上训练我们的模型，这些评论已被分类为积极或消极。这些评论来自三个不同的来源——电影评论、产品评论和地点评论，以确保我们的情感分析器是稳健的。数据集是平衡的，由
+    1500 条积极评论和 1500 条消极评论组成。我们将从导入数据集并检查它开始：
 - en: '[PRE0]'
+  id: totrans-88
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'This returns the following output:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将返回以下输出：
 - en: '![Figure 5.11 – Output of the dataset'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.11 – 数据集的输出'
 - en: '](img/B12365_05_11.jpg)'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_11.jpg)'
 - en: Figure 5.11 – Output of the dataset
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.11 – 数据集的输出
 - en: We read in our dataset from the file. Our dataset is tab-separated, so we split
     it up with tabs and the new line character. We rename our columns and then use
     the sample function to randomly shuffle our data. Looking at our dataset, the
     first thing we need to be able to do is preprocess our sentences to feed them
     into our LSTM model.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从文件中读取数据集。我们的数据集是用制表符分隔的，所以我们通过制表符和换行符将其拆分开来。我们重新命名列，然后使用样本函数对数据进行随机重排。查看我们的数据集，我们需要做的第一件事是预处理我们的句子以输入到我们的LSTM模型中。
 - en: Preprocessing the data
+  id: totrans-94
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据预处理
 - en: 'First, we create a function to tokenize our data, splitting each review into
     a list of individual preprocessed words. We loop through our dataset and for each
     review, we remove any punctuation, convert letters into lowercase, and remove
     any trailing whitespace. We then use the NLTK tokenizer to create individual tokens
     from this preprocessed text:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们创建一个函数来标记我们的数据，将每个评论拆分为单独的预处理单词列表。我们遍历我们的数据集，对每个评论，我们去除任何标点符号，将字母转换为小写，并移除任何尾随空白。然后我们使用
+    NLTK 分词器从这个预处理文本创建单独的标记：
 - en: '[PRE1]'
+  id: totrans-96
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'This results in the following output:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![Figure 5.12 – Output of NTLK tokenization'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.12 – NTLK 分词的输出'
 - en: '](img/B12365_05_12.jpg)'
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_12.jpg)'
 - en: Figure 5.12 – Output of NTLK tokenization
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.12 – NTLK 分词的输出
 - en: We return the reviews themselves, as well as a set of all words within all the
     reviews (that is, the vocabulary/corpus), which we will use to create our vocab
     dictionaries.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们返回评论本身，以及所有评论中的所有单词的集合（即词汇/语料库），我们将使用它们创建我们的词汇字典。
 - en: 'In order to fully prepare our sentences for entry into a neural network, we
     must convert our words into numbers. In order to do this, we create a couple of
     dictionaries, which will allow us to convert data from word into index and from
     index into word. To do this, we simply loop through our corpus and assign an index
     to each unique word:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了充分准备我们的句子以输入到神经网络中，我们必须将我们的单词转换为数字。为了做到这一点，我们创建了一些字典，这些字典将允许我们从单词转换为索引，从索引转换为单词。为此，我们简单地循环遍历我们的语料库，并为每个唯一单词分配一个索引：
 - en: '[PRE2]'
+  id: totrans-103
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'This gives the following output:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给出以下输出：
 - en: '![Figure 5.13 – Assigning index to each word'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.13 – 为每个单词分配索引'
 - en: '](img/B12365_05_13.jpg)'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_13.jpg)'
 - en: Figure 5.13 – Assigning an index to each word
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.13 – 为每个单词分配索引
 - en: 'Our neural network will take input of a fixed length; however, if we explore
     our reviews, we will see that our reviews are all of different lengths. In order
     to ensure that all of our inputs are of the same length, we will *pad* our input
@@ -547,23 +776,35 @@
     so that all the sentences are of the same length. We must first decide on the
     length of the padding we wish to implement. We first calculate the maximum length
     of a sentence in our input reviews, as well as the average length:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的神经网络将接受固定长度的输入；然而，如果我们探索我们的评论，我们会发现我们的评论长度各不相同。为了确保所有的输入都是相同长度的，我们将对我们的输入句子进行填充。这基本上意味着我们在较短的句子中添加空令牌，以便所有句子的长度都相同。我们必须首先决定我们希望实施的填充长度。我们首先计算我们输入评论中句子的最大长度，以及平均长度：
 - en: '[PRE3]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'This gives the following:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给出以下结果：
 - en: '![Figure 5.14 – Length value'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.14 – 长度数值'
 - en: '](img/B12365_05_14.png)'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_14.png)'
 - en: Figure 5.14 – Length value
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.14 – 长度数值
 - en: We can see that the longest sentence is `70` words long and the average sentence
     length has a length of `11.78`. To capture all the information from all our sentences,
     we want to pad all of our sentences so that they have a length of 70\. However,
@@ -577,76 +818,112 @@
     and making them too sparse, we opt to use an input size of `50`. You may wish
     to experiment with using different input sizes between `20` and `70` to see how
     this affects your model performance.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，最长的句子有`70`个词，平均句子长度为`11.78`个词。为了捕获所有句子的信息，我们希望所有的句子长度都为70。然而，使用更长的句子意味着更长的序列，这会导致我们的LSTM层变得更深。这意味着模型训练时间更长，因为我们必须通过更多层进行梯度反向传播，但也意味着我们的大部分输入会变得稀疏并充满空标记，这使得从我们的数据中学习变得不那么高效。这一点可以通过我们的最大句子长度远远大于平均句子长度来说明。为了捕获大部分句子信息而又不必要地填充我们的输入并使其过于稀疏，我们选择使用输入大小为`50`。您可能希望尝试使用介于`20`和`70`之间的不同输入大小，看看这如何影响您的模型性能。
 - en: 'We will create a function that allows us to pad our sentences so that they
     are all the same size. For reviews shorter than the sequence length, we pad them
     with empty tokens. For reviews longer than the sequence length, we simply drop
     any tokens over the maximum sequence length:'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将创建一个函数，允许我们对句子进行填充，使它们的大小都相同。对于比序列长度短的评论，我们用空标记进行填充。对于比序列长度长的评论，我们简单地丢弃超过最大序列长度的任何标记：
 - en: '[PRE4]'
+  id: totrans-116
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Our padded sentence looks like this:'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的填充句子看起来像这样：
 - en: '![Figure 5.15 – Padding the sentences'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.15 – 对句子进行填充'
 - en: '](img/B12365_05_15.jpg)'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_15.jpg)'
 - en: Figure 5.15 – Padding the sentences
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.15 – 对句子进行填充
 - en: 'We must make one further adjustment to allow the use of empty tokens within
     our model. Currently, our vocabulary dictionaries do not know how to convert empty
     tokens into integers to use within our network. Because of this, we manually add
     these to our dictionaries with index `0`, which means empty tokens will be given
     a value of `0` when fed into our model:'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们必须进行进一步的调整，以允许在我们的模型中使用空标记。目前，我们的词汇字典不知道如何将空标记转换为整数以在我们的网络中使用。因此，我们手动将它们添加到我们的字典中，索引为`0`，这意味着当输入到我们的模型中时，空标记将被赋予值`0`：
 - en: '[PRE5]'
+  id: totrans-122
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'We are now very nearly ready to begin training our model. We perform one final
     step of preprocessing and encode all of our padded sentences as numeric sequences
     for feeding into our neural network. This means that the previous padded sentence
     now looks like this:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们几乎可以开始训练我们的模型了。我们进行最后一步预处理，将所有填充后的句子编码为数值序列，以输入我们的神经网络。这意味着先前的填充句子现在看起来像这样：
 - en: '[PRE6]'
+  id: totrans-124
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Our encoded sentence is represented as follows:'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们编码的句子表示如下：
 - en: '![Figure 5.16 – Encoding the sentence'
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.16 – 对句子进行编码'
 - en: '](img/B12365_05_16.jpg)'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_16.jpg)'
 - en: Figure 5.16 – Encoding the sentence
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.16 – 对句子进行编码
 - en: Now that we have all our input sequences encoded as numerical vectors, we are
     ready to begin designing our model architecture.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经将所有输入序列编码为数值向量，我们可以开始设计我们的模型架构了。
 - en: Model architecture
+  id: totrans-130
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 模型架构
 - en: Our model will consist of several main parts. Besides the input and output layers
     that are common to many neural networks, we will first require an **embedding
     layer**. This is so that our model learns the vector representations of the words
     it is being trained on. We could opt to use precomputed embeddings (such as GLoVe),
     but for demonstrative purposes, we will train our own embedding layer. Our input
     sequences are fed through the input layer and come out as sequences of vectors.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的模型将由几个主要部分组成。除了输入和输出层外，这些层对许多神经网络都是通用的，我们首先需要一个**嵌入层**。这样，我们的模型就能学习到它所训练的单词的向量表示。我们可以选择使用预先计算的嵌入（如GloVe），但为了演示目的，我们将训练自己的嵌入层。我们的输入序列通过输入层，并出现为向量序列。
 - en: 'These vector sequences are then fed into our **LSTM layer**. As explained in
     detail earlier in this chapter, the LSTM layer learns sequentially from our sequence
     of embeddings and outputs a single vector output representing the final hidden
@@ -654,26 +931,38 @@
     **hidden layer** before the final output node predicts a value between 0 and 1,
     indicating whether the input sequence was a positive or negative review. This
     means that our model architecture looks something like this:'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些向量序列然后被送入我们的**LSTM层**。正如本章前面详细解释的那样，LSTM层从我们的嵌入序列中逐步学习，并输出一个代表LSTM层最终隐藏状态的单个向量输出。这个最终隐藏状态最终通过进一步的**隐藏层**，然后再通过最终输出节点预测一个值（介于0和1之间），指示输入序列是正面还是负面评价。这意味着我们的模型架构看起来像这样：
 - en: '![Figure 5.17 – Model architecture'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.17 – 模型架构'
 - en: '](img/B12365_05_17.jpg)'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_17.jpg)'
 - en: Figure 5.17 – Model architecture
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.17 – 模型架构
 - en: 'We will now demonstrate how to code this model from scratch using PyTorch.
     We create a class called `SentimentLSTM`, which inherits from the `nn.Module`
     class. We define our `init` parameters as the size of our vocab, the number of
     LSTM layers our model will have, and the size of our model''s hidden state:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将演示如何使用PyTorch从头开始编写这个模型。我们创建一个名为`SentimentLSTM`的类，它继承自`nn.Module`类。我们定义我们的`init`参数为我们词汇表的大小，模型将具有的LSTM层数量，以及我们模型隐藏状态的大小：
 - en: '[PRE7]'
+  id: totrans-137
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'We then define each of the layers of our network. Firstly, we define our embedding
     layer, which will have the length of the number of words in our vocabulary and
     the size of the embedding vectors as a `n_embed` hyperparameter to be specified.
@@ -684,11 +973,15 @@
     via dropout. We define a further dropout layer with probability, `drop_p` (a hyperparameter
     to be specified on model creation), as well as our definitions of our final fully
     connected layer and output/prediction node (with a sigmoid activation function):'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们定义网络的每一层。首先，我们定义嵌入层，它的长度为词汇表中单词的数量，嵌入向量的大小作为一个可以指定的`n_embed`超参数。我们使用从嵌入层输出的向量大小定义我们的LSTM层，模型隐藏状态的长度以及我们LSTM层将具有的层数。我们还添加了一个参数来指定我们的LSTM可以在数据批次上进行训练，并允许我们通过dropout实现网络正则化。我们定义了一个进一步的dropout层，具有概率`drop_p`（一个在模型创建时指定的超参数），以及我们的最终全连接层和输出/预测节点（带有sigmoid激活函数）：
 - en: '[PRE8]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Next, we need to define our forward pass within our model class. Within this
     forward pass, we just chain together the output of one layer to become the input
     into our next layer. Here, we can see that our embedding layer takes `input_words`
@@ -699,39 +992,58 @@
     hidden layer to match that of our output node. Note that our output will return
     a prediction for `class = 0` and `class = 1`, so we slice the output to only return
     a prediction for `class = 1`—that is, the probability that our sentence is positive:'
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们需要在我们的模型类中定义我们的前向传播。在这个前向传播中，我们将一个层的输出链接到下一个层的输入。在这里，我们可以看到我们的嵌入层以`input_words`作为输入，并输出嵌入的单词。然后，我们的LSTM层以嵌入的单词作为输入，并输出`lstm_out`。这里唯一的微妙之处在于，我们使用`view()`来重塑我们的张量，从LSTM输出到与我们的全连接层的输入正确大小相匹配。对于重塑隐藏层输出以匹配我们输出节点的大小也适用相同的方法。注意，我们的输出将返回一个对`class
+    = 0`和`class = 1`的预测，因此我们切片输出以仅返回`class = 1`的预测——也就是说，我们的句子是正面的概率：
 - en: '[PRE9]'
+  id: totrans-141
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'We also define a function called `init_hidden()`, which initializes our hidden
     layer with the dimensions of our batch size. This allows our model to train and
     predict on many sentences at once, rather than just training on one sentence at
     a time, if we so wish. Note that we define `device` as `"cpu"` here to run it
     on our local processor. However, it is also possible to set this to a CUDA-enabled
     GPU in order to train it on a GPU if you have one:'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还定义了一个名为 `init_hidden()` 的函数，它用我们的批量大小来初始化我们的隐藏层。这允许我们的模型同时训练和预测多个句子，而不仅仅是一次训练一个句子，如果我们愿意的话。请注意，在这里我们将
+    `device` 定义为 `"cpu"`，以在本地处理器上运行它。然而，如果您有一个支持 CUDA 的 GPU，也可以将其设置为在 GPU 上进行训练：
 - en: '[PRE10]'
+  id: totrans-143
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'We then initialize our model by creating a new instance of the `SentimentLSTM`
     class. We pass the size of our vocab, the size of our embeddings, the size of
     our hidden state, as well as the output size, and the number of layers in our
     LSTM:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们通过创建 `SentimentLSTM` 类的一个新实例来初始化我们的模型。我们传递我们词汇表的大小、嵌入的大小、隐藏状态的大小、以及输出的大小和我们
+    LSTM 中的层数：
 - en: '[PRE11]'
+  id: totrans-145
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Now that we have defined our model architecture fully, it's time to begin training
     our model.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经完全定义了我们的模型架构，是时候开始训练我们的模型了。
 - en: Training the model
+  id: totrans-147
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 训练模型
 - en: To train our model, we must first define our datasets. We will train our model
     using a training set of data, evaluate our trained model at each step on a validation
     set, and then finally, measure our model's final performance using an unseen test
@@ -741,30 +1053,44 @@
     that are only optimal in performance for that particular validation set of data.
     We evaluate a final time against an unseen test set to make sure our model generalizes
     well to data it hasn't seen before at any part of the training loop.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 要训练我们的模型，我们必须首先定义我们的数据集。我们将使用训练数据集来训练我们的模型，在每一步中评估我们训练过的模型在验证数据集上的表现，然后最终，使用未见过的测试数据集来衡量我们模型的最终性能。我们之所以使用一个与验证训练分开的测试集，是因为我们可能希望基于对验证集的损失来微调我们的模型超参数。如果我们这样做，我们可能会选择在性能上仅对特定验证数据集最优的超参数。我们最后一次评估未见过的测试集，以确保我们的模型对其以前在训练循环的任何部分都没有见过的数据泛化良好。
 - en: 'We have already defined our model inputs (*x*) as `encoded_sentences`, but
     we must also define our model output (*y*). We do this simply, as follows:'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经将我们的模型输入 (*x*) 定义为 `encoded_sentences`，但我们还必须定义我们的模型输出 (*y*)。我们可以简单地这样做：
 - en: '[PRE12]'
+  id: totrans-150
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Next, we define our training and validation ratios. In this case, we will train
     our model on 80% of the data, validate on a further 10% of the data, and finally,
     test on the remaining 10% of the data:'
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们定义我们的训练和验证比例。在这种情况下，我们将在 80% 的数据上训练我们的模型，在额外的 10% 的数据上验证，最后在剩下的 10% 的数据上测试：
 - en: '[PRE13]'
+  id: totrans-152
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'We then use these ratios to slice our data and transform them into tensors
     and then tensor datasets:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们使用这些比例来切分我们的数据，并将它们转换为张量，然后再转换为数据集：
 - en: '[PRE14]'
+  id: totrans-154
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Then, we use these datasets to create PyTorch `DataLoader` objects. `DataLoader`
     allows us to batch process our datasets with the `batch_size` parameter, allowing
     different batch sizes to be easily passed to our model. In this instance, we will
@@ -773,11 +1099,17 @@
     to randomly shuffle our `DataLoader` objects so that data is passed through our
     neural network in random order, rather than the same order each epoch, potentially
     removing any biased results from the training order:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们使用这些数据集创建 PyTorch `DataLoader` 对象。 `DataLoader` 允许我们使用 `batch_size` 参数批处理我们的数据集，可以轻松地将不同的批次大小传递给我们的模型。在这个例子中，我们将保持简单，设置
+    `batch_size = 1`，这意味着我们的模型将在单个句子上进行训练，而不是使用更大的数据批次。我们还选择随机打乱我们的 `DataLoader` 对象，以便数据以随机顺序通过我们的神经网络，而不是每个
+    epoch 使用相同的顺序，可能会从训练顺序中移除任何偏倚结果：
 - en: '[PRE15]'
+  id: totrans-156
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Now that we have defined our `DataLoader` object for each of our three datasets,
     we define our training loop. We first define a number of hyperparameters, which
     will be used within our training loop. Most importantly, we define our loss function
@@ -785,17 +1117,26 @@
     and we define our optimizer to be `Adam` with a learning rate of `0.001`. We also
     define our model to run for a short number of epochs (to save time) and set `clip
     = 5` to define our gradient clipping:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们为我们的三个数据集中的每一个定义了`DataLoader`对象之后，我们定义我们的训练循环。我们首先定义了一些超参数，这些参数将在我们的训练循环中使用。最重要的是，我们将我们的损失函数定义为二元交叉熵（因为我们正在预测一个单一的二元类），并将我们的优化器定义为使用学习率为`0.001`的`Adam`。我们还定义了我们的模型来运行一小部分时期（以节省时间），并设置`clip
+    = 5`以定义我们的梯度裁剪：
 - en: '[PRE16]'
+  id: totrans-158
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The main body of our training loop looks like this:'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们训练循环的主体如下所示：
 - en: '[PRE17]'
+  id: totrans-160
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: Here, we just train our model for a number of epochs, and for every epoch, we
     first initialize our hidden layer using the batch size parameter. In this instance,
     we set `batch_size = 1` as we are just training our model one sentence at a time.
@@ -809,16 +1150,24 @@
     as mentioned earlier in this chapter. We defined `clip = 5`, meaning the maximum
     gradient at any given node is `5`. Finally, we update our weights using the gradients
     calculated on our backward pass by calling `optimizer.step()`.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们只是训练我们的模型一定数量的时期，对于每个时期，我们首先使用批量大小参数初始化我们的隐藏层。在这种情况下，我们将`batch_size =
+    1`设置为一次只训练我们的模型一句话。对于我们的训练加载器中的每批输入句子和标签，我们首先将梯度清零（以防止它们累积），并使用模型当前状态的前向传递计算我们的模型输出。然后，使用模型的预测输出和正确标签来计算我们的损失。接着，我们通过网络进行反向传播，计算每个阶段的梯度。接下来，我们使用`grad_clip_norm()`函数裁剪我们的梯度，因为这将阻止我们的梯度爆炸，正如本章前面提到的。我们定义了`clip
+    = 5`，这意味着在任何给定节点的最大梯度为`5`。最后，我们通过调用`optimizer.step()`来使用反向传播计算出的梯度更新我们的权重。
 - en: 'If we run this loop by itself, we will train our model. However, we want to
     evaluate our model performance after every epoch in order to determine its performance
     on a validation set of data. We do this as follows:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们单独运行这个循环，我们将训练我们的模型。然而，我们希望在每个时期之后评估我们模型在验证数据集上的表现，以确定其性能。我们按照以下步骤进行：
 - en: '[PRE18]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'This means that at the end of each epoch, our model calls `net.eval()` to freeze
     the weights of our model and performs a forward pass using our data as before.
     Note that dropout is also not applied when we are in evaluation mode. However,
@@ -827,23 +1176,35 @@
     our validation set of data. Finally, we print our results and call `net.train()`
     to unfreeze our model''s weights so that we can train again on the next epoch.
     Our output looks something like this:'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 这意味着在每个时期结束时，我们的模型调用`net.eval()`来冻结我们模型的权重，并像以前一样使用我们的数据进行前向传递。请注意，在评估模式下，我们不应用dropout。然而，这一次，我们不是使用训练数据加载器，而是使用验证加载器。通过这样做，我们可以计算模型在当前状态下在验证数据集上的总损失。最后，我们打印我们的结果，并调用`net.train()`来解冻我们模型的权重，以便我们可以在下一个时期再次训练。我们的输出看起来像这样：
 - en: '![Figure 5.18 – Training the model'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.18 – 训练模型'
 - en: '](img/B12365_05_18.jpg)'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_18.jpg)'
 - en: Figure 5.18 – Training the model
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.18 – 训练模型
 - en: 'Finally, we can save our model for future use:'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们可以保存我们的模型以供将来使用：
 - en: '[PRE19]'
+  id: totrans-169
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: After training our model for three epochs, we notice two main things. We'll
     start with the good news first—our model is learning something! Not only has our
     training loss fallen, but we can also see that our loss on the validation set
@@ -863,29 +1224,43 @@
     determine the best possible iteration of our model. Feel free to try changing
     some of the parameters within the model (such as the training time, hidden state
     size, embedding size, and so on) in order to improve the performance of the model.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 在为我们的模型训练了三个epochs之后，我们注意到了两个主要的事情。我们先说好消息——我们的模型正在学习！我们的训练损失不仅下降了，而且我们还可以看到，每个epoch后验证集上的损失也在下降。这意味着我们的模型在仅仅三个epochs后在未见过的数据集上的情感预测能力有所提高！然而，坏消息是，我们的模型严重过拟合了。我们的训练损失远远低于验证损失，这表明虽然我们的模型学会了如何在训练数据集上进行很好的预测，但这并不太适用于未见过的数据集。这是预料之中的，因为我们使用了一个非常小的训练数据集（只有2400个训练句子）。由于我们正在训练一个整个嵌入层，许多单词可能仅在训练集中出现一次，而在验证集中从未出现，反之亦然，这使得模型实际上不可能对语料库中所有不同的单词类型进行泛化。实际上，我们希望在更大的数据集上训练我们的模型，以使其能够更好地学会泛化。我们还在非常短的时间内训练了这个模型，并且没有执行超参数调整来确定我们模型的最佳迭代次数。请随意尝试更改模型中的某些参数（如训练时间、隐藏状态大小、嵌入大小等），以提高模型的性能。
 - en: 'Although our model overfitted, it has still learned something. We now wish
     to evaluate our model on a final test set of data. We perform one final pass on
     the data using the test loader we defined earlier. Within this pass, we loop through
     all of our test data and make predictions using our final model:'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管我们的模型出现了过拟合，但它仍然学到了一些东西。现在我们希望在最终的测试数据集上评估我们的模型。我们使用之前定义的测试加载器对数据进行最后一次遍历。在这一遍历中，我们循环遍历所有的测试数据，并使用我们的最终模型进行预测：
 - en: '[PRE20]'
+  id: totrans-172
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Our performance on our test set of data is as follows:'
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在测试数据集上的表现如下：
 - en: '![Figure 5.19 – Output values'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 5.19 – 输出数值'
 - en: '](img/B12365_05_19.jpg)'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_19.jpg)'
 - en: Figure 5.19 – Output values
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.19 – 输出数值
 - en: We then compare our model predictions with our true labels to get `correct_tensor`,
     which is a vector that evaluates whether each of our model's predictions was correct.
     We then sum this vector and divide it by its length to get our model's total accuracy.
@@ -894,347 +1269,509 @@
     all! This just serves to illustrate how useful LSTMs can be when it comes to learning
     from NLP data. Next, we will show how we can use our model to make predictions
     from new data.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将我们的模型预测与真实标签进行比较，得到`correct_tensor`，这是一个向量，评估了我们模型的每个预测是否正确。然后我们对这个向量进行求和并除以其长度，得到我们模型的总准确率。在这里，我们得到了76%的准确率。虽然我们的模型显然还远非完美，但考虑到我们非常小的训练集和有限的训练时间，这已经不错了！这只是为了说明在处理自然语言处理数据时，LSTM可以有多么有用。接下来，我们将展示如何使用我们的模型对新数据进行预测。
 - en: Using our model to make predictions
+  id: totrans-178
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用我们的模型进行预测
 - en: 'Now that we have a trained model, it should be possible to repeat our preprocessing
     steps on a new sentence, pass this into our model, and get a prediction of it''s
     sentiment. We first create a function to preprocess our input sentence to predict:'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经有了一个训练好的模型，应该可以重复我们的预处理步骤来处理一个新的句子，将其传递到我们的模型中，并对其情感进行预测。我们首先创建一个函数来预处理我们的输入句子以进行预测：
 - en: '[PRE21]'
+  id: totrans-180
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: We remove punctuation and trailing whitespace, convert letters into lowercase,
     and tokenize our input sentence as before. We pad our sentence to a sequence with
     a length of `50` and then convert our tokens into numeric values using our precomputed
     dictionary. Note that our input may contain new words that our network hasn't
     seen before. In this case, our function treats these as empty tokens.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们去除标点符号和尾随空格，将字母转换为小写，并像之前一样对我们的输入句子进行分词。我们将我们的句子填充到长度为`50`的序列中，然后使用我们预先计算的字典将我们的标记转换为数值。请注意，我们的输入可能包含我们的网络以前未见过的新词。在这种情况下，我们的函数将这些视为空标记。
 - en: 'Next, we create our actual `predict()` function. We preprocess our input review,
     convert it into a tensor, and pass this into a data loader. We then loop through
     this data loader (even though it only contains one sentence) and pass our review
     through our network to obtain a prediction. Finally, we evaluate our prediction
     and print whether it is a positive or negative review:'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们创建我们实际的`predict()`函数。我们预处理输入评论，将其转换为张量，并传递到数据加载器中。然后，我们循环通过这个数据加载器（即使它只包含一个句子），将我们的评论通过网络以获取预测。最后，我们评估我们的预测并打印出它是正面还是负面评论：
 - en: '[PRE22]'
+  id: totrans-183
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Finally, we just call `predict()` on our review to make a prediction:'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们只需调用`predict()`对我们的评论进行预测：
 - en: '[PRE23]'
+  id: totrans-185
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'This results in the following output:'
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![Figure 5.20 – Prediction string on a positive value'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.20 – 正值上的预测字符串'
 - en: '](img/B12365_05_20.jpg)'
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_20.jpg)'
 - en: Figure 5.20 – Prediction string on a positive value
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.20 – 正值上的预测字符串
 - en: 'We also try using `predict()` on the negative value:'
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还尝试在负值上使用`predict()`：
 - en: '[PRE24]'
+  id: totrans-191
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'This results in the following output:'
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![Figure 5.21 – Prediction string on a negative value'
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图5.21 – 负值上的预测字符串'
 - en: '](img/B12365_05_21.jpg)'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_05_21.jpg)'
 - en: Figure 5.21 – Prediction string on a negative value
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.21 – 负值上的预测字符串
 - en: We have now built an LSTM model to perform sentiment analysis from the ground
     up. Although our model is far from perfect, we have demonstrated how we can take
     some sentiment labeled reviews and train a model to be able to make predictions
     on new reviews. Next, we will show how we can host our model on the Heroku cloud
     platform so that other people can make predictions using your model
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经从头开始构建了一个LSTM模型来执行情感分析。虽然我们的模型还远未完善，但我们已经演示了如何采用一些带有情感标签的评论来训练模型，使其能够对新评论进行预测。接下来，我们将展示如何将我们的模型托管在Heroku云平台上，以便其他人可以使用您的模型进行预测。
 - en: Deploying the application on Heroku
+  id: totrans-197
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在Heroku上部署应用程序
 - en: We have now trained our model on our local machine and we can use this to make
     predictions. However, this isn't necessarily any good if you want other people
     to be able to use your model to make predictions. If we host our model on a cloud-based
     platform, such as Heroku, and create a basic API, other people will be able to
     make calls to the API to make predictions using our model.
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在在本地机器上训练了我们的模型，并可以使用它进行预测。然而，如果您希望其他人能够使用您的模型进行预测，这可能并不好。如果我们将我们的模型托管在Heroku等云平台上，并创建一个基本API，其他人就能够调用API来使用我们的模型进行预测。
 - en: Introducing Heroku
+  id: totrans-199
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 引入Heroku
 - en: '**Heroku** is a cloud-based platform where you can host your own basic programs.
     While the free tier of Heroku has a maximum upload size of 500 MB and limited
     processing power, this should be sufficient for us to host our model and create
     a basic API in order to make predictions using our model.'
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: '**Heroku** 是一个基于云的平台，您可以在上面托管自己的基本程序。虽然Heroku的免费版上传大小最大为500 MB，处理能力有限，但这应足以让我们托管我们的模型并创建一个基本API，以便使用我们的模型进行预测。'
 - en: 'The first step is to create a free account on Heroku and install the Heroku
     app. Then, in the command line, type the following command:'
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一步是在Heroku上创建一个免费账户并安装Heroku应用程序。然后，在命令行中，输入以下命令：
 - en: '[PRE25]'
+  id: totrans-202
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Log in using your account details. Then, create a new `heroku` project by typing
     the following command:'
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用您的帐户详细信息登录。然后，通过键入以下命令创建一个新的`heroku`项目：
 - en: '[PRE26]'
+  id: totrans-204
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: Note that all the project names must be unique, so you will need to pick a project
     name that isn't `sentiment-analysis-flask-api`.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，所有项目名称必须是唯一的，因此您需要选择一个不是`sentiment-analysis-flask-api`的项目名称。
 - en: Our first step is building a basic API using Flask.
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的第一步是使用Flask构建一个基本API。
 - en: Creating an API using Flask – file structure
+  id: totrans-207
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用Flask创建API – 文件结构
 - en: 'Creating an API is fairly simple using Flask as Flask contains a default template
     required to make an API:'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用Flask创建API非常简单，因为Flask包含了制作API所需的默认模板：
 - en: 'First, in the command line, create a new folder for your flask API and navigate
     to it:'
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，在命令行中，为您的Flask API创建一个新文件夹并导航到其中：
 - en: '[PRE27]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Then, create a virtual environment within the folder. This will be the Python
     environment that your API will use:'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，在文件夹中创建一个虚拟环境。这将是您的API将使用的Python环境：
 - en: '[PRE28]'
+  id: totrans-212
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Within your environment, install all the packages that you will need using
     `pip`. This includes all the packages that you use within your model program,
     such as NLTK, `pandas`, NumPy, and PyTorch, as well as the packages you will need
     to run the API, such as Flask and Gunicorn:'
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 在您的环境中，使用`pip`安装所有您将需要的软件包。这包括您在模型程序中使用的所有软件包，例如NLTK、`pandas`、NumPy和PyTorch，以及您运行API所需的软件包，例如Flask和Gunicorn：
 - en: '[PRE29]'
+  id: totrans-214
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'We then create a list of requirements that our API will use. Note that when
     we upload this to Heroku, Heroku will automatically download and install all the
     packages within this list. We can do this by typing the following:'
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们创建一个我们的API将使用的需求列表。请注意，当我们将其上传到Heroku时，Heroku将自动下载并安装此列表中的所有软件包。我们可以通过输入以下内容来实现这一点：
 - en: '[PRE30]'
+  id: totrans-216
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'One adjustment we need to make is to replace the `torch` line within the `requirements.txt`
     file with the following:'
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要做的一个调整是将`requirements.txt`文件中的`torch`行替换为以下内容：
 - en: '[PRE31]'
+  id: totrans-218
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'This is a link to the wheel file of the version of PyTorch that only contains
     the CPU implementation. The full version of PyTorch that includes full GPU support
     is over 500 MB in size, so it will not run on the free Heroku cluster. Using this
     more compact version of PyTorch means that you will still be able to run your
     model using PyTorch on Heroku. Finally, we create three more files within our
     folder, as well as a final directory for our models:'
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是PyTorch版本的wheel文件的链接，它仅包含CPU实现。完整版本的PyTorch包括完整的GPU支持，大小超过500 MB，因此无法在免费的Heroku集群上运行。使用这个更紧凑的PyTorch版本意味着您仍然可以在Heroku上使用PyTorch运行您的模型。最后，我们在我们的文件夹中创建了另外三个文件，以及用于我们模型的最终目录：
 - en: '[PRE32]'
+  id: totrans-220
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: Now, we have created all the files we will need for our Flash API and we are
     ready to start making adjustments to our file.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们已经创建了所有我们在Flash API中将需要的文件，并且我们准备开始对我们的文件进行调整。
 - en: Creating an API using Flask – API file
+  id: totrans-222
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 创建使用Flask的API文件
 - en: 'Within our `app.py` file, we can begin building our API:'
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的`app.py`文件中，我们可以开始构建我们的API：
 - en: 'We first carry out all of our imports and create a `predict` route. This allows
     us to call our API with the `predict` argument in order to run a `predict()` method
     within our API:'
+  id: totrans-224
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先进行所有的导入并创建一个`predict`路由。这允许我们使用`predict`参数调用我们的API以运行API中的`predict()`方法：
 - en: '[PRE33]'
+  id: totrans-225
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Next, we define our `predict()` method within our `app.py` file. This is largely
     a rehash of our model file, so to avoid repetition of code, it is advised that
     you look at the completed `app.py` file within the GitHub repository linked in
     the *Technical requirements* section of this chapter. You will see that there
     are a few additional lines. Firstly, within our `preprocess_review()` function,
     we will see the following lines:'
+  id: totrans-226
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，在我们的`app.py`文件中定义我们的`predict()`方法。这在很大程度上是我们模型文件的重新整理，为了避免重复的代码，建议您查看本章节*技术要求*部分链接的GitHub存储库中的完成的`app.py`文件。您将看到还有几行额外的代码。首先，在我们的`preprocess_review()`函数中，我们将看到以下几行：
 - en: '[PRE34]'
+  id: totrans-227
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: This takes the `word_to_int` dictionary we computed within our main model notebook
     and loads it into our model. This is so that our word indexing is consistent with
     our trained model. We then use this dictionary to convert our input text into
     an encoded sequence. Be sure to take the `word_to_int_dict.json` file from the
     original notebook output and place it within the `models` directory.
+  id: totrans-228
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这需要我们在主要的模型笔记本中计算的`word_to_int`字典，并将其加载到我们的模型中。这样做是为了保持我们的输入文本与我们训练过的模型的一致的单词索引。然后，我们使用此字典将我们的输入文本转换为编码序列。确保从原始笔记本输出中获取`word_to_int_dict.json`文件，并将其放置在`models`目录中。
 - en: 'Similarly, we must also load the weights from our trained model. We first define
     our `SentimentLSTM` class and the load our weights using `torch.load`. We will
     use the `.pkl` file from our original notebook, so be sure to place this in the
     `models` directory as well:'
+  id: totrans-229
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 类似地，我们还必须从我们训练过的模型中加载权重。我们首先定义我们的`SentimentLSTM`类，并使用`torch.load`加载我们的权重。我们将使用来自原始笔记本的`.pkl`文件，请确保将其放置在`models`目录中：
 - en: '[PRE35]'
+  id: totrans-230
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'We must also define the input and outputs of our API. We want our model to
     take the input from our API and pass this to our `preprocess_review()` function.
     We do this using `request.get_json()`:'
+  id: totrans-231
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还必须定义API的输入和输出。我们希望我们的模型从API接收输入，并将其传递给我们的`preprocess_review()`函数。我们使用`request.get_json()`来实现这一点：
 - en: '[PRE36]'
+  id: totrans-232
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'To define our output, we return a JSON response consisting of the output from
     our model and a response code, `200`, which is what is returned by our predict
     function:'
+  id: totrans-233
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了定义我们的输出，我们返回一个JSON响应，其中包含来自我们模型的输出和一个响应码`200`，这是我们预测函数返回的内容：
 - en: '[PRE37]'
+  id: totrans-234
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'With the main body of our app complete, there are just two more additional
     things we must add in order to make our API run. We must first add the following
     to our `wsgi.py` file:'
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 随着我们应用程序主体的完成，我们还需要添加两个额外的内容以使我们的API运行。首先，我们必须将以下内容添加到我们的`wsgi.py`文件中：
 - en: '[PRE38]'
+  id: totrans-236
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Finally, add the following to our Procfile:'
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，将以下内容添加到我们的Procfile中：
 - en: '[PRE39]'
+  id: totrans-238
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'That''s all that''s required for the app to run. We can test that our API runs
     by first starting the API locally using the following command:'
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是使应用程序运行所需的全部内容。我们可以通过首先使用以下命令在本地启动API来测试我们的API是否运行：
 - en: '[PRE40]'
+  id: totrans-240
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Once the API is running locally, we can make a request to the API by passing
     it a sentence to predict the outcome:'
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦API在本地运行，我们可以通过向其传递一个句子来请求API以预测结果：
 - en: '[PRE41]'
+  id: totrans-242
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: If everything is working correctly, you should receive a prediction from the
     API. Now that we have our API making predictions locally, it is time to host it
     on Heroku so that we can make predictions in the cloud.
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果一切正常，您应该从API收到一个预测结果。现在我们已经让我们的API在本地进行预测，是时候将其托管到Heroku，这样我们就可以在云端进行预测了。
 - en: Creating an API using Flask – hosting on Heroku
+  id: totrans-244
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用Flask创建API - 在Heroku上托管
 - en: 'We first need to commit our files to Heroku in a similar way to how we would
     commit files using GitHub. We define our working `flaskAPI` directory as a `git`
     folder by simply running the following command:'
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先需要以类似于在GitHub上提交文件的方式将我们的文件提交到Heroku。我们通过简单地运行以下命令来将我们的工作`flaskAPI`目录定义为`git`文件夹：
 - en: '[PRE42]'
+  id: totrans-246
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Within this folder, we add the following code to the `.gitignore` file, which
     will stop us from adding unnecessary files to the Heroku repo:'
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个文件夹中，我们将以下代码添加到`.gitignore`文件中，这将阻止我们向Heroku存储库添加不必要的文件：
 - en: '[PRE43]'
+  id: totrans-248
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Finally, we add our first `commit` function and push it to our `heroku` project:'
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们添加了我们的第一个`commit`函数，并将其推送到我们的`heroku`项目中：
 - en: '[PRE44]'
+  id: totrans-250
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: This may take some time to compile as not only does the system have to copy
     all the files from your local directory to Heroku, but Heroku will automatically
     build your defined environment, installing all the required packages and running
     your API.
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可能需要一些时间来编译，因为系统不仅需要将所有文件从您的本地目录复制到Heroku，而且Heroku还将自动构建您定义的环境，安装所有所需的软件包并运行您的API。
 - en: 'Now, if everything has worked correctly, your API will automatically run on
     the Heroku cloud. In order to make predictions, you can simply make a request
     to the API using your project name instead of `sentiment-analysis-flask-api`:'
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，如果一切正常，您的API将自动在Heroku云上运行。为了进行预测，您可以简单地通过使用您的项目名称而不是`sentiment-analysis-flask-api`向API发出请求：
 - en: '[PRE45]'
+  id: totrans-253
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: Your application will now return a prediction from the model. Congratulations,
     you have now learned how to train an LSTM model from scratch, upload it to the
     cloud, and make predictions using it! Going forward, this tutorial will hopefully
     serve as a basis for you to train your own LSTM models and deploy them to the
     cloud yourself.
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 您的应用程序现在将从模型返回一个预测结果。恭喜您，您现在已经学会了如何从头开始训练LSTM模型，将其上传到云端，并使用它进行预测！接下来，本教程希望为您训练自己的LSTM模型并自行部署到云端提供基础。
 - en: Summary
+  id: totrans-255
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we discussed the fundamentals of RNNs and one of their main
     variations, LSTM. We then demonstrated how you can build your own RNN from scratch
     and deploy it on the cloud-based platform Heroku. While RNNs are often used for
     deep learning on NLP tasks, they are by no means the only neural network architecture
     suitable for this task.
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们讨论了RNN的基础知识及其主要变体之一，即LSTM。然后，我们演示了如何从头开始构建自己的RNN，并将其部署到基于云的平台Heroku上。虽然RNN经常用于NLP任务的深度学习，但并不是唯一适合此任务的神经网络架构。
 - en: In the next chapter, we will look at convolutional neural networks and show
     how they can be used for NLP learning tasks.
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将讨论卷积神经网络，并展示它们如何用于自然语言处理学习任务。

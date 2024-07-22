@@ -1,15 +1,19 @@
 - en: Next Word Prediction with Recurrent Neural Networks
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用循环神经网络进行下一个单词预测
 - en: So far, we've covered a number of basic neural network architectures and their
     learning algorithms. These are the necessary building blocks for designing networks
     that are capable of more advanced tasks, such as machine translation, speech recognition,
     time series prediction, and image segmentation. In this chapter, we'll cover a
     class of algorithms/architectures that excel at these and other tasks due to their
     ability to model sequential dependencies in the data.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经涵盖了许多基本的神经网络架构及其学习算法。这些是设计能够处理更高级任务的网络的必要构建模块，例如机器翻译、语音识别、时间序列预测和图像分割。在本章中，我们将涵盖一类由于其能够模拟数据中的序列依赖性而在这些及其他任务上表现出色的算法/架构。
 - en: These algorithms have proven to be incredibly powerful, and their variants have
     found wide application in industry and consumer use cases. This runs the gamut
     of machine translation, text generation, named entity recognition, and sensor
@@ -19,8 +23,10 @@
     data at time *x*, or occurrence of a word in a corpus at position *y*) can all
     be modeled with *time* as their regulating dimension. As we will see, we can represent
     our data and structure our tensors accordingly.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些算法已被证明具有极强的能力，它们的变体在工业和消费者应用案例中得到广泛应用。这涵盖了机器翻译、文本生成、命名实体识别和传感器数据分析的方方面面。当你说“好的，谷歌！”或“嘿，Siri！”时，在幕后，一种训练有素的**循环神经网络**（**RNN**）正在进行推断。所有这些应用的共同主题是，这些序列（如时间*x*处的传感器数据，或语料库中位置*y*处的单词出现）都可以以*时间*作为它们的调节维度进行建模。正如我们将看到的那样，我们可以根据需要表达我们的数据并结构化我们的张量。
 - en: A great example of a hard problem is natural language processing and comprehension.
     If we have a large body of text, say the collected works of Shakespeare, what
     might we be able to say about this text? We could elaborate on the statistical
@@ -31,50 +37,72 @@
     to our understanding of syntax and grammar, not to mention meaning itself. It
     is when analyzing this kind of data that the networks we've covered so far fall
     short.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个很好的例子是自然语言处理和理解这样的困难问题。如果我们有一个大量的文本，比如莎士比亚的作品集，我们能对这个文本说些什么？我们可以详细说明文本的统计属性，即有多少个单词，其中多少个单词是独特的，总字符数等等，但我们也从阅读的经验中固有地知道文本/语言的一个重要属性是*顺序*；即单词出现的顺序。这个顺序对语法和语言的理解有贡献，更不用说意义本身了。正是在分析这类数据时，我们迄今涵盖的网络存在不足之处。
 - en: 'In this chapter, we will learn about the following topics:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将学习以下主题：
 - en: What is a basic RNN
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 什么是基本的RNN
 - en: How to train RNNs
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何训练RNN
 - en: Improvements of the RNN architecture, including **Gated Recurrent Unit **(**GRU**)/**Long
     Short-Term Memory** (**LSTM**) networks
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 改进的RNN架构，包括**门控循环单元**（**GRU**）/**长短期记忆**（**LSTM**）网络
 - en: How to implement an RNN with LSTM units in Gorgonia
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何在Gorgonia中使用LSTM单元实现RNN
 - en: Vanilla RNNs
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 原始的RNN
 - en: 'According to their more utopian description, RNNs are able to do something
     that the networks we''ve covered so far cannot: remember. More precisely, in a
     simple network with a single hidden layer, the network''s output, as well as the
     state of that hidden layer, are combined with the next element in a training sequence
     to form the input for a new network (with its own trainable, hidden state). A
     *vanilla* RNN can be visualized as follows:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据其更乌托邦的描述，RNN能够做到迄今为止我们所涵盖的网络所不能的事情：记忆。更确切地说，在一个单隐藏层的简单网络中，网络的输出以及隐藏层的状态与训练序列中的下一个元素结合，形成新网络的输入（具有自己的可训练隐藏状态）。*原始*
+    RNN可以如下所示：
 - en: '![](img/a9747787-4cb2-4224-be45-34022f24be3a.png)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](img/a9747787-4cb2-4224-be45-34022f24be3a.png)'
 - en: Let's unpack this a bit. The two networks in the preceding diagram are two different
     representations of the same thing. One is in a **Rolled** state, which is simply
     an abstract representation of the computation graph, where an infinite number
     of timesteps is represented by **(t)**. We then use the **Unrolled** **RNN** as
     we feed the network data and train it.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们深入了解一下。在前面的图示中，两个网络是同一事物的两种不同表示。一个处于**展开**状态，这只是一个计算图的抽象表示，在这里无限数量的时间步骤被表示为**(t)**。然后，当我们提供网络数据并训练它时，我们使用**展开的
+    RNN**。
 - en: For a given forward pass, this network takes two inputs, where **X** is a representation
     of a piece of training data, and a previous *hidden* state **S** (initialized
     at **t0** as a vector of zeros) and a timestep **t** (the position in the sequence)
@@ -83,23 +111,32 @@
     our learning algorithm, a slight twist on backpropagation, which we will cover
     next, and thus have the basic model of what an RNN is, what it's made of, and
     how it works.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于给定的前向传播，这个网络接受两个输入，其中**X**是一个训练数据片段的表示，以及前一个*隐藏*状态**S**（在**t0**初始化为零向量），以及一个时间步**t**（序列中的位置）重复操作（输入的向量连接，即*Sigmoid*激活）在这些输入及其可训练参数的乘积上。然后，我们应用我们的学习算法，在反向传播上稍作调整，我们将在接下来介绍，因此我们对
+    RNN 是什么、由什么组成以及它是如何工作的有了基本模型。
 - en: Training RNNs
+  id: totrans-14
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 训练 RNNs
 - en: The way we train these networks is by using **backpropagation through time**
     (**BPTT**). This is an exotic name for a slight variation of something you already
     know of from [Chapter 2](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml), *What is
     a Neural Network and How Do I Train One?*. In this section, we will explore this
     variation in detail.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们训练这些网络的方式是使用**通过时间的反向传播**（**BPTT**）。这是一个对您已知的东西稍作变化的名字。在[第2章](d80f3d0b-0a4e-4695-923c-4feef972214a.xhtml)中，我们将详细探讨这个变化。
 - en: Backpropagation through time
+  id: totrans-16
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 通过时间反向传播
 - en: With RNNs, we have multiple copies of the same network, one for each timestep.
     Therefore, we need a way to backpropagate the error derivatives and calculate
     weight updates for each of the parameters in every timestep. The way we do this
@@ -108,78 +145,107 @@
     and we want these copies to be consistent with each other so that when we calculate
     all the gradients for a given parameter, we take their average. We use this to
     update the parameter at *t0* for each iteration of the learning process.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 RNNs，我们有多个相同网络的副本，每个时间步都有一个。因此，我们需要一种方法来反向传播误差导数，并计算每个时间步的参数的权重更新。我们做法很简单。我们沿着函数的轮廓进行，这样我们可以尝试优化其形状。我们有多个可训练参数的副本，每个时间步都有一个，并且我们希望这些副本彼此一致，以便在计算给定参数的所有梯度时，我们取它们的平均值。我们用这个来更新每次学习过程的*t0*处的参数。
 - en: The goal is to calculate the error as that accumulates across timesteps, and
     unroll/roll the network and update the weights accordingly. There is, of course,
     a computational cost to this; that is, the amount of computation required increases
     with the number of timesteps. The method for dealing with this is to *truncate*
     (hence, *truncated BPTT*) the sequence of input/output pairs, meaning that we
     only roll/unroll a sequence of 20 timesteps at once, making the problem tractable.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标是计算随着时间步骤累积的误差，并展开/收拢网络并相应地更新权重。当然，这是有计算成本的；也就是说，所需的计算量随着时间步骤的增加而增加。处理这个问题的方法是*截断*（因此，*截断
+    BPTT*）输入/输出对的序列，这意味着我们一次只展开/收拢20个时间步，使问题可处理。
 - en: Additional information for those who are interested in exploring the math behind
     this can be found in the *Further reading* section of this chapter.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于那些有兴趣探索背后数学的进一步信息，可以在本章的*进一步阅读*部分找到。
 - en: Cost function
+  id: totrans-20
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 成本函数
 - en: The cost function that we use with RNNs is cross-entropy loss. There is nothing
     special about its implementation for RNNs versus a simple binary classification
     task. Here, we are comparing the two probability distributions—one predicted,
     one expected. We calculate the error at each time step and sum them.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在 RNNs 中使用的成本函数是交叉熵损失。在实现上，与简单的二分类任务相比，并没有什么特别之处。在这里，我们比较两个概率分布——一个是预测的，一个是期望的。我们计算每个时间步的误差并对它们进行求和。
 - en: RNNs and vanishing gradients
+  id: totrans-22
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: RNNs 和梯度消失
 - en: RNNs themselves are an important architectural innovation, but run into problems
     in terms of their gradients *vanishing*. When gradient values become so small
     that the updates are equally tiny, this slows or even halts learning. Your digital
     neurons die, and your network doesn't do what you want it to do. But is a neural
     network with a bad memory better than one with no memory at all?
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: RNN本身是一个重要的架构创新，但在梯度*消失*方面遇到问题。当梯度值变得如此小以至于更新同样微小时，这会减慢甚至停止学习。你的数字神经元死亡，你的网络无法按照你的意愿工作。但是，有一个记忆不好的神经网络是否比没有记忆的神经网络更好呢？
 - en: 'Let''s zoom in a bit and discuss what''s actually going on when you run into
     this problem. Recall the formula for calculating the value for a given weight
     during backpropagation:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们深入讨论当你遇到这个问题时实际发生了什么。回顾计算给定权重值的公式在反向传播时的方法：
 - en: '*W = W - LR*G*'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: '*W = W - LR*G*'
 - en: Here, the weight value equals the weight minus (learning rate multiplied by
     the gradient).
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，权重值等于权重减去（学习率乘以梯度）。
 - en: Your network is propagating error derivatives across layers and across timesteps.
     The larger your dataset, the greater the number of timesteps and parameters, and
     so the greater the number of layers. At each step, the unrolled RNN contains an
     activation function that squashes the output of the network to be between 0 and
     1.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 您的网络在层间和时间步骤之间传播错误导数。您的数据集越大，时间步骤和参数越多，层次也越多。在每一步中，展开的RNN包含一个激活函数，将网络输出压缩到0到1之间。
 - en: The repetition of these operations on gradient values that are very close to
     zero means that neurons *die*, or cease to *fire*. The mathematical representation
     on our computation graph of the neuronal model becomes brittle. This is because
     if the changes in the parameter we are learning about are too small to have an
     effect on the output of the network itself, then the network will fail to learn
     the value for that parameter.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 当梯度值接近于零时，重复这些操作意味着神经元*死亡*或停止*激活*。在我们的计算图中，神经元模型的数学表示变得脆弱。这是因为如果我们正在学习的参数变化太小，对网络输出本身没有影响，那么网络将无法学习该参数的值。
 - en: So, instead of using the entirety of the hidden state from the previous timestep,
     is there another way to make the network a bit smarter in terms of what information
     it chooses to keep as we step our network through time during the training process?
     The answer is yes! Let's consider these changes to the network architecture.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在训练过程中，我们的网络在时间步骤中前进时，是否有其他方法可以使网络在选择保留的信息方面更加智能呢？答案是肯定的！让我们考虑一下对网络架构的这些变化。
 - en: Augmenting your RNN with GRU/LSTM units
+  id: totrans-30
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用GRU/LSTM单元增强你的RNN
 - en: So, what if you wanted to build a machine that writes like a dead author? Or
     understands that a pop in the price of a stock two weeks ago might mean that the
     stock will pop again today? For sequence prediction tasks where key information
@@ -189,17 +255,23 @@
     multiple, conditional *mini* neural networks, each determining whether or not
     to carry information across timesteps. We will now discuss each of these variations
     in detail.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 所以，如果你想构建一个像死去的作家一样写作的机器呢？或者理解两周前股票价格的波动可能意味着今天股票将再次波动？对于序列预测任务，在训练早期观察到关键信息，比如在*t+1*时刻，但在*t+250*时刻进行准确预测是必要的，传统的RNN很难处理。这就是LSTM（以及对某些任务来说是GRU）网络发挥作用的地方。不再是简单的单元，而是多个条件*迷你*神经网络，每个网络决定是否跨时间步骤传递信息。我们现在将详细讨论每种变体。
 - en: Long Short-Term Memory units
+  id: totrans-32
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 长短期记忆单元
 - en: Special thanks to the group of Swiss researchers who published a paper titled *Long
     Short-Term Memory *in 1997, which described a method for further augmenting RNNs
     with a more advanced *memory*.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 特别感谢那些发表了一篇名为*长短期记忆*的论文的瑞士研究人员小组，该论文在1997年描述了一种用于进一步增强RNN的高级*记忆*的方法。
 - en: 'So, what does *memory* in this context actually mean? LSTMs take the *dumb*
     RNN cell and add another neural network (consisting of inputs, operations, and
     activations), which will be selective about what information is carried from one
@@ -207,56 +279,80 @@
     RNN cell) and a new hidden state, both of which are then fed into the next step.
     These *gates*, as indicated in the following diagram, learn about what information
     should be maintained in the hidden state:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，在这个背景下，“内存”实际上指的是什么呢？LSTM将“愚蠢的”RNN单元与另一个神经网络相结合（由输入、操作和激活组成），后者将选择性地从一个时间步传递到另一个时间步的信息。它通过维护“单元状态”（类似于香草RNN单元）和新的隐藏状态来实现这一点，然后将它们都馈入下一个步骤。正如下图中所示的“门”所示，在这个模式中学习有关应该在隐藏状态中维护的信息：
 - en: '![](img/ece2f76d-c95f-4967-bb34-ee6440867053.png)'
+  id: totrans-35
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/ece2f76d-c95f-4967-bb34-ee6440867053.png)'
 - en: 'Here, we can see that multiple gates are contained within **r(t)**, **z(t)**,
     and **h(t)**. Each has an activation function: Sigmoid for **r** and **z** and
     **tanh** for **h(t)**.'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们可以看到多个门包含在 **r(t)**，**z(t)** 和 **h(t)** 中。每个都有一个激活函数：对于 **r** 和 **z**
+    是 Sigmoid，而对于 **h(t)** 是 **tanh**。
 - en: Gated Recurrent Units
+  id: totrans-37
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 门控循环单元
 - en: An alternative to LSTM units are GRUs. These were first described by a team
     that was led by another significant figure in the history of deep learning, Yoshua
     Bengio. Their initial paper, *Learning Phrase Representations using RNN Encoder–Decoder
     for Statistical Machine Translation* (2014), offers an interesting way of thinking
     about these ways of augmenting the effectiveness of our RNNs.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: LSTM单元的替代品是GRU。这些最初由另一位深度学习历史上的重要人物Yoshua Bengio领导的团队首次描述。他们的最初论文《使用RNN编码器-解码器学习短语表示进行统计机器翻译》（2014年）提供了一种思考我们如何增强RNN效果的有趣方式。
 - en: Specifically, they draw an equivalence between the `Tanh` activation function
     in a vanilla RNN and LSTM/GRU units, also describing them as *activations*. The
     difference in the nature of their activation is whether information is retained,
     unchanged, or updated in the units themselves. In effect, the use of the `Tanh`
     function means that your network becomes even more selective about the information
     that takes it from one step to the next.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，他们将香草RNN中的 `Tanh` 激活函数与LSTM/GRU单元进行等效对比，并将它们描述为“激活”。它们的激活性质之间的差异是单元本身中信息是否保留、不变或更新。实际上，使用
+    `Tanh` 函数意味着您的网络对将信息从一个步骤传递到下一个步骤更加选择性。
 - en: GRUs differ from LSTMs in that they get rid of the *cell state*, thus reducing
     the overall number of tensor operations your network is performing. They also
     use a single reset gate instead of the LSTM's input and forget gates, further
     simplifying the network's architecture.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: GRU与LSTM的不同之处在于它们消除了“单元状态”，从而减少了网络执行的张量运算总数。它们还使用单个重置门，而不是LSTM的输入和忘记门，进一步简化了网络的架构。
 - en: 'Here is a logical representation of the GRU:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是GRU的逻辑表示：
 - en: '![](img/edaf938d-d2ab-4fd9-84ec-ced8c2bda57d.png)'
+  id: totrans-42
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/edaf938d-d2ab-4fd9-84ec-ced8c2bda57d.png)'
 - en: Here, we can see a combination of the forget/input gates in a single reset gate
     (**z(t)** and **r(t)**), with the single state **S(t)** carried forward to the
     next timestep.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，我们可以看到单个重置门（**z(t)** 和 **r(t)**）中包含忘记和输入门的组合，单个状态 **S(t)** 被传递到下一个时间步。
 - en: Bias initialization of gates
+  id: totrans-44
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 门的偏置初始化
 - en: 'Recently, at an ML conference, the *International Conference on Learning Representations*,
     a paper was delivered by a team from Facebook AI Research that described the progress
     of RNNs. This paper was concerned with the effectiveness of RNNs that had been
@@ -267,16 +363,22 @@
     that this would improve the network''s ability to learn very long-term dependencies.
     They published their results, and it was shown that there seems to be an improvement
     in the training time and the speed with which perplexity is reduced:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 最近，在一个ML会议上，即“国际学习表示会议”，来自Facebook AI Research团队发布了一篇关于RNN进展的论文。这篇论文关注了增强了GRU/LSTM单元的RNN的有效性。虽然深入研究这篇论文超出了本书的范围，但您可以在本章末尾的“进一步阅读”部分中了解更多信息。从他们的研究中得出了一个有趣的假设：这些单元的偏置向量可以以某种方式初始化，这将增强网络学习非常长期的依赖关系的能力。他们发布了他们的结果，结果显示，训练时间有所改善，并且困惑度降低的速度也提高了：
 - en: '![](img/cd383a11-ad1c-4bb9-9f55-50f4172d12ea.png)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/cd383a11-ad1c-4bb9-9f55-50f4172d12ea.png)'
 - en: This graph, taken from the paper, represents the network's loss on the *y* axis,
     and the number of training iterations on the *x* axis. The red indicates c*hrono
     initialization*.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 这张图来自论文，表示网络在*y*轴上的损失，以及在*x*轴上的训练迭代次数。红色指示了*c*hrono初始化*。
 - en: This is very new research, and there is definite scientific value in understanding
     why LSTM/GRU-based networks perform as well as they do. The main practical implications
     of this paper, namely the initialization of the gated unit's biases, offer us
@@ -285,23 +387,31 @@
     incremental) on the word-level PTB and character-level text8 datasets. The network
     we will build in the next section can be easily adapted to test out the relative
     performance improvements of this change.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是非常新的研究，了解为什么基于LSTM/GRU的网络表现如此出色具有明确的科学价值。本文的主要实际影响，即门控单元偏置的初始化，为我们提供了另一个工具来提高模型性能并节省宝贵的GPU周期。目前，这些性能改进在单词级PTB和字符级text8数据集上是最显著的（尽管仍然是渐进的）。我们将在下一节中构建的网络可以很容易地适应测试此更改的相对性能改进。
 - en: Building an LSTM in Gorgonia
+  id: totrans-49
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在Gorgonia中构建一个LSTM
 - en: Now that we've discussed what RNNs are, how to train them, and how to modify
     them for improved performance, let's build one! The next few sections will cover
     how we process and represent data for an RNN that uses LSTM units. We will also
     look at what the network itself looks like, the code for GRU units, and some tools
     for understanding what our network is doing, too.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经讨论了什么是RNN，如何训练它们以及如何修改它们以获得更好的性能，让我们来构建一个！接下来的几节将介绍如何为使用LSTM单元的RNN处理和表示数据。我们还将查看网络本身的样子，GRU单元的代码以及一些工具，用于理解我们的网络正在做什么。
 - en: Representing text data
+  id: totrans-51
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 表示文本数据
 - en: While our aim is to predict the next word in a given sentence, or (ideally)
     predict a series of words that make sense and conform to some measure of English
     syntax/grammar, we will actually be encoding our data at the character level.
@@ -309,133 +419,191 @@
     works of William Shakespeare) and generate a sequence of tokens. These tokens
     might be whole sentences, individual words, or even characters themselves, depending
     on what type of model we are training.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然我们的目标是预测给定句子中的下一个单词，或者（理想情况下）预测一系列有意义并符合某种英语语法/语法度量的单词，但实际上我们将在字符级别对数据进行编码。这意味着我们需要获取我们的文本数据（在本例中是威廉·莎士比亚的作品集）并生成一系列标记。这些标记可以是整个句子、单独的单词，甚至是字符本身，这取决于我们正在训练的模型类型。
 - en: Once we've tokenized out text data, we need to turn these tokens into some kind
     of numeric representation that's amenable to computation. As we've discussed,
     in our case, these representations are tensors. These tokens are then turned into
     some tensors and perform a number of operations on the text to extract different
     properties of the text, hereafter referred to as our *corpus*.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们对文本数据进行了标记化处理，我们需要将这些标记转换为适合计算的某种数值表示。正如我们所讨论的，对于我们的情况，这些表示是张量。然后将这些标记转换为一些张量，并对文本执行多种操作，以提取文本的不同属性，以下简称为我们的*语料库*。
 - en: The aim here is to generator a vocabulary vector (a vector of length *n*, where
     *n* is the number of unique characters in your corpus). We will use this vector
     as a template to encode each character.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的目标是生成一个词汇向量（长度为*n*的向量，其中*n*是语料库中唯一字符的数量）。我们将使用这个向量作为每个字符的编码模板。
 - en: Importing and processing input
+  id: totrans-55
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 导入和处理输入
 - en: Let's start by creating a `vocab.go` file in the root of our project directory.
     In here, you will define a number of reserved unicode characters that will represent
     the beginning/end of our sequences, as well as a `BLANK` character for padding
     out our sequences.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从在项目目录的根目录下创建一个`vocab.go`文件开始。在这里，您将定义一些保留的Unicode字符，用于表示我们序列的开始/结束，以及用于填充我们序列的`BLANK`字符。
 - en: 'Note that we do not include our `shakespeare.txt` input file here. Instead,
     we build a vocabulary and index, and split up our input `corpus` into chunks:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们在这里不包括我们的`shakespeare.txt`输入文件。相反，我们构建了一个词汇表和索引，并将我们的输入`corpus`分成块：
 - en: '[PRE0]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'We can now create the next chunk of code, which provides us with helper functions
     that we will need later on. More specifically, we will add two sampling functions:
     one is temperature-based, where the probability of already-high probability words
     is increased, and decreased in the case of low-probability words. The higher the
     temperature, the greater the probability bump in either direction. This gives
     you another tunable feature in your LSTM-RNN.'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以创建下一部分代码，它提供了我们后续将需要的一些辅助函数。具体来说，我们将添加两个抽样函数：一个是基于温度的，其中已高概率词的概率增加，并在低概率词的情况下减少。温度越高，在任何方向上的概率增加越大。这为您的LSTM-RNN提供了另一个可调整的特性。
 - en: 'Lastly, we will include some functions to work with `byte` and `uint` slices,
     allowing you to easily compare/swap/evaluate them:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将包括一些函数，用于处理`byte`和`uint`切片，使您可以轻松地进行比较/交换/评估它们：
 - en: '[PRE1]'
+  id: totrans-61
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: Next, we will create an `lstm.go` file, where we will define our LSTM units.
     They will look like little neural networks, because as we've discussed previously,
     that's what they are. The input, forget, and output gates will be defined, along
     with their associated weights/biases.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将创建一个`lstm.go`文件，在这里我们将定义我们的LSTM单元。它们看起来像小型神经网络，因为正如我们之前讨论过的那样，它们就是这样。输入门、遗忘门和输出门将被定义，并附带它们的相关权重/偏置。
 - en: 'The `MakeLSTM()` function will add these units to our graph. The LSTM has a
     number of methods too; that is, `learnables()` is used for producing our learnable
     parameters, and `Activate()` is used to define the operations our units perform
     when processing input data:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: '`MakeLSTM()`函数将会向我们的图中添加这些单元。LSTM也有许多方法；也就是说，`learnables()`用于生成我们可学习的参数，而`Activate()`则用于定义我们的单元在处理输入数据时执行的操作：'
 - en: '[PRE2]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: As we mentioned earlier, we will be including the code for a GRU-RNN too. This
     code is modular, so you will be able to swap out your LSTM for a GRU, extending
     the kinds of experiments you can do and the range of use cases you can address.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们之前提到的，我们还将包括GRU-RNN的代码。这段代码是模块化的，因此您可以将您的LSTM替换为GRU，从而扩展您可以进行的实验类型和您可以处理的用例范围。
 - en: 'Let''s create a file named `gru.go`. It will follow the same structure as `lstm.go`,
     but will have a reduced number of gates:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建一个名为`gru.go`的文件。它将按照`lstm.go`的相同结构进行，但会减少门数量：
 - en: '[PRE3]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: As we continue to pull the pieces of our network together, we need a final layer
     of abstraction on top of our LSTM/GRU code—that of the network itself. The naming
     convention we are following is that of a *sequence-to-sequence* (or `s2s`) network.
     In our example, we are predicting the next character of text. This sequence is
     arbitrary, and can be words or sentences, or even a mapping between languages.
     Hence, we will be creating a `s2s.go` file.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们继续将我们网络的各个部分组合在一起时，我们需要在我们的LSTM/GRU代码之上添加一个最终的抽象层—即网络本身的层次。我们遵循的命名惯例是*序列到序列*（或`s2s`）网络。在我们的例子中，我们正在预测文本的下一个字符。这个序列是任意的，可以是单词或句子，甚至是语言之间的映射。因此，我们将创建一个`s2s.go`文件。
 - en: 'Since this is effectively a larger neural network for containing the mini neural
     networks we defined in `lstm.go`/`gru.go` previously, the structure is similar.
     We can see that the LSTM is handling the input to our network (instead of the
     vanilla RNN cell), and that we have `dummy` nodes for handling inputs at `t-0`,
     as well as output nodes:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于这实际上是一个更大的神经网络，用于包含我们之前在`lstm.go`/`gru.go`中定义的小型神经网络，所以结构是类似的。我们可以看到LSTM正在处理我们网络的输入（而不是普通的RNN单元），并且我们在`t-0`处有`dummy`节点来处理输入，以及输出节点：
 - en: '[PRE4]'
+  id: totrans-70
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Since we''re using a static graph, Gorgonia''s `TapeMachine`, we will need
     a function to build our network when it is initialized. A number of these values
     will be replaced at runtime:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们使用的是静态图，Gorgonia的`TapeMachine`，我们将需要一个函数来在初始化时构建我们的网络。其中一些值将在运行时被替换：
 - en: '[PRE5]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'We can now define the training loop of the network itself:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以定义网络本身的训练循环：
 - en: '[PRE6]'
+  id: totrans-74
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'We also need a `predict` function so that after our model has been trained,
     we can sample it:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要一个`predict`函数，这样在我们的模型训练完成后，我们就可以对其进行抽样：
 - en: '[PRE7]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Training on a large text corpus can take a long time, so it will be useful
     to have a means of checkpointing our model so that we can save/load it from an
     arbitrary point in the training cycle:'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 在大文本语料库上进行训练可能需要很长时间，因此有一种方式来检查点我们的模型，以便可以从训练周期中的任意点保存/加载它将会很有用：
 - en: '[PRE8]'
+  id: totrans-78
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Finally, we can define the `meta-training` loop. This is the loop that takes
     the `s2s` network, a solver, our data, and various hyperparameters:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们可以定义`meta-training`循环。这是一个循环，它接受`s2s`网络、一个解算器、我们的数据以及各种超参数：
 - en: '[PRE9]'
+  id: totrans-80
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: Before we build and execute our network, we will add a small visualization tool
     that will assist in any troubleshooting we need to do. Visualization is a powerful
     tool when working with data generally, and in our case, it allows us to peek inside
@@ -443,73 +611,109 @@
     will generate heatmaps that we can use to track changes in our network's weights
     throughout the training process. This way, we can ensure that they are changing
     (that is, that our network is learning).
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 在构建和执行我们的网络之前，我们将添加一个小的可视化工具，以帮助我们进行任何需要的故障排除。通常在处理数据时，可视化是一个强大的工具，在我们的案例中，它允许我们窥探我们的神经网络内部，以便我们理解它在做什么。具体来说，我们将生成热图，用于跟踪我们网络权重在训练过程中的变化。这样，我们可以确保它们在变化（也就是说，我们的网络正在学习）。
 - en: 'Create a file called `heatmap.go`:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建一个名为`heatmap.go`的文件：
 - en: '[PRE10]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'We can now pull all the pieces together and create our `main.go` file. Here,
     we will set our hyperparameters, parse our input, and kick off our main training
     loop:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以把所有的部件整合到我们的`main.go`文件中。在这里，我们将设置超参数，解析输入，并启动我们的主训练循环：
 - en: '[PRE11]'
+  id: totrans-85
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Now, let''s run `go run *.go` and observe the output:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们运行`go run *.go`并观察输出：
 - en: '[PRE12]'
+  id: totrans-87
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: We can see that early in our network's life, the cost, which measures the degree
     to which our network is optimized, is high and fluctuating.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到在我们网络的早期阶段，成本（衡量网络优化程度的指标）很高且波动很大。
 - en: 'After the designated number of epochs, an output prediction will be made:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 在指定的epoch数之后，将进行输出预测：
 - en: '[PRE13]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: You can now experiment with hyperparameters and tweaks, such as using GRU instead
     of LSTM units, and explore bias initialization in an effort to optimize your network
     further and produce better predictions.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在您可以尝试使用GRU而不是LSTM单元以及探索偏置初始化等超参数和调整，以优化您的网络，从而产生更好的预测。
 - en: Summary
+  id: totrans-92
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: In this chapter, we have covered what an RNN is and how to train one. We have
     seen that, in order to effectively model long-term dependencies and overcome training
     challenges, changes to a standard RNN are necessary, including additional information-across-time
     control mechanisms that are provided by GRU/LSTM units. We built such a network
     in Gorgonia.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们介绍了什么是RNN以及如何训练它。我们已经看到，为了有效地建模长期依赖关系并克服训练中的挑战，需要对标准RNN进行改进，包括由GRU/LSTM单元提供的跨时间的额外信息控制机制。我们在Gorgonia中构建了这样一个网络。
 - en: In next chapter, we will learn how to build a CNN and how to tune some of the
     hyperparameters.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将学习如何构建CNN以及如何调整一些超参数。
 - en: Further reading
+  id: totrans-95
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: '*Training Recurrent Neural Networks*, *Ilya Sutskever*, available at [http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf](http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf)'
+  id: totrans-96
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*训练递归神经网络*，*Ilya Sutskever*，可查阅[http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf](http://www.cs.utoronto.ca/~ilya/pubs/ilya_sutskever_phd_thesis.pdf)'
 - en: '*Long Short-Term Memory*, *Hochreiter*, *Sepp*, and *Jurgen Schmidhuber*, available
     at [https://www.researchgate.net/publication/13853244_Long_Short-term_Memory](https://www.researchgate.net/publication/13853244_Long_Short-term_Memory)'
+  id: totrans-97
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*长短期记忆*，*Hochreiter*，*Sepp*和*Jurgen Schmidhuber*，可查阅[https://www.researchgate.net/publication/13853244_Long_Short-term_Memory](https://www.researchgate.net/publication/13853244_Long_Short-term_Memory)'
 - en: '*Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling*, *Bengio
     et al*, available at [https://arxiv.org/abs/1412.3555](https://arxiv.org/abs/1412.3555)'
+  id: totrans-98
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*关于序列建模的经验评估的门控循环神经网络*，*Bengio等*，可查阅[https://arxiv.org/abs/1412.3555](https://arxiv.org/abs/1412.3555)'

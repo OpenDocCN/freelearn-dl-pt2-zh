@@ -1,39 +1,56 @@
 - en: Generative Models with Variational Autoencoders
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用变分自编码器生成模型
 - en: In the previous chapter, we have looked into what DQN is and what types of predictions
     we can make around rewards or actions. In this chapter, we will look into how
     to build a VAE and about the advantages of a VAE over a standard autoencoder.
     We will also look into the effect of varying latent space dimensions on the network.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章中，我们已经探讨了DQN是什么以及我们可以在奖励或行动周围做出什么类型的预测。在本章中，我们将讨论如何构建一个VAE及其相对于标准自编码器的优势。我们还将探讨改变潜在空间维度对网络的影响。
 - en: Let's take a look at another autoencoder. We've looked at autoencoders once
     before in [Chapter 3](200c9784-4718-47d4-84ce-95e41854a151.xhtml), *Beyond Basic
     Neural Networks – Autoencoders and RBMs*, with a simple example, generating MNIST
     digits. Now we'll take a look at using it for a very different task—that is, generating
     new digits.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们再来看看另一个自编码器。我们在[第三章](200c9784-4718-47d4-84ce-95e41854a151.xhtml)中已经介绍过自编码器，*超越基础神经网络
+    – 自编码器和限制玻尔兹曼机*，通过一个简单的例子生成了MNIST数字。现在我们将看看如何将其用于一个非常不同的任务——生成新的数字。
 - en: 'In this chapter, the following topics will be covered:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Introduction to **variational autoencoders** (**VAEs**)
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**变分自编码器** (**VAEs**) 介绍'
 - en: Building a VAE on MNIST
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在MNIST上构建VAE
 - en: Assessing the results and changing the latent dimensions
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 评估结果并更改潜在维度
 - en: Introduction to VAEs
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 变分自编码器介绍
 - en: A VAE is extremely similar in nature to the more basic autoencoder; it learns
     how to encode the data that it is fed into a simplified representation, and it
     is then able to recreate it on the other side based on that encoding. Unfortunately,
@@ -42,62 +59,86 @@
     does not lend itself to this purpose. The encodings they produce may not be continuous—they
     may cluster around very specific portions, and may be difficult to perform interpolation
     on.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: VAE在本质上与更基本的自编码器非常相似；它学习如何将其输入的数据编码为简化表示，并且能够基于该编码在另一侧重新创建它。然而，标准自编码器通常仅限于去噪等任务。对于生成任务，使用标准自编码器存在问题，因为标准自编码器中的潜在空间不适合这种目的。它们产生的编码可能不是连续的——它们可能聚集在非常具体的部分周围，并且可能难以进行插值。
 - en: However, as we want to build a more generative model, and we don't want to replicate
     the same image that we put in, we need variations on the input. If we attempt
     to do this with a standard autoencoder, there is a good chance that the end result
     will be rather absurd, especially if the input differs a fair amount from the
     training set.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，由于我们想构建一个更具生成性的模型，并且不想复制我们输入的相同图像，因此我们需要对输入进行变化。如果我们尝试使用标准自编码器来做这件事，那么最终结果很可能会相当荒谬，特别是如果输入与训练集有很大差异。
 - en: 'The standard autoencoder structure looks a little like this:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 标准自编码器的结构看起来有点像这样：
 - en: '![](img/f2dddc46-b9a4-446f-a80f-c940504c54b8.png)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f2dddc46-b9a4-446f-a80f-c940504c54b8.png)'
 - en: 'We''ve already built this standard autoencoder; however, a VAE has a slightly
     different way of encoding, which makes it look more like the following diagram:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经构建了这个标准自编码器；然而，VAE有一种稍微不同的编码方式，使其看起来更像以下的图表：
 - en: '![](img/a3e4423b-cb5c-4eeb-8931-01f9cb94f9b9.png)'
+  id: totrans-13
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/a3e4423b-cb5c-4eeb-8931-01f9cb94f9b9.png)'
 - en: 'A VAE is different from the standard autoencoder; it has a continuous latent
     space by design, making it easier for us to do random sampling and interpolation.
     It does this by encoding its data into two vectors: one to store its estimate
     of means, and another to store its estimate of the standard deviation.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: VAE与标准自编码器不同；它通过设计具有连续的潜在空间，使我们能够进行随机采样和插值。它通过将数据编码为两个向量来实现：一个用于存储其均值估计，另一个用于存储其标准差估计。
 - en: Using these mean and standard deviations, we then sample an encoding that we
     then pass onto the decoder. The decoder then works off the sampled encoding to
     generate a result. Because we are inserting an amount of random noise during sampling,
     the actual encoding will vary slightly every time.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这些均值和标准差，然后我们对编码进行采样，然后将其传递给解码器。解码器然后根据采样编码生成结果。因为我们在采样过程中插入了一定量的随机噪声，所以实际的编码每次都会稍微有所不同。
 - en: By allowing this variation to occur, the decoder isn't limited to specific encodings;
     instead, it can function across a much larger area in the latent space, as it
     is exposed to not just variations in the data but to variations in the encoding
     as well, during the training process.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过允许此变化发生，解码器不仅仅局限于特定的编码；相反，在训练过程中，它可以跨越潜在空间的更大区域进行操作，因为它不仅仅暴露于数据的变化，还暴露于编码的变化。
 - en: In order to ensure that the encodings are close to each other on the latent
     space, we include a measure called the **Kullback-Leibler** (**KL**) divergence
     into our loss function during training. KL divergence measures the difference
     between two probability functions. In this case, by minimizing this divergence,
     we can reward the model for having the encodings close by, and vice versa for
     when the model attempts to cheat by creating more distance between the encodings.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了确保编码在潜在空间中彼此接近，我们在训练过程中引入了一种称为**Kullback-Leibler**（**KL**）散度的度量。KL散度用于衡量两个概率函数之间的差异。在这种情况下，通过最小化这种散度，我们可以奖励模型使编码彼此靠近，反之亦然，当模型试图通过增加编码之间的距离来作弊时。
 - en: 'In VAEs, we measure KL divergence against the standard normal (which is a Gaussian
     distribution with a mean of 0 and a standard deviation of 1). We can calculate
     this using the following formula:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 在VAEs中，我们使用标准正态分布（即均值为0，标准差为1的高斯分布）来测量KL散度。我们可以使用以下公式计算：
 - en: '*klLoss = 0.5 * sum(mean^2 + exp(sd) - (sd + 1))*'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: '*klLoss = 0.5 * sum(mean^2 + exp(sd) - (sd + 1))*'
 - en: Unfortunately, just using KL divergence is insufficient, as all we are doing
     is ensuring that the encodings are not spread too far apart; we still need to
     ensure that the encodings are meaningful, and not just mixed with one another.
@@ -106,266 +147,405 @@
     in the case of MNIST, handwritten digits) to cluster closer together. This will
     enable the decoder to reconstruct the input better and allow us, via manipulation
     of the input, to produce different results along the continuous axis.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，仅仅使用KL散度是不够的，因为我们所做的只是确保编码不会散布得太远；我们仍然需要确保编码是有意义的，而不仅仅是相互混合。因此，为了优化VAE，我们还添加了另一个损失函数来比较输入和输出。这将导致相似对象的编码（或者在MNIST的情况下是手写数字）更接近聚类在一起。这将使解码器能够更好地重建输入，并且允许我们通过操纵输入，在连续的轴上产生不同的结果。
 - en: Building a VAE on MNIST
+  id: totrans-21
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在MNIST上构建VAE
 - en: Being familiar with the MNIST dataset, as well as the results of a normal autoencoder,
     makes an excellent starting point for your future work. As you may recall, MNIST
     consists of many images of handwritten digits, each measuring 28 x 28 pixels.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 熟悉MNIST数据集以及普通自编码器的结果，这是您未来工作的一个极好的起点。正如您可能记得的那样，MNIST由许多手写数字图像组成，每个数字尺寸为28
+    x 28像素。
 - en: Encoding
+  id: totrans-23
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 编码
 - en: 'As this is an autoencoder, the first step is to build the encoding portion,
     which will look something like this:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于这是一个自编码器，第一步是构建编码部分，看起来像这样：
 - en: '![](img/968aa964-0fea-47d4-a355-033352f268b4.png)'
+  id: totrans-25
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/968aa964-0fea-47d4-a355-033352f268b4.png)'
 - en: 'First, we have our two fully connected layers:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们有我们的两个全连接层：
 - en: '[PRE0]'
+  id: totrans-27
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'We give each layer a ReLU activation:'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 每一层都使用ReLU激活函数：
 - en: '[PRE1]'
+  id: totrans-29
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Then, we connect these to our mean and standard deviation layers:'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将它们连接到我们的均值和标准差层：
 - en: '[PRE2]'
+  id: totrans-31
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'These layers are used as they are, so they do not require a specific activation
     function:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些层以它们的形式使用，因此不需要特定的激活函数：
 - en: '[PRE3]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Sampling
+  id: totrans-34
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 抽样
 - en: 'Now comes one part of the magic behind VAEs: sampling to create the encoding
     that we will feed into the decoder. For reference, we are building something a
     little like this:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们来讲一下VAE（变分自编码器）背后的一部分魔力：通过抽样创建我们将馈送到解码器中的编码。作为参考，我们正在构建类似以下的东西：
 - en: '![](img/554e13bb-17a8-4630-95d9-76435785ee56.png)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/554e13bb-17a8-4630-95d9-76435785ee56.png)'
 - en: 'If you recall from earlier in the chapter, we need to add some noise during
     the sampling process, and we''ll call this noise `epsilon`. This feeds into our
     sampled encoding; in Gorgonia, we can implement this with `GaussianRandomNode`
     with a mean of `0` and standard deviation of `1` as input parameters:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您还记得本章早些时候的内容，我们需要在抽样过程中添加一些噪声，我们将其称为`epsilon`。这些数据用于我们的抽样编码；在Gorgonia中，我们可以通过`GaussianRandomNode`，输入参数为均值为`0`，标准差为`1`来实现这一点：
 - en: '[PRE4]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'We then feed this into our formula to create our sampled encoding:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将这些信息馈送到我们的公式中以创建我们的抽样编码：
 - en: '[PRE5]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'The preceding code might be difficult to read. In simpler terms, what we are
     doing is the following:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码可能难以阅读。更简单地说，我们正在做以下工作：
 - en: '[PRE6]'
+  id: totrans-42
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: This gives us a sampled encoding using both the mean and standard deviation
     vectors plus a noise component. This ensures that the result is not quite the
     same every time.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 这使我们使用均值和标准差向量加上噪声成分进行了采样编码。这确保了每次的结果并不完全相同。
 - en: Decoding
+  id: totrans-44
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 解码
 - en: 'After we have got our sampled encoding, we then feed it to our decoder, which
     is essentially the same structure as our encoder, but in reverse. The arrangement
     looks a little like this:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们获得了采样的编码之后，我们将其馈送给我们的解码器，这本质上与我们的编码器具有相同的结构，但是顺序相反。布局看起来有点像这样：
 - en: '![](img/65f816b1-012b-47b4-ac5f-bba260f295ac.png)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/65f816b1-012b-47b4-ac5f-bba260f295ac.png)'
 - en: 'The actual implementation in Gorgonia looks like the following:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Gorgonia 中的实际实现看起来像下面这样：
 - en: '[PRE7]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: We put a `Sigmoid` activation on the last layer, as we want the output to be
     more continuous than ReLU usually provides.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在最后一层上放置了`Sigmoid`激活，因为我们希望输出比ReLU通常提供的更连续。
 - en: Loss or cost function
+  id: totrans-50
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 损失或成本函数
 - en: As discussed in the first part of the chapter, we optimize for two different
     sources of loss.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如本章第一部分讨论的那样，我们优化了两种不同的损失源。
 - en: 'The first loss we optimize for is the actual difference between the input image
     and the output image; this is ideal for us if the difference is minimal. To do
     this, we expose the output layer and then calculate the difference to the input.
     For this example, we are using the sum of the squared errors between the input
     and output, nothing fancy. In pseudocode, this looks like the following:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们优化的第一个损失是输入图像与输出图像之间的实际差异；如果差异很小，这对我们来说是理想的。为此，我们展示输出层，然后计算到输入的差异。对于本例，我们使用输入和输出之间的平方误差之和，没有什么花哨的东西。在伪代码中，这看起来像下面这样：
 - en: '[PRE8]'
+  id: totrans-53
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'In Gorgonia, we can implement it as follows:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Gorgonia 中，我们可以按照以下方式实现它：
 - en: '[PRE9]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Our other loss component is the KL divergence measure, for which the pseudocode
     looks like the following:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的另一个损失组件是 KL 散度度量，其伪代码如下所示：
 - en: '[PRE10]'
+  id: totrans-57
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Our implementation in Gorgonia is more verbose, with a generous use of `Must`:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在Gorgonia中的实现更冗长，大量使用了`Must`：
 - en: '[PRE11]'
+  id: totrans-59
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Now, all that''s left is a little bit of housekeeping and tying everything
     together. We will be using the Adam''s `solver` for this example:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，剩下的就是一些日常管理和将所有内容联系在一起。我们将使用Adam的`solver`作为示例：
 - en: '[PRE12]'
+  id: totrans-61
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: Let's now assess the results.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们评估一下结果。
 - en: Assessing the results
+  id: totrans-63
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 评估结果
 - en: 'You''ll notice that the results of our VAE model are a fair bit fuzzier than
     our standard autoencoder:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 您会注意到，我们的VAE模型的结果比我们的标准自编码器要模糊得多：
 - en: '![](img/6597464d-58b8-4720-8092-27a5015cac42.png)'
+  id: totrans-65
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/6597464d-58b8-4720-8092-27a5015cac42.png)'
 - en: 'In some cases, it also appears to be undecided between several different digits,
     like in the following example, where it appears to be getting close to decoding
     to a 7 instead of a 9:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某些情况下，它还可能在几个不同数字之间犹豫不决，例如在以下示例中，它似乎接近解码为7而不是9：
 - en: '![](img/042e54bc-4e38-429e-b706-8a98276d0119.png)'
+  id: totrans-67
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/042e54bc-4e38-429e-b706-8a98276d0119.png)'
 - en: 'This is because we have specifically enforced the distributions to be close
     to each other. If we were to try to visualize this on a two-dimensional plot,
     it would look a little bit like the following:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是因为我们明确要求分布彼此接近。如果我们试图在二维图上可视化这一点，它看起来会有点像下面的样子：
 - en: '![](img/1db7260f-8158-4d64-8cef-518d1d2f8779.png)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/1db7260f-8158-4d64-8cef-518d1d2f8779.png)'
 - en: You can see from this last example that it can generate several different variations
     of each of the handwritten digits, and also that there are certain areas in between
     the different digits where it appears to morph between several different digits.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以从上一个示例中看到，它可以生成每个手写数字的多个不同变体，还可以在不同数字之间的某些区域中看到它似乎在几个不同数字之间变形。
 - en: Changing the latent dimensions
+  id: totrans-71
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 更改潜在维度
 - en: VAEs on MNIST typically perform reasonably well with two dimensions after enough
     epochs, but the best way to know this for certain is to test that assumption and
     try a few other sizes.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在足够的epoch之后，MNIST上的VAE通常表现相当良好，但确保这一点的最佳方法是测试这一假设并尝试几种其他尺寸。
 - en: 'For the implementation described in this book, this is a fairly quick change:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于本书描述的实现，这是一个相当快速的更改：
 - en: '[PRE13]'
+  id: totrans-74
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'The basic implementation here is with eight dimensions; all we have to do to
     get it to work on two dimensions is to change all instances of `8` to `2`, resulting
     in the following:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的基本实现是使用八个维度；要使其在两个维度上工作，我们只需将所有`8`的实例更改为`2`，结果如下：
 - en: '[PRE14]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Now all we have to do is recompile the code and then run it, which allows us
     to see what happens when we try a latent space with more dimensions.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们只需重新编译代码然后运行它，这使我们能够看到当我们尝试具有更多维度的潜在空间时会发生什么。
 - en: 'As we can see, it''s quite clear that 2 Dimensions is at a disadvantage, but
     it isn''t quite so clear as we move up the ladder. You can see that 20 Dimensions
     produces appreciably sharper results on average, but really it looks like the
     5 Dimension version of the model may already be more than sufficient for most
     purposes:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们所见，很明显，2个维度处于劣势，但随着我们逐步升级，情况并不那么明显。您可以看到，平均而言，20个维度产生了明显更锐利的结果，但实际上，模型的5维版本可能已经足够满足大多数需求：
 - en: '![](img/ba71c845-ea42-4efc-b9c6-3b3ef61f3b43.png)'
+  id: totrans-79
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/ba71c845-ea42-4efc-b9c6-3b3ef61f3b43.png)'
 - en: Summary
+  id: totrans-80
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: You have now learned how to build a VAE and about the advantages of using a
     VAE over a standard autoencoder. You have also learned about the effect of varying
     latent space dimensions on the network.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 您现在已经学会了如何构建VAE以及使用VAE比标准自编码器的优势。您还了解了变动潜在空间维度对网络的影响。
 - en: As an exercise, you should try training this model to work on the CIFAR-10 dataset
     and using convolutional layers instead of simple fully connected layers.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为练习，您应该尝试在CIFAR-10数据集上训练该模型，并使用卷积层而不是简单的全连接层。
 - en: In the next chapter, we will look at what data pipelines are and why we use
     Pachyderm to build or manage them.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将看看数据流水线是什么，以及为什么我们使用Pachyderm来构建或管理它们。
 - en: Further reading
+  id: totrans-84
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: '*Auto-Encoding Variational Bayes,* *Diederik P. Kingma*, and *Max Wlling*'
+  id: totrans-85
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*自编码变分贝叶斯，* **迪德里克·P·金格玛**，和 **马克斯·威林**'
 - en: '*Tutorial on* *Variational Autoencoders,* *Carl Doersh*'
+  id: totrans-86
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*变分自编码器教程，* **卡尔·多尔舍**'
 - en: '*ELBO surgery: yet another way to carve up the variational evidence lower bound, **Matthew
     D. Hoffman* and *Matthew J. Johnson*'
+  id: totrans-87
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*ELBO手术：切割变分证据下界的又一种方法，**马修·D·霍夫曼** 和 **马修·J·约翰逊***'
 - en: '*Latent Alignment and Variational Attention, **Yuntian Deng*, *Yoon Kim*, *Justin
     Chiu*, *Demi Guo*, and *Alexander M. Rush*'
+  id: totrans-88
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*潜在对齐与变分注意力，**邓云天**，**Yoon Kim**，**贾斯汀·邱**，**郭小芬** 和 **亚历山大·M·拉什***'

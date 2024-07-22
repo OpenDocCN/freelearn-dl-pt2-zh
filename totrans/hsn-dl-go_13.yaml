@@ -1,60 +1,83 @@
 - en: Scaling Deployment
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 扩展部署
 - en: Now that we've been introduced to a tool that manages data pipelines, it's time
     to peer completely under the hood. Our models ultimately run on the kinds of hardware
     we talked about in [Chapter 5](b22a0573-9e14-46a4-9eec-e3f2713cb5f8.xhtml), *Next
     Word Prediction with Recurrent Neural Networks*, abstracted through many layers
     of software until we get to the point where we can use code such as `go build
     --tags=cuda`.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经介绍了一个管理数据流水线的工具，现在是完全深入了解的时候了。我们的模型最终在软件的多层抽象下运行在我们在[第5章](b22a0573-9e14-46a4-9eec-e3f2713cb5f8.xhtml)中讨论过的硬件上，直到我们可以使用像`go
+    build --tags=cuda`这样的代码为止。
 - en: Our deployment of the image recognition pipeline built on top of Pachyderm was
     local. We did it in a way that was functionally identical to deploying it to cloud
     resources, without getting into the detail of what that would look like. This
     detail will now be our focus.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在Pachyderm上构建的图像识别流水线部署是本地的。我们以一种与部署到云资源相同的方式进行了部署，而不深入探讨其具体外观。现在我们将专注于这一细节。
 - en: 'By the end of this chapter, you should be able to do the following:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过本章末尾，您应能够做到以下几点：
 - en: Identify and understand cloud resources, including those specific to our platform
     example (AWS)
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 识别和理解云资源，包括我们平台示例中的特定资源（AWS）。
 - en: Know how to migrate your local deployment to the cloud
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 知道如何将您的本地部署迁移到云上
 - en: Understand what Docker and Kubernetes are and how they work
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解Docker和Kubernetes以及它们的工作原理。
 - en: Understand the computation-versus-cost trade-off
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解计算与成本之间的权衡。
 - en: Lost (and found) in the cloud
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在云中迷失（和找到）
 - en: Having a beefy desktop machine with a GPU and an Ubuntu build is great for prototyping
     and research, but when it comes time to getting your model into production, and
     to actually making the day-to-day predictions required by your use case, you need
     compute resources that are highly available and scalable. What does that actually
     mean?
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 拥有一台配备GPU和Ubuntu系统的强大台式机非常适合原型设计和研究，但是当你需要将模型投入生产并实际进行每日预测时，你需要高可用性和可扩展性的计算资源。这究竟意味着什么？
 - en: Imagine you've taken our **Convolutional Neural Network** (**CNN**) example,
     tweaked the model and trained it on your own data, and created a simple REST API
     frontend to call the model. You want to build a little business around providing
     clients with a service whereby they pay some money, get an API key, and can submit
     an image to an endpoint and get a reply stating what that image contains. Image
     recognition as a service! Does this sound good?
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一下，你已经拿我们的**卷积神经网络**（**CNN**）例子，调整了模型并用自己的数据进行了训练，并创建了一个简单的REST API前端来调用模型。你想要围绕提供客户服务的一个小业务，客户支付一些费用，获得一个API密钥，可以提交图像到一个端点并获得一个回复，说明图像包含什么内容。作为服务的图像识别！听起来不错吧？
 - en: How would we make sure our service is always available and fast? After all,
     people are paying you good money, and even a small outage or dip in reliability
     could cause you to lose customers to one of your competitors. Traditionally, the
@@ -63,8 +86,10 @@
     in the case of hardware failure. You'd need to examine options for redundancy
     at every level, from disk or storage all the way through to the network and even
     internet connection.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们如何确保我们的服务始终可用和快速？毕竟，人们付费给你，即使是小的停机或可靠性下降也可能导致您失去客户。传统上的解决方案是购买一堆昂贵的*服务器级*硬件，通常是带有多个电源和网络接口的机架式服务器，以确保在硬件故障的情况下服务的连续性。您需要检查每个级别的冗余选项，从磁盘或存储到网络，甚至到互联网连接。
 - en: The rule of thumb was that you needed two of everything, and this all came at
     a considerable, even prohibitive, cost. If you were a large, well-funded start-up, you
     had many options, but of course, as the funding curve dropped off, so did your
@@ -72,8 +97,10 @@
     but for most small or start-up use cases), which in turn became a standardized
     layer of compute stored in someone else's data center to the extent that you simply
     didn't need to care about the underlying hardware or infrastructure at all.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 据说你需要两个一模一样的东西，这一切都需要巨大甚至是禁止性的成本。如果你是一家大型、有资金支持的初创公司，你有很多选择，但当然，随着资金曲线的下降，你的选择也会减少。自助托管变成了托管托管（并非总是如此，但对于大多数小型或初创用例而言是如此），这反过来又变成了存储在别人数据中心中的计算的标准化层，以至于你根本不需要关心底层硬件或基础设施。
 - en: Of course, in reality, this is not always the case. A cloud provider such as
     AWS takes most of the boring, painful (but necessary) stuff, such as hardware
     replacements and general maintenance, out of the equation. You're not going to
@@ -81,8 +108,10 @@
     is all working well*) to serve 100,000 customers a day, then you can push a simple
     infrastructure spec change. No calls to a hosting provider, negotiating outages,
     or trips to the computer hardware store required.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，在现实中，并非总是如此。像AWS这样的云提供商将大部分乏味、痛苦（但必要）的工作，如硬件更换和常规维护，从中排除了。你不会丢失硬盘或陷入故障的网络电缆，如果你决定（*嘿，一切都运作良好*），为每天10万客户提供服务，那么你只需推送一个简单的基础架构规格变更。不需要给托管提供商打电话，协商停机时间，或去计算机硬件店。
 - en: This is an incredibly powerful idea; the literal nuts and bolts of your solution—the
     mix of silicon and gadgetry that your model will use to make predictions—can almost
     be treated as an afterthought, at least compared to a few short years ago. The
@@ -91,8 +120,10 @@
     camps. They understand what all these AWS resources are meant to represent (servers,
     switches, and load balancers), and how to write the code necessary to specify
     and manage them.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个非常强大的想法；你解决方案的实际执行——硅和装置的混合物，用于做出预测——几乎可以被视为一种事后的考虑，至少与几年前相比是如此。一般来说，维护云基础设施所需的技能集或方法被称为**DevOps**。这意味着一个人同时参与两个（或更多！）阵营。他们了解这些AWS资源代表什么（服务器、交换机和负载均衡器），以及如何编写必要的代码来指定和管理它们。
 - en: An evolving role is that of the *machine learning engineer*. This is the traditional
     DevOps skill set, but as more of the *Ops* side becomes automated or abstracted
     away, the individual can also focus on model training or deployment and, indeed,
@@ -102,28 +133,40 @@
     inference at scale all results in a model-serving infrastructure where the various
     design elements are not the product of domain specialization but rather an integrated
     whole.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个不断发展的角色是*机器学习工程师*。这是传统的DevOps技能集，但随着更多的*Ops*方面被自动化或抽象化，个人也可以专注于模型训练或部署，甚至扩展。让工程师参与整个堆栈是有益的。理解一个模型可并行化的程度，一个特定模型可能具有的内存需求，以及如何构建必要的分布式基础设施以进行大规模推理，所有这些都导致了一个模型服务基础设施，在这里各种设计元素不是领域专业化的产物，而是一个整体的集成。
 - en: Building deployment templates
+  id: totrans-16
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 构建部署模板
 - en: 'We will now put together the various templates required to deploy and train
     our model at scale. These templates include:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将组合所需的各种模板，以便在规模上部署和训练我们的模型。这些模板包括：
 - en: '**AWS cloud formation templates**: Virtual instances and related resources'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**AWS云形成模板**：虚拟实例及相关资源'
 - en: '**Kubernetes or KOPS configuration**: K8s cluster management'
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Kubernetes或KOPS配置**：K8s集群管理'
 - en: '**Docker templates or Makefile**: Create images to deploy on our K8s cluster'
+  id: totrans-20
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Docker模板或Makefile**：创建图像以部署在我们的K8s集群上'
 - en: We are choosing a particular path here. AWS has services such as **Elastic Container
     Service** (**ECS**) and **Elastic Kubernetes Service** (**EKS**) that are accessible
     via simple API calls. Our purpose here is to engage with the nitty-gritty details,
@@ -133,371 +176,558 @@
     containers to a vanilla EC2 instance. These services are also expensive, as we'll
     see in a later section regarding cost and performance trade-offs when making these
     decisions.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在这里选择了一条特定的路径。AWS有诸如**弹性容器服务**（**ECS**）和**弹性Kubernetes服务**（**EKS**）等服务，通过简单的API调用即可访问。我们在这里的目的是深入了解细节，以便您可以明智地选择如何扩展部署您自己的用例。目前，您可以更精细地控制容器选项，以及在将容器部署到纯净的EC2实例时如何调用您的模型。这些服务在成本和性能方面的权衡将在稍后的成本和性能折衷部分中进行讨论。
 - en: High-level steps
+  id: totrans-22
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 高级步骤
 - en: 'Our mini CI/CD pipeline includes the following tasks:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的迷你CI/CD流水线包括以下任务：
 - en: Create or push training or inference Docker images to AWS ECS.
+  id: totrans-24
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建或推送训练或推理Docker镜像到AWS ECS。
 - en: Create or deploy an AWS stack with Kubernetes cluster on an EC2 instance that
     allows us to do the next step.
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在EC2实例上创建或部署一个带有Kubernetes集群的AWS堆栈，以便我们可以执行下一步操作。
 - en: Train a model or make some predictions!
+  id: totrans-26
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练一个模型或进行一些预测！
 - en: We will now go through the details of each of these steps in turn.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将依次详细介绍每个步骤的细节。
 - en: Creating or pushing Docker images
+  id: totrans-28
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 创建或推送Docker镜像
 - en: Docker is certainly a tool that has attracted a lot of hype. The main reason
     for this, beyond human fashion, is that Docker simplifies things such as dependency
     management and model integration, allowing reproducible, widely deployable builds.
     We can define the things we need from an OS up front and parcel them all up at
     a point in time where we know the dependencies are fresh so that all our tweaking
     and troubleshooting will not be in vain.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: Docker肯定是一个引起了很多炒作的工具。除了人类时尚之外，其主要原因在于Docker简化了诸如依赖管理和模型集成等问题，使得可重复使用、广泛部署的构建成为可能。我们可以预先定义从操作系统获取的所需内容，并在我们知道依赖项是最新的时候将它们全部打包起来，这样我们所有的调整和故障排除工作都不会徒劳无功。
 - en: 'We will need two things to create our image and get it to where we want it
     to go:'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 要创建我们的镜像并将其送到我们想要去的地方，我们需要两样东西：
 - en: '**Dockerfile**: This defines our image, the version of Linux, the commands
     to run, and the default command to run when the container is launched'
+  id: totrans-31
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Dockerfile**：这定义了我们的镜像、Linux的版本、要运行的命令以及在启动容器时运行的默认命令。'
 - en: '**Makefile**: This creates the image and pushes it to AWS ECS'
+  id: totrans-32
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Makefile**：这将创建镜像并将其推送到AWS ECS。'
 - en: 'Let''s first look at the Dockerfile:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们先看一下Dockerfile：
 - en: '[PRE0]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'We can discern the general approach just by looking at the capitalized declarations
     at the start of each line:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过查看每行开头的大写声明来推断一般方法：
 - en: Pick the base OS image with `FROM`.
+  id: totrans-36
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 选择基础OS镜像使用`FROM`。
 - en: Set boot with `ARG`.
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`ARG`设置启动。
 - en: Run a bunch of commands with `RUN` to get our Docker image into the desired
     state. Then `ADD` a directory of the `staging` data, mounted to `/app`.
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`RUN`运行一系列命令，使我们的Docker镜像达到期望的状态。然后将一个`staging`数据目录添加到`/app`。
 - en: Change to a new `WORKDIR`.
+  id: totrans-39
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 切换到新的`WORKDIR`。
 - en: Execute the `CMD` command and our container will run.
+  id: totrans-40
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行`CMD`命令，我们的容器将运行。
 - en: We now need a Makefile. This file contains the commands that will build the
     images we just defined in our Dockerfile and push them to Amazon's container-hosting
     service, ECS.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们需要一个Makefile。这个文件包含了将构建我们刚刚在Dockerfile中定义的镜像并将其推送到亚马逊容器托管服务ECS的命令。
 - en: 'This is our Makefile:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是我们的Makefile：
 - en: '[PRE1]'
+  id: totrans-43
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: As with the other examples that we have already covered, we are using the `sp-southeast-2`
     region; however, feel free to specify your own. You will also need to include
     your own 12-digit AWS account ID.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 与我们已经涵盖过的其他示例一样，我们正在使用`sp-southeast-2`地区；但是，您可以自由指定您自己的地区。您还需要包含您自己的12位AWS帐户ID。
 - en: From this directory (when the time comes, not just yet!) we can now create and
     push Docker images.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这个目录（时间未到时，请耐心等待！）我们现在可以创建和推送Docker镜像。
 - en: Preparing your AWS account
+  id: totrans-46
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 准备您的AWS账户
 - en: 'You will see a notification of API access to AWS in order for KOPS to manage
     your EC2 and related compute resources. The account associated with this API key
     will need the following IAM permissions too:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 您将看到有关API访问AWS的通知，以便KOPS管理您的EC2和相关计算资源。与此API密钥相关联的帐户还需要以下IAM权限：
 - en: AmazonEC2FullAccess
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AmazonEC2FullAccess
 - en: AmazonRoute53FullAccess
+  id: totrans-49
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AmazonRoute53FullAccess
 - en: AmazonS3FullAccess
+  id: totrans-50
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AmazonS3FullAccess
 - en: AmazonVPCFullAccess
+  id: totrans-51
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AmazonVPCFullAccess
 - en: 'You can enable programmatic or API access by going into your AWS console and
     going through the following steps:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过进入 AWS 控制台并按照以下步骤操作来启用程序化或 API 访问：
 - en: Click IAM
+  id: totrans-53
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 点击 IAM
 - en: From the left-hand menu, select Users and then your user
+  id: totrans-54
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从左侧菜单中选择“用户”，然后选择您的用户
 - en: Select Security credentials. You will then see the Access Keys section
+  id: totrans-55
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 选择“安全凭证”。然后，您将看到“访问密钥”部分
 - en: Click Create access key and follow the instructions
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 点击“创建访问密钥”，然后按照说明操作
 - en: The resulting key and key ID will be used in your `~/.aws/credentials` file
     or exported as a shell variable for use with KOPS and related deployment and cluster-management
     tools.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果产生的密钥和密钥 ID 将被用于您的 `~/.aws/credentials` 文件或作为 shell 变量导出，以供 KOPS 和相关部署和集群管理工具使用。
 - en: Creating or deploying a Kubernetes cluster
+  id: totrans-58
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 创建或部署 Kubernetes 集群
 - en: Our docker images have to run on something, so why not a collection of Kubernetes
     pods? This is where the magic of distributed cloud computing is apparent. Using
     a central data source, in our case AWS S3, many microinstances for either training
     or inference are spun up, maximizing AWS resource utilization, saving you money
     and giving you the stability and performance you need for enterprise-grade machine
     learning applications.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的 Docker 镜像必须运行在某个地方，为什么不是一组 Kubernetes pod 呢？这正是分布式云计算的魔力所在。使用中央数据源，例如 AWS
+    S3，在我们的情况下，会为训练或推理启动许多微实例，最大化 AWS 资源利用率，为您节省资金，并为企业级机器学习应用提供所需的稳定性和性能。
 - en: First, navigate to the `/k8s/` directory in the repository that accompanies
     these chapters.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，进入存放这些章节的仓库中的 `/k8s/` 目录。
 - en: We will begin by creating the templates necessary to deploy a cluster. In our
     case, we are going to use a frontend for `kubectl`, the default Kubernetes command
     that interacts with the main API.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将开始创建部署集群所需的模板。在我们的案例中，我们将使用 `kubectl` 的前端，默认的 Kubernetes 命令，它与主 API 进行交互。
 - en: Kubernetes
+  id: totrans-62
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Kubernetes
 - en: 'Let''s look at our `k8s_cluster.yaml` file:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看我们的 `k8s_cluster.yaml` 文件：
 - en: '[PRE2]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Let''s look at our `k8s_master.yaml` file:'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看我们的 `k8s_master.yaml` 文件：
 - en: '[PRE3]'
+  id: totrans-66
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Let''s look at our `k8s_nodes.yaml` file:'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看我们的 `k8s_nodes.yaml` 文件：
 - en: '[PRE4]'
+  id: totrans-68
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: These templates will be fed into Kubernetes in order to spin up our cluster.
     The tool we will use to deploy the cluster and associated AWS resources is *KOPS*.
     At the time of writing the current version of this tool is 1.12.1, and all deployments
     have been tested with this version; earlier versions may have compatibility issues.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些模板将被输入到 Kubernetes 中，以便启动我们的集群。我们将用来部署集群和相关 AWS 资源的工具是 *KOPS*。在撰写本文时，该工具的当前版本为
+    1.12.1，并且所有部署均已使用此版本进行测试；较早版本可能存在兼容性问题。
 - en: 'First, we need to install KOPS. As with all our previous examples, these steps
     also apply to macOS. We use the Homebrew tool to manage dependencies and keep
     the installation localized and sane:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要安装 KOPS。与我们之前的所有示例一样，这些步骤也适用于 macOS。我们使用 Homebrew 工具来管理依赖项，并保持安装的局部化和合理性：
 - en: '[PRE5]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: We can see that KOPS has been installed, along with `kubectl`, which is the
     default K8s cluster-management tool that interacts directly with the API. Note
     that Homebrew often spits out warning-type messages regarding command completion,
     and it is safe to ignore these; however, if you get an error regarding the configuration
     of symlinks, follow the instructions to resolve conflicts with any existing local
     installation of `kubectl`.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到 KOPS 已经安装，连同 `kubectl` 一起，这是与 API 直接交互的默认 K8s 集群管理工具。请注意，Homebrew 经常会输出关于命令完成的警告类型消息，可以安全地忽略这些消息；但是，如果出现关于符号链接配置的错误，请按照说明解决与任何现有的
+    `kubectl` 本地安装冲突的问题。
 - en: Cluster management scripts
+  id: totrans-73
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 集群管理脚本
 - en: We also need to write a few scripts to allow us to set environment variables
     and spin up or bring down a Kubernetes cluster on demand. Here, we will bring
     together the templates we have written, KOPS or `kubectl`, and the AWS configuration
     we completed in previous sections.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要编写一些脚本，以允许我们设置环境变量并根据需要启动或关闭 Kubernetes 集群。在这里，我们将整合我们编写的模板，KOPS 或 `kubectl`，以及我们在前几节中完成的
+    AWS 配置。
 - en: 'Let''s look at our `vars.sh` file:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看看我们的 `vars.sh` 文件：
 - en: '[PRE6]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: We can see here that the main variables are the container names, the K8s cluster
     details, and a bunch of specs for the kinds of AWS resources we want to spin up
     (and the zone to place them in). You will need to replace these values with your
     own.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到这里的主要变量是容器名称、K8s 集群详细信息以及我们想要启动的 AWS 资源种类的一堆规格（及其所在的区域）。您需要用您自己的值替换这些值。
 - en: Now we can make a corresponding script to unset the variables in our shell,
     an important part of cleaning up after we're done deploying or managing K8s clusters.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以编写相应的脚本，在完成部署或管理 K8s 集群后，清理我们的 shell 中的变量是一个重要部分。
 - en: 'Let''s look at our `unsetvars.sh` file:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的 `unsetvars.sh` 文件：
 - en: '[PRE7]'
+  id: totrans-80
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: The script to bring up our cluster will now use these variables to determine
     what to call the cluster, how many nodes it has, and where it should be deployed.
     You will see that we use a little trick to pass environment variables into our
     Kubernetes templates or KOPS in a single line; in future versions, this may not
     be necessary, but it is a serviceable workaround for now.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，启动我们的集群脚本将使用这些变量来确定集群的命名方式、节点数量以及部署位置。您将看到我们在一行中使用了一个小技巧来将环境变量传递到我们的 Kubernetes
+    模板或 KOPS 中；在未来的版本中，这可能不再需要，但目前这是一个可行的解决方法。
 - en: 'Let''s look at our `cluster-up.sh` file:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的 `cluster-up.sh` 文件：
 - en: '[PRE8]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: The corresponding `down` script will kill our cluster and ensure that any AWS
     resources are cleaned up accordingly.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 相应的 `down` 脚本将关闭我们的集群，并确保相应清理 AWS 资源。
 - en: 'Let''s look at our `cluster-down.sh` file:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的 `cluster-down.sh` 文件：
 - en: '[PRE9]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: Building and pushing Docker containers
+  id: totrans-87
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 构建和推送 Docker 容器
 - en: Now that we've done the hard work of preparing all our templates and scripts,
     we can get on with actually making the Docker images and pushing them to ECR ahead
     of a full cluster deployment.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经做好了准备，准备好了所有模板和脚本，我们可以继续实际制作 Docker 镜像，并将其推送到 ECR，以便进行完整集群部署之前使用。
 - en: 'First, we export the AWS credentials we generated earlier in this chapter:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们导出了本章前面生成的 AWS 凭证：
 - en: '[PRE10]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Then we get the container repository login. This is necessary to allow us to
     push the created Docker image to ECR, which in turn will be pulled down by our
     Kubernetes nodes at model training or inference time. Note that this step assumes
     you have AWS CLI installed:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们获取容器存储库登录信息。这是必要的，以便我们可以推送创建的 Docker 镜像到 ECR，然后由我们的 Kubernetes 节点在模型训练或推理时拉取。请注意，此步骤假定您已安装
+    AWS CLI：
 - en: '[PRE11]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The output of this command should resemble the following:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 此命令的输出应类似于以下内容：
 - en: '[PRE12]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: We can then execute `make cifarcnn-image` and `make cifarcnn-push` This will
     build the docker image we specified in the Dockerfile and push it to AWS's container
     storage service.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们可以执行 `make cifarcnn-image` 和 `make cifarcnn-push`。这将构建 Dockerfile 中指定的
+    Docker 镜像，并将其推送到 AWS 的容器存储服务中。
 - en: Running a model on a K8s cluster
+  id: totrans-96
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 K8s 集群上运行模型
 - en: You can now edit the `vars.sh` file we created earlier and set the appropriate
     values using your favorite command-line text editor. You will also need to create
     the bucket where k8s stores cluster information.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 您现在可以编辑我们之前创建的 `vars.sh` 文件，并使用您喜爱的命令行文本编辑器设置适当的值。您还需要创建一个存储 k8s 集群信息的存储桶。
 - en: 'Once you have done this, you can bring up your Kubernetes cluster:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 完成这些步骤后，您可以启动您的 Kubernetes 集群：
 - en: '[PRE13]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'KOPS is now interacting with Kubernetes via `kubectl` to spin up the AWS resources
     that will run your cluster and then configure K8s itself on these same resources.
     You will need to verify that your cluster has been brought up successfully before
     proceeding:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，KOPS 正通过 `kubectl` 与 Kubernetes 进行交互，以启动将运行您的集群的 AWS 资源，并在这些资源上配置 K8s 本身。在继续之前，您需要验证您的集群是否已成功启动：
 - en: '[PRE14]'
+  id: totrans-101
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Once all K8s masters return `Ready`, you can proceed with deploying your model
     across the cluster's nodes!
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦所有 K8s 主节点返回 `Ready`，您就可以开始在整个集群节点上部署您的模型！
 - en: The script to do this is simple, and calls `kubectl` to apply the template in
     the same manner as our `cluster_up.sh` script.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 执行此操作的脚本很简单，并调用 `kubectl` 以与我们的 `cluster_up.sh` 脚本相同的方式应用模板。
 - en: 'Let''s look at our `deploy-model.sh` file:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看我们的 `deploy-model.sh` 文件：
 - en: '[PRE15]'
+  id: totrans-105
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: Summary
+  id: totrans-106
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概要
 - en: 'Having now walked you through the under-the-hood details of how Kubernetes,
     Docker, and AWS can be used to throw as many resources at your model as your wallet
     will allow, there are a number of steps you can take to customize these examples
     to your use case or take your level of knowledge even further:'
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们来详细介绍 Kubernetes、Docker 和 AWS 的底层细节，以及如何根据您的钱包能力将尽可能多的资源投入到模型中。接下来，您可以采取一些步骤，定制这些示例以适应您的用例，或者进一步提升您的知识水平：
 - en: Integrate this approach into your CI or CD tool (Bamboo, CircleCI, Puppet, and
     so on)
+  id: totrans-108
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将这种方法集成到您的 CI 或 CD 工具中（如 Bamboo、CircleCI、Puppet 等）
 - en: Integrate Pachyderm into your Docker, Kubernetes, or AWS solution
+  id: totrans-109
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将 Pachyderm 集成到您的 Docker、Kubernetes 或 AWS 解决方案中
 - en: Experiment with the parameter server to do things such as distributed gradient
     descent and further optimize your model pipeline
+  id: totrans-110
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用参数服务器进行实验，例如分布式梯度下降，进一步优化您的模型流水线

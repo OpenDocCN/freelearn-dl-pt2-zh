@@ -1,7 +1,9 @@
 - en: '*Chapter 8*: Building a Chatbot Using Attention-Based Neural Networks'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第 8 章*：使用基于注意力的神经网络构建对话机器人'
 - en: If you have ever watched any futuristic sci-fi movies, chances are you will
     have seen a human talk to a robot. Machine-based intelligence has been a long-standing
     feature in works of fiction; however, thanks to recent advances in NLP and deep
@@ -10,8 +12,10 @@
     the meaning of language in the same way that humans do, machines are at least
     capable of holding a basic conversation and giving a rudimentary impression of
     intelligence.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你看过任何未来主义科幻电影，你可能会看到人类与机器人交谈。基于机器的智能一直是小说作品中的一个长期特征；然而，由于自然语言处理和深度学习的最新进展，与计算机的对话不再是幻想。虽然我们离真正的智能可能还有很多年的距离，即使是现在，计算机至少能够进行基本的对话并给出初步的智能印象。
 - en: In the previous chapter, we looked at how to construct sequence-to-sequence
     models to translate sentences from one language into another. A conversational
     chatbot that is capable of basic interactions works in much the same way. When
@@ -19,54 +23,79 @@
     is whatever the chatbot chooses to reply with. Therefore, rather than training
     our chatbot to learn how to interpret our input sentence, we are teaching it how
     to respond.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们讨论了如何构建序列到序列模型来将句子从一种语言翻译成另一种语言。一个能进行基本交互的对话机器人工作方式类似。当我们与机器人交谈时，我们的句子成为模型的输入。输出是机器人选择回复的内容。因此，我们不是训练机器人如何解释我们的输入句子，而是教会它如何回应。
 - en: We will expand on our sequence-to-sequence models from the previous chapter,
     adding something called **attention** to our models. This improvement to the sequence-to-sequence
     models means that our model learns where in the input sentence to look to obtain
     the information it needs, rather than using the whole input sentence decision.
     This improvement allows us to create much more efficient sequence-to-sequence
     models with state-of-the-art performance.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在上一章的序列到序列模型基础上增加一种称为**注意力**的东西。这种改进使得我们的序列到序列模型学会了在输入句子中寻找需要的信息，而不是全盘使用输入句子的决定。这种改进允许我们创建具有最先进性能的高效序列到序列模型。
 - en: 'In this chapter, we will look at the following topics:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将讨论以下主题：
 - en: The theory of attention within neural networks
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 神经网络中的注意力理论
 - en: Implementing attention within a neural network to construct a chatbot
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在神经网络中实现注意力以构建对话机器人
 - en: Technical requirements
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: All of the code for this chapter can be found at [https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x](https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x).
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的所有代码可以在 [https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x](https://github.com/PacktPublishing/Hands-On-Natural-Language-Processing-with-PyTorch-1.x)
+    找到。
 - en: The theory of attention within neural networks
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 神经网络中的注意力理论
 - en: 'In the previous chapter, in our sequence-to-sequence model for sentence translation
     (with no attention implemented), we used both encoders and decoders. The encoder
     obtained a hidden state from the input sentence, which was a representation of
     our sentence. The decoder then used this hidden state to perform the translation
     steps. A basic graphical illustration of this is as follows:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，在我们的序列到序列模型中进行句子翻译（未实现注意力）时，我们使用了编码器和解码器。编码器从输入句子中获得了隐藏状态，这是我们句子的表示。解码器然后使用这个隐藏状态执行翻译步骤。其基本的图形说明如下：
 - en: '![Figure 8.1 – Graphical representation of sequence-to-sequence models'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.1 – 序列到序列模型的图形表示'
 - en: '](img/B12365_08_1.jpg)'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_1.jpg)'
 - en: Figure 8.1 – Graphical representation of sequence-to-sequence models
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.1 – 序列到序列模型的图形表示
 - en: However, decoding over the entirety of the hidden state is not necessarily the
     most efficient way of using this task. This is because the hidden state represents
     the entirety of the input sentence; however, in some tasks (such as predicting
@@ -76,23 +105,33 @@
     network. We can teach our model to only look at the relevant parts of the input
     in order to make its prediction, resulting in a much more efficient and accurate
     model.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在整个隐藏状态上解码并不一定是使用此任务的最有效方式。这是因为隐藏状态代表输入句子的整体；然而在某些任务中（例如预测句子中的下一个单词），我们并不需要考虑输入句子的整体，只需要考虑与我们试图做出的预测相关的部分。我们可以通过在我们的序列到序列神经网络中使用注意力来表明这一点。我们可以教导我们的模型只看输入中相关的部分来做出预测，从而得到一个更加高效和准确的模型。
 - en: 'Consider the following example:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑以下例子：
 - en: I will be traveling to Paris, the capital city of France, on the 2nd of March.
     My flight leaves from London Heathrow airport and will take approximately one
     hour.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 我将于3月2日去法国的首都巴黎。我的航班将从伦敦希思罗机场起飞，大约需要一个小时。
 - en: 'Let''s say that we are training a model to predict the next word in a sentence.
     We can first input the start of the sentence:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们正在训练一个模型来预测句子中的下一个单词。我们可以先输入句子的开头：
 - en: The capital city of France is _____.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 法国的首都是_____。
 - en: 'We would expect our model to be able to retrieve the word **Paris**, in this
     case. If we were to use our basic sequence-to-sequence model, we would transform
     our entire input into a hidden state, which our model would then try to extract
@@ -100,80 +139,114 @@
     about flights. You may notice here that we only need to look at a small part of
     our input sentence in order to identify the relevant information required to complete
     our sentence:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这种情况下，我们希望我们的模型能够检索单词**巴黎**。如果我们使用基本的序列到序列模型，我们会将整个输入转换为一个隐藏状态，然后我们的模型会尝试从中提取相关的信息。这包括关于航班的所有无关信息。您可能会注意到，我们只需要查看输入句子的一个小部分即可识别完成句子所需的相关信息：
 - en: I will be traveling to **Paris, the capital city of France**, on the 2nd of
     March. My flight leaves from London Heathrow airport and will take approximately
     one hour.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 我将于3月2日去**法国的首都巴黎**。我的航班将从伦敦希思罗机场起飞，大约需要一个小时。
 - en: Therefore, if we can train our model to only use the relevant information within
     the input sentence, we can make more accurate and relevant predictions. We can
     implement **attention** within our networks in order to achieve this.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，如果我们可以训练我们的模型仅使用输入句子中的相关信息，我们可以做出更准确和相关的预测。我们可以在我们的网络中实现**注意力**来实现这一点。
 - en: 'There are two main types of attention mechanisms that we can implement: local
     and global attention.'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以实现的两种主要注意机制是本地注意力和全局注意力。
 - en: Comparing local and global attention
+  id: totrans-23
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 比较本地和全局注意力
 - en: The two forms of attention that we can implement within our networks are very
     similar, but with subtle key differences. We will start by looking at local attention.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以在我们的网络中实现的两种注意机制非常相似，但有微妙的关键区别。我们将从本地注意力开始。
 - en: In **local attention**, our model only looks at a few hidden states from the
     encoder. For example, if we are performing a sentence translation task and we
     are calculating the second word in our translation, the model may wish to only
     look at the hidden states from the encoder related to the second word in the input
     sentence. This would mean that our model needs to look at the second hidden state
     from our encoder (*h*2) but maybe also the hidden state before it (*h*1).
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 在**本地注意力**中，我们的模型只关注来自编码器的几个隐藏状态。例如，如果我们正在执行一个句子翻译任务，并且正在计算我们翻译中的第二个单词，模型可能只希望查看与输入句子中第二个单词相关的编码器的隐藏状态。这意味着我们的模型需要查看编码器的第二个隐藏状态（*h*2），但可能还需要查看其之前的隐藏状态（*h*1）。
 - en: 'In the following diagram, we can see this in practice:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 在以下图表中，我们可以看到这一实践：
 - en: '![Figure 8.2 – Local attention model'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图8.2 – 本地注意力模型'
 - en: '](img/B12365_08_2.jpg)'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_2.jpg)'
 - en: Figure 8.2 – Local attention model
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.2 – 本地注意力模型
 - en: We first start by calculating the aligned position, *p*t, from our final hidden
     state, *h*n. This tells us which hidden states we need to be looking at to make
     our prediction. We then calculate our local weights and apply them to our hidden
     states in order to determine our context vector. These weights may tell us to
     pay more attention to the most relevant hidden state (*h*2) but less attention
     to the preceding hidden state (*h*1).
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先通过计算对齐位置，*p*t，从我们的最终隐藏状态，*h*n，得知我们需要查看哪些隐藏状态来进行预测。然后我们计算我们的局部权重，并将其应用于我们的隐藏状态，以确定我们的上下文向量。这些权重可能告诉我们更多地关注最相关的隐藏状态（*h*2），但对前一个隐藏状态（*h*1）的关注较少。
 - en: We then take our context vector and pass it forward to our decoder in order
     to make its prediction. In our non-attention based sequence-to-sequence model,
     we would have only passed our final hidden state, *h*n, forward, but we see here
     that instead, we only consider the relevant hidden states that our model deems
     necessary to make its prediction.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将我们的上下文向量传递给我们的解码器，以进行其预测。在我们基于非注意力的序列到序列模型中，我们只会传递我们的最终隐藏状态，*h*n，但我们在这里看到，相反地，我们只考虑我们的模型认为必要以进行预测的相关隐藏状态。
 - en: 'The **global attention** model works in a very similar way. However, instead
     of only looking at a few of the hidden states, we want to look at all of our model''s
     hidden states—hence the name global. We can see a graphical illustration of a
     global attention layer here:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: '**全局注意力**模型的工作方式与局部注意力模型非常相似。但是，与仅查看少数隐藏状态不同，我们希望查看我们模型的所有隐藏状态 — 因此称为全局。我们可以在这里看到全局注意力层的图形说明：'
 - en: '![Figure 8.3 – Global attention model'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.3 – 全局注意力模型'
 - en: '](img/B12365_08_3.jpg)'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_3.jpg)'
 - en: Figure 8.3 – Global attention model
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.3 – 全局注意力模型
 - en: 'We can see in the preceding diagram that although this appears very similar
     to our local attention framework, our model is now looking at all the hidden states
     and calculating the global weights across all of them. This allows our model to
@@ -183,42 +256,60 @@
     capabilities of the model. An easy way to think of the global attention framework
     is that it is essentially learning a mask that only allows through hidden states
     that are relevant to our prediction:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到在上图中，虽然这看起来与我们的局部注意力框架非常相似，但是我们的模型现在正在查看所有的隐藏状态，并计算跨所有隐藏状态的全局权重。这使得我们的模型可以查看它认为相关的输入句子的任何部分，而不限于由局部注意力方法确定的局部区域。我们的模型可能希望只关注一个小的局部区域，但这是模型的能力范围内。全局注意力框架的一个简单理解方式是，它本质上是在学习一个只允许与我们的预测相关的隐藏状态通过的掩码：
 - en: '![Figure 8.4 – Combined model'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.4 – 组合模型'
 - en: '](img/B12365_08_4.jpg)'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_4.jpg)'
 - en: Figure 8.4 – Combined model
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.4 – 组合模型
 - en: We can see in the preceding diagram that by learning which hidden states to
     pay attention to, our model controls which states are used in the decoding step
     to determine our predicted output. Once we decide which hidden states to pay attention
     to, we can combine them using a number of different methods—either by concatenating
     or taking the weighted dot product.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到在上图中，通过学习要关注的隐藏状态，我们的模型控制着在解码步骤中使用哪些状态来确定我们的预测输出。一旦我们决定要关注哪些隐藏状态，我们可以使用多种不同的方法来结合它们，无论是通过串联还是加权点积。
 - en: Building a chatbot using sequence-to-sequence neural networks with attention
+  id: totrans-41
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用带有注意力的序列到序列神经网络构建聊天机器人
 - en: The easiest way to illustrate exactly how to implement attention within our
     neural network is to work through an example. We will now go through the steps
     required to build a chatbot from scratch using a sequence-to-sequence model with
     an attention framework applied.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的神经网络中准确实现注意力的最简单方式是通过一个例子来进行说明。现在我们将通过使用应用注意力框架的序列到序列模型来从头开始构建聊天机器人的步骤。
 - en: As with all of our other NLP models, our first step is to obtain and process
     a dataset to use to train our model.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 与我们所有其他的自然语言处理模型一样，我们的第一步是获取和处理数据集，以用于训练我们的模型。
 - en: Acquiring our dataset
+  id: totrans-44
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 获取我们的数据集
 - en: To train our chatbot, we need a dataset of conversations by which our model
     can learn how to respond. Our chatbot will take a line of human-entered input
     and respond to it with a generated sentence. Therefore, an ideal dataset would
@@ -227,103 +318,151 @@
     two human users. Unfortunately, this data consists of private information and
     is very hard to come by within the public domain, so for this task, we will be
     using a dataset of movie scripts.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了训练我们的聊天机器人，我们需要一组对话数据，通过这些数据，我们的模型可以学习如何回应。我们的聊天机器人将接受人类输入的一行，并用生成的句子作出回应。因此，理想的数据集应包含一些对话行及其适当的响应。对于这样的任务，理想的数据集将是两个人用户之间的实际聊天记录。不幸的是，这些数据包含私人信息，很难在公共领域内获取，因此，对于这个任务，我们将使用一组电影剧本数据集。
 - en: 'Movie scripts consist of conversations between two or more characters. While
     this data is not naturally in the format we would like it to be in, we can easily
     transform it into the format that we need. Take, for example, a simple conversation
     between two characters:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 电影剧本由两个或更多角色之间的对话组成。尽管这些数据不是我们想要的格式，但我们可以轻松地将其转换为我们需要的格式。例如，考虑两个角色之间的简单对话：
 - en: '**Line 1**: Hello Bethan.'
+  id: totrans-47
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**第 1 行**：你好，贝瑟恩。'
 - en: '**Line 2**: Hello Tom, how are you?'
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**第 2 行**：你好，汤姆，你好吗？'
 - en: '**Line 3**: I''m great thanks, what are you doing this evening?'
+  id: totrans-49
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**第 3 行**：我很好，谢谢，今晚你要做什么？'
 - en: '**Line 4**: I haven''t got anything planned.'
+  id: totrans-50
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**第 4 行**：我没有什么计划。'
 - en: '**Line 5**: Would you like to come to dinner with me?'
+  id: totrans-51
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**第 5 行**：你想和我一起吃晚饭吗？'
 - en: 'Now, we need to transform this into input and output pairs of call and response,
     where the input is a line in the script (the call) and the expected output is
     the next line of the script (the response). We can transform a script of *n* lines
     into *n-1* pairs of input/output:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们需要将这些转换为呼叫和响应的输入输出对，其中输入是剧本中的一行（呼叫），期望的输出是剧本的下一行（响应）。我们可以将包含*n*行的剧本转换为*n-1*对输入/输出：
 - en: '![Figure 8.5 – Table of input and output'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.5 – 输入输出表'
 - en: '](img/B12365_08_05.jpg)'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_05.jpg)'
 - en: Figure 8.5 – Table of input and output
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.5 – 输入输出表
 - en: We can use these input/output pairs to train our network, where the input is
     a proxy for human input and the output is the response that we would expect from
     our model.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以使用这些输入/输出对来训练我们的网络，其中输入代表人类输入的代理，输出是我们期望从模型得到的响应。
 - en: The first step in building our model is to read this data in and perform all
     the necessary preprocessing steps.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 构建我们模型的第一步是读取这些数据并执行所有必要的预处理步骤。
 - en: Processing our dataset
+  id: totrans-58
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 处理我们的数据集
 - en: 'Fortunately, the dataset provided for this example has already been formatted
     so that each line represents a single input/output pair. We can first read the
     data in and examine some lines:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，提供给本示例的数据集已经被格式化，以便每行表示单个输入/输出对。我们可以首先读取数据并检查一些行：
 - en: '[PRE0]'
+  id: totrans-60
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'This prints the following result:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将打印出以下结果：
 - en: '![Figure 8.6 – Examining the dataset'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.6 – 检查数据集'
 - en: '](img/B12365_08_06.jpg)'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_06.jpg)'
 - en: Figure 8.6 – Examining the dataset
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.6 – 检查数据集
 - en: You will first notice that our lines are as expected, as the second half of
     the first line becomes the first half of the next line. We can also note that
     the call and response halves of each line are separated by a tab delimiter (`/t`)
     and that each of our lines is separated by a new line delimiter (`/n`). We will
     have to account for this when we process our dataset.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 您将首先注意到我们的行按预期显示，因为第一行的后半部分成为下一行的前半部分。我们还可以注意到，每行的呼叫和响应部分由制表符（`/t`）分隔，每行之间由换行符（`/n`）分隔。在处理数据集时，我们必须考虑到这一点。
 - en: The first step is to create a vocabulary or corpus that contains all the unique
     words within our dataset.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一步是创建一个包含数据集中所有唯一单词的词汇表或语料库。
 - en: Creating the vocabulary
+  id: totrans-67
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 创建词汇表
 - en: 'In the past, our corpus has comprised of several dictionaries consisting of
     the unique words in our corpus and lookups between word and indices. However,
     we can do this in a far more elegant way by creating a vocabulary class that consists
     of all of the elements required:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 在过去，我们的语料库由几个字典组成，包含语料库中唯一单词和单词与索引之间的查找。但是，我们可以通过创建一个包含所有所需元素的词汇表类的更加优雅的方式来完成这项工作：
 - en: 'We start by creating our `Vocabulary` class. We initialize this class with
     empty dictionaries—`word2index` and `word2count`. We also initialize the `index2word`
     dictionary with placeholders for our padding tokens, as well as our **Start-of-Sentence**
@@ -331,35 +470,47 @@
     the number of words in our vocabulary, too (which is 3 to start with as our corpus
     already contains the three tokens mentioned). These are the default values for
     an empty vocabulary; however, they will be populated as we read our data in:'
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先创建我们的`Vocabulary`类。我们用空字典——`word2index`和`word2count`——初始化这个类。我们还用占位符初始化`index2word`字典，用于我们的填充标记，以及我们的**句子开头**（**SOS**）和**句子结尾**（**EOS**）标记。我们还保持我们词汇表中单词数的运行计数，作为我们的语料库已经包含了提到的三个标记的默认值（初始为3）。这些是一个空词汇表的默认值；然而，随着我们读取数据，它们将被填充：
 - en: '[PRE1]'
+  id: totrans-70
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Next, we create the functions that we will use to populate our vocabulary.
     `addWord` takes a word as input. If this is a new word that is not already in
     our vocabulary, we add this word to our indices, set the count of this word to
     1, and increment the total number of words in our vocabulary by 1\. If the word
     in question is already in our vocabulary, we simply increment the count of this
     word by 1:'
+  id: totrans-71
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们创建用于填充我们词汇表的函数。`addWord`接受一个单词作为输入。如果这是一个不在我们词汇表中的新单词，我们将此单词添加到我们的索引中，将此单词的计数设置为1，并将我们词汇表中的总单词数增加1。如果所讨论的单词已经在我们的词汇表中，则简单地将此单词的计数增加1：
 - en: '[PRE2]'
+  id: totrans-72
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'We also use the `addSentence` function to apply the `addWord` function to all
     the words within a given sentence:'
+  id: totrans-73
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还使用`addSentence`函数将`addWord`函数应用于给定句子中的所有单词：
 - en: '[PRE3]'
+  id: totrans-74
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: One thing we can do to speed up the training of our model is reduce the size
     of our vocabulary. This means that any embedding layers will be much smaller and
     the total number of learned parameters within our model can be fewer. An easy
@@ -368,160 +519,226 @@
     power, and so removing them from our corpus and replacing them with blank tokens
     in our final model could reduce the time taken for our model to train and reduce
     overfitting without having much of a negative impact on our model's predictions.
+  id: totrans-75
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们可以做的一件事是加快模型训练的速度，即减小词汇表的大小。这意味着任何嵌入层将会更小，模型内学习的参数总数也会减少。一个简单的方法是从我们的词汇表中移除任何低频词汇。在我们的数据集中出现一次或两次的词汇不太可能有很大的预测能力，因此从我们的语料库中移除它们，并在最终模型中用空白标记替换它们，可以减少模型训练的时间，减少过拟合的可能性，而对模型预测的负面影响不大。
 - en: 'To remove low-frequency words from our vocabulary, we can implement a `trim`
     function. The function first loops through the word count dictionary and if the
     occurrence of the word is greater than the minimum required count, it is appended
     to a new list:'
+  id: totrans-76
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要从我们的词汇表中删除低频词汇，我们可以实现一个`trim`函数。该函数首先遍历单词计数字典，如果单词的出现次数大于所需的最小计数，则将其添加到一个新列表中：
 - en: '[PRE4]'
+  id: totrans-77
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Finally, our indices are rebuilt from the new `words_to_keep` list. We set
     all the indices to their initial empty values and then repopulate them by looping
     through our kept words with the `addWord` function:'
+  id: totrans-78
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们从新的`words_to_keep`列表重新构建我们的索引。我们将所有索引设置为它们的初始空值，然后通过循环遍历我们保留的单词使用`addWord`函数来重新填充它们：
 - en: '[PRE5]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: We have now defined a vocabulary class that can be easily populated with our
     input sentences. Next, we actually need to load in our dataset to create our training
     data.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了一个词汇表类，可以轻松地填充我们的输入句子。接下来，我们实际上需要加载我们的数据集来创建我们的训练数据。
 - en: Loading the data
+  id: totrans-81
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 加载数据
 - en: 'We will start loading in the data using the following steps:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将使用以下步骤开始加载数据：
 - en: 'The first step for reading in our data is to perform any necessary steps to
     clean the data and make it more human-readable. We start by converting it from
     Unicode into ASCII format. We can easily use a function to do this:'
+  id: totrans-83
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 读取我们数据的第一步是执行任何必要的步骤来清理数据并使其更易于阅读。我们首先将其从Unicode格式转换为ASCII格式。我们可以轻松地使用一个函数来实现这一点：
 - en: '[PRE6]'
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Next, we want to process our input strings so that they are all in lowercase
     and do not contain any trailing whitespace or punctuation, except the most basic
     characters. We can do this by using a series of regular expressions:'
+  id: totrans-85
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们希望处理我们的输入字符串，使它们全部小写，并且不包含任何尾随的空白或标点符号，除了最基本的字符。我们可以通过使用一系列正则表达式来实现这一点：
 - en: '[PRE7]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Finally, we apply this function within a wider function—`readVocs`. This function
     reads our data file into lines and then applies the `cleanString` function to
     every line. It also creates an instance of the `Vocabulary` class that we created
     earlier, meaning this function outputs both our data and vocabulary:'
+  id: totrans-87
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们在更广泛的函数内应用此函数——`readVocs`。此函数将我们的数据文件读取为行，并对每行应用`cleanString`函数。它还创建了我们之前创建的`Vocabulary`类的实例，这意味着此函数输出了我们的数据和词汇表：
 - en: '[PRE8]'
+  id: totrans-88
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: Next, we filter our input pairs by their maximum length. This is again done
     to reduce the potential dimensionality of our model. Predicting sentences that
     are hundreds of words long would require a very deep architecture. In the interest
     of training time, we want to limit our training data here to instances where the
     input and output are less than 10 words long.
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 接下来，我们根据它们的最大长度过滤我们的输入对。再次这样做是为了减少模型的潜在维度。预测数百个单词长的句子将需要非常深的架构。为了训练时间的利益，我们希望在此限制我们的训练数据，使输入和输出都少于10个单词长。
 - en: 'To do this, we create a couple of filter functions. The first one, `filterPair`,
     returns a Boolean value based on whether the current line has an input and output
     length that is less than the maximum length. Our second function, `filterPairs`,
     simply applies this condition to all the pairs within our dataset, only keeping
     the ones that meet this condition:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为此，我们创建了一对过滤函数。第一个函数，`filterPair`，根据当前行的输入和输出长度是否小于最大长度返回布尔值。我们的第二个函数，`filterPairs`，则简单地将此条件应用于数据集中的所有对，仅保留符合条件的对：
 - en: '[PRE9]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Now, we just need to create one final function that applies all the previous
     functions we have put together and run it to create our vocabulary and data pairs:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们只需要创建一个最终函数，将之前所有的函数整合起来，并运行它以创建我们的词汇表和数据对：
 - en: '[PRE10]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'We can see that our input dataset consists of over 200,000 pairs. When we filter
     this to sentences where both the input and output are less than 10 words long,
     this reduces to just 64,000 pairs consisting of 18,000 distinct words:'
+  id: totrans-94
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们可以看到，我们的输入数据集包含超过200,000对。当我们将其过滤为输入和输出长度都小于10个单词的句子时，这就减少到仅有64,000对，包含18,000个不同的单词：
 - en: '![Figure 8.7 – Value of sentences in the dataset'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '![图8.7 – 数据集中句子的价值'
 - en: '](img/B12365_08_07.jpg)'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_07.jpg)'
 - en: Figure 8.7 – Value of sentences in the dataset
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图8.7 – 数据集中句子的价值
 - en: 'We can print a selection of our processed input/output pairs in order to verify
     that our functions have all worked correctly:'
+  id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以打印出我们处理过的输入/输出对的一部分，以验证我们的函数是否都运行正确：
 - en: '[PRE11]'
+  id: totrans-99
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The following output is generated:'
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 生成以下输出：
 - en: '![Figure 8.8 – Processed input/output pairs'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图8.8 – 处理过的输入/输出对'
 - en: '](img/B12365_08_08.jpg)'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_08.jpg)'
 - en: Figure 8.8 – Processed input/output pairs
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.8 – 处理过的输入/输出对
 - en: It appears that we have successfully split our dataset into input and output
     pairs upon which we can train our network.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已成功将数据集分割成输入和输出对，用以训练我们的网络。
 - en: Finally, before we begin building the model, we must remove the rare words from
     our corpus and data pairs.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，在我们开始构建模型之前，我们必须从我们的语料库和数据对中移除稀有单词。
 - en: Removing rare words
+  id: totrans-106
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 移除稀有单词
 - en: As previously mentioned, including words that only occur a few times within
     our dataset will increase the dimensionality of our model, increasing our model's
     complexity and the time it will take to train the model. Therefore, it is preferred
     to remove them from our training data to keep our model as streamlined and efficient
     as possible.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如先前提到的，包括数据集中仅出现几次的单词会增加模型的维度，增加模型的复杂性以及训练模型的时间。因此，最好将它们从训练数据中移除，以保持我们的模型尽可能简洁和高效。
 - en: 'You may recall earlier that we built a `trim` function into our vocabulary,
     which will allow us to remove infrequently occurring words from our vocabulary.
     We can now create a function to remove these rare words and call the `trim` method
@@ -530,354 +747,508 @@
     in our vocabulary occur infrequently. This is expected as the distribution of
     words within any language model will follow a long-tail distribution. We will
     use the following steps to remove the words:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可能还记得我们在词汇表中构建了一个`trim`函数，它允许我们从词汇表中删除不常见的单词。我们现在可以创建一个函数来删除这些稀有单词，并调用词汇表中的`trim`方法作为我们的第一步。您将看到这将从我们的词汇表中删除大部分单词，表明大多数词汇中的单词出现不频繁。这是预期的，因为任何语言模型中的单词分布将遵循长尾分布。我们将使用以下步骤来删除这些单词：
 - en: 'We first calculate the percentage of words that we will keep within our model:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先计算我们模型中将保留的单词百分比：
 - en: '[PRE12]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'This results in the following output:'
+  id: totrans-111
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![Figure 8.9 – Percentage of words to be kept'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '![图 8.9 – 需保留的单词百分比'
 - en: '](img/B12365_08_09.jpg)'
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_09.jpg)'
 - en: Figure 8.9 – Percentage of words to be kept
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 8.9 – 需保留的单词百分比
 - en: 'Within this same function, we loop through all the words in the input and output
     sentences. If for a given pair either the input or output sentence has a word
     that isn''t in our new trimmed corpus, we drop this pair from our dataset. We
     print the output and see that even though we have dropped over half of our vocabulary,
     we only drop around 17% of our training pairs. This again reflects how our corpus
     of words is distributed over our individual training pairs:'
+  id: totrans-115
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在同一个函数中，我们循环遍历输入和输出句子中的所有单词。如果对于给定的句对，输入或输出句子中有一个单词不在我们的新修剪语料库中，我们将删除这个句对。我们打印输出并看到，尽管我们删除了超过一半的词汇，但我们只删除了大约17%
+    的训练句对。这再次反映了我们的单词语料库如何分布在个别训练句对上：
 - en: '[PRE13]'
+  id: totrans-116
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'This results in the following output:'
+  id: totrans-117
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![Figure 8.10 – Final value after building our dataset'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.10 – 构建数据集后的最终值'
 - en: '](img/B12365_08_10.png)'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_10.png)'
 - en: Figure 8.10 – Final value after building our dataset
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.10 – 构建数据集后的最终值
 - en: Now that we have our finalized dataset, we need to build some functions that
     transform our dataset into batches of tensors that we can pass to our model.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了最终的数据集，我们需要构建一些函数，将我们的数据集转换为我们可以传递给模型的张量批次。
 - en: Transforming sentence pairs to tensors
+  id: totrans-122
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 将句子对转换为张量
 - en: 'We know that our model will not take raw text as input, but rather, tensor
     representations of sentences. We will also not process our sentences one by one,
     but instead in smaller batches. For this, we require both our input and output
     sentences to be transformed into tensors, where the width of the tensor represents
     the size of the batch that we wish to train on:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们知道，我们的模型不会接受原始文本作为输入，而是句子的张量表示。我们也不会逐句处理，而是分批次处理。为此，我们需要将输入和输出句子都转换为张量，张量的宽度表示我们希望训练的批次大小：
 - en: 'We start by creating several helper functions, which we can use to transform
     our pairs into tensors. We first create a `indexFromSentence` function, which
     grabs the index of each word in the sentence from the vocabulary and appends an
     EOS token to the end:'
+  id: totrans-124
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先创建了几个辅助函数，用于将我们的句对转换为张量。我们首先创建了一个`indexFromSentence`函数，该函数从词汇表中获取句子中每个单词的索引，并在末尾添加一个
+    EOS 标记：
 - en: '[PRE14]'
+  id: totrans-125
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Secondly, we create a `zeroPad` function, which pads any tensors with zeroes
     so that all of the sentences within the tensor are effectively the same length:'
+  id: totrans-126
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 其次，我们创建一个`zeroPad`函数，它用零填充任何张量，使张量中的所有句子的长度有效相同：
 - en: '[PRE15]'
+  id: totrans-127
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Then, to generate our input tensor, we apply both of these functions. First,
     we get the indices of our input sentence, then apply padding, and then transform
     the output into `LongTensor`. We will also obtain the lengths of each of our input
     sentences out output this as a tensor:'
+  id: totrans-128
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，为了生成我们的输入张量，我们应用这两个函数。首先，我们获取我们输入句子的索引，然后应用填充，然后将输出转换为`LongTensor`。我们还将获取每个输入句子的长度，并将其作为张量输出：
 - en: '[PRE16]'
+  id: totrans-129
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Within our network, our padded tokens should generally be ignored. We don''t
     want to train our model on these padded tokens, so we create a Boolean mask to
     ignore these tokens. To do so, we use a `getMask` function, which we apply to
     our output tensor. This simply returns `1` if the output consists of a word and
     `0` if it consists of a padding token:'
+  id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在我们的网络中，我们通常应忽略我们的填充标记。我们不希望在这些填充标记上训练我们的模型，因此我们创建一个布尔掩码来忽略这些标记。为此，我们使用一个 `getMask`
+    函数，将其应用于我们的输出张量。这只是简单地在输出包含单词时返回 `1`，在包含填充标记时返回 `0`：
 - en: '[PRE17]'
+  id: totrans-131
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'We then apply this to our `outputVar` function. This is identical to the `inputVar`
     function, except that along with the indexed output tensor and the tensor of lengths,
     we also return the Boolean mask of our output tensor. This Boolean mask just returns
     `True` when there is a word within the output tensor and `False` when there is
     a padding token. We also return the maximum length of sentences within our output
     tensor:'
+  id: totrans-132
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后我们将其应用于我们的 `outputVar` 函数。这与 `inputVar` 函数相同，不同之处在于，除了索引化的输出张量和长度张量外，我们还返回我们输出张量的布尔掩码。这个布尔掩码在输出张量中有单词时返回
+    `True`，在存在填充标记时返回 `False`。我们还返回输出张量中句子的最大长度：
 - en: '[PRE18]'
+  id: totrans-133
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Finally, in order to create our input and output batches concurrently, we loop
     through the pairs in our batch and create input and output tensors for both pairs
     using the functions we created previously. We then return all the necessary variables:'
+  id: totrans-134
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，为了同时创建我们的输入和输出批次，我们遍历批次中的对，并为每对使用我们之前创建的函数创建输入和输出张量。然后返回所有必要的变量：
 - en: '[PRE19]'
+  id: totrans-135
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: "This function should be all we need to transform our training pairs into tensors\
     \ for training our model. We can validate that this is working correctly by performing\
     \ \La single iteration of our `batch2Train` function on a random selection of\
     \ our data. We set our batch size to `5` and run this once:"
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此函数应该是我们将训练对转换为用于训练模型的张量所需的全部内容。我们可以通过在我们的数据的随机选择上执行我们的 `batch2Train` 函数的单次迭代来验证其是否工作正确。我们将我们的批量大小设为
+    `5` 并运行一次：
 - en: '[PRE20]'
+  id: totrans-137
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Here, we can validate that our input tensor has been created correctly. Note
     how the sentences end with padding (0 tokens) where the sentence length is less
     than the maximum length for the tensor (in this instance, 9). The width of the
     tensor also corresponds to the batch size (in this case, 5):'
+  id: totrans-138
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在这里，我们可以验证我们的输入张量是否已正确创建。注意句子如何以填充（0 标记）结尾，其中句子长度小于张量的最大长度（在本例中为 9）。张量的宽度也与批量大小相对应（在本例中为
+    5）：
 - en: '![Figure 8.11 – Input tensor'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.11 – 输入张量'
 - en: '](img/B12365_08_11.jpg)'
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_11.jpg)'
 - en: Figure 8.11 – Input tensor
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.11 – 输入张量
 - en: 'We can also validate the corresponding output data and mask. Notice how the
     `False` values in the mask overlap with the padding tokens (the zeroes) in our
     output tensor:'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还可以验证相应的输出数据和掩码。注意掩码中的 `False` 值如何与输出张量中的填充标记（零）重叠：
 - en: '![Figure 8.12 – The target and mask tensors'
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.12 – 目标张量和掩码张量'
 - en: '](img/B12365_08_12.jpg)'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_12.jpg)'
 - en: Figure 8.12 – The target and mask tensors
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.12 – 目标张量和掩码张量
 - en: Now that we have obtained, cleaned, and transformed our data, we are ready to
     begin training the attention-based model that will form the basis of our chatbot.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经获取、清理和转换了我们的数据，我们准备开始训练基于注意力机制的模型，这将成为我们聊天机器人的基础。
 - en: Constructing the model
+  id: totrans-147
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 构建模型
 - en: We start, as with our other sequence-to-sequence models, by creating our encoder.
     This will transform the initial tensor representation of our input sentence into
     hidden states.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 与我们其他的序列到序列模型一样，我们首先通过创建我们的编码器来开始。这将把我们输入句子的初始张量表示转换为隐藏状态。
 - en: Constructing the encoder
+  id: totrans-149
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 构建编码器
 - en: 'We will now create the encoder by taking the following steps:'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将通过以下步骤创建编码器：
 - en: 'As with all of our PyTorch models, we start by creating an `Encoder` class
     that inherits from `nn.Module`. All the elements here should look familiar to
     the ones used in previous chapters:'
+  id: totrans-151
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 与我们所有的 PyTorch 模型一样，我们首先创建一个继承自 `nn.Module` 的 `Encoder` 类。这里的所有元素应该与之前章节中使用的元素看起来很熟悉：
 - en: '[PRE21]'
+  id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Next, we create our **Recurrent** **Neural** **Network** (**RNN**) module.
     In this chatbot, we will be using a **Gated Recurrent Unit** (**GRU**) instead
     of the **Long** **Short-Term** **Memory** (**LSTM**) models we saw before. GRUs
     are slightly less complex than LSTMs as although they still control the flow of
     information through the RNN, they don''t have separate forget and update gates
     like the LSTM. We use GRUs in this instance for a few main reasons:'
+  id: totrans-153
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 接下来，我们创建我们的**循环神经网络**（**RNN**）模块。在这个聊天机器人中，我们将使用**门控循环单元**（**GRU**）而不是我们之前看到的**长短期记忆**（**LSTM**）模型。GRUs比LSTMs稍微简单一些，尽管它们仍然通过RNN控制信息的流动，但它们不像LSTMs那样有单独的遗忘和更新门。我们在这种情况下使用GRUs有几个主要原因：
 - en: a) GRUs have proven to be more computationally efficient as there are fewer
     parameters to learn. This means that our model will train much more quickly with
     GRUs than with LSTMs.
+  id: totrans-154
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: a) GRUs已被证明在计算效率上更高，因为要学习的参数更少。这意味着我们的模型将比使用LSTMs更快地训练。
 - en: b) GRUs have proven to have similar performance levels over short sequences
     of data as LSTMs. LSTMs are more useful when learning longer sequences of data.
     In this instance we are only using input sentences with 10 words or less, so GRUs
     should produce similar results.
+  id: totrans-155
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: b) GRUs已被证明在短数据序列上具有与LSTMs类似的性能水平。当学习较长的数据序列时，LSTMs更有用。在这种情况下，我们仅使用包含10个单词或更少的输入句子，因此GRUs应产生类似的结果。
 - en: c) GRUs have proven to be more effective at learning from small datasets than
     LSTMs. As the size of our training data is small relative to the complexity of
     the task we're trying to learn, we should opt to use GRUs.
+  id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: c) GRUs已被证明在从小数据集中学习方面比LSTMs更有效。由于我们的训练数据相对于我们试图学习的任务的复杂性很小，我们应该选择使用GRUs。
 - en: 'We now define our GRU, taking into account the size of our input, the number
     of layers, and whether we should implement dropout:'
+  id: totrans-157
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们定义我们的GRU，考虑到我们输入的大小、层数，以及是否应该实施dropout：
 - en: '[PRE22]'
+  id: totrans-158
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Notice here how we implement bidirectionality into our model. You will recall
     from previous chapters that a bidirectional RNN allows us to learn from a sentence
     moving sequentially forward through a sentence, as well as moving sequentially
     backward. This allows us to better capture the context of each word in the sentence
     relative to those that appear before and after it. Bidirectionality in our GRU
     means our encoder looks something like this:'
+  id: totrans-159
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 注意这里我们如何将双向性实现到我们的模型中。您会从前几章中回忆起，双向RNN允许我们从一个句子中顺序地向前移动，同时也可以顺序地向后移动。这使我们能够更好地捕捉每个单词在句子中相对于前后出现的单词的上下文。我们GRU中的双向性意味着我们的编码器看起来像这样：
 - en: '![Figure 8.13 – Encoder layout'
+  id: totrans-160
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '![图8.13 – 编码器布局'
 - en: '](img/B12365_08_13.jpg)'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_13.jpg)'
 - en: Figure 8.13 – Encoder layout
+  id: totrans-162
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图8.13 – 编码器布局
 - en: We maintain two hidden states, as well as outputs at each step, within our input
     sentence.
+  id: totrans-163
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们在输入句子中维护两个隐藏状态，以及每一步的输出。
 - en: 'Next, we need to create a forward pass for our encoder. We do this by first
     embedding our input sentences and then using the `pack_padded_sequence` function
     on our embeddings. This function "packs" our padded sequence so that all of our
     inputs are of the same length. We then pass out the packed sequences through our
     GRU to perform a forward pass:'
+  id: totrans-164
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要为我们的编码器创建一个前向传播。我们通过首先对我们的输入句子进行嵌入，然后在我们的嵌入上使用`pack_padded_sequence`函数来完成这一操作。该函数“打包”我们的填充序列，使得所有的输入都具有相同的长度。然后，我们通过我们的GRU传递打包的序列来执行前向传播：
 - en: '[PRE23]'
+  id: totrans-165
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'After this, we unpack our padding and sum the GRU outputs. We can then return
     this summed output, along with our final hidden state, to complete our forward
     pass:'
+  id: totrans-166
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在此之后，我们取消我们的填充并汇总GRU的输出。然后，我们可以返回这个总和输出以及我们的最终隐藏状态，以完成我们的前向传播：
 - en: '[PRE24]'
+  id: totrans-167
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: Now, we will move on to creating an attention module in the next section.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将继续在下一节中创建一个注意模块。
 - en: Constructing the attention module
+  id: totrans-169
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 构建注意模块
 - en: 'Next, we need to build our attention module, which we will apply to our encoder
     so that we can learn from the relevant parts of the encoder''s output. We will
     do so as follows:'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们需要构建我们的注意模块，我们将应用它到我们的编码器上，以便我们可以从编码器输出的相关部分学习。我们将按以下方式执行：
 - en: 'Start by creating a class for the attention model:'
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，创建一个注意模型的类：
 - en: '[PRE25]'
+  id: totrans-172
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Then, create the `dot_score` function within this class. This function simply
     calculates the dot product of our encoder output with the output of our hidden
     state by our encoder. While there are other ways of transforming these two tensors
     into a single representation, using a dot product is one of the simplest:'
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，在这个类中创建`dot_score`函数。该函数简单地计算我们的编码器输出与我们的隐藏状态输出的点积。虽然有其他将这两个张量转换为单一表示的方法，但使用点积是其中最简单的之一：
 - en: '[PRE26]'
+  id: totrans-174
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'We then use this function within our forward pass. First, calculate the attention
     weights/energies based on the `dot_score` method, then transpose the results,
     and return the softmax transformed probability scores:'
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们在我们的前向传播中使用此函数。首先，基于`dot_score`方法计算注意力权重/能量，然后转置结果，并返回经过softmax转换的概率分数：
 - en: '[PRE27]'
+  id: totrans-176
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: Next, we can use this attention module within our decoder to create an attention-focused
     decoder.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们可以在我们的解码器中使用这个注意力模块来创建一个关注注意力的解码器。
 - en: Constructing the decoder
+  id: totrans-178
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 构建解码器。
 - en: 'We will now construct the decoder, as follows:'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将构建解码器，如下所示：
 - en: 'We begin by creating our `DecoderRNN` class, inheriting from `nn.Module` and
     defining the initialization parameters:'
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先创建我们的`DecoderRNN`类，继承自`nn.Module`并定义初始化参数：
 - en: '[PRE28]'
+  id: totrans-181
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'We then create our layers within this module. We will create an embedding layer
     and a corresponding dropout layer. We use GRUs again for our decoder; however,
     this time, we do not need to make our GRU layer bidirectional as we will be decoding
@@ -887,112 +1258,154 @@
     two concatenated vectors, each with a length of `hidden_size`. We also initialize
     an instance of our attention module from the last section in order to be able
     to use it within our `Decoder` class:'
+  id: totrans-182
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，在此模块中创建我们的层。我们将创建一个嵌入层和一个相应的丢弃层。我们再次使用GRU作为我们的解码器；但是，这次我们不需要使我们的GRU层双向，因为我们将按顺序解码我们的编码器输出。我们还将创建两个线性层——一个常规层用于计算输出，一个可用于连接的层。此层的宽度是常规隐藏层的两倍，因为它将用于两个长度为`hidden_size`的连接向量。我们还从上一节初始化我们注意力模块的一个实例，以便能够在我们的`Decoder`类中使用它：
 - en: '[PRE29]'
+  id: totrans-183
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'After defining all of our layers, we need to create a forward pass for the
     decoder. Notice how the forward pass will be used one step (word) at a time. We
     start by getting the embedding of the current input word and making a forward
     pass through the GRU layer to get our output and hidden states:'
+  id: totrans-184
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在定义了所有的层之后，我们需要为解码器创建一个前向传播。注意前向传播将逐步（单词）使用。我们首先获取当前输入单词的嵌入，并通过GRU层进行前向传播以获取我们的输出和隐藏状态：
 - en: '[PRE30]'
+  id: totrans-185
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Next, we use the attention module to get the attention weights from the GRU
     output. These weights are then multiplied by the encoder outputs to effectively
     give us a weighted sum of our attention weights and our encoder output:'
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们使用注意力模块从GRU输出中获取注意力权重。然后将这些权重与编码器输出相乘，有效地给出我们的注意力权重和编码器输出的加权和：
 - en: '[PRE31]'
+  id: totrans-187
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'We then concatenate our weighted context vector with the output of our GRU
     and apply a `tanh` function to get out final concatenated output:'
+  id: totrans-188
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们将我们的加权上下文向量与我们的GRU输出连接起来，并应用一个`tanh`函数来获得我们的最终连接输出：
 - en: '[PRE32]'
+  id: totrans-189
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'For the final step within our decoder, we simply use this final concatenated
     output to predict the next word and apply a `softmax` function. The forward pass
     finally returns this output, along with the final hidden state. This forward pass
     will be iterated upon, with the next forward pass using the next word in the sentence
     and this new hidden state:'
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在我们解码器的最后一步中，我们简单地使用这个最终连接的输出来预测下一个单词并应用`softmax`函数。前向传播最终返回此输出，以及最终的隐藏状态。这个前向传播将迭代进行，下一个前向传播使用句子中的下一个单词和这个新的隐藏状态：
 - en: '[PRE33]'
+  id: totrans-191
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: Now that we have defined our models, we are ready to define the training process
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了我们的模型，我们准备定义训练过程。
 - en: Defining the training process
+  id: totrans-193
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 定义训练过程。
 - en: 'The first step of the training process is to define the measure of loss for
     our models. As our input tensors may consist of padded sequences, owing to our
     input sentences all being of different lengths, we cannot simply calculate the
     difference between the true output and the predicted output tensors. To account
     for this, we will define a loss function that applies a Boolean mask over our
     outputs and only calculates the loss of the non-padded tokens:'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练过程的第一步是为我们的模型定义损失度量。由于我们的输入张量可能包含填充序列，因为我们的输入句子长度各不相同，我们不能简单地计算真实输出和预测输出张量之间的差异。为此，我们将定义一个损失函数，该函数在我们的输出上应用布尔掩码，并仅计算非填充标记的损失：
 - en: 'In the following function, we can see that we calculate cross-entropy loss
     across the whole output tensors. However, to get the total loss, we only average
     over the elements of the tensor that are selected by the Boolean mask:'
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在以下函数中，我们可以看到我们计算整个输出张量的交叉熵损失。然而，为了得到总损失，我们只对布尔掩码选定的张量元素进行平均：
 - en: '[PRE34]'
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'For the majority of our training, we need two main functions—one function,
     `train()`, which performs training on a single batch of our training data and
     another function, `trainIters()`, which iterates through our whole dataset and
     calls `train()` on each of the individual batches. We start by defining `train()`
     in order to train on a single batch of data. Create the `train()` function, then
     get the gradients to 0, define the device options, and initialize the variables:'
+  id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在大部分训练过程中，我们需要两个主要函数——一个函数`train()`，用于对训练数据的单个批次进行训练，另一个函数`trainIters()`，用于迭代整个数据集并在每个单独的批次上调用`train()`。我们首先定义`train()`函数以便在单个数据批次上进行训练。创建`train()`函数，然后将梯度置零，定义设备选项，并初始化变量：
 - en: '[PRE35]'
+  id: totrans-198
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Then, perform a forward pass of the inputs and sequence lengths though the
     encoder to get the output and hidden states:'
+  id: totrans-199
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，执行输入和序列长度的前向传递，通过编码器获取输出和隐藏状态：
 - en: '[PRE36]'
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Next, we create our initial decoder input, starting with SOS tokens for each
     sentence. We then set the initial hidden state of our decoder to be equal to that
     of the encoder:'
+  id: totrans-201
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们创建初始解码器输入，每个句子都以SOS标记开头。然后，我们将解码器的初始隐藏状态设置为与编码器相等：
 - en: '[PRE37]'
+  id: totrans-202
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: Next, we implement teacher forcing. If you recall from the last chapter, teacher
     forcing, when generating output sequences with some given probability, we use
     the true previous output token rather than the predicted previous output token
@@ -1000,262 +1413,366 @@
     our model converge much more quickly; however, we must be careful not to make
     the teacher forcing ratio too high or else our model will be too reliant on the
     teacher forcing and will not learn to generate the correct output independently.
+  id: totrans-203
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 接下来，我们实现教师强制。如果你还记得上一章节，教师强制在生成输出序列时，我们使用真实的前一个输出标记，而不是预测的前一个输出标记来生成下一个单词。使用教师强制可以帮助我们的模型更快地收敛；然而，我们必须小心，不要将教师强制比率设置得太高，否则我们的模型将过于依赖教师强制，无法独立学习生成正确的输出。
 - en: 'Determine whether we should use teacher forcing for the current step:'
+  id: totrans-204
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 确定当前步骤是否应该使用教师强制：
 - en: '[PRE38]'
+  id: totrans-205
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Then, if we do need to implement teacher forcing, run the following code. We
     pass each of our sequence batches through the decoder to obtain our output. We
     then set the next input as the true output (`target`). Finally, we calculate and
     accumulate the loss using our loss function and print this to the console:'
+  id: totrans-206
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，如果我们确实需要实现教师强制，运行以下代码。我们通过解码器传递每个序列批次以获得输出。然后，我们将下一个输入设置为真实输出（`target`）。最后，我们使用我们的损失函数计算并累积损失，并将其打印到控制台：
 - en: '[PRE39]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'If we do not implement teacher forcing on a given batch, the procedure is almost
     identical. However, instead of using the true output as the next input into the
     sequence, we use the one generated by the model:'
+  id: totrans-208
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果在给定批次上不实现教师强制，该过程几乎相同。但是，我们不是使用真实输出作为序列中的下一个输入，而是使用模型生成的输出：
 - en: '[PRE40]'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Finally, as with all of our models, the final steps are to perform backpropagation,
     implement gradient clipping, and step through both of our encoder and decoder
     optimizers to update the weights using gradient descent. Remember that we clip
     out gradients in order to prevent the vanishing/exploding gradient problem, which
     was discussed in earlier chapters. Finally, our training step returns our average
     loss:'
+  id: totrans-210
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，和我们所有的模型一样，最后的步骤是执行反向传播，实施梯度裁剪，并且通过我们的编码器和解码器优化器来更新权重，使用梯度下降。记住，我们剪切梯度以防止消失/爆炸梯度问题，这在前几章已经讨论过。最后，我们的训练步骤返回我们的平均损失：
 - en: '[PRE41]'
+  id: totrans-211
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'Next, as previously stated, we need to create the `trainIters()` function,
     which repeatedly calls our training function on different batches of input data.
     We start by splitting our data into batches using the `batch2Train` function we
     created earlier:'
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，如前所述，我们需要创建`trainIters()`函数，它反复调用我们的训练函数来处理不同的输入数据批次。我们首先使用我们之前创建的`batch2Train`函数将数据分成批次：
 - en: '[PRE42]'
+  id: totrans-213
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'We then create a few variables that will allow us to count iterations and keep
     track of the total loss over each epoch:'
+  id: totrans-214
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们创建一些变量，这些变量将允许我们计算迭代次数并跟踪每个时代的总损失：
 - en: '[PRE43]'
+  id: totrans-215
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Next, we define our training loop. For each iteration, we get a training batch
     from our list of batches. We then extract the relevant fields from our batch and
     run a single training iteration using these parameters. Finally, we add the loss
     from this batch to our overall loss:'
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们定义我们的训练循环。对于每个迭代，我们从我们的批次列表中获取一个训练批次。然后，我们从批次中提取相关字段，并使用这些参数运行单个训练迭代。最后，我们将这一批次的损失添加到我们的总损失中：
 - en: '[PRE44]'
+  id: totrans-217
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'On every iteration, we also make sure we print our progress so far, keeping
     track of how many iterations we have completed and what our loss was for each
     epoch:'
+  id: totrans-218
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在每次迭代中，我们还确保打印我们目前的进度，跟踪我们已经完成了多少次迭代以及每个时代的损失是多少：
 - en: '[PRE45]'
+  id: totrans-219
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'For the sake of completion, we also need to save our model state after every
     few epochs. This allows us to revisit any historical models we have trained; for
     example, if our model were to begin overfitting, we could revert back to an earlier
     iteration:'
+  id: totrans-220
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了完成，我们还需要在每几个时代之后保存我们的模型状态。这样可以让我们重新查看我们训练过的任何历史模型；例如，如果我们的模型开始过拟合，我们可以回到之前的迭代：
 - en: '[PRE46]'
+  id: totrans-221
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: Now that we have completed all the necessary steps to begin training our model,
     we need to create functions to allow us to evaluate the performance of the model.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经完成了所有必要的步骤来开始训练我们的模型，我们需要创建函数来允许我们评估模型的性能。
 - en: Defining the evaluating process
+  id: totrans-223
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 定义评估过程
 - en: Evaluating a chatbot is slightly different from evaluating other sequence-to-sequence
     models. In our text translation task, an English sentence will have one direct
     translation into German. While there may be multiple correct translations, for
     the most part, there is a single correct translation from one language into another.
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 评估聊天机器人与评估其他序列到序列模型略有不同。在我们的文本翻译任务中，一个英文句子将直接翻译成德文。虽然可能有多个正确的翻译，但大部分情况下，从一种语言到另一种语言的翻译只有一个正确的。
 - en: 'For chatbots, there are multiple different valid outputs. Take the following
     three lines from some conversations with a chatbot:'
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于聊天机器人，有多个不同的有效输出。以下是与聊天机器人对话中的三行内容：
 - en: '**Input**: *"Hello"*'
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输入**："Hello"'
 - en: '**Output**: *"Hello"*'
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输出**："Hello"'
 - en: '**Input**: *"Hello"*'
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输入**："Hello"'
 - en: '**Output**: *"Hello. How are you?"*'
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输出**："Hello. How are you?"'
 - en: '**Input**: "*Hello"*'
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输入**："*Hello"'
 - en: '**Output**: *"What do you want?"*'
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: '**输出**："What do you want?"'
 - en: 'Here, we have three different responses, each one equally valid as a response.
     Therefore, at each stage of our conversation with our chatbot, there will be no
     single "correct" response. So, evaluation is much more difficult. The most intuitive
     way of testing whether a chatbot produces a valid output is by having a conversation
     with it! This means we need to set up our chatbot in a way that enables us to
     have a conversation with it to determine whether it is working well:'
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们有三个不同的响应，每一个都同样有效作为响应。因此，在与聊天机器人对话的每个阶段，不会有单一的“正确”响应。因此，评估要困难得多。测试聊天机器人是否产生有效输出的最直观方法是与其对话！这意味着我们需要设置我们的聊天机器人，使其能够与我们进行对话，以确定其是否工作良好：
 - en: 'We will start by defining a class that will allow us to decode the encoded
     input and produce text. We do this by using what is known as a `GreedyEncoder()`
     class with our pretrained encoder and decoder:'
+  id: totrans-233
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将从定义一个类开始，这个类将允许我们解码编码的输入并生成文本。我们通过使用所谓的`GreedyEncoder()`类与我们预训练的编码器和解码器来做到这一点：
 - en: '[PRE47]'
+  id: totrans-234
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'Next, define a forward pass for our decoder. We pass the input through our
     encoder to get our encoder''s output and hidden state. We take the encoder''s
     final hidden layer to be the first hidden input to the decoder:'
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，定义我们的解码器的前向传播。我们通过我们的编码器传递输入以获取我们编码器的输出和隐藏状态。我们将编码器的最终隐藏层作为解码器的第一个隐藏输入：
 - en: '[PRE48]'
+  id: totrans-236
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'Then, create the decoder input with SOS tokens and initialize the tensors to
     append decoded words to (initialized as a single zero value):'
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，使用SOS标记创建解码器输入，并初始化张量以附加解码的单词（初始化为单个零值）：
 - en: '[PRE49]'
+  id: totrans-238
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'After that, iterate through the sequence, decoding one word at a time. We perform
     a forward pass through the encoder and add a `max` function to obtain the highest-scoring
     predicted word and its score, which we then append to the `all_tokens` and `all_scores`
     variables. Finally, we take this predicted token and use it as the next input
     to our decoder. After the whole sequence has been iterated over, we return the
     complete predicted sentence:'
+  id: totrans-239
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，逐个解码序列中的单词。我们通过编码器进行前向传播，并添加一个`max`函数来获取最高得分的预测单词及其分数，然后将其附加到`all_tokens`和`all_scores`变量中。最后，我们取这个预测的标记并将其用作我们的解码器的下一个输入。在整个序列迭代完毕后，我们返回完整的预测句子：
 - en: '[PRE50]'
+  id: totrans-240
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: All the pieces are beginning to come together. We have the defined training
     and evaluation functions, so the final step is to write a function that will actually
     take our input as text, pass it to our model, and obtain a response from the model.
     This will be the "interface" of our chatbot, where we actually have our conversation.
+  id: totrans-241
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 所有的部分都开始串联在一起了。我们已经定义了训练和评估函数，所以最后一步是编写一个实际将我们的输入作为文本、传递给我们的模型并从模型获取响应的函数。这将是我们聊天机器人的“接口”，在这里我们实际上与我们的聊天机器人对话。
 - en: 'We first define an `evaluate()` function, which takes our input function and
     returns the predicted output words. We start by transforming our input sentence
     into indices using our vocabulary. We then obtain a tensor of the lengths of each
     of these sentences and transpose it:'
+  id: totrans-242
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先定义一个`evaluate()`函数，该函数接受我们的输入函数并返回预测的输出单词。我们开始通过我们的词汇表将输入句子转换为索引。然后，我们获得每个这些句子的长度的张量，并将其转置：
 - en: '[PRE51]'
+  id: totrans-243
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'Then, we assign our lengths and input tensors to the relevant devices. Next,
     run the inputs through the searcher (`GreedySearchDecoder`) to obtain the word
     indices of the predicted output. Finally, we transform these word indices back
     into word tokens before returning them as the function output:'
+  id: totrans-244
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们将我们的长度和输入张量分配给相关设备。接下来，通过搜索器（`GreedySearchDecoder`）运行输入，以获取预测输出的单词索引。最后，我们将这些单词索引转换回单词标记，然后将它们作为函数输出返回：
 - en: '[PRE52]'
+  id: totrans-245
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Finally, we create a `runchatbot` function, which acts as the interface with
     our chatbot. This function takes human-typed input and prints the chatbot''s response.
     We create this function as a `while` loop that continues until we terminate the
     function or type `quit` as our input:'
+  id: totrans-246
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们创建一个`runchatbot`函数，它作为与我们的聊天机器人的接口。这个函数接受人类输入并打印聊天机器人的响应。我们将此函数创建为一个`while`循环，直到我们终止函数或在输入中键入`quit`为止：
 - en: '[PRE53]'
+  id: totrans-247
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'We then take the typed input and normalize it, before passing the normalized
     input to our `evaluate()` function, which returns the predicted words from the
     chatbot:'
+  id: totrans-248
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们获取输入的内容并对其进行标准化，然后将标准化的输入传递给我们的`evaluate()`函数，该函数从聊天机器人返回预测的单词：
 - en: '[PRE54]'
+  id: totrans-249
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Finally, we take these output words and format them, ignoring the EOS and padding
     tokens, before printing the chatbot''s response. Because this is a `while` loop,
     this allows us to continue the conversation with the chatbot indefinitely:'
+  id: totrans-250
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们获取这些输出单词并格式化它们，在打印聊天机器人的响应之前忽略EOS和填充标记。因为这是一个`while`循环，这允许我们无限期地与聊天机器人继续对话：
 - en: '[PRE55]'
+  id: totrans-251
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: Now that we have constructed all the functions necessary to train, evaluate,
     and use our chatbot, it's time to begin the final step—training our model and
     conversing with our trained chatbot.
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经构建了训练、评估和使用我们的聊天机器人所需的所有函数，是时候开始最后一步了——训练我们的模型并与我们训练过的聊天机器人交流了。
 - en: Training the model
+  id: totrans-253
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 训练模型
 - en: 'As we have defined all the necessary functions, training the model just becomes
     a case or initializing our hyperparameters and calling our training functions:'
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们已经定义了所有必要的函数，训练模型只是初始化我们的超参数并调用我们的训练函数的情况：
 - en: 'We first initialize our hyperparameters. While these are only suggested hyperparameters,
     our models have been set up in a way that will allow them to adapt to whatever
     hyperparameters they are passed. It is good practice to experiment with different
@@ -1265,73 +1782,103 @@
     the batch size. All of these hyperparameters will have an effect on how well your
     model learns, as well as a number of other factors, such as the time it takes
     to train the model:'
+  id: totrans-255
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先我们初始化我们的超参数。虽然这些只是建议的超参数，但我们的模型已经被设置成可以适应任何传递给它们的超参数。通过尝试不同的超参数来看哪些超参数会导致最佳的模型配置是一个良好的实践。在这里，您可以尝试增加编码器和解码器的层数，增加或减少隐藏层的大小，或增加批处理大小。所有这些超参数都会影响您的模型学习效果，以及训练模型所需的时间：
 - en: '[PRE56]'
+  id: totrans-256
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'After that, we can load our checkpoints. If we have previously trained a model,
     we can load the checkpoints and model states from previous iterations. This saves
     us from having to retrain our model each time:'
+  id: totrans-257
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 之后，我们可以加载我们的检查点。如果我们以前训练过一个模型，我们可以加载以前迭代的检查点和模型状态。这样可以避免每次重新训练模型：
 - en: '[PRE57]'
+  id: totrans-258
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'After that, we can begin to build our models. We first load our embeddings
     from the vocabulary. If we have already trained a model, we can load the trained
     embeddings layer:'
+  id: totrans-259
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 之后，我们可以开始构建我们的模型。我们首先从词汇表中加载我们的嵌入。如果我们已经训练了一个模型，我们可以加载训练好的嵌入层：
 - en: '[PRE58]'
+  id: totrans-260
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'We then do the same for our encoder and decoder, creating model instances using
     the defined hyperparameters. Again, if we have already trained a model, we simply
     load the trained model states into our models:'
+  id: totrans-261
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接着我们对编码器和解码器进行同样的操作，使用定义好的超参数创建模型实例。如果我们已经训练过一个模型，我们只需加载训练好的模型状态到我们的模型中：
 - en: '[PRE59]'
+  id: totrans-262
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'Last but not least, we specify a device for each of our models to be trained
     on. Remember, this is a crucial step if you wish to use GPU training:'
+  id: totrans-263
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后但同样重要的是，我们为每个模型指定一个设备进行训练。请记住，如果您希望使用GPU进行训练，这是一个至关重要的步骤：
 - en: '[PRE60]'
+  id: totrans-264
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: 'If this has all worked correctly and your models have been created with no
     errors, you should see the following:'
+  id: totrans-265
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如果一切工作正常，而且您的模型创建没有错误，您应该会看到以下内容：
 - en: '![Figure 8.14 – Successful output'
+  id: totrans-266
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '![图 8.14 – 成功的输出'
 - en: '](img/B12365_08_14.jpg)'
+  id: totrans-267
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_14.jpg)'
 - en: Figure 8.14 – Successful output
+  id: totrans-268
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 8.14 – 成功的输出
 - en: Now that we have created instances of both our encoder and decoders, we are
     ready to begin training them.
+  id: totrans-269
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 现在我们已经创建了编码器和解码器的实例，我们准备开始训练它们。
 - en: We start by initializing some training hyperparameters. In the same way as our
     model hyperparameters, these can be adjusted to influence training time and how
     our model learns. Clip controls the gradient clipping and teacher forcing controls
@@ -1339,9 +1886,12 @@
     forcing ratio of 1 so that we always use teacher forcing. Lowering the teaching
     forcing ratio would mean our model takes much longer to converge; however, it
     might help our model generate correct sentences by itself better in the long run.
+  id: totrans-270
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们首先初始化一些训练超参数。与我们的模型超参数一样，这些可以调整以影响训练时间和我们模型的学习方式。Clip控制梯度裁剪，而teacher forcing控制我们在模型中使用teacher
+    forcing的频率。请注意，我们使用了一个teacher forcing比率为1，以便我们始终使用teacher forcing。降低teacher forcing比率会导致我们的模型收敛时间更长；然而，从长远来看，这可能会帮助我们的模型更好地自动生成正确的句子。
 - en: 'We also need to define the learning rates of our models and our decoder learning
     ratio. You will find that your model performs better when the decoder carries
     out larger parameter updates during gradient descent. Therefore, we introduce
@@ -1349,192 +1899,286 @@
     learning rate is greater for the decoder than it is for the encoder. We also define
     how often our model prints and saves the results, as well as how many epochs we
     want our model to run for:'
+  id: totrans-271
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还需要定义我们模型的学习率和解码器的学习率比。您会发现，当解码器在梯度下降过程中执行较大的参数更新时，您的模型表现会更好。因此，我们引入了一个解码器学习率比来将一个乘数应用于学习率，使得解码器的学习率比编码器的大。我们还定义了我们的模型打印和保存结果的频率，以及我们希望我们的模型运行多少个epochs：
 - en: '[PRE61]'
+  id: totrans-272
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'Next, as always when training models in PyTorch, we switch our models to training
     mode to allow the parameters to be updated:'
+  id: totrans-273
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，像往常一样，在PyTorch中训练模型时，我们将模型切换到训练模式，以便更新参数：
 - en: '[PRE62]'
+  id: totrans-274
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: 'Next, we create optimizers for both the encoder and decoder. We initialize
     these as Adam optimizers, but other optimizers will work equally well. Experimenting
     with different optimizers may yield different levels of model performance. If
     you have trained a model previously, you can also load the optimizer states if
     required:'
+  id: totrans-275
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们为编码器和解码器创建优化器。我们将这些初始化为Adam优化器，但其他优化器同样有效。尝试不同的优化器可能会产生不同水平的模型性能。如果以前已经训练过一个模型，也可以在需要时加载优化器状态：
 - en: '[PRE63]'
+  id: totrans-276
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: 'The final step before running the training is to make sure CUDA is configured
     to be called if you wish to use GPU training. To do this, we simply loop through
     the optimizer states for both the encoder and decoder and enable CUDA across all
     of the states:'
+  id: totrans-277
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在运行训练之前的最后一步是确保CUDA已配置好以便进行GPU训练。为此，我们简单地循环遍历编码器和解码器的优化器状态，并在所有状态上启用CUDA：
 - en: '[PRE64]'
+  id: totrans-278
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Finally, we are ready to train our model. This can be done by simply calling
     the `trainIters` function with all the required parameters:'
+  id: totrans-279
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们准备训练我们的模型。这可以通过简单调用`trainIters`函数并传入所有必要的参数来完成：
 - en: '[PRE65]'
+  id: totrans-280
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: 'If this is working correctly, you should see the following output start to
     print:'
+  id: totrans-281
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如果一切正常，您将看到以下输出开始打印：
 - en: '![Figure 8.15 – Training the model'
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.15 – 模型训练'
 - en: '](img/B12365_08_15.jpg)'
+  id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_15.jpg)'
 - en: Figure 8.15 – Training the model
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.15 – 模型训练
 - en: 'Your model is now training! Depending on a number of factors, such as how many
     epochs you have set your model to train for and whether you are using a GPU, your
     model may take some time to train. When it is complete, you will see the following
     output. If everything has worked correctly, your model''s average loss will be
     significantly lower than when you started training, showing that your model has
     learned something useful:'
+  id: totrans-285
   prefs: []
   type: TYPE_NORMAL
+  zh: 您的模型现在正在训练！根据多个因素（例如您为模型设置了多少个epoch以及是否使用GPU等），您的模型可能需要一些时间来训练。训练完成后，您将看到以下输出。如果一切正常，您的模型平均损失将显著低于训练开始时的水平，表明您的模型已经学到了一些有用的东西：
 - en: '![Figure 8.16 – Average loss after 4,000 iterations'
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.16 – 4,000次迭代后的平均损失'
 - en: '](img/B12365_08_16.jpg)'
+  id: totrans-287
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_16.jpg)'
 - en: Figure 8.16 – Average loss after 4,000 iterations
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.16 – 4,000次迭代后的平均损失
 - en: Now that our model has been trained, we can begin the evaluation process and
     start using our chatbot.
+  id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们的模型已经训练完成，我们可以开始评估过程并开始使用我们的聊天机器人。
 - en: Evaluating the model
+  id: totrans-290
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 评估模型
 - en: 'Now that we have successfully created and trained our model, it is time to
     evaluate its performance. We will do so by taking the following steps:'
+  id: totrans-291
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 现在我们成功创建并训练了我们的模型，是时候评估其性能了。我们将通过以下步骤来进行：
 - en: 'To begin the evaluation, we first switch our model into evaluation mode. As
     with all other PyTorch models, this is done to prevent any further parameter updates
     occurring within the evaluation process:'
+  id: totrans-292
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 开始评估之前，我们首先将模型切换到评估模式。与所有其他PyTorch模型一样，这是为了防止在评估过程中发生任何进一步的参数更新：
 - en: '[PRE66]'
+  id: totrans-293
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: 'We also initialize an instance of `GreedySearchDecoder` in order to be able
     to perform the evaluation and return the predicted output as text:'
+  id: totrans-294
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还初始化了`GreedySearchDecoder`的一个实例，以便能够执行评估并将预测输出作为文本返回：
 - en: '[PRE67]'
+  id: totrans-295
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: 'Finally, to run the chatbot, we simply call the `runchatbot` function, passing
     it `encoder`, `decoder`, `searcher`, and `voc`:'
+  id: totrans-296
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，要运行聊天机器人，我们只需调用`runchatbot`函数，传入`encoder`、`decoder`、`searcher`和`voc`：
 - en: '[PRE68]'
+  id: totrans-297
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: 'Doing so will open up an input prompt for you to enter your text:'
+  id: totrans-298
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 这样做将打开一个输入提示，让您输入文本：
 - en: '![Figure 8.17 – UI element for entering text'
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.17 – 输入文本的用户界面元素'
 - en: '](img/B12365_08_17.jpg)'
+  id: totrans-300
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_17.jpg)'
 - en: Figure 8.17 – UI element for entering text
+  id: totrans-301
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.17 – 输入文本的用户界面元素
 - en: 'Entering your text here and pressing *Enter* will send your input to the chatbot.
     Using our trained model, our chatbot will create a response and print it to the
     console:'
+  id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此处输入您的文本并按*Enter*将您的输入发送给聊天机器人。使用我们训练过的模型，我们的聊天机器人将创建一个响应并将其打印到控制台：
 - en: '![Figure 8.18 – Output for the chatbot'
+  id: totrans-303
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.18 – 聊天机器人的输出'
 - en: '](img/B12365_08_18.jpg)'
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_18.jpg)'
 - en: Figure 8.18 – Output for the chatbot
+  id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.18 – 聊天机器人的输出
 - en: 'You can repeat this process as many times as you like to have a "conversation"
     with the chatbot. At a simple conversational level, the chatbot can produce surprisingly
     good results:'
+  id: totrans-306
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以重复此过程多次，与聊天机器人进行“对话”。在简单的对话水平上，聊天机器人可以产生令人惊讶的良好结果：
 - en: '![Figure 8.19 – Output for the chatbot'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.19 – 聊天机器人的输出'
 - en: '](img/B12365_08_19.jpg)'
+  id: totrans-308
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_19.jpg)'
 - en: Figure 8.19 – Output for the chatbot
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.19 – 聊天机器人的输出
 - en: 'However, once the conversation gets more complex, it will become obvious that
     the chatbot isn''t capable of the same level of conversation as a human:'
+  id: totrans-310
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，一旦对话变得更复杂，很明显聊天机器人无法达到与人类相同水平的对话能力：
 - en: '![Figure 8.20 – Limitations of the chatbot'
+  id: totrans-311
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.20 – 聊天机器人的局限性'
 - en: '](img/B12365_08_20.jpg)'
+  id: totrans-312
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_20.jpg)'
 - en: Figure 8.20 – Limitations of the chatbot
+  id: totrans-313
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.20 – 聊天机器人的局限性
 - en: 'In many cases, your chatbot''s responses may be nonsensical:'
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 在许多情况下，您的聊天机器人的回复可能是无意义的：
 - en: '![Figure 8.21 – Wrong output'
+  id: totrans-315
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 8.21 – 错误输出'
 - en: '](img/B12365_08_21.jpg)'
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B12365_08_21.jpg)'
 - en: Figure 8.21 – Wrong output
+  id: totrans-317
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.21 – 错误输出
 - en: It is clear that we have created a chatbot capable of simple back and forth
     conversations. However, we still have a long way to go before our chatbot is able
     to pass the Turing test and be able to convince us that we are actually talking
@@ -1542,31 +2186,41 @@
     have trained our model on, the use of attention in our sequence-to-sequence model
     has shown reasonably good results, demonstrating just how versatile these architectures
     can be.
+  id: totrans-318
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，我们创建了一个能够进行简单来回对话的聊天机器人。但在我们的聊天机器人能够通过图灵测试并使我们相信我们在与人类交谈之前，我们还有很长的路要走。然而，考虑到我们的模型训练的相对较小的数据语料库，我们在序列到序列模型中使用的注意力显示出了相当不错的结果，展示了这些架构有多么的多才多艺。
 - en: While the best chatbots are trained on vast corpuses of billions of data points,
     our model has proven reasonably effective with a relatively small one. However,
     basic attention networks are no longer state-of-the-art and in our next chapter,
     we will discuss some of the more recent developments for NLP learning that have
     resulted in even more realistic chatbots.
+  id: totrans-319
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然最好的聊天机器人是在数十亿数据点的庞大语料库上训练的，但我们的模型在相对较小的数据集上证明了相当有效。然而，基本的注意力网络不再是最先进的，在下一章中，我们将讨论一些用于自然语言处理学习的最新发展，这些发展导致了更加逼真的聊天机器人。
 - en: Summary
+  id: totrans-320
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we applied all the knowledge we learned from our recurrent
     models and our sequence-to-sequence models and combined them with an attention
     mechanism to construct a fully working chatbot. While conversing with our chatbot
     is unlikely to be indistinguishable from talking to a real human, with a considerably
     larger dataset we might hope to achieve an even more realistic chatbot.
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们应用了我们从递归模型和序列到序列模型中学到的所有知识，并结合注意力机制构建了一个完全工作的聊天机器人。虽然与我们的聊天机器人交谈不太可能与真人交谈无异，但通过一个相当大的数据集，我们可能希望实现一个更加逼真的聊天机器人。
 - en: Although sequence-to-sequence models with attention were state-of-the-art in
     2017, machine learning is a rapidly progressing field and since then, there have
     been multiple improvements made to these models. In the final chapter, we will
     discuss some of these state-of-the-art models in more detail, as well as cover
     several other contemporary techniques used in machine learning for NLP, many of
     which are still in development.
+  id: totrans-322
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管在2017年，带有注意力的序列到序列模型是最先进的，但机器学习是一个快速发展的领域，自那时以来，对这些模型进行了多次改进。在最后一章中，我们将更详细地讨论一些这些最先进的模型，并涵盖用于自然语言处理的其他当代技术，其中许多仍在开发中。
