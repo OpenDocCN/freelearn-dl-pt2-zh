@@ -1,0 +1,2584 @@
+- en: 13 Operationalizing PyTorch Models into Production
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Join our book community on Discord
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/file106.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So far in this book, we have covered how to train and test different kinds of
+    machine learning models using PyTorch. We started by reviewing the basic elements
+    of PyTorch that enable us to work on deep learning tasks efficiently. Then, we
+    explored a wide range of deep learning model architectures and applications that
+    can be written using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will be focusing on taking these models into production.
+    But what does that mean? Basically, we will be discussing the different ways of
+    taking a trained and tested model (object) into a separate environment where it
+    can be used to make predictions or inferences on incoming data. This is what is
+    referred to as the **productionization** of a model, as the model is being deployed
+    into a production system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin by discussing some common approaches you can take to serve PyTorch
+    models in production environments, starting from defining a simple model inference
+    function and going all the way to using model microservices. We will then take
+    a look at TorchServe, which is a scalable PyTorch model-serving framework that
+    has been jointly developed by AWS and Facebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will then dive into the world of exporting PyTorch models using **TorchScript**,
+    which, through **serialization**, makes our models independent of the Python ecosystem
+    so that they can be, for instance, loaded in a **C++** based environment . We
+    will also look beyond the Torch framework and the Python ecosystem as we explore
+    **ONNX** – an open source universal format for machine learning models – which
+    will help us export PyTorch trained models to non-PyTorch and non-Pythonic environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will briefly discuss how to use PyTorch for model serving with some
+    of the well-known cloud platforms such as **Amazon Web Services** (**AWS**), **Google
+    Cloud**, and **Microsoft Azure**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Throughout this chapter, we will use the handwritten digits image classification
+    **convolutional neural network** (**CNN**) model that we trained in *Chapter 1,
+    Overview of Deep Learning Using PyTorch*, as our reference. We will demonstrate
+    how that trained model can be deployed and exported using the different approaches
+    discussed in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter is broken down into the following sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model serving in PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Serving a PyTorch model using TorchServe
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exporting universal PyTorch models using TorchScript and ONNX
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Serving PyTorch model in the cloud
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model serving in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will begin with building a simple PyTorch inference pipeline
+    that can make predictions given some input data and the location of a previously
+    trained and saved PyTorch model. We will proceed thereafter to place this inference
+    pipeline on a model server that can listen to incoming data requests and return
+    predictions. Finally, we will advance from developing a model server to creating
+    a model microservice using Docker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a PyTorch model inference pipeline
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will be working on the handwritten digits image classification CNN model
+    that we built in *Chapter 1*, *Overview of Deep Learning Using PyTorch*, on the
+    `MNIST` dataset. Using this trained model, we will build an inference pipeline
+    that shall be able to predict a digit between 0 to 9 for a given handwritten-digit
+    input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the process of building and training the model, please refer to the *Training
+    a neural network using PyTorch* section of *Chapter 1,* *Overview of Deep Learning
+    Using PyTorch*. For the full code of this exercise, you can refer to our github
+    repository [13.1 .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Saving and loading a trained model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will demonstrate how to efficiently load a saved pre-trained
+    PyTorch model, which will later be used for serving requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, using the notebook code from *Chapter 1,* *Overview of Deep Learning Using
+    PyTorch*, we have trained a model and evaluated it against test data samples.
+    But what next? In real life, we would like to close this notebook and, later on,
+    still be able to use this model that we worked hard on training to make inferences
+    on handwritten-digit images. This is where the concept of serving a model comes
+    in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From here, we will get into a position where we can use the preceding trained
+    model in a separate Jupyter notebook without having to do any (re)training. The
+    crucial next step is to save the model object into a file that can later be restored/de-serialized.
+    PyTorch provides two main ways of doing this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The less recommended way is to save the entire model object as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And then, the saved model can be later read as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although this approach looks the most straightforward, this can be problematic
+    in some cases. This is because we are not only saving the model parameters, but
+    also the model classes and directory structure used in our source code. If our
+    class signatures or directory structures change later, loading the model will
+    fail in potentially unfixable ways.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second and more recommended way is to only save the model parameters as
+    follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Later, when we need to restore the model, first we instantiate an empty model
+    object and then load the model parameters into that model object as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will use the more recommended way to save the model as shown in the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `convnet.pth` file is essentially a pickle file containing model parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, we can safely close the notebook we were working on and open
+    another one, which is available at our github repository [13.2] :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a first step, we will once again need to import libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we need to instantiate an empty CNN model once again. Ideally, the model
+    definition done in *step 1* would be written in a Python script (say, `cnn_model.py`),
+    and then we would simply need to write this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, since we are operating in Jupyter notebooks in this exercise, we shall
+    rewrite the model definition and then instantiate it as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now restore the saved model parameters into this instantiated model
+    object as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You shall see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .1 – Model parameter loading](img/file107.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .1 – Model parameter loading
+  prefs: []
+  type: TYPE_NORMAL
+- en: This essentially means that the parameter loading is successful. That is, the
+    model that we have instantiated has the same structure as the model whose parameters
+    were saved and are now being restored. We specify that we are loading the model
+    on a CPU device as opposed to GPU (CUDA).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we want to specify that we do not wish to update or change the parameter
+    values of the loaded model, and we will do so with the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should give the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .2 – Loaded model in evaluation mode](img/file108.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .2 – Loaded model in evaluation mode
+  prefs: []
+  type: TYPE_NORMAL
+- en: This again verifies that we are indeed working with the same model (architecture)
+    that we trained.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the inference pipeline
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Having successfully loaded a pre-trained model in a new environment (notebook)
+    in the previous section, we shall now build our model inference pipeline and use
+    it to run model predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, we have the previously trained model object fully restored to
+    us. We shall now load an image that we can run the model prediction on using the
+    following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The image file should be available in the exercise folder and is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .3 – Model inference input image](img/file109.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .3 – Model inference input image
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is not necessary to use this particular image in the exercise. You may use
+    any image you want, to check how the model reacts to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In any inference pipeline, there are three main components at the core of it:
+    (a) the data preprocessing component, (b) the model inference (forward pass in
+    the case of neural networks), and (c) the post-processing step.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We will begin with the first part by defining a function that takes in an image
+    and transforms it into the tensor that shall be fed to the model as input as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This can be seen as a series of steps as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the RGB image is converted to a grayscale image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The image is then resized to a `28x28` pixels image because this is the image
+    size the model is trained with.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, the image array is converted to a PyTorch tensor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: And finally, the pixel values in the tensor are normalized with the same mean
+    and standard deviation values as those used during model training time.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Having defined this function, we call it to convert our loaded image into a
+    tensor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define the **model inference functionality**. This is where the model
+    takes in a tensor as input and outputs the predictions. In this case, the prediction
+    will be any digit between 0 to 9 and the input tensor will be the tensorized form
+    of the input image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`model_output` contains the raw predictions of the model, which contains a
+    list of predictions for each image. Because we have only one image in the input,
+    this list of predictions will just have one entry at index `0`. The raw prediction
+    at index `0` is essentially a tensor with 10 probability values for digits 0,1,2...9,
+    in that order. This tensor is converted to a `numpy` array, and finally, we choose
+    the digit that has the highest probability.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now use this function to generate our model prediction. The following
+    code uses the `run_model` model inference function from *step 3* to generate the
+    model prediction for the given input data, `input_tensor`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .4 – Model inference output](img/file110.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .4 – Model inference output
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see from the preceding screenshot, the model outputs a `numpy` integer.
+    And based on the image shown in *Figure 13* *.3*, the model output seems rather
+    correct.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides just outputting the model prediction, we can also write a debug function
+    to dig deeper into metrics such as raw prediction probabilities, as shown in the
+    following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function is exactly the same as the `run_model` function except that it
+    returns the raw list of probabilities for each digit. The model originally returns
+    the logarithm of softmax outputs because of the `log_softmax` layer being used
+    as the final layer in the model (refer to *step 2* of this exercise).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hence, we need to exponentiate those numbers to return the softmax outputs,
+    which are equivalent to model prediction probabilities. Using this debug function,
+    we can look at how the model is performing in more detail, such as whether the
+    probability distribution is flat or has clear peaks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should produce an output similar to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .5 – Model inference debug output](img/file111.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .5 – Model inference debug output
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that the third probability in the list is the highest by far, which
+    corresponds to digit 2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we shall post-process the model prediction so that it can be used by
+    other applications. In our case, we are just going to transform the digit predicted
+    by the model from the integer type to the string type.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The post-processing step can be more complex in other scenarios, such as speech
+    recognition, where we might want to process the output waveform by smoothening,
+    removing outliers, and so on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Because string is a serializable format, this enables the model predictions
+    to be communicated easily across servers and applications. We can check whether
+    our final post-processed data is as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should provide you with the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .6 – Post-processed model prediction](img/file112.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .6 – Post-processed model prediction
+  prefs: []
+  type: TYPE_NORMAL
+- en: As expected, the output is now of the `type` string.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our exercise of loading a saved model architecture, restoring
+    its trained weights, and using the loaded model to generate predictions for sample
+    input data (an image). We loaded a sample image, pre-processed it to transform
+    it into a PyTorch tensor, passed it to the model as input to obtain the model
+    prediction, and post-processed the prediction to generate the final output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a step forward in the direction of serving trained models with a clearly
+    defined input and output interface. In this exercise, the input was an externally
+    provided image file and the output was a generated string containing a digit between
+    0 to 9\. Such a system can be embedded by copying and pasting the provided code
+    into any application that requires the functionality of digitizing hand-written
+    digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will go a level deeper into model serving, where we
+    aim to build a system that can be interacted with by any application to use the
+    digitizing functionality without copying and pasting any code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a basic model server
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We have so far built a model inference pipeline that has all the code necessary
+    to independently perform predictions from a pre-trained model. Here, we will work
+    on building our first model server, which is essentially a machine that hosts
+    the model inference pipeline, actively listens to any incoming input data via
+    an interface, and outputs model predictions on any input data through the interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writing a basic app using Flask
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To develop our server, we will use a popular Python library – Flask [13.3].
+    **Flask** will enable us to build our model server in a few lines of code . A
+    good example of how this library works is shown with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Say we saved this Python script as `example.py` and ran it from the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It would show the following output in the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .7 – Flask example app launch](img/file113.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .7 – Flask example app launch
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Basically, it will launch a Flask server that will serve an app called **example**.
+    Let''s open a browser and go to the following URL:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It will result in the following output in the browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .8 – Flask example app testing](img/file114.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .8 – Flask example app testing
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, the Flask server is listening to port number `8890` on the IP address
+    `0.0.0.0 (localhost)` at the endpoint `/`. As soon as we input `localhost:8890/`
+    in a browser search bar and press *Enter*, a request is received by this server.
+    The server then runs the `hello_world` function, which in turn returns the string
+    `Hello, World!` as per the function definition provided in `example.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Flask to build our model server
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Using the principles of running a Flask server demonstrated in the preceding
+    section, we will now use the model inference pipeline built in the previous section
+    to create our first model server. At the end of the exercise, we will launch the
+    server that will be listening to incoming requests (image data input).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will furthermore write another Python script that will make a request to
+    this server by sending the sample image shown in *Figure 13* *.3*. The Flask server
+    shall run the model inference on this image and output the post-processed predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The full code for this exercise is available on GitHub incuding the Flask server
+    code [13.4] and the client (request-maker) code [13.5].
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up model inference for Flask serving
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In this section, we will load a pre-trained model and write the model inference
+    pipeline code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will build the Flask server. And for that, we once again start by
+    importing the necessary libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Both `flask` and `torch` are vital necessities for this task, besides other
+    basic libraries such as `numpy` and `json`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will need to define the model class (architecture):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have the empty model class defined, we can instantiate a model
+    object and load the pre-trained model parameters into this model object as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will reuse the exact `run_model` function defined in *step 3* of the *Building
+    the inference pipeline* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: As a reminder, this function takes in the tensorized input image and outputs
+    the model prediction, which is any digit between 0 to 9.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will reuse the exact `post_process` function defined in *step 6* of
+    the *Building the inference pipeline* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will essentially convert the integer output from the `run_model` function
+    to a string.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a Flask app to serve model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Having established the inference pipeline in the previous section, we will
+    now build our own Flask app and use it to serve the loaded model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will instantiate our Flask app as shown in the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: This creates a Flask app with the same name as the Python script, which in our
+    case is `server(.py)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is the critical step, where we will be defining an endpoint functionality
+    of the Flask server. We will expose a `/test` endpoint and define what happens
+    when a `POST` request is made to that endpoint on the server as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s go through the steps one by one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we add a decorator to the function – `test` – defined underneath. This
+    decorator tells the Flask app to run this function whenever someone makes a `POST`
+    request to the `/test` endpoint.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we get to defining what exactly happens inside the `test` function. First,
+    we read the data and metadata from the `POST` request. Because the data is in
+    serialized form, we need to convert it into a numerical format – we convert it
+    to a `numpy` array. And from a `numpy` array, we swiftly cast it as a PyTorch
+    tensor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we use the image dimensions provided in the metadata to reshape the tensor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, we run a forward pass of the model loaded earlier with this tensor.
+    This gives us the model prediction, which is then post-processed and returned
+    by our test function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We have all the necessary ingredients to launch our Flask app. We will add
+    these last two lines to our `server.py` Python script:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This indicates that the Flask server will be hosted at IP address `0.0.0.0`
+    (also known as `localhost`) and port number `8890`. We may now save the Python
+    script and in a new terminal window simply execute the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will run the entire script written in the previous steps and you shall
+    see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .9 – Flask server launch](img/file115.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .9 – Flask server launch
+  prefs: []
+  type: TYPE_NORMAL
+- en: This looks similar to the example demonstrated in *Figure 13* *.7*. The only
+    difference is the app name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a Flask server to run predictions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have successfully launched our model server, which is actively listening
+    to requests. Let''s now work on making a request:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will write a separate Python script in the next few steps to do this job.
+    We begin with importing libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `requests` library will help us make the actual `POST` request to the Flask
+    server. `Image` helps us to read a sample input image file, and `transforms` will
+    help us to preprocess the input image array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we read an image file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: The image read here is an RGB image and may have any dimensions (not necessarily
+    28x28 as expected by the model as input).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now define a preprocessing function that converts the read image into a
+    format that is readable by the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Having defined the function, we can execute it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`image_tensor` is what we need to send as input data to the Flask server.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now get into packaging our data together to send it over. We want to
+    send both the pixel values of the image as well as the shape of the image (28x28)
+    so that the Flask server at the receiving end knows how to reconstruct the stream
+    of pixel values as an image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: We stringify the shape of our tensor and convert the image array into bytes
+    to make it all serializable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is the most critical step in this client code . This is where we actually
+    make the `POST` request:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the `requests` library, we make the `POST` request at the URL `localhost:8890/test`.
+    This is where the Flask server is listening for requests. We send both the actual
+    image data (as bytes) and the metadata (as string) in the form of a dictionary
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `r` variable in the preceding code will receive the response of the request
+    from the Flask server. This response should contain the post-processed model prediction.
+    We will now read that output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `response` variable will essentially contain what the Flask server outputs,
+    which is a digit between 0 and 9 as a string.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can print the response just to be sure:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At this point, we can save this Python script as `make_request.py` and execute
+    the following command in the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .10 – Flask server response](img/file116.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .10 – Flask server response
+  prefs: []
+  type: TYPE_NORMAL
+- en: Based on the input image (see *Figure 13* *.3*), the response seems rather correct.
+    This concludes our current exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, we have successfully built a standalone model server that can render predictions
+    for handwritten digit images. The same set of steps can easily be extended to
+    any other machine learning model, and so this opens up endless possibilities with
+    regards to creating machine learning applications using PyTorch and Flask.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have moved from simply writing inference functions to creating model
+    servers that can be hosted remotely and render predictions over the network. In
+    our next and final model serving venture, we will go a level further. You might
+    have noticed that in order to follow the steps in the previous two exercises,
+    there were inherent dependencies to be considered. We are required to install
+    certain libraries, save and load the models at particular locations, read image
+    data, and so on. All of these manual steps slow down the development of a model
+    server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Up next, we will work on creating a model microservice that can be spun up with
+    one command and replicated across several machines .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a model microservice
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Imagine you know nothing about training machine learning models but want to
+    use an already-trained model without having to get your hands dirty with any PyTorch
+    code. This is where a paradigm such as the machine learning model microservice
+    [13.6] comes into play.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A machine learning model microservice can be thought of as a black box to which
+    you send input data and it sends back predictions to you. Moreover, it is easy
+    to spin up this black box on a given machine with just a few lines of code. The
+    best part is that it scales effortlessly. You can scale a microservice vertically
+    by using a bigger machine (more memory, more processing power) as well as horizontally,
+    by replicating the microservice across multiple machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we go about deploying a machine learning model as a microservice? Thanks
+    to the work done using Flask and PyTorch in the previous exercise, we are already
+    a few steps ahead. We have already built a standalone model server using Flask.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will take that idea forward and build a standalone model-serving
+    environment using **Docker**. Docker helps containerize software, which essentially
+    means that it helps virtualize the entire **operating system** (**OS**), including
+    software libraries, configuration files, and even data files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Docker is a huge topic of discussion in itself. However, because the book is
+    focused on PyTorch, we will only cover the basic concepts and usage of Docker
+    for our limited purposes. If you are interested in reading about Docker further,
+    their own documentation is a great place to start [13.7] .
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'In our case, we have so far used the following libraries in building our model
+    server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Python
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pillow (for image I/O)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Flask
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'And, we have used the following data file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pre-trained model checkpoint file (`convnet.pth`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We have had to manually arrange for these dependencies by installing the libraries
+    and placing the file in the current working directory. What if we have to redo
+    all of this in a new machine? We would have to manually install the libraries
+    and copy and paste the file once again. This way of working is neither efficient
+    nor failproof, as we might end up installing different library versions across
+    different machines, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To solve this problem, we would like to create an OS-level blueprint that can
+    be consistently repeated across machines. This is where Docker comes in handy.
+    Docker lets us create that blueprint in the form of a Docker image. This image
+    can then be built on any empty machine with no assumptions regarding pre-installed
+    Python libraries or an already-available model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s actually create such a blueprint using Docker for our digits classification
+    model. In the form of an exercise, we will go from a Flask-based standalone model
+    server to a Docker-based model microservice. Before delving into the exercise,
+    you will need to install Docker [13.8] :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to list the Python library requirements for our Flask model
+    server. The requirements (with their versions) are as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: As a general practice, we will save this list as a text file – `requirements.txt`.
+    This file is also available in our github repository [13.9] . This list will come
+    in handy for installing the libraries consistently in any given environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we get straight to the blueprint, which, in Docker terms, will be the
+    `Dockerfile`. A `Dockerfile` is a script that is essentially a list of instructions.
+    The machine where this `Dockerfile` is run needs to execute the listed instructions
+    in the file. This results in a Docker image, and the process is called *building
+    an image*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: An **image** here is a system snapshot that can be effectuated on any machine,
+    provided that the machine has the minimum necessary hardware resources (for example,
+    installing PyTorch alone requires multiple GBs of disk space).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's look at our `Dockerfile` and try to understand what it does step by step.
+    The full code for the `Dockerfile` is available in our guthub repository [13.10]
+  prefs: []
+  type: TYPE_NORMAL
+- en: .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `FROM` keyword instructs Docker to fetch a standard Linux OS with `python
+    3.8` baked in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: This ensures that we will have Python installed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, install `wget`, which is a Unix command useful for downloading resources
+    from the internet via the command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `&&` symbol indicates the sequential execution of commands written before
+    and after the symbol.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we are copying two files from our local development environment into
+    this virtual environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: We copy the requirements file as discussed in *step 1* as well as the Flask
+    model server code that we worked on in the previous exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we download the pre-trained PyTorch model checkpoint file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the same model checkpoint file that we had saved in the *Saving and
+    loading a trained model* section of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we are installing all the relevant libraries listed under `requirements.txt`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: This `txt` file is the one we wrote under *step 1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we give `root` access to the Docker client:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: This step is important in this exercise as it ensures that the client has the
+    credentials to perform all necessary operations on our behalf, such as saving
+    model inference logs on the disk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In general, though, it is advised not to give root privileges to the client
+    as per the principle of least privilege in data security [13.11] .
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Finally, we specify that after performing all the previous steps, Docker should
+    execute the `python server.py` command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will ensure the launch of a Flask model server in the virtual machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now run this Dockerfile. In other words, let''s build a Docker image
+    using the Dockerfile from *step 2*. In the current working directory, on the command
+    line, simply run this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are allocating a tag with the name `digit_recognizer` to our Docker image.
+    This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .11 – Building a Docker image](img/file117.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .11 – Building a Docker image
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 13* *.11* shows the sequential execution of the steps mentioned in
+    *step 2*. Running this step might take a while, depending on your internet connection,
+    as it downloads the entire PyTorch library among others to build the image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this stage, we already have a Docker image with the name `digit_recognizer`.
+    We are all set to deploy this image on any machine. In order to deploy the image
+    on your own machine for now, just run the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this command, we are essentially starting a virtual machine inside our
+    machine using the `digit_recognizer` Docker image. Because our original Flask
+    model server was designed to listen to port `8890`, we have forwarded our actual
+    machine''s port `8890` to the virtual machine''s port `8890` using the `-p` argument.
+    Running this command should output this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .12 – Running a Docker instance](img/file118.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .12 – Running a Docker instance
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding screenshot is remarkably similar to *Figure 13* *.9* from the
+    previous exercise, which is no surprise because the Docker instance is running
+    the same Flask model server that we were manually running in our previous exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now test whether our Dockerized Flask model server (model microservice)
+    works as expected by using it to make model predictions. We will once again use
+    the `make_request.py` file used in the previous exercise to send a prediction
+    request to our model. From the current local working directory, simply execute
+    this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .13 – Microservice model prediction](img/file119.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .13 – Microservice model prediction
+  prefs: []
+  type: TYPE_NORMAL
+- en: The microservice seems to be doing the job, and thus we have successfully built
+    and tested our own machine learning model microservice using Python, PyTorch,
+    Flask, and Docker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Upon successful completion of the preceding steps, you can close the launched
+    Docker instance from *step 4* by pressing *Ctrl*+*C* as indicated in *Figure 13*
+    *.12*. And once the running Docker instance is stopped, you can delete the instance
+    by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: This command basically removes the most recent inactive Docker instance, which
+    in our case is the Docker instance that we just stopped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, you can also delete the Docker image that we had built under *step
+    3*, by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will basically remove the image that has been tagged with the `digit_recognizer`
+    tag.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our section for serving models written in PyTorch. We started
+    off by designing a local model inference system. We took this inference system
+    and wrapped a Flask-based model server around it to create a standalone model
+    serving system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we used the Flask-based model server inside a Docker container to essentially
+    create a model serving microservice. Using both the theory as well as the exercises
+    discussed in this section, you should be able to get started with hosting/serving
+    your trained models across different use cases, system configurations, and environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next section, we will stay with the model-serving theme but will discuss
+    a particular tool that has been developed precisely to serve PyTorch models: **TorchServe**.
+    We will also do a quick exercise to demonstrate how to use this tool.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Serving a PyTorch model using TorchServe
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: TorchServe, released in April 2020, is a dedicated PyTorch model-serving framework.
+    Using the functionalities offered by TorchServe, we can serve multiple models
+    at the same time with low prediction latency and without having to write much
+    custom code. Furthermore, TorchServe offers features such as model versioning,
+    metrics monitoring, and data preprocessing and post-processing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This clearly makes TorchServe a more advanced model-serving alternative than
+    the model microservice we developed in the previous section. However, making custom
+    model microservices still proves to be a powerful solution for complicated machine
+    learning pipelines (which is more common than we might think).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will continue working with our handwritten digits classification
+    model and demonstrate how to serve it using TorchServe. After reading this section,
+    you should be able to get started with TorchServe and go further in utilizing
+    its full set of features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing TorchServe
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Before starting with the exercise, we will need to install Java 11 SDK as a
+    requirement. For Linux OS, run the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And for macOS, we need to run the following command on the command line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And thereafter, we need to install `torchserve` by running this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: For detailed installation instructions, refer to torchserve documentation [13.12]
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that we also install a library called `torch-model-archiver` [13.13].
+    This archiver aims at creating one model file that will contain both the model
+    parameters as well as the model architecture definition in an independent serialized
+    format as a `.mar` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launching and using a TorchServe server
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have installed all that we need, we can start putting together
+    our existing code from the previous exercises to serve our model using TorchServe.
+    We will hereon go through a number of steps in the form of an exercise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will place the existing model architecture code in a model file saved
+    as `convnet.py`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will need this model file as one of the inputs to `torch-model-archiver`
+    to produce a unified `.mar` file. You can find the full model file in our github
+    repository [13.14] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Remember we had discussed the three parts of any model inference pipeline:
+    data pre-processing, model prediction, and post-processing. TorchServe provides
+    *handlers*, which handle the pre-processing and post-processing parts of popular
+    kinds of machine learning tasks: `image_classifier`, `image_segmenter`, `object_detector`,
+    and `text_classifier`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This list might grow in the future as TorchServe is actively being developed
+    at the time of writing this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For our task, we will create a custom image handler that is inherited from
+    the default `Image_classifier` handler. We choose to create a custom handler because
+    as opposed to the usual image classification models that deal with color (RGB)
+    images, our model deals with grayscale images of a specific size (28x28 pixels).
+    The following is the code for our custom handler, which you can also find in our
+    github repository [13.15] :'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we imported the `image_classifer` default handler, which will provide
+    most of the basic image classification inference pipeline handling capabilities.
+    Next, we inherit the `ImageClassifer` handler class to define our custom `ConvNetClassifier`
+    handler class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two blocks of custom code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data pre-processing step, where we apply a sequence of transformations to
+    the data exactly as we did in *step 3* of the *Building the inference pipeline*
+    section.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The postprocessing step, defined under the `postprocess` method, where we extract
+    the predicted class label from the list of prediction probabilities of all classes
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We already produced a `convnet.pth` file in *the Saving and loading a trained
+    model section* of this chapter while creating the model inference pipeline. Using
+    `convnet.py`, `convnet_handler.py`, and `convnet.pth`, we can finally create the
+    `.mar` file using `torch-model-archiver` by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: This command should result in a `convnet.mar` file written to the current working
+    directory. We have specified a `model_name` argument, which names the `.mar` file.
+    We have specified a `version` argument, which will be helpful in model versioning
+    while working with multiple variations of a model at the same time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have located where our `convnet.py` (for model architecture), `convnet.pth`
+    (for model weights) and `convnet_handler.py` (for pre- and post-processing) files
+    are, using the `model_file`, `serialzed_file`, and `handler` arguments, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we need to create a new directory in the current working directory and
+    move the `convnet.mar` file created in *step 3* to that directory, by running
+    the following on the command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have to do so to follow the design requirements of the TorchServe framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we may launch our model server using TorchServe. On the command line,
+    simply run the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will silently start the model inference server and you will see some logs
+    on the screen, including the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .14 – TorchServe launch output](img/file120.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .14 – TorchServe launch output
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you can see, TorchServe investigates the available devices on the machine
+    among other details. It allocates three separate URLs for *inference*, *management*,
+    and *metrics*. To check whether the launched server is indeed serving our model,
+    we can ping the management server with the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .15 – TorchServe-served models](img/file121.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .15 – TorchServe-served models
+  prefs: []
+  type: TYPE_NORMAL
+- en: This verifies that the TorchServe server is indeed hosting the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we can test our TorchServe model server by making an inference request.
+    This time, we won''t need to write a Python script, because the handler will already
+    take care of processing any input image file. So, we can directly make a request
+    using the `digit_image.jpg` sample image file by running this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: This should output `2` in the terminal, which is indeed the correct prediction
+    as evident from *Figure 13* *.3*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, once we are done with using the model server, it can be stopped by
+    running the following on the command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: This concludes our exercise on how to use TorchServe to spin up our own PyTorch
+    model server and use it to make predictions. There is a lot more to unpack here,
+    such as model monitoring (metrics), logging, versioning, benchmarking, and so
+    on [13.16]. TorchServe’s website is a great place to pursue these advanced topics
+    in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After finishing this section, you should be able to use TorchServe to serve
+    your own models. I encourage you to write custom handlers for your own use cases,
+    explore the various TorchServe configuration settings [13.17] , and try out other
+    advanced features of TorchServe [13.18] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: TorchServe is constantlt evolving , with a lot of promise. My advice would be
+    to keep an eye on the rapid updates in this territory of PyTorch.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In the next section, we will take a look at exporting PyTorch models so that
+    they can be used in different environments, programming languages, and deep learning
+    libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exporting universal PyTorch models using TorchScript and ONNX
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have discussed serving PyTorch models extensively in the previous sections
+    of this chapter, which is perhaps the most critical aspect of operationalizing
+    PyTorch models in production systems. In this section, we will look at another
+    important aspect – exporting PyTorch models. We have already learned how to save
+    PyTorch models and load them back from disk in the classic Python scripting environment.
+    But we need more ways of exporting PyTorch models. Why?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well, for starters, the Python interpreter allows only one thread to run at
+    a time using the **global interpreter lock** (**GIL**). This keeps us from parallelizing
+    operations. Secondly, Python might not be supported in every system or device
+    that we might want to run our models on. To address these problems, PyTorch offers
+    support for exporting its models in an efficient format and in a platform- or
+    language-agnostic manner such that a model can be run in environments different
+    from the one it was trained in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will first explore TorchScript, which enables us to export serialized and
+    optimized PyTorch models into an intermediate representation that can then be
+    run in a Python-independent program (say, a C++ program).
+  prefs: []
+  type: TYPE_NORMAL
+- en: And then , we will look at ONNX and how it lets us save PyTorch models into
+    a universal format that can then be loaded into other deep learning frameworks
+    and different programming languages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the utility of TorchScript
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'There are two key reasons why TorchScript is a vital tool when it comes to
+    putting PyTorch models into production:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch works on an eager execution basis, as discussed in *Chapter 1, Overview
+    of Deep Learning Using PyTorch*, of this book. This has its advantages, such as
+    easier debugging. However, executing steps/operations one by one by writing and
+    reading intermediate results to and from memory may lead to high inference latency
+    as well as limiting us from overall operational optimizations. To tackle this
+    problem, PyTorch provides its own **just-in-time** (**JIT**) compiler, which is
+    based on the PyTorch-centered parts of Python.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The JIT compiler compiles PyTorch models instead of interpreting, which is equivalent
+    to creating one composite graph for the entire model by looking at all of its
+    operations at once. The JIT-compiled code is TorchScript code, which is basically
+    a statically typed subset of Python. This compilation leads to several performance
+    improvements and optimizations, such as getting rid of the GIL and thereby enabling
+    multithreading.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch is essentially built to be used with the Python programming language.
+    Remember, we have used Python in almost the entirety of this book too. However,
+    when it comes to productionizing models, there are more performant (that is, quicker)
+    languages than Python, such as C++. And also, we might want to deploy our trained
+    models on systems or devices that do not work with Python.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is where TorchScript kicks in. As soon as we compile our PyTorch code into
+    TorchScript code, which is an intermediate representation of our PyTorch model,
+    we can serialize this representation into a C++-friendly format using the TorchScript
+    compiler. Thereafter, this serialized file can be read in a C++ model inference
+    program using LibTorch – the PyTorch C++ API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have mentioned JIT compilation of PyTorch models several times in this section.
+    Let's now look at two of the possible options of compiling our PyTorch models
+    into TorchScript format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model tracing with TorchScript
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One way of translating PyTorch code to TorchScript is tracing the PyTorch model.
+    Tracing requires the PyTorch model object along with a dummy example input to
+    the model. As the name suggests, the tracing mechanism traces the flow of this
+    dummy input through the model (neural network), records the various operations,
+    and renders a TorchScript **Intermediate Representation** (**IR**), which can
+    be visualized both as a graph as well as TorchScript code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now walk through the steps involved in tracing a PyTorch model using
+    our handwritten digits classification model. The full code for this exercise is
+    available in our github repository [13.19] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first five steps of this exercise are the same as the steps of the *Saving
+    and loading a trained model* and *Building the inference pipeline* sections, where
+    we built the model inference pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will start with importing libraries by running the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will define and instantiate the `model` object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will restore the model weights using the following lines of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then load a sample image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define the data pre-processing function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And we then apply the pre-processing function to the sample image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In addition to the code under *step 3*, we also execute the following lines
+    of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we do not do this, the traced model will have all parameters requiring gradients
+    and we will have to load the model within the `torch.no_grad()` context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We already have the loaded PyTorch model object with pre-trained weights. We
+    are ready to trace the model with a dummy input as shown next:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: The dummy input is an image with all pixel values set to `1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now look at the traced model graph by running this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .16 – Traced model graph](img/file122.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .16 – Traced model graph
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuitively, the first few lines in the graph show the initialization of layers
+    of this model, such as `cn1`, `cn2`, and so on. Toward the end, we see the last
+    layer, that is, the softmax layer. Evidently, the graph is written in a lower-level
+    language with statically typed variables and closely resembles the TorchScript
+    language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides the graph, we can also look at the exact TorchScript code behind the
+    traced model by running this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following lines of Python-like code that define the
+    forward pass method for the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .17 – Traced model code](img/file123.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .17 – Traced model code
+  prefs: []
+  type: TYPE_NORMAL
+- en: This precisely is the TorchScript equivalent for the code that we wrote using
+    PyTorch in *step 2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will export or save the traced model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we load the saved model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we didn't need to load the model architecture and parameters separately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we can use this model for inference:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This should output the following:![Figure 13 .18 – Traced model inference](img/file124.jpg)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 13 .18 – Traced model inference
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can check these results by re-running model inference on the original model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: This should produce the same output as in *Figure 13* *.18*, which verifies
+    that our traced model is working properly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can use the traced model instead of the original PyTorch model object to
+    build more efficient Flask model servers and Dockerized model microservices, thanks
+    to the GIL-free nature of TorchScript. While tracing is a viable option for JIT
+    compiling PyTorch models, it has some drawbacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, if the forward pass of the model consists of control flows such
+    as `if` and `for` statements, then the tracing will only render one of the multiple
+    possible paths in the flow. In order to accurately translate PyTorch code to TorchScript
+    code for such scenarios, we will use the other compilation mechanism called scripting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model scripting with TorchScript
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Please follow *steps 1 to 6* from the previous exercise and then follow up
+    with the steps given in this exercise. The full code is available in our github
+    repository [13.20] :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For scripting, we need not provide any dummy input to the model, and the following
+    line of code transforms PyTorch code to TorchScript code directly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s look at the scripted model graph by running the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the scripted model graph in a similar fashion as the traced
+    model graph, as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .19 – Scripted model graph](img/file125.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .19 – Scripted model graph
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once again, we can see similar, verbose, low-level script that lists the various
+    edges of the graph per line. Notice that the graph here is not the same as in
+    *Figure 13* *.16*, which indicates differences in code compilation strategy in
+    using tracing rather than scripting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also look at the equivalent TorchScript code by running this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .20 – Scripted model code](img/file126.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .20 – Scripted model code
+  prefs: []
+  type: TYPE_NORMAL
+- en: In essence, the flow is similar to that in *Figure 13* *.17*; however, there
+    are subtle differences in the code signature resulting from differences in compilation
+    strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once again, the scripted model can be exported and loaded back in the following
+    way:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we use the scripted model for inference using this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: This should produce the exact same results as in *Figure 13* *.18,* which verifies
+    that the scripted model is working as expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similar to tracing, a scripted PyTorch model is GIL-free and hence can improve
+    model serving performance when used with Flask or Docker. *Table 13* *.1* shows
+    a quick comparison between the model tracing and scripting approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table 13 .1 – Tracing versus scripting](img/file127.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Table 13 .1 – Tracing versus scripting
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have so far demonstrated how PyTorch models can be translated and serialized
+    as TorchScript models. In the next section, we will completely get rid of Python
+    for a moment and demonstrate how to load the TorchScript serialized model using
+    C++.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a PyTorch model in C++
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Python can sometimes be limiting or we might be unable to run machine learning
+    models trained using PyTorch and Python. In this section, we will use the serialized
+    TorchScript model objects (using tracing and scripting) that we exported in the
+    previous section to run model inferences inside C++ code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Basic working knowledge of C++ is assumed for this section [13.21] . This section
+    specifically talks a lot about C++ code compilation [13.22]
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'For this exercise, we need to install CMake following the steps mentioned in
+    [13.23] to be able to build the C++ code. After that, we will create a folder
+    named `cpp_convnet` in the current working directory and work from that directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s get straight into writing the C++ file that will run the model inference
+    pipeline. The full C++ code is available here in our github respository [13.24]:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: First the .`jpg` image file is read as a grayscale image using the OpenCV library.
+    You will need to install the OpenCV library for C++ as per your OS requirements
+    - Mac [13.25], Linux [13.26] or Windows [13.27].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The grayscale image is then resized to `28x28` pixels as that is the requirement
+    for our CNN model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The image array is then converted to a PyTorch tensor:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: For all `torch`-related operations as in this step, we use the `libtorch` library,
+    which is the home for all `torch` C++-related APIs. If you have PyTorch installed,
+    you need not install LibTorch separately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because OpenCV reads the grayscale in (28, 28, 1) dimension, we need to turn
+    it around as (1, 28, 28) to suit the PyTorch requirements. The tensor is then
+    reshaped to shape (1,1,28,28), where the first `1` is `batch_size` for inference
+    and the second `1` is the number of channels, which is `1` for grayscale:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because OpenCV read images have pixel values ranging from `0` to `255`, we normalize
+    these values to the range of `0` to `1`. Thereafter, we standardize the image
+    with mean `0.1302` and std `0.3069`, as we did in a previous section (see *step
+    2* of the *Building the inference pipeline* section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this step, we load the JIT-ed TorchScript model object that we exported
+    in the previous exercise:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we come to the model prediction, where we use the loaded model object
+    to make a forward pass with the supplied input data (an image, in this case):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `output_` variable contains a list of probabilities for each class. Let''s
+    extract the class label with the highest probability and print it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we successfully exit the C++ routine:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'While *steps 1-6* concern the various parts of our C++, we also need to write
+    a `CMakeLists.txt` file in the same working directory. The full code for this
+    file is available in our github repository [13.28] :'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This file is basically the library installation and building script similar
+    to `setup.py` in a Python project. In addition to this code, the `OpenCV_DIR`
+    environment variable needs to be set to the path where the OpenCV build artifacts
+    are created, shown in the following code block:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we need to actually run the `CMakeLists` file to create build artifacts.
+    We do so by creating a new directory in the current working directory and run
+    the build process from there. In the command line, we simply need to run the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the third line, you shall provide the path to LibTorch. To find your own,
+    open Python and execute this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For me, it outputs this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Executing the third line shall output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .21 – The C++ CMake output](img/file128.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .21 – The C++ CMake output
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'And the fourth line should result in this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .22 – C++ model building](img/file129.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .22 – C++ model building
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Upon successful execution of the previous step, we will have produced a C++
+    compiled binary with the name `cpp_convnet`. It is now time to execute this binary
+    program. In other words, we can now supply a sample image to our C++ model for
+    inference. We may use the scripted model as input:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Alternatively, we may use the traced model as input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE97]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Either of these should result in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .23 – C++ model prediction](img/file130.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .23 – C++ model prediction
+  prefs: []
+  type: TYPE_NORMAL
+- en: According to *Figure 13* *.3*, the C++ model seems to be working correctly.
+    Because we have used a different image handling library in C++ (that is, OpenCV)
+    as compared to in Python (PIL), the pixel values are slightly differently encoded,
+    which will result in slightly different prediction probabilities, but the final
+    model prediction in the two languages should not differ significantly if correct
+    normalizations are applied.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our exploration of PyTorch model inference using C++. This exercise
+    shall help you get started with transporting your favorite deep learning models
+    written and trained using PyTorch into a C++ environment, which should make predictions
+    more efficient as well as opening up the possibility of hosting models in Python-less
+    environments (for example, certain embedded systems, drones, and so on).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will move away from TorchScript and discuss a universal
+    neural network modeling format – ONNX – that has enabled model usage across deep
+    learning frameworks, programming languages, and OSes. We will work on loading
+    a PyTorch trained model for inference in TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using ONNX to export PyTorch models
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: There are scenarios in production systems where most of the already-deployed
+    machine learning models are written in a certain deep learning library, say, TensorFlow,
+    with its own sophisticated model-serving infrastructure. However, if a certain
+    model is written using PyTorch, we would like it to be runnable using TensorFlow
+    to conform to the serving strategy. This is one among various other use cases
+    where a framework such as ONNX is useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ONNX is a universal format where the essential operations of a deep learning
+    model such as matrix multiplications and activations, written differently in different
+    deep learning libraries, are standardized. It enables us to interchangeably use
+    different deep learning libraries, programming languages, and even operating environments
+    to run the same deep learning model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we will demonstrate how to run a model, trained using PyTorch, in TensorFlow.
+    We will first export the PyTorch model into ONNX format and then load the ONNX
+    model inside TensorFlow code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'ONNX works with restricted versions of TensorFlow and hence we will work with
+    `tensorflow==1.15.0`. And because of this we will work with python 3.7, as tensorflow==1.15.0
+    is not available in the newer versions of python. You can create and activate
+    a new conda environment with python 3.7 with the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will also need to install the `onnx==1.7.0` and `onnx-tf==1.5.0` libraries
+    for the exercise. The full code for this exercise is available in our github repository
+    [13.29] . Please follow *steps 1 to 11* from the *Model tracing with TorchScript*
+    section, and then follow up with the steps given in this exercise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similar to model tracing, we again pass a dummy input through our loaded model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE99]'
+  prefs: []
+  type: TYPE_PRE
+- en: This should save a model `onnx` file. Under the hood, the same mechanism is
+    used for serializing the model as was used in model tracing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we load the saved `onnx` model and convert it into a TensorFlow model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE100]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we load the serialized `tensorflow` model to parse the model graph. This
+    will help us in verifying that we have loaded the model architecture correctly
+    as well as in identifying the input and output nodes of the graph:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE101]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .24 – TensorFlow model graph](img/file131.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .24 – TensorFlow model graph
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the graph, we are able to identify the input and output nodes, as marked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we can assign variables to the input and output nodes of the neural
+    network model, instantiate a TensorFlow session, and run the graph to generate
+    predictions for our sample image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13 .25 – TensorFlow model prediction](img/file132.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13 .25 – TensorFlow model prediction
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, in comparison with *Figure 13* *.18*, the predictions are exactly
+    the same for the TensorFlow and PyTorch versions of our model. This validates
+    the successful functioning of the ONNX framework. I encourage you to dissect the
+    TensorFlow model further and understand how ONNX helps regenerate the exact same
+    model in a different deep learning library by utilizing the underlying mathematical
+    operations in the model graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion of the different ways of exporting PyTorch models.
+    The techniques covered here will be useful in deploying PyTorch models in production
+    systems as well as in working across various platforms. As new versions of deep
+    learning libraries, programming languages, and even OSes keep coming, this is
+    an area that will rapidly evolve accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence, it is highly advisable to keep an eye on the developments and make sure
+    to use the latest and most efficient ways of exporting models as well as operationalizing
+    them into production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have been working on our local machines for serving and exporting
+    our PyTorch models. In the next and final section of this chapter, we will briefly
+    look at serving PyTorch models on some of the well-known cloud platforms, such
+    as AWS, Google Cloud, and Microsoft Azure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Serving PyTorch models in the cloud
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Deep learning is computationally expensive and therefore demands powerful and
+    sophisticated computational hardware. Not everyone might have access to a local
+    machine that has enough CPUs and GPUs to train gigantic deep learning models in
+    a reasonable time. Furthermore, we cannot guarantee 100 percent availability for
+    a local machine that is serving a trained model for inference. For reasons such
+    as these, cloud computing platforms are a vital alternative for both training
+    and serving deep learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will discuss how to use PyTorch with some of the most popular
+    cloud platforms – **AWS**, **Google Cloud**, and **Microsoft Azure**. We will
+    explore the different ways of serving a trained PyTorch model in each of these
+    platforms. The model-serving exercises we discussed in the earlier sections of
+    this chapter were executed on a local machine. The goal of this section is to
+    enable you to perform similar exercises using **virtual machines** (**VMs**) on
+    the cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using PyTorch with AWS
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: AWS is the oldest and one of the most popular cloud computing platforms. It
+    has deep integrations with PyTorch. We have already seen an example of it in the
+    form of TorchServe, which is jointly developed by AWS and Facebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will look at some of the common ways of serving PyTorch
+    models using AWS. First, we will simply learn how to use an AWS instance as a
+    replacement for our local machine (laptop) to serve PyTorch models. Then, we will
+    briefly discuss Amazon SageMaker, which is a fully dedicated cloud machine learning
+    platform. We will briefly discuss how TorchServe can be used together with SageMaker
+    for model serving.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: This section assumes basic familiarity with AWS. Therefore, we will not be elaborating
+    on topics such as what an AWS EC2 instance is, what AMIs are, how to create an
+    instance, and so on [13.30]. . We will instead focus on the components of AWS
+    that are related to PyTorch.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Serving a PyTorch model using an AWS instance
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will demonstrate how we can use PyTorch within a VM – an
+    AWS instance, in this case. After reading this section, you will be able to execute
+    the exercises discussed in the *Model serving in PyTorch* section inside an AWS
+    instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, you will need to create an AWS account if you haven't done so already.
+    Creating an account requires an email address and a payment method (credit card)
+    [13.31]. .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have an AWS account, you may log in to enter the AWS console [13.32]
+    . From here, we basically need to instantiate a VM (AWS instance) where we can
+    start using PyTorch for training and serving models. Creating a VM requires two
+    decisions [13.33]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing the hardware configuration of the VM, also known as the **AWS instance
+    type**
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Choosing the **Amazon Machine Image** (**AMI**), which entails all the required
+    software, such as the OS (Ubuntu or Windows), Python, PyTorch, and so on
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: . Typically, when we refer to an AWS instance, we are referring to an **Elastic
+    Cloud Compute** instance, also known as an **EC2** instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Based on the computational requirements of the VM (RAM, CPUs, and GPUs), you
+    can choose from a long list of EC2 instances provided by AWS[13.34] . Because
+    PyTorch heavily leverages GPU compute power, it is recommended to use EC2 instances
+    that include GPUs, though they are generally costlier than CPU-only instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding AMIs, there are two possible approaches to choosing an AMI. You may
+    go for a barebones AMI that only has an OS installed, such as Ubuntu (Linux).
+    In this case, you can then manually install Python [13.35] and subsequently install
+    PyTorch [13.36] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: An alternative and more recommended way is to start with a pre-built AMI that
+    has PyTorch installed already. AWS offers Deep Learning AMIs, which make the process
+    of getting started with PyTorch on AWS much faster and easier [13.37] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once you have launched an instance successfully using either of the suggested
+    approaches, you may simply connect to the instance using one of the various available
+    methods [13.38] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: SSH is one of the most common ways of connecting to an instance. Once you are
+    inside the instance, it will have the same layout as working on a local machine.
+    One of the first logical steps would then be to test whether PyTorch is working
+    inside the machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To test, first open a Python interactive session by simply typing `python`
+    on the command line. Then, execute the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE103]'
+  prefs: []
+  type: TYPE_PRE
+- en: If it executes without error, it means that you have PyTorch installed on the
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, you can simply fetch all the code that we wrote in the preceding
+    sections of this chapter on model serving. On the command line inside your home
+    directory, simply clone this book''s GitHub repository by running this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE104]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, within the `Chapter13` subfolder, you will have all the code to serve
+    the MNIST model that we worked on in the previous sections. You can basically
+    re-run the exercises, this time on the AWS instance instead of your local computer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s review the steps we need to take for working with PyTorch on AWS:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create an AWS account.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Log in to the AWS console.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click on the **Launch a virtual machine** button in the console.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select an AMI. For example, select the Deep Learning AMI (Ubuntu).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select an AWS instance type. For example, select **p.2x large**, as it contains
+    a GPU.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click **Launch**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Click **Create a new key pair**. Give the key pair a name and download it locally.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Modify permissions of this key-pair file by running this on the command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs: []
+  type: TYPE_PRE
+- en: On the console, click on **View Instances** to see the details of the launched
+    instance and specifically note the public IP address of the instance.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Using SSH, connect to the instance by running this on the command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE106]'
+  prefs: []
+  type: TYPE_PRE
+- en: The public IP address is the same as obtained in the previous step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once connected, start a `python` shell and run `import torch` in the shell to
+    ensure that PyTorch is correctly installed on the instance.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Clone this book''s GitHub repository by running the following on the instance''s
+    command line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE107]'
+  prefs: []
+  type: TYPE_PRE
+- en: Go to the `chapter13` folder within the repository and start working on the
+    various model-serving exercises that are covered in the preceding sections of
+    this chapter.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This brings us to the end of this section, where we have essentially learned
+    how to start working with PyTorch on a remote AWS instance [13.39] . Next, we
+    will look at AWS's fully dedicated cloud machine learning platform –Amazon SageMaker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using TorchServe with Amazon SageMaker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have already discussed TorchServe in detail in the preceding section. As
+    we know, TorchServe is a PyTorch model-serving library developed by AWS and Facebook.
+    Instead of manually defining a model inference pipeline, model-serving APIs, and
+    microservices, you can use TorchServe, which provides all of these functionalities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Amazon SageMaker, on the other hand, is a cloud machine learning platform that
+    offers functionalities such as the training of massive deep learning models as
+    well as deploying and hosting trained models on custom instances. When working
+    with SageMaker, all we need to do is this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Specify the type and number of AWS instances we would like to spin up to serve
+    the model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Provide the location of the stored pre-trained model object.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We do not need to manually connect to the instance and serve the model using
+    TorchServe. SageMaker takes care of all that. AWS website has some useful blogs
+    t o get started with using SageMaker and TorchServe to serve PyTorch models on
+    an industrial scale and within a few clicks [13.40] .AWS blogs also provides the
+    use cases of Amazon SageMaker when working with PyTorch [13.41] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tools such as SageMaker are incredibly useful for scalability during both model
+    training and serving. However, while using such one-click tools, we often tend
+    to lose some flexibility and debuggability. Therefore, it is for you to decide
+    what set of tools works best for your use case. This concludes our discussion
+    on using AWS as a cloud platform for working with PyTorch. Next, we will look
+    at another cloud platform – Google Cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Serving PyTorch model on Google Cloud
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Similar to AWS, you first need to create a Google account (*@gmail.com) if you
+    do not have one already. Furthermore, to be able to log in to the Google Cloud
+    console [13.42] , you will need to add a payment method (credit card details).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We will not be covering the basics of Google Cloud here [13.43]. We will instead
+    focus on using Google Cloud for serving PyTorch models within a VM.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Once inside the console, we need to follow the steps similar to AWS to launch
+    a VM where we can serve our PyTorch model. You can always start with a barebones
+    VM and manually install PyTorch. But we will be using Google''s Deep Learning
+    VM Image [13.44] , which has PyTorch pre-installed. Here are the steps for launching
+    a Google Cloud VM and using it to serve PyTorch models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launch Deep Learning VM Image on Google Cloud using the Google Cloud marketplace
+    [13.45] .
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Input the deployment name in the command window. This name suffixed with `-vm`
+    acts as the name of the launched VM. The command prompt inside this VM will look
+    like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE108]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `user` is the client connecting to the VM and `deployment-name` is the
+    name of the VM chosen in this step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Select `PyTorch` as the `Framework` in the next command window. This tells the
+    platform to pre-install PyTorch in the VM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select the zone for this machine. Preferably, choose the zone geographically
+    closest to you. Also, different zones have slightly different hardware offerings
+    (VM configurations) and hence you might want to choose a specific zone for a specific
+    machine configuration.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Having specified the software requirement in *step 3*, we shall now specify
+    the hardware requirements. In the GPU section of the command window, we need to
+    specify the GPU type and subsequently the number of GPUs to be included in the
+    VM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Google Cloud provides various GPU devices/configuratins [13.46] . In the GPU
+    section, also tick the checkbox that will automatically install the NVIDIA drivers
+    that are necessary to utilize the GPUs for deep learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, under the CPU section, we need to provide the machine type [13.47]
+    . Regarding *step 5* and *step 6*, please be aware that different zones provide
+    different machine and GPU types as well as different combinations of GPU types
+    and GPU numbers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, click on the **Deploy** button. This will launch the VM and lead you
+    to a page that will have all the instructions needed to connect to the VM from
+    your local computer.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At this point, you may connect to the VM and ensure that PyTorch is correctly
+    installed by trying to import PyTorch from within a Python shell. Once verified,
+    clone this book's GitHub repository. Go to the `Chapter13` folder and start working
+    on the model-serving exercises within this VM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can read more about creating the PyTorch deep learning VM on Google Cloud
+    blogs [13.48]. This concludes our discussion of using Google Cloud as a cloud
+    platform to work with PyTorch model serving. As you may have noticed, the process
+    is very similar to that of AWS. In the next and final section, we will briefly
+    look at using Microsoft's cloud platform, Azure, to work with PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Serving PyTorch models with Azure
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Once again, similar to AWS and Google Cloud, Azure requires a Microsoft-recognized
+    email ID for signing up, along with a valid payment method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We assume a basic understanding of the Microsoft Azure cloud platform for this
+    section [13.49] .
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Once you have access to the Azure portal [13.50] , there are broadly two recommended
+    ways of getting started with using PyTorch on Azure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Data Science Virtual Machine** (**DSVM**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Azure Machine Learning**'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will now discuss these approaches briefly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working on Azure's Data Science Virtual Machine
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Similar to Google Cloud's Deep Learning VM Image, Azure offers its own DSVM
+    image [13.51] , which is a fully dedicated VM image for data science and machine
+    learning, including deep learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These images are available for Windows [13.52] as well as Linux/Ubuntu [13.53].
+  prefs: []
+  type: TYPE_NORMAL
+- en: The steps to create a DSVM instance using this image are quite similar to the
+    steps discussed for Google Cloud for both Windows [13.54] as well as Linux/Ubuntu
+    [13.55].
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once you have created the DSVM, you can launch a Python shell and try to import
+    the PyTorch library to ensure that it is correctly installed. You may further
+    test the functionalities available in this DSVM for Linux [13.56] as well as Windows
+    [13.57] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, you may clone this book's GitHub repository within the DSVM instance
+    and use the code within the `Chapter13` folder to work on the PyTorch model-serving
+    exercises discussed in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discussing Azure Machine Learning Service
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Similar to and predating Amazon''s SageMaker, Azure provides an end-to-end
+    cloud machine learning platform. The Azure Machine Learning Service (AMLS) comprises
+    the following (to name just a few):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Azure Machine Learning VMs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Notebooks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Virtual environments
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Datastores
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tracking machine learning experiments
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Data labeling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A key difference between AMLS VMs and DSVMs is that the former are fully managed.
+    For instance, they can be scaled up or down based on the model training or serving
+    requirements [13.58] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just like SageMaker, Azure Machine Learning is useful both for training large-scale
+    models as well as deploying and serving those models. Azure website has a great
+    tutorial for training PyTorch models on AMLS as well as for deploying PyTorch
+    models on AMLS for Windows [13.59] as well as Linux [13.60] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Azure Machine Learning aims at providing a one-click interface to the user for
+    all machine learning tasks. Hence, it is important to keep in mind the flexibility
+    trade-off. Although we have not covered all the details about Azure Machine Learning
+    here, Azure's website is a good resource for further reading [13.61] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: This brings us to the end of discussing what Azure has to offer as a cloud platform
+    for working with PyTorch [13.62] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: And that also concludes our discussion of using PyTorch to serve models on the
+    cloud. We have discussed AWS, Google Cloud, and Microsoft Azure in this section.
+    Although there are more cloud platforms available out there, the nature of their
+    offerings and the ways of using PyTorch within those platforms will be similar
+    to what we have discussed. This section will help you in getting started with
+    working on your PyTorch projects on a VM in the cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we have explored the world of deploying trained PyTorch deep
+    learning models in production systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at another practical aspect of working with
+    models in PyTorch that helps immensely in saving time and resources while training
+    and validating deep learning models .
+  prefs: []
+  type: TYPE_NORMAL

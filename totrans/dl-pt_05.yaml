@@ -1,0 +1,896 @@
+- en: Deep Learning for Computer Vision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In [Chapter 3](1de63bb8-4140-4d2d-b93c-5b6bdc42ec03.xhtml), *Diving Deep into
+    Neural Networks,* we built an image classifier using a popular **Convolutional
+    Neural Network** (**CNN**) architecture called **ResNet**, but we used this model
+    as a black box. In this chapter, we will cover the important building blocks of
+    convolutional networks. Some of the important topics that we will be covering
+    in this chapter are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to neural networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a CNN model from scratch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating and exploring a VGG16 model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Calculating pre-convoluted features
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding what a CNN model learns
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Visualizing weights of the CNN layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will explore how we can build an architecture from scratch for solving image
+    classification problems, which are the most common use cases. We will also learn
+    how to use transfer learning, which will help us in building image classifiers
+    using a very small dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apart from learning how to use CNNs, we will also explore what these convolutional
+    networks learn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to neural networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the last few years, CNNs have become popular in the areas of image recognition,
+    object detection, segmentation, and many other tasks in the field of computer
+    vision. They are also becoming popular in the field of **natural language processing**
+    (**NLP**), though they are not commonly used yet. The fundamental difference between
+    fully connected layers and convolution layers is the way the weights are connected
+    to each other in the intermediate layers. Let''s take a look at an image where
+    we depict how fully connected, or linear, layers work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b11c5a02-626f-4e4c-a4be-d4404fd31f15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'One of the biggest challenges of using a linear layer or fully connected layers
+    for computer vision is that they lose all spatial information, and the complexity
+    in terms of the number of weights used by fully connected layers is too big. For
+    example, when we represent a 224 pixel image as a flat array, we would end up
+    with 150, 528 (224 x 224 x 3 channels). When the image is flattened, we lose all
+    the spatial information. Let''s look at what a simplified version of a CNN looks
+    like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/612b9675-1581-47c6-8b47-b07d1e20eef2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'All the convolution layer is doing is applying a window of weights called **filters**
+    across the image. Before we try to understand convolutions and other building
+    blocks in detail, let''s build a simple yet powerful image classifier for the
+    `MNIST` dataset. Once we build this, we will walk through each component of the
+    network. We will break down building our image classifier into the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a validation dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building our CNN model from scratch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training and validating the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: MNIST – getting data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The `MNIST` dataset contains 60,000 handwritten digits from 0 to 9 for training,
+    and 10,000 images for a test set. The PyTorch `torchvision` library provides us
+    with an `MNIST` dataset, which downloads the data and provides it in a readily-usable
+    format. Let''s use the dataset `MNIST` function to pull the dataset to our local
+    machine, and then wrap it around a `DataLoader`. We will use torchvision transformations
+    to convert the data into PyTorch tensors and do data normalization. The following
+    code takes care of downloading, wrapping around the `DataLoader` and normalizing
+    the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So, the previous code provides us with a `DataLoader` for the `train` and `test`
+    datasets. Let''s visualize a few images to get an understanding of what we are
+    dealing with. The following code will help us in visualizing the MNIST images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can pass the `plot_img` method to visualize our dataset. We will pull
+    a batch of records from the `DataLoader` using the following code, and plot the
+    images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The images are visualized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/66ba4835-005a-43e1-9a0c-283ed4b18c65.png)   ![](img/92b0f189-a014-4814-96d8-395e79fe00ce.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Building a CNN model from scratch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For this example, let''s build our own architecture from scratch. Our network
+    architecture will contain a combination of different layers, namely:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Conv2d`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`MaxPool2d`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Rectified linear unit** (**ReLU**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: View
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Linear layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s look at a pictorial representation of the architecture we are going
+    to implement:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/813aed09-39f2-46c2-bfd4-7ce8fd92227c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s implement this architecture in PyTorch and then walk through what each
+    individual layer does:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's understand in detail what each layer does.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conv2d
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '`Conv2d` takes care of applying a convolutional filter on our MNIST images.
+    Let''s try to understand how convolution is applied on a one-dimensional array,
+    and then move to how a two-dimensional convolution is applied to an image. We
+    will look at the following image, to which we will apply a `Conv1d` of a filter
+    (or kernel) size `3` to a tensor of length `7`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e4495ddb-9bab-465e-ae9b-0d95e1834f13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The bottom boxes represent our input tensor of seven values, and the connected
+    boxes represent the output after we apply our convolution filter of size three.
+    At the top-right corner of the image, the three boxes represent the weights and
+    parameters of the `Conv1d` layer. The convolution filter is applied like a window
+    and it moves to the next values by skipping one value. The number of values to
+    be skipped is called the **stride,** and is set to `1` by default. Let''s understand
+    how the output values are being calculated by writing down the calculation for
+    the first and last outputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Output 1 –> (*-0.5209 x 0.2286*) + (*-0.0147 x 2.4488*) + (*-0.4281 x -0.9498*)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Output 5 –> (*-0.5209 x -0.6791*) + (*-0.0147 x -0.6535*) + (*-0.4281 x 0.6437*)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, by now, it should be clear what a convolution does. It applies a filter
+    (or kernel), which is a bunch of weights, on the input by moving it based on the
+    value of the stride. In the previous  example, we are moving our filter one at
+    a time. If the stride value is `2`, then we would move two points at a time. Let''s
+    look at a PyTorch implementation to understand how it works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is another important parameter, called **padding,** which is often used
+    with convolutions. If we keenly observe the previous example, we may realize that
+    if the filter is not applied until the end of the data, when there are not enough
+    elements for the data to stride, it stops. Padding prevents this by adding zeros
+    to both ends of a tensor. Let''s again look at a one-dimensional example of how
+    padding works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/17c7f3b3-c505-4b6d-ad7f-2f0981453a3e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the preceding image, we applied a `Conv1d` layer with padding `2` and stride
+    `1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at how Conv2d works on an image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we understand how Conv2d works, I would strongly recommend you to check
+    the amazing blog ([http://setosa.io/ev/image-kernels/](http://setosa.io/ev/image-kernels/))
+    where it contains a live demo of how a convolution works. After you have spent
+    few minutes playing with the demo, read the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's understand what happened in the demo. In the center box of the image,
+    we have two different sets of numbers; one represented in the boxes and the other
+    beneath the boxes. The ones represented in the boxes are pixel values, as highlighted
+    by the white box on the left-hand photo. The numbers denoted beneath the boxes
+    are the filter (or kernel) values that are being used to sharpen the image. The
+    numbers are handpicked to do a particular job. In this case, it is sharpening
+    the image. Just like in our previous example, we are doing an element-to-element
+    multiplication and summing up all the values to generate the value of the pixel
+    in the right-hand image. The generated value is highlighted by the white box on
+    the right-hand side of the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Though the values in the kernel are handpicked in this example, in CNNs we
+    do not handpick the values, but rather we initialize them randomly and let the
+    gradient descent and backpropagation tune the values of the kernels. The learned
+    kernels will be responsible for identifying different features such as lines,
+    curves, and eyes. Let''s look at another image where we look at it as a matrix
+    of numbers and see how convolution works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e96abcad-3542-4a9e-9d85-92ae5770157a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding screenshot, we assume that the 6 x 6 matrix represents an
+    image and we apply the convolution filter of size 3 x 3, then we show how the
+    output is generated. To keep it simple, we are just calculating for the highlighted
+    portion of the matrix. The output is generated by doing the following calculation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Output –> *0.86 x 0 + -0.92 x 0 + -0.61 x 1 + -0.32 x -1 + -1.69 x -1 + ........*
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other important parameter used in the `Conv2d` function is `kernel_size`,
+    which decides the size of the kernel. Some of the commonly used kernel sizes are
+    *1*, *3*, *5*, and *7*. The larger the kernel size, the larger the area that a
+    filter can cover becomes huge, so it is common to observe filters of *7* or *9*
+    being applied to the input data in the early layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pooling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It is a common practice to add pooling layers after convolution layers, as they
+    reduce the size of feature maps and the outcomes of convolution layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pooling offers two different features: one is reducing the size of data to
+    process, and the other is forcing the algorithm to not focus on small changes
+    in the position of an image. For example, a face-detecting algorithm should be
+    able to detect a face in the picture, irrespective of the position of the face
+    in the photo.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at how MaxPool2d works. It also has the same concept of kernel
+    size and strides. It differs from convolutions as it does not have any weights,
+    and just acts on the data generated by each filter from the previous layer. If
+    the kernel size is *2 x 2,* then it considers that size in the image and picks
+    the max of that area. Let''s look at the following image, which will make it clear
+    how MaxPool2d works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/eeda68e5-57bb-4c9e-87f3-41da57355140.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The box on the left-hand side contains the values of feature maps. After applying
+    max-pooling, the output is stored on the right-hand side of the box. Let''s look
+    at how the output is calculated, by writing down the calculation for the values
+    in the first row of the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8f3e3104-a958-4656-958f-6c4f271a4836.png)![](img/8527235d-3368-410b-9830-5719fc95d708.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The other commonly used pooling technique is **average pooling**. The `maximum`
+    function is replaced by the `average` function. The following image explains how
+    average pooling works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4bfbbbc6-3420-4fab-8ff7-787313489ecb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this example, instead of taking a maximum of four values, we are taking
+    the average four values. Let''s write down the calculation to make it easier to
+    understand:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3fa94b1a-b075-4415-8484-5444b6cae1c4.png)![](img/564447b0-5d9f-432d-abe0-7bf68bbe1c54.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Nonlinear activation – ReLU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'It is a common and a best practice to have a nonlinear layer after max-pooling,
+    or after convolution is applied. Most of the network architectures tend to use ReLU or
+    different flavors of ReLU. Whatever nonlinear function we choose, it gets applied
+    to each element of the feature maps. To make it more intuitive, let''s look at
+    an example where we apply ReLU for the same feature map to which we applied max-pooling
+    and average pooling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bd13c8fa-adf1-436f-b1ce-83027ebc2df4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: View
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'It is a common practice to use a fully connected, or linear, layer at the end
+    of most networks for an image classification problem. We are using a two-dimensional
+    convolution that takes a matrix of numbers as input and outputs another matrix
+    of numbers. To apply a linear layer, we need to flatten the matrix which is a
+    tensor of two-dimensions to a vector of one-dimension. The following example will
+    show you how `view` works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b74f354c-6690-4b8a-96fc-fad0537ac50d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at the code used in our network that does the same:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we saw earlier, the `view` method will flatten an *n*-dimension tensor to
+    a one-dimensional tensor. In our network, the first dimension is of each image.
+    The input data after batching will have a dimension of *32 x 1 x 28 x 28,* where
+    the first number, *32,* will denote that there are *32* images of size *28* height,
+    *28* width, and *1* channel since it is a black-and-white image. When we flatten,
+    we do not want to flatten or mix the data for different images. So, the first
+    argument that we pass to the `view` function will instruct PyTorch to avoid flattening
+    the data on the first dimension. Let''s take a look at how this works in the following
+    image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f0a8f523-4a29-4ee8-8ef0-a10d54b777df.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding example, we have data of size *2 x 1 x 2 x 2*; after we apply
+    the `view` function, it converts to a tensor of size *2 x 1 x 4*. Let''s also
+    look at another example where we don''t mention the *- 1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/73b8a6ca-1268-4c68-a0c2-8a27606a991e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If we ever forget to mention which dimension to flatten, we may end up with
+    unexpected results. So be extra careful at this step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linear layer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: After we convert the data from a two-dimensional tensor to a one-dimensional
+    tensor, we pass the data through a linear layer, followed by a nonlinear activation
+    layer. In our architecture, we have two linear layers; one followed by ReLU, and
+    the other followed by a `log_softmax`, which predicts what digit is contained
+    in the given image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Training the model is the same process as for our previous dogs and cats image
+    classification problems. The following code snippet does the training of our model
+    on the provided dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This method has different logic for `training` and `validation`. There are
+    primarily two reasons for using different modes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In `train` mode, dropout removes a percentage of values, which should not happen
+    in the validation or testing phase
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For `training` mode, we calculate gradients and change the model's parameters
+    value, but backpropagation is not required during the testing or validation phases
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Most of the code in the previous function is self-explanatory, as discussed
+    in previous chapters. At the end of the function, we return the `loss` and `accuracy`
+    of the model for that particular epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s run the model through the preceding function for 20 iterations and plot
+    the `loss` and `accuracy` of `train` and `validation`, to understand how our network
+    performed. The following code runs the `fit` method for the `train` and `test`
+    dataset for `20` iterations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following code plots the `training` and `test loss`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code generates the following graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9a1a319b-9b66-4479-a4d2-014ded3303c5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The following code plots the training and test accuracy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code generates the following graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3a360060-04a5-41f8-8dcf-bffc2a6229c0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: At the end of the 20^(th) epoch, we achieve a `test` accuracy of 98.9%. We have
+    got our simple convolutional model working and almost achieving state-of-the-art
+    results. Let's take a look at what happens when we try the same network architecture
+    on the previously-used `Dogs vs. Cats` dataset. We will use the data from our
+    previous chapter, [Chapter 3](5a68470a-8fdb-4dc8-9613-e38a9b4354d5.xhtml), *Building
+    Blocks of Neural Networks,* and architecture from the MNIST example with some
+    minor changes. Once we train the model, let's evaluate it to understand how well
+    our simple architecture performs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classifying dogs and cats – CNN from scratch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will use the same architecture with a few minor changes, as listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input dimensions for the first linear layer changes, as the dimensions for
+    our cats and dogs images are *256, 256*
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We add another linear layer to give more flexibility for the model to learn
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s look at the code that implements the network architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use the same `training` function which was used for the MNIST example.
+    So, I am not including the code here. But let's look at the plots generated when
+    the model is trained for *20* iterations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Loss of `training` and `validation` datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68c556c7-c801-401d-b600-3f07b15e9436.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Accuracy for `training` and `validation` datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/25496cf6-3032-4ba7-8a33-22d3e6202e79.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It's clear from the plots that the training loss is decreasing for every iteration,
+    but the validation loss gets worse. Accuracy also increases during the training,
+    but almost saturates at 75%. It is a clear example where the model is not generalizing.
+    We will look at another technique called **transfer learning**, which helps us
+    in training more accurate models, along with providing tricks to make the training
+    faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classifying dogs and cats using transfer learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Transfer learning is the ability to reuse a trained algorithm on a similar dataset
+    without training it from scratch. We humans do not learn to recognize new images
+    by analyzing thousands of similar images. We, as humans, just understand the different
+    features that actually differentiate a particular animal, say a fox from a dog.
+    We do not need to learn what a fox is from understanding what lines, eyes, and
+    other smaller features are like. So we will learn how to use a pre-trained model
+    to build state-of-the-art image classifiers with very little data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first few layers of a CNN architecture focus on smaller features, such
+    as how a line or curve looks. The filters in the later layers of a CNN learn higher-level
+    features, such as eyes and fingers, and the last few layers learn to identify
+    the exact category. A pre-trained model is an algorithm that is trained on a similar
+    dataset. Most of the popular algorithms are pre-trained on the popular `ImageNet`
+    dataset to identify 1,000 different categories. Such a pre-trained model will
+    have filter weights tuned to identify various patterns. So, let''s understand
+    how can we take advantage of these pre-trained weights. We will look into an algorithm
+    called **VGG16**, which was one of the earliest algorithms to find success in
+    ImageNet competitions. Though there are more modern algorithms, this algorithm
+    is still popular as it is simple to understand and use for transfer learning.
+    Let''s take a look at the architecture of the VGG16 model, and then try to understand
+    the architecture and how we can use it to train our image classifier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f76292fc-f90a-4a8e-92c0-328236a9d09d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Architecture of the VGG16 model
+  prefs: []
+  type: TYPE_NORMAL
+- en: The VGG16 architecture contains five VGG blocks. A block is a set of convolution
+    layers, a nonlinear activation function, and a max-pooling function. All the algorithm
+    parameters are tuned to achieve state-of-the-art results for classifying 1,000
+    categories. The algorithm takes input data in the form of batches, which are normalized
+    by the mean and standard deviation of the `ImageNet` dataset. In transfer learning,
+    we try to capture what the algorithm learns by freezing the learned parameters
+    of most of the layers of the architecture. It is often a common practice to fine-tune
+    only the last layers of the network. In this example, let's train only the last
+    few linear layers and leave the convolutional layers intact, as the features learned
+    by the convolutional features are mostly used for all kinds of image problems
+    where the images share similar properties. Let's train a VGG16 model using transfer
+    learning to classify dogs and cats. Let's walk through the different steps required
+    to implement this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating and exploring a VGG16 model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'PyTorch provides a set of trained models in its `torchvision` library. Most
+    of them accept an argument called `pretrained` when `True`, which downloads the
+    weights tuned for the **ImageNet** classification problem. Let''s look at the
+    code snippet that creates a VGG16 model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we have our VGG16 model with all the pre-trained weights ready to be used.
+    When the code is run for the first time, it could take several minutes, depending
+    on your internet speed. The size of the weights could be around 500 MB. We can
+    take a quick look at the VGG16 model by printing it. Understanding how these networks
+    are implemented turns out to be very useful when we use modern architectures.
+    Let''s take a look at the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model summary contains two sequential model `features` and `classifiers`.
+    The `features sequential` model has the layers that we are going to freeze.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Freezing the layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s freeze all the layers of the `features` model, which contains the convolutional
+    block. Freezing the weights in the layers will prevent the weights of these convolutional
+    blocks. As the weights of the model are trained to recognize a lot of important
+    features, our algorithm would be able to do the same from the very first iteration.
+    The ability to use models weights, which were initially trained for a different
+    use case, is called **transfer learning**. Now let''s look at how we can freeze
+    the weights, or parameters, of layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code prevents the optimizer from updating the weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning VGG16
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The VGG16 model is trained to classify 1,000 categories, but not trained to
+    classify dogs and cats. So, we need to change the output features of the last
+    layer to `2` from `1000`. The following code snippet does it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `vgg.classifier` gives access to all the layers inside the sequential model,
+    and the sixth element will contain the last layer. When we train the VGG16 model,
+    we only need the classifier parameters to be trained. So, we pass only the `classifier.parameters`
+    to the optimizer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training the VGG16 model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have created the model and optimizer. Since we are using the `Dogs vs. Cats`
+    dataset, we can use the same data loaders and the `train` function to train our
+    model. Remember, when we train the model, only the parameters inside the classifier
+    change. The following code snippet will train the model for `20` epochs, reaching
+    a validation accuracy of 98.45%:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s visualize the training and validation loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f8d58fda-2db4-4327-9ebc-f4a1a7a02416.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s visualize the training and validation accuracy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/914a6a81-d15d-45db-8e35-bebf67f2ccb8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can apply a couple of tricks, such as data augmentation and playing with
+    different values of the dropout to improve the model''s generalization capabilities.
+    The following code snippet changes the dropout, value in the classifier module
+    of VGG to `0.2` from `0.5` and trains the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Training this for a few epochs gave me a slight improvement; you can try playing
+    with different dropout values. Another important trick to improve model generalization
+    is to add more data or do data augmentation. We will do data augmentation, by
+    randomly flipping the image horizontally or rotating the image by a small angle.
+    The `torchvision` transforms provide different functionalities for doing data
+    augmentation and they do it dynamically, changing for every epoch. We implement
+    data augmentation using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of the preceding code is generated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training the model with augmented data improved the model accuracy by 0.1% by
+    running just two epochs; we can run it for a few more epochs to improve further.
+    If you have been training these models while reading the book, you will have realized
+    that training each epoch could take more than a couple of minutes, depending on
+    the GPU you are running. Let's look at a technique where we can train each epoch
+    in a few seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculating pre-convoluted features
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When we freeze the convolution layers and the train model, the input to the
+    fully connected layers, or dense layers, (`vgg.classifier`) is always the same.
+    To understand better, let''s treat the convolution block, in our example the `vgg.features`
+    block, as a function that has learned weights and does not change during training.
+    So, calculating the convolution features and storing them will help us to improve
+    the training speed. The time to train the model decreases, as we calculate these
+    features only once instead of calculating for each epoch. Let''s visually understand
+    and implement the same:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d1cb4fa0-d566-42fb-8b27-f45abadeca02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The first box depicts how training is done in general, which could be slow,
+    as we calculate the convolutional features for every epoch, though the values
+    do not change. In the bottom box, we calculate the convolutional features once
+    and train only the linear layers. To calculate the pre-convoluted features, we
+    will pass all the training data through the convolution blocks and store them.
+    To perform this, we need to select the convolution blocks of the VGG model. Fortunately,
+    the PyTorch implementation of VGG16 has two sequential models, so just picking
+    the first sequential model''s features is enough. The following code does that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the previous code, the `preconvfeat` method takes in the dataset and `vgg`
+    model and returns the convoluted features along with the labels associated with
+    it. The rest of the code is similar to what we have used in the other examples
+    for creating data loaders and datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we have the convolutional features for the `train` and `validation` sets,
+    let''s create a PyTorch dataset and `DataLoader` classes, which will ease up our
+    training process. The following code creates the `Dataset` and `DataLoader` for
+    our convolution features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we have our new data loaders that generate batches of convoluted features
+    along with the labels, we can use the same `train` function that we have been
+    using in the other examples. Now we will use `vgg.classifier` as the model for
+    creating the `optimizer` and `fit` methods. The following code trains the classifier
+    module to identify dogs and cats. On a Titan X GPU, each epoch takes less than
+    five seconds, which would otherwise take a few minutes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Understanding what a CNN model learns
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Deep learning models are often said to be not interpretable. But there are different
+    techniques that are being explored to interpret what happens inside these models.
+    For images, the features learned by convents are interpretable. We will explore
+    two popular techniques to understand convents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing outputs from intermediate layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Visualizing the outputs from intermediate layers will help us in understanding
+    how the input image is being transformed across different layers. Often, the output
+    from each layer is called an **activation**. To do this, we should extract output
+    from intermediate layers, which can be done in different ways. PyTorch provides
+    a method called `register_forward_hook`, which allows us to pass a function which
+    can extract outputs of a particular layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By default, PyTorch models only store the output of the last layer, to use
+    memory optimally. So, before we inspect what the activations from the intermediate
+    layers look like, let''s understand how to extract outputs from the model. Let''s
+    look at the following code snippet, which extracts, and we will walk through it
+    to understand what happens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: We start with the creation of a pre-trained VGG model, from which we extract
+    the outputs of a particular layer. The `LayerActivations` class instructs PyTorch
+    to store the output of a layer to the `features` variable. Let's walk through
+    each function inside the `LayerActivations` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `_init_` function takes a model and the layer number for which the outputs
+    need to be extracted as arguments. We call the `register_forward_hook` method
+    on the layer and pass in a function. PyTorch, when doing a forward pass—that is,
+    when the images are passed through the layers—calls the function that is passed
+    to the `register_forward_hook` method. This method returns a handle, which can
+    be used to deregister the function that is passed to the `register_forward_hook`
+    method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `register_forward_hook` method passes three values to the function that
+    we pass to it. The `module` parameter allows us access to the layer itself. The
+    second parameter is `input`, which refers to data that is flowing through the
+    layer. The third parameter is `output`, which allows access to the transformed
+    inputs, or activation, of the layer. We store the output to the features variable
+    in the `LayerActivations` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The third function takes the `hook` from the `_init_` function and deregisters
+    the function. Now we can pass the model and the layer number for which we are
+    looking for activations. Let''s look at the activations created for the following
+    image for different layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4869b190-ad00-4e28-b4d9-2f6c06447aff.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s visualize some of the activations created by the first convolution layer
+    and the code used for it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s visualize some of the activations created by the fifth convolution layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/612e41be-0616-4e24-b63e-f875afe02f56.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at the last CNN layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/50a60d05-6b3a-4b58-a811-716c608ffe5c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: From looking at what different layers generate, we can see that the early layers
+    detect lines and edges, and the last layers tend to learn higher-level features
+    and are less interpretable. Before we move on to visualizing weights, let's see
+    how the features maps or activations represents itself after the ReLU layer. So,
+    let's visualize the outputs of the second layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you take a quick look at the fifth image in the second row of the preceding
+    image, it looks like the filter is detecting the eyes in the image. When the models
+    do not perform, these tricks to visualize can help us understand why the model
+    may not be working.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing weights of the CNN layer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Getting model weights for a particular layer is straightforward. All the model
+    weights can be accessed through the `state_dict` function. The `state_dict` function
+    returns a dictionary, with keys as its layers and weights as its values. The following
+    code demonstrates how to pull weights for a particular layer and visualize them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code provides us with the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bf5cc2da-6e75-49fa-9e3a-ee8f83c1ad2c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Each box represents weights of a filter that is of size *3 x 3*. Each filter
+    is trained to identify certain patterns in the images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to build an image classifier using convents,
+    and also how to use a pre-trained model. We covered tricks on how to speed up
+    the process of training by using these pre-convoluted features. Also, we understood
+    different techniques that can be used to understand what goes on inside a CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn how to handle sequential data using recurrent
+    neural networks.
+  prefs: []
+  type: TYPE_NORMAL

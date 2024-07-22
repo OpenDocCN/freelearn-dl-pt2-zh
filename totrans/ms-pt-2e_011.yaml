@@ -1,0 +1,572 @@
+- en: 17 PyTorch and Explainable AI
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Join our book community on Discord
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/file141.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Throughout this book, we have built several deep learning models that can perform
+    different kinds of tasks for us. For example, a handwritten digit classifier,
+    an image-caption generator, a sentiment classifier, and more. Although we have
+    mastered how to train and evaluate these models using PyTorch, we do not know
+    what precisely is happening inside these models while they make predictions. Model
+    interpretability or explainability is that field of machine learning where we
+    aim to answer the question, why did the model make that prediction? More elaborately,
+    what did the model see in the input data to make that particular prediction?
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will use the handwritten digit classification model from
+    *Chapter 1*, *Overview of Deep Learning Using PyTorch*, to understand its inner
+    workings and thereby explain why the model makes a certain prediction for a given
+    input. We will first dissect the model using only PyTorch code. Then, we will
+    use a specialized model interpretability toolkit, called **Captum**, to further
+    investigate what is happening inside the model. Captum is a dedicated third-party
+    library for PyTorch that provides model interpretability tools for deep learning
+    models, including image- and text-based models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter should provide you with the skills that are necessary to uncover
+    the internals of a deep learning model. Looking inside a model this way can help
+    you to reason about the model's predictive behavior. At the end of this chapter,
+    you will be able to use the hands-on experience to start interpreting your own
+    deep learning models using PyTorch (and Captum).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter is broken down into the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model interpretability in PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Captum to interpret models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model interpretability in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will dissect a trained handwritten digits classification
+    model using PyTorch in the form of an exercise. More precisely, we will be looking
+    at the details of the convolutional layers of the trained handwritten digits classification
+    model to understand what visual features the model is learning from the handwritten
+    digit images. We will look at the convolutional filters/kernels along with the
+    feature maps produced by those filters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Such details will help us to understand how the model is processing input images
+    and, therefore, making predictions. The full code for the exercise can be found
+    in our github repository [13.1] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the handwritten digits classifier – a recap
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We will quickly revisit the steps involved in training the handwritten digits
+    classification model, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we import the relevant libraries, and then set the random seeds to be
+    able to reproduce the results of this exercise:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will define the model architecture:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will define the model training and testing routine:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then define the training and testing dataset loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we instantiate our model and define the optimization schedule:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we start the model training loop where we train our model for 20 epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.1 – Model training logs](img/file142.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.1 – Model training logs
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we can test the trained model on a sample test image. The sample test
+    image is loaded as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.2 – An example of a handwritten image](img/file143.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.2 – An example of a handwritten image
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we use this sample test image to make a model prediction, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.3 – Model prediction](img/file144.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.3 – Model prediction
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, we have trained a handwritten digits classification model and used
+    it to make inference on a sample image. We will now look at the internals of the
+    trained model. We will also investigate what convolutional filters have been learned
+    by this model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing the convolutional filters of the model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In this section, we will go through the convolutional layers of the trained
+    model and look at the filters that the model has learned during training. This
+    will tell us how the convolutional layers are operating on the input image, what
+    kinds of features are being extracted, and more:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to obtain a list of all the layers in the model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.4 – Model layers](img/file145.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.4 – Model layers
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, there are 2 convolutional layers that both have 3x3-sized filters.
+    The first convolutional layer uses **16** such filters, whereas the second convolutional
+    layer uses **32**. We are focusing on visualizing convolutional layers in this
+    exercise because they are visually more intuitive. However, you can similarly
+    explore the other layers, such as linear layers, by visualizing their learned
+    weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we select only the convolutional layers from the model and store them
+    in a separate list:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this process, we also make sure to store the parameters or weights learned
+    in each convolutional layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are now ready to visualize the learned filters of the convolutional layers.
+    We begin with the first layer, which has 16 filters of size 3x3 each. The following
+    code visualizes those filters for us:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.5 – The first convolutional layer''s filters](img/file146.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.5 – The first convolutional layer's filters
+  prefs: []
+  type: TYPE_NORMAL
+- en: Firstly, we can see that all the learned filters are slightly different from
+    each other, which is a good sign. These filters usually have contrasting values
+    inside them so that they can extract some types of gradients when convolved around
+    an image. During model inference, each of these 16 filters operates independently
+    on the input grayscale image and produces 16 different feature maps, which we
+    will visualize in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, we can visualize the 32 filters learned in the second convolutional
+    layer using the same code, as in the preceding step, but with the following change:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.6 – The second convolutional layer''s filters](img/file147.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.6 – The second convolutional layer's filters
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once again, we have 32 different filters/kernels that have contrasting values
+    aimed at extracting gradients from the image. These filters are already applied
+    to the output of the first convolutional layer, and hence produce even higher
+    levels of output feature maps. The usual goal of CNN models with multiple convolutional
+    layers is to keep producing more and more complex, or higher-level, features that
+    can represent complex visual elements such as a nose on a face, traffic lights
+    on the road, and more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will take a look at what comes out of these convolutional layers as
+    these filters operate/convolve on their given inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing the feature maps of the model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In this section, we will run a sample handwritten image through the convolutional
+    layers and visualize the outputs of these layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to gather the results of every convolutional layer output in
+    the form of a list, which is achieved using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that we call the forward pass for each convolutional layer separately
+    while ensuring that the *n*th convolutional layer receives as input the output
+    of the (*n-1*)th convolutional layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now visualize the feature maps produced by the two convolutional layers.
+    We will begin with the first layer by running the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.7 – The first convolutional layer''s feature maps](img/file148.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.7 – The first convolutional layer's feature maps
+  prefs: []
+  type: TYPE_NORMAL
+- en: The numbers, **(16, 26, 26)**, represent the output dimensions of the first
+    convolution layer. Essentially, the sample image size is (28, 28), the filter
+    size is (3,3), and there is no padding. Therefore, the resulting feature map size
+    will be (26, 26). Because there are 16 such feature maps produced by the 16 filters
+    (please refer to *Figure 13.5*), the overall output dimension is (16, 26, 26).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, each filter produces a feature map from the input image. Additionally,
+    each feature map represents a different visual feature in the image. For example,
+    the top-left feature map essentially inverts the pixel values in the image (please
+    refer to *Figure 13.2*), whereas the bottom-right feature map represents some
+    form of edge detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These 16 feature maps are then passed on to the second convolutional layer,
+    where yet another 32 filters convolve separately on these 16 feature maps to produce
+    32 new feature maps. We will look at these next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can use the same code as the preceding one with minor changes (as highlighted
+    in the following code) to visualize the 32 feature maps produced by the next convolutional
+    layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.8 – The second convolutional layer''s feature maps](img/file149.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.8 – The second convolutional layer's feature maps
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compared to the earlier 16 feature maps, these 32 feature maps are evidently
+    more complex. They seem to be doing more than just edge detection, and this is
+    because they are already operating on the outputs of the first convolutional layer
+    instead of the raw input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this model, the 2 convolutional layers are followed by 2 linear layers with
+    (4,608x64) and (64x10) number of parameters, respectively. Although the linear
+    layer weights are also useful to visualize, the sheer number of parameters (4,608x64)
+    is, visually, a lot to get your head around. Therefore, in this section, we will
+    restrict our visual analysis to convolutional weights only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: And thankfully, we have more sophisticated ways of interpreting model prediction
+    without having to look at such a large number of parameters. In the next section,
+    we will explore Captum, which is a machine learning model interpretability toolkit
+    that works with PyTorch and helps us to explain model decisions within a few lines
+    of code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Captum to interpret models
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Captum** [13.2] is an open source model interpretability library built by
+    Facebook on top of PyTorch, and it is currently (at the time of writing) under
+    active development. In this section, we will use the handwritten digits classification
+    model that we had trained in the preceding section. We will also use some of the
+    model interpretability tools offered by Captum to explain the predictions made
+    by this model. The full code for the following exercise can be found in our github
+    repository [13.3] .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Captum
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The model training code is similar to the code shown under the *Training the
+    handwritten digits classifier – a recap* section. In the following steps, we will
+    use the trained model and a sample image to understand what happens inside the
+    model while making a prediction for the given image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are few extra imports related to Captum that we need to perform in order
+    to use Captum''s built-in model interpretability functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In order to do a model forward pass with the input image, we reshape the input
+    image to match the model input size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: As per Captum's requirements, the input tensor (image) needs to be involved
+    in gradient computation. Therefore, we set the `requires_grad` flag for input
+    to `True`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, we prepare the sample image to be processed by the model interpretability
+    methods using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.9 – The original image](img/file150.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.9 – The original image
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have tiled the grayscale image across the depth dimension so that it can
+    be consumed by the Captum methods, which expect a 3-channel image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will actually apply some of Captum's interpretability methods to the
+    forward pass of the prepared grayscale image through the pretrained handwritten
+    digits classification model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring Captum's interpretability tools
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this section, we will be looking at some of the model interpretability methods
+    offered by Captum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One of the most fundamental methods of interpreting model results is by looking
+    at saliency, which represents the gradients of the output (class 0, in this example)
+    with respect to the input (that is, the input image pixels). The larger the gradients
+    with respect to a particular input, the more important that input is. You can
+    read more about how these gradients are exactly calculated in the original saliency
+    paper [13.4] . Captum provides an implementation of the saliency method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code, we use Captum''s `Saliency` module to compute the gradients:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.10 – Overlayed gradients](img/file151.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.10 – Overlayed gradients
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding code, we reshaped the obtained gradients to size `(28,28,1)`
+    in order to overlay them on the original image, as shown in the preceding diagram.
+    Captum''s `viz` module takes care of the visualizations for us. We can further
+    visualize only the gradients, without the original image, using the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will get the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.11 – Gradients](img/file152.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.11 – Gradients
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the gradients a re spread across those pixel regions in the
+    image that are likely to contain the digit `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, using a similar code fashion, we will look at another interpretability
+    method – integrated gradients. With this method, we will look for **feature attribution**
+    or **feature importance**. That is, we'll look for what pixels are important to
+    use when making predictions. Under the integrated gradients technique, apart from
+    the input image, we also need to specify a baseline image, which is usually set
+    to an image with all of the pixel values set to zero.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'An integral of gradients is then calculated with respect to the input image
+    along the path from the baseline image to the input image. Details of the implementation
+    of integrated gradients technique can be found in the original paper [13.5] .
+    The following code uses Captum''s `IntegratedGradients` module to derive the importance
+    of each input image pixel:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.12 – Overlayed integrated gradients](img/file153.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.12 – Overlayed integrated gradients
+  prefs: []
+  type: TYPE_NORMAL
+- en: As expected, the gradients are high in the pixel regions that contain the digit
+    `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we will look at yet another gradient-based attribution technique,
+    called **deeplift**. Deeplift also requires a baseline image besides the input
+    image. Once again for the baseline, we use an image with all the pixel values
+    set to zero. Deeplift computes the change in non-linear activation outputs with
+    respect to the change in input from the baseline image to the input image (*Figure
+    13.9*). The following code uses the `DeepLift` module provided by Captum to compute
+    the gradients and displays these gradients overlayed on the original input image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You should see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.13 – Overlayed deeplift](img/file154.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.13 – Overlayed deeplift
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once again, the gradient values are extreme around the pixels that contain the
+    digit `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This brings us to the end of this exercise and this section. There are more
+    model interpretability techniques provided by Captum, such as *LayerConductance*,
+    *GradCAM*, and *SHAP [13.6]* . Model interpretability is an active area of research,
+    and hence libraries such as Captum are likely to evolve rapidly. More such libraries
+    are likely to be developed in the near future, which will enable us to make model
+    interpretability a standard component of the machine learning life cycle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we have briefly explored how to explain or interpret the decisions
+    made by deep learning models using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter of this book, we will learn how to rapidly train and test
+    machine learning models on PyTorch – a skill that is useful for quickly iterating
+    over various machine learning ideas. We will also discuss a few deep learning
+    libraries and frameworks that enable rapid prototyping with PyTorch.
+  prefs: []
+  type: TYPE_NORMAL

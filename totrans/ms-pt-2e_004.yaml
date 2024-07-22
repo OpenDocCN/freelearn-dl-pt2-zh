@@ -1,0 +1,977 @@
+- en: 5 Hybrid Advanced Models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Join our book community on Discord
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/file37.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the previous two chapters, we learned extensively about the various convolutional
+    and recurrent network architectures available, along with their implementations
+    in PyTorch. In this chapter, we will take a look at some other deep learning model
+    architectures that have proven to be successful on various machine learning tasks
+    and are neither purely convolutional nor recurrent in nature. We will continue
+    from where we left off in both *Chapter 3*, *Deep CNN Architectures*, and *Chapter
+    4, Deep Recurrent Model Architectures*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we will explore transformers, which, as we learnt toward the end of *Chapter
+    4, Deep Recurrent Model Architectures*, have outperformed recurrent architectures
+    on various sequential tasks. Then, we will pick up from the **EfficientNets**
+    discussion at the end of *Chapter 3, Deep CNN Architectures*, and explore the
+    idea of generating randomly wired neural networks, also known as **RandWireNNs**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this chapter, we aim to conclude our discussion of different kinds of
+    neural network architectures in this book. After completing this chapter, you
+    will have a detailed understanding of transformers and how to apply these powerful
+    models to sequential tasks using PyTorch. Furthermore, by building your own RandWireNN
+    model, you will have hands-on experience of performing a neural architecture search
+    in PyTorch. This chapter is broken down into the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a transformer model for language modeling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing a RandWireNN model from scratch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a transformer model for language modeling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will explore what transformers are and build one using PyTorch
+    for the task of language modeling. We will also learn how to use some of its successors,
+    such as **BERT** and **GPT**, via PyTorch's pretrained model repository. Before
+    we start building a transformer model, let's quickly recap what language modeling
+    is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reviewing language modeling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Language modeling** is the task of figuring out the probability of the occurrence
+    of a word or a sequence of words that should follow a given sequence of words.
+    For example, if we are given *French is a beautiful _____* as our sequence of
+    words, what is the probability that the next word will be *language* or *word*,
+    and so on? These probabilities are computed by modeling the language using various
+    probabilistic and statistical techniques. The idea is to observe a text corpus
+    and learn the grammar by learning which words occur together and which words never
+    occur together. This way, a language model establishes probabilistic rules around
+    the occurrence of different words or sequences, given various different sequences.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recurrent models have been a popular way of learning a language model. However,
+    as with many sequence-related tasks, transformers have outperformed recurrent
+    networks on this task as well. We will implement a transformer-based language
+    model for the English language by training it on the Wikipedia text corpus.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's start training a transformer for language modeling. During this exercise,
+    we will demonstrate only the most important parts of the code. The full code can
+    be accessed at our github repository [5.1].
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will delve deeper into the various components of the transformer architecture
+    in-between the exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this exercise, we will need to import a few dependencies. One of the important
+    `import` statements is listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Besides importing the regular `torch` dependencies, we must import some modules
+    specific to the transformer model; these are provided directly under the torch
+    library. We'll also import `torchtext` in order to download a text dataset directly
+    from the available datasets under `torchtext.datasets`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will define the transformer model architecture and look
+    at the details of the model's components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the transformer model architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This is perhaps the most important step of this exercise. Here, we define the
+    architecture of the transformer model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s briefly discuss the model architecture and then look at the PyTorch
+    code for defining the model. The following diagram shows the model architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – Transformer model architecture](img/file38.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1 – Transformer model architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first thing to notice is that this is essentially an encoder-decoder based
+    architecture, with the **Encoder Unit** on the left (in purple) and the **Decoder
+    Unit** (in orange) on the right. The encoder and decoder units can be tiled multiple
+    times for even deeper architectures. In our example, we have two cascaded encoder
+    units and a single decoder unit. This encoder-decoder setup essentially means
+    that the encoder takes a sequence as input and generates as many embeddings as
+    there are words in the input sequence (that is, one embedding per word). These
+    embeddings are then fed to the decoder, along with the predictions made thus far
+    by the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s walk through the various layers in this model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Embedding Layer**: This layer is simply meant to perform the traditional
+    task of converting each input word of the sequence into a vector of numbers; that
+    is, an embedding. As always, here, we use the `torch.nn.Embedding` module to code
+    this layer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Positional Encoder**: Note that transformers do not have any recurrent layers
+    in their architecture, yet they outperform recurrent networks on sequential tasks.
+    How? Using a neat trick known as *positional encoding*, the model is provided
+    the sense of sequentiality or sequential-order in the data. Basically, vectors
+    that follow a particular sequential pattern are added to the input word embeddings.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These vectors are generated in a way that enables the model to understand that
+    the second word comes after the first word and so on. The vectors are generated
+    using the `sinusoidal` and `cosinusoidal` functions to represent a systematic
+    periodicity and distance between subsequent words, respectively. The implementation
+    of this layer for our exercise is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the `sinusoidal` and `cosinusoidal` functions are used alternatively
+    to give the sequential pattern. There are many ways to implement positional encoding
+    though. Without a positional encoding layer, the model will be clueless about
+    the order of the words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Multi-Head Attention**: Before we look at the multi-head attention layer,
+    let''s first understand what a **self-attention layer** is. We covered the concept
+    of attention in *Chapter 4*, *Deep Recurrent Model Architectures*, with respect
+    to recurrent networks. Here, as the name suggests, the attention mechanism is
+    applied to self; that is, each word of the sequence. Each word embedding of the
+    sequence goes through the self-attention layer and produces an individual output
+    that is exactly the same length as the word embedding. The following diagram describes
+    the process of this in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – Self-attention layer](img/file39.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2 – Self-attention layer
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, for each word, three vectors are generated through three learnable
+    parameter matrices (**Pq**, **Pk**, and **Pv**). The three vectors are query,
+    key, and value vectors. The query and key vectors are dot-multiplied to produce
+    a number for each word. These numbers are normalized by dividing the square root
+    of the key vector length for each word. The resultant numbers for all words are
+    then Softmaxed at the same time to produce probabilities that are finally multiplied
+    by the respective value vectors for each word. This results in one output vector
+    for each word of the sequence, with the lengths of the output vector and the input
+    word embedding being the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A multi-head attention layer is an extension of the self-attention layer where
+    multiple self-attention modules compute outputs for each word. These individual
+    outputs are concatenated and matrix-multiplied with yet another parameter matrix
+    (**Pm**) to generate the final output vector, whose length is equal to the input
+    embedding vector''s. The following diagram shows the multi-head attention layer,
+    along with two self-attention units that we will be using in this exercise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – Multi-head attention layer with two self-attention units](img/file40.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 – Multi-head attention layer with two self-attention units
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having multiple self-attention heads helps different heads focus on different
+    aspects of the sequence word, similar to how different feature maps learn different
+    patterns in a convolutional neural network. Due to this, the multi-head attention
+    layer performs better than an individual self-attention layer and will be used
+    in our exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, note that the masked multi-head attention layer in the decoder unit works
+    in exactly the same way as a multi-head attention layer, except for the added
+    masking; that is, given time step *t* of processing the sequence, all words from
+    *t+1* to *n* (length of the sequence) are masked/hidden.
+  prefs: []
+  type: TYPE_NORMAL
+- en: During training, the decoder is provided with two types of inputs. On one hand,
+    it receives query and key vectors from the final encoder as inputs to its (unmasked)
+    multi-head attention layer, where these query and key vectors are matrix transformations
+    of the final encoder output. On the other hand, the decoder receives its own predictions
+    from previous time steps as sequential input to its masked multi-head attention
+    layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Addition and Layer Normalization**: We discussed the concept of a residual
+    connection in *Chapter 3*, *Deep CNN Architectures*, while discussing ResNets.
+    In *Figure 5.1*, we can see that there are residual connections across the addition
+    and layer normalization layers. In each instance, a residual connection is established
+    by directly adding the input word embedding vector to the output vector of the
+    multi-head attention layer. This helps with easier gradient flow throughout the
+    network and avoiding problems with exploding and vanishing gradients. Also, it
+    helps with efficiently learning identity functions across layers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, layer normalization is used as a normalization trick. Here, we
+    normalize each feature independently so that all the features have a uniform mean
+    and standard deviation. Please note that these additions and normalizations are
+    applied individually to each word vector of the sequence at each stage of the
+    network.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**Feedforward Layer**: Within both the encoder and decoder units, the normalized
+    residual output vectors for all the words of the sequence are passed through a
+    common feedforward layer. Due to there being a common set of parameters across
+    words, this layer helps with learning broader patterns across the sequence.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Linear and Softmax Layer**: So far, each layer is outputting a sequence of
+    vectors, one per word. For our task of language modeling, we need a single final
+    output. The linear layer transforms the sequence of vectors into a single vector
+    whose size is equal to the length of our word vocabulary. The **Softmax** layer
+    converts this output into a vector of probabilities summing to `1`. These probabilities
+    are the probabilities that the respective words (in the vocabulary) occur as the
+    next words in the sequence.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have elaborated on the various elements of a transformer model,
+    let's look at the PyTorch code for instantiating the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining a transformer model in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Using the architecture details described in the previous section, we will now
+    write the necessary PyTorch code for defining a transformer model, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can see, in the `__init__` method of the class, thanks to PyTorch's `TransformerEncoder`
+    and `TransformerEncoderLayer` functions, we do not need to implement these ourselves.
+    For our language modeling task, we just need a single output for the input sequence
+    of words. Due to this, the decoder is just a linear layer that transforms the
+    sequence of vectors from an encoder into a single output vector. A position encoder
+    is also initialized using the definition that we discussed earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `forward` method, the input is positionally encoded and then passed
+    through the encoder, followed by the decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have defined the transformer model architecture, we shall load the
+    text corpus to train it on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading and processing the dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will discuss the steps related to loading a text dataset
+    for our task and making it usable for the model training routine. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this exercise, we will be using texts from Wikipedia, all of which are available
+    as the `WikiText-2` dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Dataset Citation**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[https://blog.einstein.ai/the-wikitext-long-term-dependency-language-modeling-dataset/.](https://blog.einstein.ai/the-wikitext-long-term-dependency-language-modeling-dataset/.)'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'We''ll use the functionality of `torchtext` to download the training dataset
+    (available under `torchtext` datasets) and tokenize its vocabulary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will then use the vocabulary to convert raw text into tensors for the training,
+    validation and testing datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll also define the batch sizes for training and evaluation and declare
+    a batch generation function, as shown here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we must define the maximum sequence length and write a function that
+    will generate input sequences and output targets for each batch, accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Having defined the model and prepared the training data, we will now train the
+    transformer model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the transformer model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will define the necessary hyperparameters for model training,
+    define the model training and evaluation routines, and finally execute the training
+    loop. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this step, we define all the model hyperparameters and instantiate our transformer
+    model. The following code is self-explanatory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before starting the model training and evaluation loop, we need to define the
+    training and evaluation routines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we must run the model training loop. For demonstration purposes, we
+    are training the model for `5` epochs, but you are encouraged to run it for longer
+    in order to get better performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should result in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.4 – Transformer training logs](img/file41.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4 – Transformer training logs
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides the cross-entropy loss, the perplexity is also reported. **Perplexity**
+    is a popularly used metric in natural language processing to indicate how well
+    a **probability distribution** (a language model, in our case) fits or predicts
+    a sample. The lower the perplexity, the better the model is at predicting the
+    sample. Mathematically, perplexity is just the exponential of the cross-entropy
+    loss. Intuitively, this metric is used to indicate how perplexed or confused the
+    model is while making predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the model has been trained, we can conclude this exercise by evaluating
+    the model''s performance on the test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should result in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.5 – Transformer evaluation results](img/file42.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.5 – Transformer evaluation results
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this exercise, we built a transformer model using PyTorch for the task of
+    language modeling. We explored the transformer architecture in detail and how
+    it is implemented in PyTorch. We used the `WikiText-2` dataset and `torchtext`
+    functionalities to load and process the dataset. We then trained the transformer
+    model for `5` epochs and evaluated it on a separate test set. This shall provide
+    us with all the information we need to get started on working with transformers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides the original transformer model, which was devised in 2017, a number
+    of successors have since been developed over the years, especially around the
+    field of language modeling, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Bidirectional Encoder Representations from Transformers** (**BERT**), 2018'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generative Pretrained Transformer** (**GPT**), 2018'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**GPT-2**, 2019'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Conditional Transformer Language Model** (**CTRL**), 2019'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Transformer-XL**, 2019'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Distilled BERT** (**DistilBERT**), 2019'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Robustly optimized BERT pretraining Approach** (**RoBERTa**), 2019'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**GPT-3**, 2020'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we will not cover these models in detail in this chapter, you can nonetheless
+    get started with using these models with PyTorch thanks to the `transformers`
+    library, developed by HuggingFace 5.2 .We will explore HuggingFace in detail in
+    Chapter 19\. The transformers library provides pre-trained transformer family
+    models for various tasks, such as language modeling, text classification, translation,
+    question-answering, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides the models themselves, it also provides tokenizers for the respective
+    models. For example, if we wanted to use a pre-trained BERT model for language
+    modeling, we would need to write the following code once we have installed the
+    `transformers` library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can see, it takes just a couple of lines to get started with a BERT-based
+    language model. This demonstrates the power of the PyTorch ecosystem. You are
+    encouraged to explore this with more complex variants, such as *Distilled BERT*
+    or *RoBERTa*, using the `transformers` library. For more details, please refer
+    to their GitHub page, which was mentioned previously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our exploration of transformers. We did this by both building
+    one from scratch as well as by reusing pre-trained models. The invention of transformers
+    in the natural language processing space has been paralleled with the ImageNet
+    moment in the field of computer vision, so this is going to be an active area
+    of research. PyTorch will have a crucial role to play in the research and deployment
+    of these types of models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next and final section of this chapter, we will resume the neural architecture
+    search discussions we provided at the end of *Chapter 3, Deep CNN Architectures*,
+    where we briefly discussed the idea of generating optimal network architectures.
+    We will explore a type of model where we do not decide what the model architecture
+    will look like, and instead run a network generator that will find an optimal
+    architecture for the given task. The resultant network is called a **randomly
+    wired neural network** (**RandWireNN**) and we will develop one from scratch using
+    PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing a RandWireNN model from scratch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We discussed EfficientNets in *Chapter 3, Deep CNN Architectures*, where we
+    explored the idea of finding the best model architecture instead of specifying
+    it manually. RandWireNNs, or randomly wired neural networks, as the name suggests,
+    are built on a similar concept. In this section, we will study and build our own
+    RandWireNN model using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding RandWireNNs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, a random graph generation algorithm is used to generate a random graph
+    with a predefined number of nodes. This graph is converted into a neural network
+    by a few definitions being imposed on it, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Directed**: The graph is restricted to be a directed graph, and the direction
+    of edge is considered to be the direction of data flow in the equivalent neural
+    network.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Aggregation**: Multiple incoming edges to a node (or neuron) are aggregated
+    by weighted sum, where the weights are learnable.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Transformation**: Inside each node of this graph, a standard operation is
+    applied: ReLU followed by 3x3 separable convolution (that is, a regular 3x3 convolution
+    followed by a 1x1 pointwise convolution), followed by batch normalization. This
+    operation is also referred to as a **ReLU-Conv-BN triplet**.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Distribution**: Lastly, multiple outgoing edges from each neuron carry a
+    copy of the aforementioned triplet operation.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: One final piece in the puzzle is to add a single input node (source) and a single
+    output node (sink) to this graph in order to fully transform the random graph
+    into a neural network. Once the graph is realized as a neural network, it can
+    be trained for various machine learning tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the **ReLU-Conv-BN triplet unit**, the output number of channels/features
+    are the same as the input number of channels/features for repeatability reasons.
+    However, depending on the type of task at hand, you can stage several of these
+    graphs with an increasing number of channels downstream (and decreasing spatial
+    size of the data/images). Finally, these staged graphs can be connected to each
+    other by connecting the sink of one to the source of the other in a sequential
+    manner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, in the form of an exercise, we will build a RandWireNN model from scratch
+    using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing RandWireNNs using PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will now develop a RandWireNN model for an image classification task. This
+    will be performed on the CIFAR-10 dataset. We will start from an empty model,
+    generate a random graph, transform it into a neural network, train it for the
+    given task on the given dataset, evaluate the trained model, and finally explore
+    the resulting model that was generated. In this exercise, we will only show the
+    important parts of the code for demonstration purposes. In order to access the
+    full code, visit the book’s github repo [5.3] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining a training routine and loading data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the first sub-section of this exercise, we will define the training function
+    that will be called by our model training loop and define our dataset loader,
+    which will provide us with batches of data for training. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to import some libraries. Some of the new libraries that will
+    be used in this exercise are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we must define the training routine, which takes in a trained model that
+    can produce prediction probabilities given an RGB input image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we define the dataset loader. We will use the `CIFAR-10` dataset for this
+    image classification task, which is a well-known database of 60,000 32x32 RGB
+    images labeled across 10 different classes containing 6,000 images per class.
+    We will use the `torchvision.datasets` module to directly load the data from the
+    torch dataset repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Dataset Citation**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Learning Multiple Layers of Features from Tiny Images*, Alex Krizhevsky, 2009.'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should give us the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.6 – RandWireNN data loading](img/file43.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6 – RandWireNN data loading
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now move on to designing the neural network model. For this, we will
+    need to design the randomly wired graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the randomly wired graph
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will define a graph generator in order to generate a random
+    graph that will be later used as a neural network. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the following code, we must define the random graph generator class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this exercise, we''ll be using a well-known random graph model – the **Watts
+    Strogatz (WS)** model. This is one of the three models that was experimented on
+    in the original research paper about RandWireNNs. In this model, there are two
+    parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of neighbors for each node (which should be strictly even), *K*
+  prefs: []
+  type: TYPE_NORMAL
+- en: A rewiring probability, *P*
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, all the *N* nodes of the graph are organized in a ring fashion and each
+    node is connected to *K/2* nodes to its left and *K/2* to its right. Then, we
+    traverse each node clockwise *K/2* times. At the *m*th traversal (*0<m<K/2*),
+    the edge between the current node and its *m*th neighbor to the right is *rewired*
+    with a probability, *P*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, rewiring means that the edge is replaced by another edge between the current
+    node and another node different from itself, as well as the *m*th neighbor. In
+    the preceding code, the `make_graph_obj` method of our random graph generator
+    class instantiates the WS graph model using the `networkx` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding code, the make_graph_obj method of our random graph generator
+    class instantiates the WS graph model using the networkx library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, we add a `get_graph_config` method to return the list of nodes
+    and edges in the graph. This will come in handy while we''re transforming the
+    abstract graph into a neural network. We will also define some graph saving and
+    loading methods for caching the generated graph both for reproducibility and efficiency
+    reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will work on creating the actual neural network model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining RandWireNN model modules
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have the random graph generator, we need to transform it into a
+    neural network. But before that, we will design some neural modules to facilitate
+    that transformation. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Starting from the lowest level of the neural network, first, we will define
+    a separable 2D convolutional layer, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The separable convolutional layer is a cascade of a regular 3x3 2D convolutional
+    layer followed by a pointwise 1x1 2D convolutional layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having defined the separable 2D convolutional layer, we can now define the
+    ReLU-Conv-BN triplet unit:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we mentioned earlier, the triplet unit is a cascade of a ReLU layer, followed
+    by a separable 2D convolutional layer, followed by a batch normalization layer.
+    We must also add a dropout layer for regularization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the triplet unit in place, we can now define a node in the graph with
+    all of the `aggregation`, `transformation`, and `distribution` functionalities
+    we need, as discussed at the beginning of this exercise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `forward` method, we can see that if the number of incoming edges to
+    the node is more than `1`, then a weighted average is calculated and these weights
+    are learnable parameters of this node. The triplet unit is applied to the weighted
+    average and the transformed (ReLU-Conv-BN-ed) output is returned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now consolidate all of our graph and graph node definitions in order
+    to define a randomly wired graph class, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `__init__` method of this class, first, an abstract random graph is generated.
+    Its list of nodes and edges are derived. Using the `GraphNode` class, each abstract
+    node of this abstract random graph is encapsulated as a neuron of the desired
+    neural network. Finally, a source or input node and a sink or an output node are
+    added to the network to make the neural network ready for the image classification
+    task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `forward` method is also unconventional, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, a forward pass is run for the source neuron, and then a series of forward
+    passes are run for the subsequent neurons based on the `list_of_nodes` for the
+    graph. The individual forward passes are executed using `list_of_modules`. Finally,
+    the forward pass through the sink neuron gives us the output of this graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will use these defined modules and the randomly wired graph class to
+    build the actual RandWireNN model class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming a random graph into a neural network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous step, we defined one randomly wired graph. However, as we mentioned
+    at the beginning of this exercise, a randomly wired neural network consists of
+    several staged randomly wired graphs. The rationale behind that is to have a different
+    (increasing) number of channels/features as we progress from the input neuron
+    to the output neuron in an image classification task. This would be impossible
+    with just one randomly wired graph because the number of channels is constant
+    through one such graph, by design. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this step, we define the ultimate randomly wired neural network. This will
+    have three randomly wired graphs cascaded next to each other. Each graph will
+    have double the number of channels compared to the previous graph to help us align
+    with the general practice of increasing the number of channels (while downsampling
+    spatially) in an image classification task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `__init__` method starts with a regular 3x3 convolutional layer, followed
+    by three staged randomly wired graphs with channels that double in terms of numbers.
+    This is followed by a fully connected layer that flattens the convolutional output
+    from the last neuron of the last randomly wired graph into a vector that's `1280`
+    in size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, another fully connected layer produces a 10-sized vector containing
+    the probabilities for the 10 classes, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `forward` method is quite self-explanatory, besides the global average pooling
+    that is applied right after the first fully connected layer. This helps reduce
+    dimensionality and the number of parameters in the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this stage, we have successfully defined the RandWireNN model, loaded the
+    datasets, and defined the model training routine. Now, we are all set to run the
+    model training loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the RandWireNN model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will set the model''s hyperparameters and train the RandWireNN
+    model. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have defined all the building blocks for our exercise. Now, it is time to
+    execute it. First, let''s declare the necessary hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Having declared the hyperparameters, we instantiate the RandWireNN model, along
+    with the optimizer and loss function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we begin training the model. We''re training the model for `5` epochs
+    here for demonstration purposes, but you are encouraged to train for longer to
+    see the boost in performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should result in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.7 – RandWireNN training logs](img/file44.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7 – RandWireNN training logs
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is evident from these logs that the model is progressively learning as the
+    epochs progress. The performance on the validation set seems to be consistently
+    increasing, which indicates model generalizability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With that, we have created a model with no particular architecture in mind that
+    can reasonably perform the task of image classification on the CIFAR-10 dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating and visualizing the RandWireNN model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Finally, we will look at this model''s test set performance before briefly
+    exploring the model architecture visually. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the model has been trained, we can evaluate it on the test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should result in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.8 – RandWireNN evaluation results](img/file45.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8 – RandWireNN evaluation results
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best performing model was found at the fourth epoch, with over 67% accuracy.
+    Although the model is not perfect yet, we can train it for more epochs to achieve
+    better performance. Also, a random model for this task would perform at an accuracy
+    of 10% (because of 10 equally likely classes), so an accuracy of 67.73% is still
+    promising, especially given the fact that we are using a randomly generated neural
+    network architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To conclude this exercise, let''s look at the model architecture that was learned.
+    The original image is too large to be displayed here. You can find the full image
+    at our github repository both in .svg format [5.4] and in .pdf format [5.5] .
+    In the following figure, we have vertically stacked three parts - the input section,
+    a mid section and the output section, of the original neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.9 – RandWireNN architecture](img/file46.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9 – RandWireNN architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From this graph, we can observe the following key points:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the top, we can see the beginning of this neural network, which consists
+    of a 64-channel 3x3 2D convolutional layer, followed by a 64-channel 1x1 pointwise
+    2D convolutional layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the middle section, we can see the transition between the third- and fourth-stage
+    random graphs, where we can see the sink neuron, `conv_layer_3`, of the stage
+    3 random graph followed by the source neuron `conv_layer_4`, of the stage 4 random
+    graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly, the lowermost section of the graph shows the final output layers – the
+    sink neuron (a 512-channel separable 2D convolutional layer) of the stage 4 random
+    graph, followed by a fully connected flattening layer, resulting in a 1,280-size
+    feature vector, followed by a fully connected softmax layer that produces the
+    10 class probabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence, we have built, trained, tested, and visualized a neural network model
+    for image classification without specifying any particular model architecture.
+    We did specify some overarching constraints over the structure, such as the penultimate
+    feature vector length (`1280`), the number of channels in the separable 2D convolutional
+    layers (`64`), the number of stages in the RandWireNN model (`4`), the definition
+    of each neuron (ReLU-Conv-BN triplet), and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, we didn't specify what the structure of this neural network architecture
+    should look like. We used a random graph generator to do this for us, which opens
+    up an almost infinite number of possibilities in terms of finding optimal neural
+    network architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neural architecture search is an ongoing and promising area of research in the
+    field of deep learning. Largely, this fits in well with the field of training
+    custom machine learning models for specific tasks, referred to as AutoML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**AutoML** stands for **automated machine learning** as it does away with the
+    necessity of having to manually load datasets, predefine a particular neural network
+    model architecture to solve a given task, and manually deploy models into production
+    systems. In *Chapter 16, PyTorch and AutoML*, we will discuss AutoML in detail
+    and learn how to build such systems with PyTorch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at two distinct hybrid types of neural networks.
+    First, we looked at the transformer model – the attention-only-based models with
+    no recurrent connections that have outperformed all recurrent models on multiple
+    sequential tasks. We ran through an exercise where we built, trained, and evaluated
+    a transformer model on a language modeling task with the WikiText-2 dataset using
+    PyTorch. In the second and final section of this chapter, we took up from where
+    we left off in *Chapter 3, Deep CNN Architectures*, where we discussed the idea
+    of optimizing for model architectures rather than optimizing for just the model
+    parameters while fixing the architecture. We explored one of the approaches to
+    do that – using randomly wired neural networks (RandWireNNs) – where we generated
+    random graphs, assigned meanings to the nodes and edges of these graphs, and interconnected
+    these graphs to form a neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will switch gears and move away from model architectures
+    and look at some interesting PyTorch applications. We will learn how to generate
+    music and text through generative deep learning models using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL

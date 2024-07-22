@@ -1,0 +1,731 @@
+- en: 2 Combining CNNs and LSTMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Join our book community on Discord
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/file0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Convolutional Neural Networks** (**CNNs**) are a type of deep learning model
+    known to solve machine learning problems related to images and video, such as
+    image classification, object detection, segmentation, and more. This is because
+    CNNs use a special type of layer called **convolutional layers**, which have shared
+    learnable parameters. The weight or parameter sharing works because the patterns
+    to be learned in an image (such as edges or contours) are assumed to be independent
+    of the location of the pixels in the image. Just as CNNs are applied to images,
+    **Long Short-Term Memory** (**LSTM**) networks – which are a type of **Recurrent
+    Neural Network** (**RNN**) – prove to be extremely effective at solving machine
+    learning problems related to **sequential data**. An example of sequential data
+    could be text. For example, in a sentence, each word is dependent on the previous
+    word(s). LSTM models are meant to model such sequential dependencies.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: These two different types of networks – CNNs and LSTMs – can be cascaded to
+    form a hybrid model that takes in images or video and outputs text. One well-known
+    application of such a hybrid model is image captioning, where the model takes
+    in an image and outputs a plausible textual description of the image. Since 2010,
+    machine learning has been used to perform the task of image captioning [2.1].
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, neural networks were first successfully used for this task in around
+    2014/2015 [2.2]. Ever since, image captioning has been actively researched. With
+    significant improvements each year, this deep learning application can become
+    useful for real-world applications such as auto-generating alt-text in websites
+    to make them more accessible for the visually impaired.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter first discusses the architecture of such a hybrid model, along
+    with the related implementational details in PyTorch, and at the end of the chapter,
+    we will build an image captioning system from scratch using PyTorch. This chapter
+    covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a neural network with CNNs and LSTMs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building an image caption generator using PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a neural network with CNNs and LSTMs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A CNN-LSTM network architecture consists of a convolutional layer(s) for extracting
+    features from the input data (image), followed by an LSTM layer(s) to perform
+    sequential predictions. This kind of model is both spatially and temporally deep.
+    The convolutional part of the model is often used as an **encoder** that takes
+    in an input image and outputs high-dimensional features or embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, the CNN used for these hybrid networks is often pre-trained on,
+    say, an image classification task. The last hidden layer of the pre-trained CNN
+    model is then used as an input to the LSTM component, which is used as a **decoder**
+    to generate text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we are dealing with textual data, we need to transform the words and other
+    symbols (punctuation, identifiers, and more) – together referred to as **tokens**
+    – into numbers. We do so by representing each token in the text with a unique
+    corresponding number. In the following sub-section, we will demonstrate an example
+    of text encoding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Text encoding demo
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s assume we''re building a machine learning model with textual data; say,
+    for example, that our text is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we would map each of these words/tokens to numbers, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we have the mapping, we can represent this sentence numerically as a list
+    of numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Also, for example, `<start> PyTorch is deep. <end>` would be encoded as `->
+    [0, 1, 2, 4, 7, 8]` and so on. This mapping, in general, is referred to as **vocabulary**,
+    and building a vocabulary is a crucial part of most text-related machine learning
+    problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The LSTM model, which acts as the decoder, takes in a CNN embedding as input
+    at `t=0`. Then, each LSTM cell makes a token prediction at each time-step, which
+    is fed as the input to the next LSTM cell. The overall architecture thus generated
+    can be visualized as shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.1 – Example CNN-LSTM architecture](img/file1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.1 – Example CNN-LSTM architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: The demonstrated architecture is suitable for the image captioning task. If
+    instead of just having a single image we had a sequence of images (say, in a video)
+    as the input to the CNN layer, then we would include the CNN embedding as the
+    LSTM cell input at each time-step, not just at `t=0`. This kind of architecture
+    would be useful for applications such as activity recognition or video description.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will implement an image captioning system in PyTorch
+    that includes building a hybrid model architecture as well as data loading, preprocessing,
+    model training, and model evaluation pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an image caption generator using PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For this exercise, we will be using the **Common Objects in Context** (**COCO**)
+    dataset [2.3] , which is a large-scale object detection, segmentation, and captioning
+    dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This dataset consists of over 200,000 labeled images with five captions for
+    each image. The COCO dataset emerged in 2014 and has helped significantly in the
+    advancement of object recognition-related computer vision tasks. It stands as
+    one of the most commonly used datasets for benchmarking tasks such as object detection,
+    object segmentation, instance segmentation, and image captioning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this exercise, we will use PyTorch to train a CNN-LSTM model on this dataset
+    and use the trained model to generate captions for unseen samples. Before we do
+    that, though, there are a few pre-requisites that we need to take care of .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We will be referring to only the important snippets of code for illustration
+    purposes. The full exercise code can be found in our github repository [2.4]
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Downloading the image captioning datasets
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Before we begin building the image captioning system, we need to download the
+    required datasets. If you do not have the datasets downloaded, then run the following
+    script with the help of Jupyter Notebook. This should help with downloading the
+    datasets locally.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We are using a slightly older version of the dataset as it is slightly smaller
+    in size, enabling us to get the results faster.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The training and validation datasets are 13 GB and 6 GB in size, respectively.
+    Downloading and extracting the dataset files, as well as cleaning and processing
+    them, might take a while. A good idea is to execute these steps as follows and
+    let them finish overnight:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You should see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.2 – Data download and extraction](img/file2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.2 – Data download and extraction
+  prefs: []
+  type: TYPE_NORMAL
+- en: This step basically creates a data folder (`./data_dir`), downloads the zipped
+    images and annotation files, and extracts them inside the data folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preprocessing caption (text) data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The downloaded image captioning datasets consist of both text (captions) and
+    images. In this section, we will preprocess the text data to make it usable for
+    our CNN-LSTM model. The exercise is laid out as a sequence of steps. The first
+    three steps are focused on processing the text data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this exercise, we will need to import a few dependencies. Some of the crucial
+    modules we will import for this chapter are as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`nltk` is the natural language toolkit, which will be helpful in building our
+    vocabulary, while `pycocotools` is a helper tool to work with the COCO dataset.
+    The various Torch modules we have imported here have already been discussed in
+    the previous chapter, except the last one – that is, `pack_padded_sequence`. This
+    function will be useful to transform sentences with variable lengths (number of
+    words) into fixed-length sentences by applying padding.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides importing the `nltk` library, we will also need to download its `punkt`
+    tokenizer model, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will enable us to tokenize given text into constituent words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we build the vocabulary – that is, a dictionary that can convert actual
+    textual tokens (such as words) into numeric tokens. This step is essential for
+    most text-related tasks: :'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, inside the vocabulary builder function, JSON text annotations are loaded,
+    and individual words in the annotation/caption are tokenized or converted into
+    numbers and stored in a counter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, tokens with fewer than a certain number of occurrences are discarded,
+    and the remaining tokens are added to a vocabulary object beside some wildcard
+    tokens – `start` (of the sentence), `end`, `unknown_word`, and padding tokens,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, using the vocabulary builder function, a vocabulary object vocab is
+    created and saved locally for further reuse, as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output for this is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.3 – Vocabulary creation](img/file3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.3 – Vocabulary creation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have built the vocabulary, we can deal with the textual data by transforming
+    it into numbers at runtime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preprocessing image data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: After downloading the data and building the vocabulary for the text captions,
+    we need to perform some preprocessing for the image data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because the images in the dataset can come in various sizes or shapes, we need
+    to reshape all the images to a fixed shape so that they can be inputted to the
+    first layer of our CNN model, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output for this will be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.4 – Image preprocessing (reshaping)](img/file4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.4 – Image preprocessing (reshaping)
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have reshaped all the images to 256 X 256 pixels, which makes them compatible
+    with our CNN model architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the image captioning data loader
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have already downloaded and preprocessed the image captioning data. Now
+    it is time to cast this data as a PyTorch dataset object. This dataset object
+    can subsequently be used to define a PyTorch data loader object, which we will
+    use in our training loop to fetch batches of data as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we will implement our own custom `Dataset` module and a custom data loader:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, in order to define our custom PyTorch `Dataset` object, we have defined
+    our own `__init__`, `__get_item__`, and `__len__` methods for instantiation, fetching
+    items, and returning the size of the dataset, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define `collate_function`, which returns mini batches of data in the
+    form of `X`, `y`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Usually, we would not need to write our own `collate` function, but we do so
+    to deal with variable-length sentences so that when the length of a sentence (say,
+    `k`) is less than the fixed length, `n`, then we need to pad the `n-k` tokens
+    with padding tokens using the `pack_padded_sequence` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we will implement the `get_loader` function, which returns a custom
+    data loader for the `COCO` dataset in the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: During the training loop, this function will be extremely useful and efficient
+    in fetching mini batches of data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This completes the work needed to set up the data pipeline for model training.
+    We will now work toward the actual model itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the CNN-LSTM model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have set up our data pipeline, we will define the model architecture
+    as per the description in *Figure 2.1*, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have defined two sub-models – that is, a CNN model and an RNN model. For
+    the CNN part, we use a pre-trained CNN model available under the PyTorch models
+    repository: the ResNet 152 architecture. While we will learn more about ResNet
+    in detail in the next chapter, this deep CNN model with 152 layers is pre-trained
+    on the ImageNet dataset [2.5] . The ImageNet dataset contains over 1.4 million
+    RGB images labeled over 1,000 classes. These 1,000 classes belong to categories
+    such as plants, animals, food, sports, and more.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We remove the last layer of this pre-trained ResNet model and replace it with
+    a fully- connected layer followed by a batch normalization layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: FAQ - Why are we able to replace the fully-connected layer?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The neural network can be seen as a sequence of weight matrices starting from
+    the weight matrix between the input layer and the first hidden layer straight
+    up to the weight matrix between the penultimate layer and the output layer. A
+    pre-trained model can then be seen as a sequence of nicely tuned weight matrices.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: By replacing the final layer, we are essentially replacing the final weight
+    matrix (K x 1000-dimensional, assuming K number of neurons in the penultimate
+    layer) with a new randomly initialized weight matrix (K x 256-dimensional, where
+    256 is the new output size).
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The batch normalization layer normalizes the fully connected layer outputs with
+    a mean of `0` and a standard deviation of `1` across the entire batch. This is
+    similar to the standard input data normalization that we perform using `torch.transforms`.
+    Performing batch normalization helps limit the extent to which the hidden layer
+    output values fluctuate. It also generally helps with faster learning. We can
+    use higher learning rates because of a more uniform (`0` mean, `1` standard deviation)
+    optimization hyperplane.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since this is the final layer of the CNN sub-model, batch normalization helps
+    insulate the LSTM sub-model against any data shifts that the CNN might introduce.
+    If we do not use batch-norm, then in the worst-case scenario, the CNN final layer
+    could output values with, say, mean > 0.5 and standard deviation = 1 during training.
+    But during inference, if for a certain image the CNN outputs values with mean
+    < 0.5 and standard deviation = 1, then the LSTM sub-model would struggle to operate
+    on this unforeseen data distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coming back to the fully connected layer, we introduce our own layer because
+    we do not need the 1,000 class probabilities of the ResNet model. Instead, we
+    want to use this model to generate an embedding vector for each image. This embedding
+    can be thought of as a one-dimensional, numerically encoded version of a given
+    input image. This embedding is then fed to the LSTM model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will explore LSTMs in detail in *Chapter 4*, *Deep Recurrent Model Architectures*.
+    But, as we have seen in *Figure 2.1*, the LSTM layer takes in the embedding vectors
+    as input and outputs a sequence of words that should ideally describe the image
+    from which the embedding was generated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The LSTM model consists of an LSTM layer followed by a fully connected linear
+    layer. The LSTM layer is a recurrent layer, which can be imagined as LSTM cells
+    unfolded along the time dimension, forming a temporal sequence of LSTM cells.
+    For our use case, these cells will output word prediction probabilities at each
+    time-step and the word with the highest probability is appended to the output
+    sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The LSTM cell at each time-step also generates an internal cell state, which
+    is passed on as input to the LSTM cell of the next time-step. The process continues
+    until an LSTM cell outputs an `<end>` token/word. The `<end>` token is appended
+    to the output sentence. The completed sentence is our predicted caption for the
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we also specify the maximum allowed sequence length as `20` under
+    the `max_seq_len` variable. This will essentially mean that any sentence shorter
+    than 20 words will have empty word tokens padded at the end and sentences longer
+    than 20 words will be curtailed to just the first 20 words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why do we do it and why 20? If we truly want our LSTM to handle sentences of
+    any length, we might want to set this variable to an extremely large value, say,
+    9,999 words. However, (a) not many image captions come with that many words, and
+    (b), more importantly, if there were ever such extra-long outlier sentences, the
+    LSTM would struggle with learning temporal patterns across such a huge number
+    of time-steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know that LSTMs are better than RNNs at dealing with longer sequences; however,
+    it is difficult to retain memory across such sequence lengths. We choose `20`
+    as a reasonable number given the usual image caption lengths and the maximum length
+    of captions we would like our model to generate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Both the LSTM layer and the linear layer objects in the previous code are derived
+    from `nn.module` and we define the `__init__` and `forward` methods to construct
+    the model and run a forward pass through the model, respectively. For the LSTM
+    model, we additionally implement a `sample` method, as shown in the following
+    code, which will be useful for generating captions for a given image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `sample` method makes use of greedy search to generate sentences; that is,
+    it chooses the sequence with the highest overall probability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This brings us to the end of the image captioning model definition step. We
+    are now all set to train this model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the CNN-LSTM model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we have already defined the model architecture in the previous section,
+    we will now train the CNN-LSTM model. Let''s examine the details of this step
+    one by one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we define the device. If there is a GPU available, use it for training;
+    otherwise, use the CPU:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although we have already reshaped all the images to a fixed shape, `(256,` `256)`,
+    that is not enough. We still need to normalize the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: FAQ - Why do we need to normalize the data?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Normalization is important because different data dimensions might have different
+    distributions, which might skew the overall optimization space and lead to inefficient
+    gradient descent (think of an ellipse versus a circle).
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'We will use PyTorch''s `transform` module to normalize the input image pixel
+    values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Furthermore, we augment the available dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: FAQ - Why do we need data augmentation?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Augmentation helps not only in generating larger volumes of training data but
+    also in making the model robust against potential variations in input data.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Using PyTorch''s `transform` module, we implement two data augmentation techniques
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: i) Random cropping, resulting in the reduction of the image size from `(256,`
+    `256)` to `(224,` `224)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ii) Horizontal flipping of the images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we load the vocabulary that we built in the *Preprocessing caption (text)
+    data* section. We also initialize the data loader using the `get_loader` function
+    defined in the *Defining the image captioning data loader* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we arrive at the main section of this step, where we instantiate the
+    CNN and LSTM models in the form of encoder and decoder models. Furthermore, we
+    also define the loss function – **cross entropy loss** – and the optimization
+    schedule – the **Adam optimizer** – as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: As discussed in *Chapter 1*, *Overview of Deep Learning Using PyTorch*, Adam
+    is possibly the best choice for an optimization schedule when dealing with sparse
+    data. Here, we are dealing with both images and text – perfect examples of sparse
+    data because not all pixels contain useful information and numericized/vectorized
+    text is a sparse matrix in itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we run the training loop (for five epochs) where we use the data loader
+    to fetch a mini batch of the COCO dataset, run a forward pass with the mini batch
+    through the encoder and decoder networks, and finally, tune the parameters of
+    the CNN-LSTM model using backpropagation (backpropagation through time, for the
+    LSTM network):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Every 1,000 iterations into the training loop, we save a model checkpoint.
+    For demonstration purposes, we have run the training for just two epochs, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output will be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.5 – Model training loop](img/file5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.5 – Model training loop
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating image captions using the trained model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have trained an image captioning model in the previous section. In this
+    section, we will use the trained model to generate captions for images previously
+    unseen by the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have stored a sample image, `sample.jpg`, to run inference on. We define
+    a function to load the image and reshape it to `(224, 224)` pixels. Then , we
+    define the transformation module to normalize the image pixels, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we load the vocabulary and instantiate the encoder and decoder models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we have the model scaffold ready, we will use the latest saved checkpoint
+    from the two epochs of training to set the model parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: After this point, the model is ready to use for inference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we load the image and run model-inference – that is, first we use the
+    encoder model to generate an embedding from the image, and then we feed the embedding
+    to the decoder network to generate sequences, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At this stage, the caption predictions are still in the form of numeric tokens.
+    We need to convert the numeric tokens into actual text using the vocabulary in
+    reverse:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we have transformed our output into text, we can visualize both the image
+    as well as the generated caption:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output will be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.6 – Model inference on a sample image](img/file6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.6 – Model inference on a sample image
+  prefs: []
+  type: TYPE_NORMAL
+- en: It seems that although the model is not absolutely perfect, within two epochs,
+    it is already trained well enough to generate sensible captions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This chapter discussed the concept of combining a CNN model and an LSTM model
+    in an encoder-decoder framework, jointly training them, and using the combined
+    model to generate captions for an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have used CNNs both in this and the previous chapter's exercises.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will take a deeper look at the gamut of different CNN
+    architectures developed over the years, how each of them is uniquely useful, and
+    how they can be easily implemented using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL

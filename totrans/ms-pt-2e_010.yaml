@@ -1,0 +1,641 @@
+- en: 16 PyTorch and AutoML
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Join our book community on Discord
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[https://packt.link/EarlyAccessCommunity](https://packt.link/EarlyAccessCommunity)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/file133.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Automated machine learning** (**AutoML**) provides methods to find the optimal
+    neural architecture and the best hyperparameter settings for a given neural network.
+    We have already covered neural architecture search in detail while discussing
+    the `RandWireNN` model in *Chapter 5*, *Hybrid Advanced Models*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will look more broadly at the AutoML tool for PyTorch—**Auto-PyTorch**—which
+    performs both neural architecture search and hyperparameter search. We will also
+    look at another AutoML tool called **Optuna** that performs hyperparameter search
+    for a PyTorch model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of this chapter, non-experts will be able to design machine learning
+    models with little domain experience, and experts will drastically speed up their
+    model selection process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter is broken down into the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finding the best neural architectures with AutoML
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Optuna for hyperparameter search
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finding the best neural architectures with AutoML
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One way to think of machine learning algorithms is that they automate the process
+    of learning relationships between given inputs and outputs. In traditional software
+    engineering, we would have to explicitly write/code these relationships in the
+    form of functions that take in input and return output. In the machine learning
+    world, machine learning models find such functions for us. Although we automate
+    to a certain extent, there is still a lot to be done. Besides mining and cleaning
+    data, here are a few routine tasks to be performed in order to get those functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing a machine learning model (or a model family and then a model)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deciding the model architecture (especially in the case of deep learning)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Choosing hyperparameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adjusting hyperparameters based on validation set performance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Trying different models (or model families)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These are the kinds of tasks that justify the requirement of a human machine
+    learning expert. Most of these steps are manual and either take a lot of time
+    or need a lot of expertise to discount the required time, and we have far fewer
+    machine learning experts than needed to create and deploy machine learning models
+    that are increasingly popular, valuable, and useful across both industries and
+    academia.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where AutoML comes to the rescue. AutoML has become a discipline within
+    the field of machine learning that aims to automate the previously listed steps
+    and beyond.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will take a look at Auto-PyTorch—an AutoML tool created
+    to work with PyTorch. In the form of an exercise, we will find an optimal neural
+    network along with the hyperparameters to perform handwritten digit classification—a
+    task that we worked on in *Chapter 1*, *Overview of Deep Learning Using PyTorch*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The difference from the first chapter will be that this time, we do not decide
+    the architecture or the hyperparameters, and instead let Auto-PyTorch figure that
+    out for us. We will first load the dataset, then define an Auto-PyTorch model
+    search instance, and finally run the model searching routine, which will provide
+    us with a best-performing model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Tool citation**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Auto-PyTorch [16.1] *Auto-PyTorch Tabular: Multi-Fidelity MetaLearning for
+    Efficient and Robust AutoDL*, *Lucas Zimmer*, *Marius Lindauer*, and *Frank Hutter
+    [16.2]*'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Using Auto-PyTorch for optimal MNIST model search
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will execute the model search in the form of a Jupyter Notebook. In the text,
+    we only show the important parts of the code. The full code can be found in our
+    github repository [16.3]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the MNIST dataset
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We will now discuss the code for loading the dataset step by step, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we import the relevant libraries, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The last line is crucial, as we import the relevant Auto-PyTorch module here.
+    This will help us set up and execute a model search session.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we load the training and test datasets using Torch **application programming
+    interfaces** (**APIs**), as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then convert these dataset tensors into training and testing input (`X`)
+    and output (`y`) arrays, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we are reshaping the images into flattened vectors of size 784\. In
+    the next section, we will be defining an Auto-PyTorch model searcher that expects
+    a flattened feature vector as input, and hence we do the reshaping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Auto-PyTorch currently (at the time of writing) only provides support for featurized
+    and image data in the form of `AutoNetClassification` and `AutoNetImageClassification`
+    respectively. While we are using featurized data in this exercise, we leave it
+    as an exercise for the reader to use image data instead[16.4] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a neural architecture search with Auto-PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Having loaded the dataset in the preceding section, we will now use Auto-PyTorch
+    to define a model search instance and use it to perform the tasks of neural architecture
+    search and hyperparameter search. We''ll proceed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is the most important step of the exercise, where we define an `autoPyTorch`
+    model search instance, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The configs here are derived from the examples provided in the Auto-PyTorch
+    repository [16.5] . But generally, `tiny_cs` is used for faster searches with
+    fewer hardware requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The budget argument is all about setting constraints on resource consumption
+    by the Auto-PyTorch process. As a default, the unit of a budget is time—that is,
+    how much **central processing unit**/**graphics processing unit** (**CPU**/**GPU**)
+    time we are comfortable spending on the model search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After instantiating an Auto-PyTorch model search instance, we execute the search
+    by trying to fit the instance on the training dataset, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Internally, Auto-PyTorch will run several `trials` of different model architectures
+    and hyperparameter settings based on methods mentioned in the original paper [16.2]
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The different `trials` will be benchmarked against the 10% validation dataset,
+    and the best-performing `trial` will be returned as output. The command in the
+    preceding code snippet should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .1 – Auto-PyTorch model accuracy](img/file134.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .1 – Auto-PyTorch model accuracy
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 16* *.1* basically shows the hyperparameter setting that Auto-PyTorch
+    finds optimal for the given task—for example, the learning rate is `0.068`, momentum
+    is `0.934`, and so on. The preceding screenshot also shows the training and validation
+    set accuracy for the chosen optimal model configuration.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having converged to an optimal trained model, we can now make predictions on
+    our test set using that model, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It should output something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .2 – Auto-PyTorch model accuracy](img/file135.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .2 – Auto-PyTorch model accuracy
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, we have obtained a model with a decent test-set performance of
+    96.4%. For context, a random choice on this task would lead to a performance rate
+    of 10%. We have obtained this good performance without defining either the model
+    architecture or the hyperparameters. Upon setting a higher budget, a more extensive
+    search could lead to an even better performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, the performance will vary based on the hardware (machine) on which the
+    search is being performed. Hardware with more compute power and memory can run
+    more searches in the same time budget, and hence can lead to a better performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing the optimal AutoML model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In this section, we will look at the best-performing model that we have obtained
+    by running the model search routine in the previous section. We''ll proceed as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having already looked at the hyperparameters in the preceding section, let''s
+    look at the optimal model architecture that Auto-PyTorch has devised for us, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It should output something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .3 – Auto-PyTorch model architecture](img/file136.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .3 – Auto-PyTorch model architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model consists of some structured residual blocks containing fully connected
+    layers, batch normalization layers, and ReLU activations. At the end, we see a
+    final fully connected layer with 10 outputs—one for each digit from 0 to 9.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also visualize the actual model graph using `torchviz`, as shown in
+    the next code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should save a `convnet_arch.pdf` file in the current working directory,
+    which should look like this upon opening:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .4 – Auto-PyTorch model diagram](img/file137.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .4 – Auto-PyTorch model diagram
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To peek into how the model converged to this solution, we can look at the search
+    space that was used during the model-finding process with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .5 – Auto-PyTorch model search space](img/file138.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .5 – Auto-PyTorch model search space
+  prefs: []
+  type: TYPE_NORMAL
+- en: It essentially lists the various ingredients required to build the model, with
+    an allocated range per ingredient. For instance, the learning rate is allocated
+    a range of **0.0001** to **0.1** and this space is sampled in a log scale—this
+    is not linear but logarithmic sampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Figure 16* *.1*, we have already seen the exact hyperparameter values that
+    Auto-PyTorch samples from these ranges as optimal values for the given task. We
+    can also alter these hyperparameter ranges manually, or even add more hyperparameters,
+    using the `HyperparameterSearchSpaceUpdates` sub-module under the Auto-PyTorch
+    module [16.6] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our exploration of Auto-PyTorch—an AutoML tool for PyTorch. We
+    successfully built an MNIST digit classification model using Auto-PyTorch, without
+    specifying either the model architecture or the hyperparameters. This exercise
+    will help you to get started with using this and other AutoML tools to build PyTorch
+    models in an automated fashion. Some other similar tools are listed here - Hyperopt
+    [16.7], Tune [16.8], Hypersearch [16.9], Skorcj [16.10], BoTorch [16.11] and Optuna
+    [16.12]
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we cannot cover all of these tools in this chapter, in the next section
+    we will discuss Optuna, which is a tool focused exclusively on finding an optimal
+    set of hyperparameters and one that works well with PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Optuna for hyperparameter search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Optuna is one of the hyperparameter search tools that supports PyTorch. You
+    can read in detail about the search strategies used by the tool, such as **TPE**
+    (**Tree-Structured Parzen Estimation**) and **CMA-ES** (**Covariance Matrix Adaptation
+    Evolution Strategy**) in the *Optuna* paper [16.13] . Besides the advanced hyperparameter
+    search methodologies, the tool provides a sleek API, which we will explore in
+    a moment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Tool citation**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Optuna: A Next-Generation Hyperparameter Optimization Framework.*'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Takuya Akiba*, *Shotaro Sano*, *Toshihiko Yanase*, *Takeru Ohta*, and *Masanori
+    Koyama* (2019, in KDD).'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this section, we will once again build and train the `MNIST` model, this
+    time using Optuna to figure out the optimal hyperparameter setting. We will discuss
+    important parts of the code step by step, in the form of an exercise. The full
+    code can be found in our github [16.14].
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the model architecture and loading dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, we will define an Optuna-compliant model object. By Optuna-compliant,
+    we mean adding APIs within the model definition code that are provided by Optuna
+    to enable the parameterization of the model hyperparameters. To do this, we''ll
+    proceed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we import the necessary libraries, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `optuna` library will manage the hyperparameter search for us throughout
+    the exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define the model architecture. Because we want to be flexible with
+    some of the hyperparameters—such as the number of layers and the number of units
+    in each layer—we need to include some logic in the model definition code. So,
+    first, we have declared that we need anywhere in between `1` to `4` convolutional
+    layers and `1` to `2` fully connected layers thereafter, as illustrated in the
+    following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: We then successively append the convolutional layers, one by one. Each convolutional
+    layer is instantly followed by a `ReLU` activation layer, and for each convolutional
+    layer, we declare the depth of that layer to be between `16` and `64`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The stride and padding are fixed to `3` and `True` respectively, and the whole
+    convolutional block is then followed by a `MaxPool` layer, then a `Dropout` layer,
+    with dropout probability ranging anywhere between `0.1` to `0.4` (another hyperparameter),
+    as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we add a flattening layer so that fully connected layers can follow. We
+    have to define a `_get_flatten_shape` function to derive the shape of the flattening
+    layer output. We then successively add fully connected layers, where the number
+    of units is declared to be between `16` and `64`. A `Dropout` layer follows each
+    fully connected layer, again with the probability range of `0.1` to `0.4`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Finally, we append a fixed fully connected layer that outputs `10` numbers
+    (one for each class/digit), followed by a `LogSoftmax` layer. Having defined all
+    the layers, we then instantiate our model object, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This model initialization function is conditioned on the `trial` object, which
+    is facilitated by Optuna and which will decide the hyperparameter setting for
+    our model. Finally, the `forward` method is quite straightforward, as can be seen
+    in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Thus, we have defined our model object and we can now move on to loading the
+    dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code for dataset loading is the same as in *Chapter 1,* *Overview of Deep
+    Learning Using PyTorch* and is shown again in the following snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this section, we have successfully defined our parameterized model object
+    as well as loaded the dataset. We will now define the model training and testing
+    routines, along with the optimization schedule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the model training routine and optimization schedule
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Model training itself involves hyperparameters such as optimizer, learning
+    rate, and so on. In this part of the exercise, we will define the model training
+    procedure while utilizing Optuna''s parameterization capabilities. We''ll proceed
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we define the training routine. Once again, the code is the same as
+    the training routine code we had for this model in the exercise found in *Chapter
+    1*, *Overview of Deep Learning Using PyTorch*, and is shown again here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model testing routine needs to be slightly augmented. To operate as per
+    Optuna API requirements, the test routine needs to return a model performance
+    metric—accuracy, in this case—so that Optuna can compare different hyperparameter
+    settings based on this metric, as illustrated in the following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Previously, we would instantiate the model and the optimization function with
+    the learning rate, and start the training loop outside of any function. But to
+    follow the Optuna API requirements, we do all that under an `objective` function,
+    which takes in the same `trial` object that was fed as an argument to the `__init__`
+    method of our model object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The `trial` object is needed here too because there are hyperparameters associated
+    with deciding the learning rate value and choosing an optimizer, as illustrated
+    in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: For each epoch, we record the accuracy returned by the model testing routine.
+    Additionally, at each epoch, we check if we will prune—that is, if we will skip—the
+    current epoch. This is another feature offered by Optuna to speed up the hyperparameter
+    search process so that we don't waste time on poor hyperparameter settings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running Optuna's hyperparameter search
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In this final part of the exercise, we will instantiate what is called an **Optuna
+    study** and, using the model definition and the training routine, we will execute
+    Optuna''s hyperparameter search process for the given model and the given dataset.
+    We''ll proceed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having prepared all the necessary components in the preceding sections, we
+    are ready to start the hyperparameter search process—something that is called
+    a `study` in Optuna terminology. A `trial` is one hyperparameter-search iteration
+    in a `study`. The code can be seen in the following snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `direction` argument helps Optuna compare different hyperparameter settings.
+    Because our metric is accuracy, we will need to `maximize` the metric. We allow
+    a maximum of `2000` seconds for the `study` or a maximum of `10` different searches—whichever
+    finishes first. The preceding command should output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .6 – Optuna logs](img/file139.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .6 – Optuna logs
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, the third `trial` is the most optimal trial, producing a test
+    set accuracy of 98.77%, and the last three `trials` are pruned. In the logs, we
+    also see the hyperparameters for each non-pruned `trial`. For the most optimal
+    `trial`, for example, there are three convolutional layers with 27, 28, and 46
+    feature maps respectively, and then there are two fully connected layers with
+    57 and 54 units/neurons respectively, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each `trial` is given a completed or a pruned status. We can demarcate those
+    with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And finally, we can specifically look at all the hyperparameters of the most
+    successful `trial` with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You will see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16 .7 – Optuna optimal hyperparameters](img/file140.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16 .7 – Optuna optimal hyperparameters
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, the output shows us the total number of `trials` and the number
+    of successful `trials` performed. It further shows us the model hyperparameters
+    for the most successful `trial`, such as the number of layers, the number of neurons
+    in layers, learning rate, optimization schedule, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This brings us to the end of the exercise. We have managed to use Optuna to
+    define a range of hyperparameter values for different kinds of hyperparameters
+    for a handwritten digit classification model. Using Optuna's hyperparameter search
+    algorithm, we ran 10 different `trials` and managed to obtain the highest accuracy
+    of 98.77% in one of those `trials`. The model (architecture and hyperparameters)
+    from the most successful `trial` can be used for training with larger datasets,
+    thereby serving in a production system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the lessons from this section, you can use Optuna to find the optimal
+    hyperparameters for any neural network model written in PyTorch. Optuna can also
+    be used in a distributed fashion if the model is extremely large and/or there
+    are way too many hyperparameters to tune [16.15] .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly, Optuna supports not only PyTorch but other popular machine learning
+    libraries too, such as `TensorFlow`, `Sklearn`, `MXNet`, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we discussed AutoML, which aims to provide methods for model
+    selection and hyperparameter optimization. AutoML is useful for beginners who
+    have little expertise on making decisions such as how many layers to put in a
+    model, which optimizer to use, and so on. AutoML is also useful for experts to
+    both speed up the model training process and discover superior model architectures
+    for a given task that would be nearly impossible to figure manually.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will study another increasingly important and crucial
+    aspect of machine learning, especially deep learning. We will closely look at
+    how to interpret output produced by PyTorch models—a field popularly known as
+    model interpretability or explainability.
+  prefs: []
+  type: TYPE_NORMAL
