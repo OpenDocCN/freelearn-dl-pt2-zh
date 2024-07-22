@@ -1,184 +1,260 @@
 - en: '11'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '11'
 - en: Training with Multiple Machines
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用多台机器进行训练
 - en: We’ve finally arrived at the last mile of our performance improvement journey.
     In this last stage, we will broaden our horizons and learn how to distribute the
     training process across multiple machines or servers. So, instead of using four
     or eight devices, we can use dozens or hundreds of computing resources to train
     our models.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们终于到达了性能提升之旅的最后一英里。在这最后阶段，我们将开阔视野，学习如何在多台机器或服务器间分布训练过程。所以，我们可以利用几十甚至上百个计算资源来训练我们的模型，而不仅仅是四台或八台设备。
 - en: An environment comprised of multiple connected servers is usually called a computing
     cluster or simply a cluster. Such environments are shared among multiple users
     and have technical particularities such as a high bandwidth and low latency network.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个由多个连接的服务器组成的环境通常被称为计算集群或简称为集群。这些环境被多个用户共享，并具有高带宽和低延迟网络等技术特性。
 - en: In this chapter, we’ll describe the characteristics of computing clusters that
     are more relevant to the distributed training process. After that, we will learn
     how to distribute the training process among multiple machines using Open MPI
     as the launcher and NCCL as the communication backend.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将描述与分布式训练过程更相关的计算集群特性。接下来，我们将学习如何使用Open MPI作为启动器，以及NCCL作为通信后端，将训练过程分布到多台机器上。
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是本章将学到的内容：
 - en: The most relevant aspects of computing clusters
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 计算集群最相关的方面
 - en: How to distribute the training process among multiple servers
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何在多个服务器间分布训练过程
 - en: How to use Open MPI as a launcher and NCCL as the communication backend
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何使用Open MPI作为启动器和NCCL作为通信后端
 - en: Technical requirements
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can find the complete code of examples mentioned in this chapter in the
     book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在书的GitHub存储库中找到本章提到的示例的完整代码，网址为[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main)。
 - en: You can access your favorite environments to execute this notebook, such as
     Google Colab or Kaggle.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以访问您喜爱的环境来执行此笔记本，例如Google Colab或Kaggle。
 - en: What is a computing cluster?
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 什么是计算集群？
 - en: 'A computing cluster is a system of powerful servers interconnected by a high-performance
     network, as shown in *Figure 11**.1*. This environment can be provisioned on-premises
     or in the cloud:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算集群是由高性能网络互连的强大服务器系统组成的环境，如*图11**.1*所示。此环境可以在本地部署或云中进行配置：
 - en: '![Figure 11.1 – A computing cluster](img/B20959_11_1.jpg)'
+  id: totrans-14
   prefs: []
   type: TYPE_IMG
+  zh: '![图11.1 – 一个计算集群](img/B20959_11_1.jpg)'
 - en: Figure 11.1 – A computing cluster
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.1 – 一个计算集群
 - en: The computing power provided by these machines is combined to solve complex
     problems or to execute highly intensive computing tasks. A computing cluster is
     also known as a **high-performance computing** (**HPC**) system.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些机器提供的计算能力结合起来，用于解决复杂问题或执行高强度计算任务。计算集群也被称为**高性能计算**（**HPC**）系统。
 - en: Each server has powerful computing resources such as multiple CPUs and GPUs,
     fast memory devices, ultra-fast disks, and special network adapters. Moreover,
     a computing cluster often has a parallel filesystem, which provides high transfer
     I/O rates.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 每台服务器都拥有强大的计算资源，例如多个CPU和GPU、快速内存设备、超快速磁盘和特殊的网络适配器。此外，计算集群通常还配备并行文件系统，提供高传输I/O速率。
 - en: Although not formally defined, we conventionally use the term “cluster” to reference
     environments comprised of four machines at least. Some computing clusters have
     a half-dozen machines, while others have more than two or three hundred servers.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然未正式定义，但我们通常使用术语“集群”来指代由至少四台机器组成的环境。一些计算集群有六台机器，而其他的则拥有超过两三百台服务器。
 - en: Each task submitted to the cluster is called a **job**. When submitting a job,
     the user asks for a given number and type of resource and indicates which program
     should be executed in the environment. Therefore, any computing task running in
     the cluster is considered a job.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 提交到集群的每个任务称为**作业**。当提交作业时，用户请求一定数量和类型的资源，并指示在环境中执行哪个程序。因此，运行在集群中的任何计算任务都被视为作业。
 - en: Jobs and operating system processes have many things in common. Like a process,
     a job is also identified by a unique number in the system, has a life cycle comprised
     of a finite set of states, and belongs to a system user.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 作业和操作系统进程有许多共同之处。作业像进程一样，在系统中由唯一编号标识，具有有限状态生命周期，并属于系统用户。
 - en: As pictorially described in *Figure 11**.2*, the bigger part of the servers
     is used as **computing nodes** – in other words, machines are used exclusively
     to run jobs. A couple of machines, called **management nodes**, are used to perform
     administrative tasks, such as monitoring and installation, or to provide auxiliary
     and complimentary services, such as a user access entering point, commonly called
     a **login node**.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*图 11**.2*形象地描述的那样，大部分服务器被用作**计算节点** – 换句话说，这些机器专门用于运行作业。一些机器，称为**管理节点**，用于执行监控和安装等管理任务，或提供辅助和补充服务，例如用户访问入口，通常称为**登录节点**。
 - en: '![Figure 11.2 – Management and computing nodes](img/B20959_11_2.jpg)'
+  id: totrans-22
   prefs: []
   type: TYPE_IMG
+  zh: '![图 11.2 – 管理和计算节点](img/B20959_11_2.jpg)'
 - en: Figure 11.2 – Management and computing nodes
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.2 – 管理和计算节点
 - en: Another vital service hosted on management nodes is the cluster management system
     or **workload manager**. As the cluster is shared among multiple users, it is
     mandatory to have a workload manager to guarantee the fair and efficient usage
     of resources. Let’s learn about it in the next section.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 托管在管理节点上的另一个重要服务是集群管理系统或**工作负载管理器**。由于集群被多个用户共享，有一个工作负载管理器是必不可少的，以确保资源的公平高效使用。让我们在下一节学习它。
 - en: Workload manager
+  id: totrans-25
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 工作负载管理器
 - en: 'A workload manager is responsible for keeping the cluster environment running
     smoothly by providing fair and efficient usage of the resources. As illustrated
     in *Figure 11**.3*, the workload manager is placed between users and resources
     to receive requests from the users, process these requests, and grant or deny
     access to the required resources:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 工作负载管理器负责通过提供资源的公平高效使用来保持集群环境的顺畅运行。如*图 11**.3*所示，工作负载管理器位于用户和资源之间，接收来自用户的请求，处理这些请求，并授予或拒绝访问所需的资源：
 - en: '![Figure 11.3 – Workload manager](img/B20959_11_3.jpg)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![图 11.3 – 工作负载管理器](img/B20959_11_3.jpg)'
 - en: Figure 11.3 – Workload manager
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.3 – 工作负载管理器
 - en: 'Among the tasks this system executes, two of them stand out from the others:
     resource management and job scheduling. The following sections briefly describe
     each of them.'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在该系统执行的任务中，有两个任务脱颖而出：资源管理和作业调度。以下各节简要描述了它们。
 - en: Resource management
+  id: totrans-30
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 资源管理
 - en: Roughly speaking, a cluster can be seen as a pool of shared resources where
     these resources are consumed by a set of users. The main goal of **resource management**
     concerns guaranteeing the fair usage of these resources.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 大致来说，集群可以看作是一组共享资源的池子，这些资源被一组用户消耗。**资源管理**的主要目标是确保这些资源的公平使用。
 - en: By fair usage, we mean avoiding imbalance situations such as a greedy user consuming
     all the available resources, preventing less frequent users from getting access
     to the environment.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 公平使用意味着避免不平衡的情况，例如贪婪用户消耗所有可用资源，防止不频繁的用户无法访问环境。
 - en: Resource management relies on a **resource allocation policy** to decide when
     and how to attend to users’ requests. This policy can be used to define priority
     levels, maximum usage time, maximum number of running jobs, type of resources,
     and many other conditions.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 资源管理依赖于**资源分配策略**来决定何时以及如何处理用户的请求。此策略可用于定义优先级别、最大使用时间、最大运行作业数、资源类型以及许多其他条件。
 - en: From these policies, cluster administrators can assign distinct strategies to
     the users by following a criterion defined by the organization or department responsible
     for the cluster.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 基于这些策略，集群管理员可以根据由负责集群的组织或部门定义的标准，为用户分配不同的策略。
 - en: 'For example, a cluster administrator could define two resource allocation policies
     to limit issues such as the maximum number of running jobs, types of resources,
     and the maximum allowed time to run a job. As illustrated in *Figure 11**.4*,
     the more restrictive policy, named **A**, could be applied to the group of users
     **X**, while the more permissive policy, named **B**, could be assigned to users
     **Y**:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，集群管理员可以定义两种资源分配策略，以限制问题，如最大运行作业数、资源类型以及运行作业的最大允许时间。如*图 11**.4*所示，更严格的策略，命名为**A**，可以应用于用户组**X**，而更宽松的策略，命名为**B**，可以分配给用户**Y**：
 - en: '![Figure 11.4 – Example of resource allocation policies](img/B20959_11_4.jpg)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
 - en: Figure 11.4 – Example of resource allocation policies
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
 - en: By doing this, the cluster administrator can determine distinct usage profiles
     for the cluster.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
 - en: Jobs scheduling
+  id: totrans-39
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -186,6 +262,7 @@
     reach this goal, the workload manager must perform an optimal (or suboptimal)
     allocation of jobs on the computing nodes. This process is called **job scheduling**
     and is defined as the task of deciding where to put the new job to run.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
 - en: As illustrated in *Figure 11**.5*, the workload manager must select the computing
@@ -194,12 +271,15 @@
     type of available resources in all computing nodes. By doing this, the job scheduling
     gets a list of potential nodes suitable to execute the job – in other words, nodes
     with enough resources to satisfy the job requirements.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 11.5 – Job scheduling](img/B20959_11_5.jpg)'
+  id: totrans-42
   prefs: []
   type: TYPE_IMG
 - en: Figure 11.5 – Job scheduling
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
 - en: From the list of potential nodes, the job scheduling needs to decide which one
@@ -207,31 +287,38 @@
     strategy that may prioritize fulfilling all nodes before using another one or
     spreading jobs to the computing nodes as much as possible to avoid interference
     caused by access contention to shared resources.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
 - en: These sections have provided a general explanation of how a workload manager
     works. In practice, a real workload manager has particularities and ways to implement
     the resource management and job scheduling processes.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
 - en: There are a couple of workload managers out there. Some are proprietary and
     vendor-specific, whereas others are free and open source, such as SLURM, the most
     widely used workload manager nowadays. Let’s meet this system in the next section.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
 - en: Meeting the SLURM Workload Manager
+  id: totrans-47
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: SLURM’s website describes it as an “*open source, fault-tolerant, and highly
     scalable cluster management and job scheduling system for large and small Linux
     clusters*” – it is right.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
 - en: 'You can find more information about SLURM at this link: [https://slurm.schedmd.com/](https://slurm.schedmd.com/)'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
 - en: SLURM is powerful, robust, flexible, and simple to use and administrate. In
@@ -239,17 +326,21 @@
     special capabilities such as **QOS** (**quality of service**), accounting, database
     storage, and an **API** (**application programming interface**) that allows you
     to get information about the environment.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
 - en: 'This workload manager uses the concept of **partition** to group computing
     nodes and to define resource allocation policies on the available resources, as
     shown in *Figure 11**.6*:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 11.6 – Example of SLURM partitions](img/B20959_11_6.jpg)'
+  id: totrans-53
   prefs: []
   type: TYPE_IMG
 - en: Figure 11.6 – Example of SLURM partitions
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
 - en: In the example depicted in *Figure 11**.6*, we have three partitions, each with
@@ -258,97 +349,139 @@
     while the `long_jobs_cpu` partition has a maximum execution time of eight hours.
     Moreover, only the `long_jobs_gpu` partition has computing nodes that can run
     GPU jobs.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 在图 *11**.6* 中所示的示例中，我们有三个分区，每个分区有八个计算节点，但具有不同的资源分配策略。例如，`short_jobs_cpu` 分区允许您运行最长四小时的作业，而
+    `long_jobs_cpu` 分区的最长执行时间为八小时。此外，只有 `long_jobs_gpu` 分区拥有可以运行 GPU 作业的计算节点。
 - en: Note
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: SLURM uses the term **partition** to denote what other workload managers call
     a **queue**. Nevertheless, a partition works essentially as a queue, receiving
     job requests and organizing their execution concerning resource allocation and
     job scheduling policies.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: SLURM 使用术语 **partition** 来表示其他工作负载管理器称为 **queue** 的内容。尽管如此，分区在本质上像一个队列，接收作业请求并根据资源分配和作业调度策略组织其执行。
 - en: Therefore, the partition is a central aspect of the SLURM architecture. With
     partitions, cluster administrators can employ distinct resource allocation policies,
     besides separating nodes to run specific applications or leaving them separated
     to be used exclusively by a department or group of users.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，分区是 SLURM 架构的一个核心方面。有了分区，集群管理员可以使用不同的资源分配策略，并且可以将节点分开以运行特定应用程序或留待某个部门或用户组专属使用。
 - en: When users submit jobs, they must indicate the partition where the job will
     run. Otherwise, SLURM will submit the job to the default partition, which is defined
     by the cluster administrator.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 当用户提交作业时，他们必须指定作业将运行的分区。否则，SLURM 将作业提交到由集群管理员定义的默认分区。
 - en: When using a computing cluster, we can come across other workload managers such
     as OpenPBS, Torque, LSF, and HT Condor. However, due to its increased adoption
     in the HPC industry, it is more feasible to encounter SLURM as a workload manager
     on clusters you will have access to. So, we encourage you to invest some time
     to deepen your knowledge of SLURM.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用计算集群时，我们可能会遇到其他工作负载管理器，如 OpenPBS、Torque、LSF 和 HT Condor。然而，由于在高性能计算行业中的广泛采用，更有可能在您访问的集群上遇到
+    SLURM 作为工作负载管理器。因此，我们建议您投入一些时间来深入了解 SLURM。
 - en: 'Besides workload management, computing clusters have another component particularly
     important to these environments: the high-performance network. The next section
     provides a very brief explanation of this component.'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了工作负载管理外，计算集群还有另一个在这些环境中尤为重要的组件：高性能网络。下一节简要解释了这个组件。
 - en: Understanding the high-performance network
+  id: totrans-62
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 理解高性能网络
 - en: An essential difference between running distributed training on a single machine
     and using a computing cluster is the network used to interconnect the servers.
     The network imposes an additional bottleneck to the communication among the processes
     participating in distributed training. Fortunately, computing clusters usually
     have a high-performance network to connect all the servers in the environment.
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 在单台机器上运行分布式训练与使用计算集群之间的一个重要区别是用于连接服务器的网络。网络对参与分布式训练的进程间通信施加了额外的瓶颈。幸运的是，计算集群通常配备高性能网络，以连接环境中的所有服务器。
 - en: This high-performance network differs from the regular ones because of its high
     bandwidth and very low latency. For example, the maximum theoretical bandwidth
     of Ethernet 10 Gbps is around 1.25 GB/s, whereas **NVIDIA InfiniBand** 100 Gbps
     EDR, which is one of the most adopted high-performance networks, provides a bandwidth
     near to 12.08 GB/s. In other words, a high-performance network can deliver 10
     times more bandwidth than a regular network.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种高性能网络与普通网络的区别在于其高带宽和非常低的延迟。例如，以太网 10 Gbps 的最大理论带宽约为 1.25 GB/s，而 **NVIDIA InfiniBand**
+    100 Gbps EDR，作为最广泛采用的高性能网络之一，提供的带宽接近 12.08 GB/s。换句话说，高性能网络可以提供比普通网络高出 10 倍的带宽。
 - en: Note
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can find more information about NVIDIA InfiniBand at this link: [https://www.nvidia.com/en-us/networking/products/infiniband/](https://www.nvidia.com/en-us/networking/products/infiniband/)'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在这个链接找到关于 NVIDIA InfiniBand 的更多信息：[https://www.nvidia.com/en-us/networking/products/infiniband/](https://www.nvidia.com/en-us/networking/products/infiniband/)
 - en: Although the high bandwidth provided by InfiniBand is stunning, what makes a
     high-performance network so special is its very low latency. Compared with Ethernet
     10 Gbps, the latency of InfiniBand 100 Gbps EDR can be almost four times lower.
     A low latency is crucial for the execution of distributed applications. As these
     applications exchange many messages during the computation, a single delay in
     the messages can throttle the entire application.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管InfiniBand提供的高带宽令人惊叹，但高性能网络之所以如此特别，是因为其非常低的延迟。与以太网10 Gbps相比，InfiniBand 100
+    Gbps EDR的延迟几乎可以降低四倍。低延迟对于执行分布式应用程序至关重要。由于这些应用程序在计算过程中交换大量消息，消息中的任何延迟都可能使整个应用程序陷入停滞。
 - en: Besides the high bandwidth and low latency, high-performance networks (including
     InfiniBand) possess another special functionality named **remote direct memory
     access** or **RDMA**. Let’s learn about it in the next section.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了具有高带宽和低延迟之外，高性能网络（包括InfiniBand）还具备另一种特殊功能，称为**远程直接内存访问**或**RDMA**。让我们在下一节中学习它。
 - en: RDMA
+  id: totrans-69
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: RDMA
 - en: RDMA is a functionality provided by high-performance networks to reduce communication
     latency among devices. Before understanding the advantages of using RDMA, we should
     first remember how regular communications work under the hood.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: RDMA是高性能网络提供的一种功能，旨在减少设备之间的通信延迟。在了解使用RDMA的优势之前，我们首先应该记住常规通信是如何工作的。
 - en: 'A **regular data transmission** involving two GPUs follows the procedure illustrated
     in *Figure 11**.7*:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: '**常规数据传输**涉及两个GPU的程序如*图 11.7*所示：'
 - en: '![Figure 11.7 – Regular data transmission between two GPUs](img/B20959_11_7.jpg)'
+  id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![图 11.7 – 两个GPU之间的常规数据传输](img/B20959_11_7.jpg)'
 - en: Figure 11.7 – Regular data transmission between two GPUs
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.7 – 两个GPU之间的常规数据传输
 - en: First, **GPU A** asks the CPU to send data to **GPU B**, which is located in
     **Machine B**. The CPU receives the request and creates a buffer on the main memory
     of **Machine A** to store the data to be transmitted. Next, **GPU A** sends the
@@ -359,15 +492,22 @@
     Finally, the network adapter on **Machine B** receives the data, and **Machine
     B** executes the same steps previously performed by **Machine A** to deliver the
     received data to **GPU B**.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，**GPU A**请求CPU将数据发送到位于**Machine B**上的**GPU B**。CPU接收请求并在**Machine A**的主内存上创建缓冲区，用于存储要传输的数据。接下来，**GPU
+    A**将数据发送到主内存，并通知CPU数据已经在主内存上准备就绪。因此，**Machine A**上的CPU将数据从主内存复制到网络适配器的缓冲区。然后，**Machine
+    A**上的网络适配器与**Machine B**建立通信通道并发送数据。最后，**Machine B**上的网络适配器接收数据，并且**Machine B**执行与**Machine
+    A**之前相同的步骤，将接收到的数据传递给**GPU B**。
 - en: Notice that this procedure involves many intermediary copies of the data on
     the main memory; in other words, the data is copied from the GPU’s memory to the
     main memory and from the main memory to the network adapter’s buffer, in both
     directions. So, it is easy to see that this procedure imposes a high overhead
     on the communication between GPUs located on remote machines.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，此过程涉及许多主内存中数据的中介复制；换句话说，数据从GPU内存复制到主内存，然后从主内存复制到网络适配器的缓冲区，这两个方向都是如此。因此，很容易看出，此过程对位于远程机器上的GPU之间的通信施加了很高的开销。
 - en: To overcome this problem, applications can transfer data between devices by
     using RDMA. As shown in *Figure 11**.8*, RDMA can transfer data directly from
     one GPU to another by using a high-performance network. After completing an initial
@@ -375,339 +515,498 @@
     the CPU and main memory*. As a consequence, RDMA eliminates a bunch of intermediary
     copies of the transmission data, thus lowering the communication latency vastly.
     This is the reason why RDMA is also known as **zero-copy** transmission.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了克服这个问题，应用程序可以使用RDMA在设备之间传输数据。如*图 11.8*所示，RDMA可以通过高性能网络直接从一个GPU传输数据到另一个GPU。在完成初始设置后，网络适配器和GPU能够在*不涉及CPU和主内存*的情况下传输数据。因此，RDMA消除了传输数据的大量中介复制，从而大幅降低通信延迟。这也是RDMA被称为**零拷贝**传输的原因。
 - en: '![Figure 11.8 – RDMA between two GPUs](img/B20959_11_8.jpg)'
+  id: totrans-77
   prefs: []
   type: TYPE_IMG
+  zh: '![图 11.8 – 两个GPU之间的RDMA](img/B20959_11_8.jpg)'
 - en: Figure 11.8 – RDMA between two GPUs
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.8 – 两个GPU之间的RDMA
 - en: To use RDMA, the high-performance network, devices, and operating system must
     support this capability. So, if we intend to use this resource, we should first
     verify with the cluster administrator whether this resource is available and how
     to use it in the environment.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用RDMA，高性能网络、设备和操作系统必须支持此功能。因此，如果我们打算使用这个资源，我们应该首先与集群管理员确认在环境中是否可用以及如何使用它。
 - en: After learning the main characteristics of the computing cluster environment,
     we can move on and learn how to implement distributed training on multiple machines.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 在学习了计算集群环境的主要特征后，我们可以继续学习如何在多台机器上实施分布式训练。
 - en: Implementing distributed training on multiple machines
+  id: totrans-81
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在多台机器上实施分布式训练
 - en: This section shows how to implement and run the distributed training on multiple
     machines by using Open MPI as the launch provider and NCCL as the communication
     backend. Let’s start by introducing Open MPI.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示如何使用Open MPI作为启动提供程序和NCCL作为通信后端在多台机器上实施和运行分布式训练。让我们从介绍Open MPI开始。
 - en: Getting introduced to Open MPI
+  id: totrans-83
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 介绍Open MPI
 - en: '**MPI** stands for **message passing interface** and is a standard that specifies
     a set of communication routines, data types, events, and operations used to implement
     distributed memory-based applications. MPI is so relevant to the HPC industry
     that it is ruled and maintained by a forum comprised of distinguished scientists,
     researchers, and professionals around the globe.'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: '**MPI**代表**消息传递接口**，是一个标准，规定了一套用于实现基于分布式内存的应用程序的通信例程、数据类型、事件和操作。MPI对高性能计算行业非常重要，因此由全球知名的科学家、研究人员和专业人士组成的论坛管理和维护。'
 - en: Note
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can find more information about MPI at this link: [https://www.mpi-forum.org/](https://www.mpi-forum.org/)'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在此链接找到有关MPI的更多信息：[https://www.mpi-forum.org/](https://www.mpi-forum.org/)
 - en: Therefore, MPI, strictly speaking, is not software; it is a standard specification
     that can be used to implement a software, tool, or library. Like non-proprietary
     programming languages such as C and Python, MPI also has many implementations.
     Some of them are vendor-specific, such as Intel MPI, while others are free and
     open source, such as MPICH.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，严格来说，MPI不是软件；它是一种标准规范，可用于实现软件、工具或库。与非专有编程语言（如C和Python）类似，MPI也有许多实现。其中一些是供应商特定的，例如Intel
+    MPI，而另一些是免费和开源的，例如MPICH。
 - en: Among all implementations, **Open MPI** sticks out as one of the most known
     and adopted implementations of MPI. Open MPI is free, open source, and maintained
     by a consortium composed of many major tech players such as AMD, AWS, IBM, Intel,
     and NVIDIA. The consortium also counts on renowned universities and research institutes
     such as the Los Alamos National Laboratory and Inria, the French National Institute
     for Research in Computer Science and Control.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 在所有实现中，**Open MPI**作为最知名和采用最广泛的MPI实现之一脱颖而出。Open MPI是免费的、开源的，并由包括AMD、AWS、IBM、Intel和NVIDIA在内的多家主要技术公司组成的贡献者联盟维护。该联盟还依靠著名大学和研究机构，如洛斯阿拉莫斯国家实验室和法国国家计算机科学与控制研究所(Inria)。
 - en: Note
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can find more information about Open MPI at this link: [https://www.open-mpi.org/](https://www.open-mpi.org/)'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在此链接找到有关Open MPI的更多信息：[https://www.open-mpi.org/](https://www.open-mpi.org/)
 - en: Open MPI is more than just a library to implement the MPI routines on applications.
     It is a toolset that provides other components such as compilers, debuggers, and
     a complete runtime mechanism.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: Open MPI不仅仅是一个用于应用程序上实现MPI例程的库，它还是一个提供编译器、调试器和完整运行时机制等其他组件的工具集。
 - en: The following section presents how to execute an Open MPI program. This knowledge
     is relevant to learning how to launch the distributed training process.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节介绍如何执行Open MPI程序。这些知识对于学习如何启动分布式训练过程非常重要。
 - en: Executing an Open MPI program
+  id: totrans-93
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 执行Open MPI程序
 - en: 'To execute an Open MPI program, we should call the `mpirun` command and pass
     the MPI program and number of processes as parameters:'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 要执行Open MPI程序，我们应该调用`mpirun`命令并传递MPI程序和进程数量作为参数：
 - en: '[PRE0]'
+  id: totrans-95
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'The `--np` parameter tells Open MPI the number of processes it must create.
     If nothing else is informed to Open MPI, it will create these processes locally
     – in other words, in the machine in which the `mpirun` command was called. To
     instantiate processes in remote machines, we must use the `--host` argument followed
     by the list of remote machines separated by commas:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: '`--np`参数告诉Open MPI它必须创建的进程数。如果没有其他信息传递给Open MPI，它将在本地创建这些进程 – 换句话说，在调用`mpirun`命令的机器上。要在远程机器上实例化进程，我们必须使用`--host`参数，后跟逗号分隔的远程机器列表：'
 - en: '[PRE1]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'In the previous example, `mpirun` will execute two processes, one on the `r1`
     remote machine and the other one on the `r2` remote machine. The value put after
     the name of the remote machines indicates the number of slots (or processes) the
     machine is willing to take. For example, if we want to execute six processes,
     four in the `r1` remote machine and two on the `r2` remote machine, we should
     call the following `mpirun` command:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的示例中，`mpirun` 将执行两个进程，一个在`r1`远程机器上，另一个在`r2`远程机器上。名称后面的值表示该机器愿意接受的槽位（或进程）数。例如，如果我们要执行六个进程，其中四个在`r1`远程机器上，两个在`r2`远程机器上，我们应该调用以下`mpirun`命令：
 - en: '[PRE2]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Open MPI sets some environment variables to the scope of each process created
     by the `mpirun` command. These environment variables give essential information
     about the distributed environment, such as the process’s rank. Three of them are
     particularly interesting to our case:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: Open MPI将一些环境变量设置为由`mpirun`命令创建的每个进程的作用域。这些环境变量提供了关于分布式环境的重要信息，例如进程的排名。其中三个对我们的情况特别有趣：
 - en: '`OMPI_COMM_WORLD_SIZE`: the total number of processes participating in the
     distributed execution'
+  id: totrans-101
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`OMPI_COMM_WORLD_SIZE`：参与分布式执行的进程总数'
 - en: '`OMPI_COMM_WORLD_RANK`: the **global rank** of the process'
+  id: totrans-102
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`OMPI_COMM_WORLD_RANK`：进程的**全局排名**'
 - en: '`OMPI_COMM_WORLD_LOCAL_RANK`: the **local rank** of the process'
+  id: totrans-103
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`OMPI_COMM_WORLD_LOCAL_RANK`：进程的**局部排名**'
 - en: 'To understand the difference between the global and local ranks, let’s take
     the previous example of running six processes and put down the values of global
     and local ranks for each process in *Table 11.1*:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 要理解全局排名与局部排名的区别，让我们拿六个进程的前面示例，并在*表11.1*中列出每个进程的全局和局部排名值：
 - en: '| **Process** | **Remote Machine** | **Global Rank** | **Local Rank** |'
+  id: totrans-105
   prefs: []
   type: TYPE_TB
+  zh: '| **进程** | **远程机器** | **全局排名** | **局部排名** |'
 - en: '| 0 | r1 | 0 | 0 |'
+  id: totrans-106
   prefs: []
   type: TYPE_TB
+  zh: '| 0 | r1 | 0 | 0 |'
 - en: '| 1 | r1 | 1 | 1 |'
+  id: totrans-107
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | r1 | 1 | 1 |'
 - en: '| 2 | r1 | 2 | 2 |'
+  id: totrans-108
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | r1 | 2 | 2 |'
 - en: '| 3 | r1 | 3 | 3 |'
+  id: totrans-109
   prefs: []
   type: TYPE_TB
+  zh: '| 3 | r1 | 3 | 3 |'
 - en: '| 4 | r2 | 4 | 0 |'
+  id: totrans-110
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | r2 | 4 | 0 |'
 - en: '| 5 | r2 | 5 | 1 |'
+  id: totrans-111
   prefs: []
   type: TYPE_TB
+  zh: '| 5 | r2 | 5 | 1 |'
 - en: Table 11.1 – Global rank versus local rank
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 表11.1 – 全局排名与局部排名
 - en: As shown in *Table 11.1*, the **global rank** is the global identification of
     the process – in other words, the rank of the process regardless of the machine
     it is running on. We can see it as a global identification of the process.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如*表11.1*所示，**全局排名**是进程的全局标识 – 换句话说，无论进程在哪台机器上运行，它都有一个全局标识。
 - en: The `r2` machine, then the local rank of processes 5 and 6 are equal to 0 and
     1, respectively.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: '`r2`机器，那么进程5和6的局部排名分别等于0和1。'
 - en: The concept of local rank may seem counterintuitive and useless, but it is not.
     Local rank is very useful in distributed programs and especially convenient for
     our distributed training process. Wait and see!
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 局部排名的概念可能看起来违反直觉且无用，但事实并非如此。局部排名在分布式程序中非常有用，特别适合我们的分布式训练过程。等着瞧吧！
 - en: Why use Open MPI and NCCL?
+  id: totrans-116
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 为什么要使用Open MPI和NCCL？
 - en: 'You may wonder why we use Open MPI as the launcher and NCCL as the communication
     backend. Indeed, maybe you are asking yourself the following questions:'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会想为什么我们使用Open MPI作为启动器和NCCL作为通信后端。事实上，也许你在问自己以下问题：
 - en: Is it possible to use Open MPI as both the launcher and communication backend?
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 是否可以同时使用Open MPI作为启动器和通信后端？
 - en: Is it possible to use NCCL as the communication backend and `torchrun` as the
     launcher?
+  id: totrans-119
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 是否可以使用NCCL作为通信后端和`torchrun`作为启动器？
 - en: The short answer to these questions is “*Yes, it is possible.*” However, there
     are some disadvantages to adopting these approaches. Let’s discuss each of them.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这些问题的简短答案是：“*是的，这是可能的*。”然而，采用这些方法也存在一些缺点。让我们逐个讨论。
 - en: As we are running the distributed training with multiple GPUs, the best communication
     backend for this case is surely the NCCL. Although it is possible to use Open
     MPI as the communication backend for this scenario, the collective operations
     provided by NCCL are the most optimized ones for NVIDIA GPUs.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为我们正在使用多 GPU 运行分布式训练，所以对于这种情况，最好的通信后端肯定是 NCCL。尽管可以使用 Open MPI 作为此场景的通信后端，但由
+    NCCL 提供的集体操作是针对 NVIDIA GPU 进行了最优化的。
 - en: So, now we know why we should choose NCCL rather than Open MPI as the communication
     backend. But why not use `torchrun` as the launch provider, as we have done so
     far?
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，现在我们知道为什么应选择 NCCL 而不是 Open MPI 作为通信后端。但为什么不像到目前为止那样使用 `torchrun` 作为启动提供程序呢？
 - en: Well, `torchrun` is an excellent choice to run the distributed training locally.
     However, to run the distributed training on multiple machines, we will need to
     execute a `torchrun` instance manually on each remote machine participating in
     the distributed environment.
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 嗯，`torchrun` 是在本地运行分布式训练的一个很好的选择。但是，要在多台机器上运行分布式训练，我们需要在每台参与分布式环境的远程机器上手动执行
+    `torchrun` 实例。
 - en: Unlike `torchrun`, Open MPI natively supports the execution on remote machines
     more easily and elegantly. By using its runtime mechanism, Open MPI can smoothly
     create processes on remote machines, making our lives easier.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 `torchrun` 不同，Open MPI 在本地支持更轻松、更优雅地在远程机器上执行。通过使用其运行时机制，Open MPI 可以顺利在远程机器上创建进程，使我们的生活更加轻松。
 - en: In short, we decided to use NCCL and Open MPI to get the best of the two worlds
     together.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，我们决定同时使用 NCCL 和 Open MPI，以获取两者结合的最佳效果。
 - en: Coding and launching the distributed training on multiple machines
+  id: totrans-126
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 为多台机器编写并启动分布式训练
 - en: The code to distribute the training process among multiple machines is almost
     the same as the one presented in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
     *Training with Multiple GPUs*. After all, we are going to execute multi-GPU training,
     but using multiple machines instead. Therefore, we are going to adapt the multi-GPU
     implementation to execute on multiple machines by using Open MPI as the launch
     provider.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 分发训练进程的代码几乎与[*第 10 章*](B20959_10.xhtml#_idTextAnchor149)中呈现的代码相同，*使用多个 GPU 进行训练*。毕竟，我们将执行多
+    GPU 训练，但是使用多台机器。因此，我们将调整多 GPU 实现，以使用 Open MPI 作为启动提供程序在多台机器上执行。
 - en: Because we will use Open MPI as the launcher, the script used to launch the
     distributed training will not execute the `torchrun` command as we have done in
     the last two chapters. Thus, we will need to create a script from scratch to adopt
     Open MPI as the launching method.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为我们将使用 Open MPI 作为启动器，所以用于启动分布式训练的脚本将不会执行 `torchrun` 命令，就像我们在最后两章中所做的那样。因此，我们需要从头开始创建一个脚本来采用
+    Open MPI 作为启动方法。
 - en: Let’s move to the following sections to learn how to adapt the multi-GPU implementation
     and create a launch script for the distributed training in a computing cluster
     environment.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们继续学习如何调整多 GPU 实现并创建在计算集群环境中进行分布式训练的启动脚本的以下部分。
 - en: Coding the distributed training for multiple machines
+  id: totrans-130
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 为多台机器编写分布式训练代码
 - en: 'Compared to the muti-GPU implementation presented in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
     *Training with Multiple GPUs,* the code to run a distributed training in a computing
     cluster has the following three modifications:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 与[*第 10 章*](B20959_10.xhtml#_idTextAnchor149)中呈现的多 GPU 实现相比，在计算集群中运行分布式训练的代码有以下三个修改：
 - en: '[PRE3]'
+  id: totrans-132
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Note
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 注
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py).
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 此部分展示的完整代码可在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py)
+    查看。
 - en: The first two modifications concern setting the environment variables, `RANK`
     and `WORLD_SIZE`, which are expected by the `init_process_group` method to create
     the communication group. As Open MPI uses other variable names to store this information,
     we need to explicitly define those variables in the code.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 前两个修改涉及设置环境变量 `RANK` 和 `WORLD_SIZE`，这些变量被 `init_process_group` 方法所需，用于创建通信组。由于
+    Open MPI 使用其他变量名来存储这些信息，我们需要在代码中明确定义这些变量。
 - en: The third modification is related to defining the device (GPU, in this case)
     to be allocated to each process. As we have learned in the previous section, the
     local rank is an index that identifies processes running in each machine. Thus,
     we can use this information as an index to select the GPU used by each process.
     Therefore, the code must assign the content of the `OMPI_COMM_WORLD_LOCAL_RANK`
     environment variable to the `device` variable.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 第三处修改与定义每个进程分配的设备（GPU，在本例中）有关。正如我们在前一节中学到的，本地排名是一个索引，用于标识每台机器上运行的进程。因此，我们可以利用这些信息作为选择每个进程使用的
+    GPU 的索引。因此，代码必须将`OMPI_COMM_WORLD_LOCAL_RANK`环境变量的内容分配给`device`变量。
 - en: For example, consider the case of executing a distributed training comprised
     of eight processes by using two machines equipped with four GPUs each. The first
     four processes will have global and local ranks equal to 0, 1, 2, and 3\. So,
     the process with a global rank of 0, which has a local rank of 0, will use the
     `#0` GPU in the **first machine**, and so forth for the other processes in the
     first machine.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑使用每台装备有四个 GPU 的两台机器执行包含八个进程的分布式训练的情况。前四个进程的全局和本地排名分别为 0、1、2 和 3。因此，全局排名为
+    0 的进程，其本地排名为 0，将使用**第一台机器**上的`#0` GPU，其他进程依此类推。
 - en: Concerning the four processes on the second machine, the process with a global
     rank of 4, which is the first process in the second machine, will have a local
     rank equal to 0\. Thus, the process with a global rank of 4 will access the `#0`
     GPU in the **second machine**.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于第二台机器上的四个进程，全局排名为 4 的进程，也就是第二台机器上的第一个进程，其本地排名为 0。因此，全局排名为 4 的进程将访问**第二台机器**上的`#0`
+    GPU。
 - en: Only these three modifications are enough to adjust the multi-GPU code to run
     on multiple machines. In the next section, let’s find out how to launch the distributed
     training by using Open MPI.
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 只需对多 GPU 代码进行这三处修改即可使其在多台机器上运行。在下一节中，让我们看看如何通过使用 Open MPI 启动分布式训练。
 - en: Launching the distributed training on multiple machines
+  id: totrans-140
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 在多台机器上启动分布式训练
 - en: To use Open MPI as the launcher, we need to have it installed in the computing
     cluster environment. This installation should be provided by the cluster administrator
     since we are using Open MPI as an external component and not inside PyTorch. The
     cluster administrator should follow the installation instructions described on
     the Open MPI website.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将 Open MPI 作为启动器使用，我们需要在计算集群环境中安装它。由于我们将 Open MPI 作为外部组件而不是内置在 PyTorch 中使用，因此这个安装应该由集群管理员提供。集群管理员应该按照
+    Open MPI 网站上描述的安装说明进行操作。
 - en: Once we have Open MPI installed on the environment, we have two ways to launch
     the distributed training on multiple machines. We can execute it *manually* or
     *submit a job* to the workload manager. Let’s first learn how to do it manually.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们在环境中安装了 Open MPI，我们有两种方法可以在多台机器上启动分布式训练。我们可以*手动执行*，也可以*提交作业*到工作负载管理器。让我们首先学习如何手动执行。
 - en: Manual execution
+  id: totrans-143
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 手动执行
 - en: 'To execute the distributed training manually, we can use a launching script
     like this:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 要手动执行分布式训练，我们可以使用类似以下的启动脚本：
 - en: '[PRE4]'
+  id: totrans-145
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Note
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh).
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh)找到。
 - en: As we said before, this script differs from the one based on `torchrun`. Instead
     of calling the `torchrun` command, the script executes `mpirun`, as we have learned
     in previous sections. The `mpirun` command in this script is executed with five
     parameters. Let’s take them one by one.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们之前提到的，这个脚本不同于基于`torchrun`的脚本。脚本不再调用`torchrun`命令，而是执行`mpirun`，正如我们在前几节中学到的。此脚本中的`mpirun`命令使用五个参数执行。我们逐一来看它们。
 - en: The first two parameters export the `MASTER_ADDR` and `MASTER_PORT` environment
     variables to the training program. This is done by using the `-x` parameter of
     `mpirun`.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 前两个参数使用`mpirun`的`-x`参数将`MASTER_ADDR`和`MASTER_PORT`环境变量导出到训练程序中。
 - en: By doing this, the `init_process_group` method can properly create the communication
     group. The `MASTER_ADDR` environment variable indicates the machine in which the
     launching script will be executed. In our case, it is executed in `machine1`.
@@ -715,400 +1014,567 @@
     communication group to establish communication with all processes participating
     in the distributed environment. We can choose a higher number to avoid conflict
     with any bound TCP port.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这样做，`init_process_group`方法可以正确地创建通信组。`MASTER_ADDR`环境变量指示启动脚本将在其中执行的机器。在我们的案例中，它在`machine1`上执行。`MASTER_PORT`环境变量定义通信组用于与参与分布式环境中所有进程建立通信的TCP端口号。我们可以选择一个较高的数字，以避免与任何绑定的TCP端口冲突。
 - en: The `--np` parameter determines the number of processes, and the `--host` parameter
     is used to indicate the list of machines in which `mpirun` will create processes.
     In this example, we are considering two machines named `machine1` and `machine2`.
     Since each machine has eight GPUs, its name is followed by the number eight to
     indicate the maximum number of processes each server can execute.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: '`--np`参数确定进程数，`--host`参数用于指示`mpirun`将在其中创建进程的机器列表。在此示例中，我们考虑两台名为`machine1`和`machine2`的机器。由于每台机器都有八个GPU，其名称后跟数字八，以指示每台服务器可以执行的最大进程数。'
 - en: The last parameter is the MPI-based program. In our case, we will pass the name
     of the Python interpreter followed by the name of the training script.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一个参数是基于MPI的程序。在我们的情况下，我们将传递Python解释器的名称，然后是训练脚本的名称。
 - en: 'To execute this script for a program called `distributed-training.py`, we just
     need to run the following command:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 要执行此脚本运行名为`distributed-training.py`的程序，我们只需运行以下命令：
 - en: '[PRE5]'
+  id: totrans-154
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: Note
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh)
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中显示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh)找到。
 - en: Naturally, this script can be customized to accept other parameters such as
     the number of processes, the list of hosts, and so on. However, our intention
     here is to show the basic – though essential – way to manually execute the distributed
     training with Open MPI.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，此脚本可以定制以接受其他参数，如进程数量、主机列表等。然而，我们在这里的目的是展示手动使用Open MPI执行分布式训练的基本（尽管重要）方法。
 - en: Job submission
+  id: totrans-158
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 作业提交
 - en: 'Considering that the workload manager is SLURM, we must execute the following
     steps to submit a job to the computing cluster:'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑到工作负载管理器是SLURM，我们必须执行以下步骤将作业提交到计算集群：
 - en: Create a batch script to submit the job to SLURM.
+  id: totrans-160
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个批处理脚本来提交作业给SLURM。
 - en: Submit the job with the `sbatch` command.
+  id: totrans-161
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`sbatch`命令提交作业。
 - en: 'A batch script to submit a distributed training on SLURM will look like this:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 在SLURM上提交分布式训练的批处理脚本如下所示：
 - en: '[PRE6]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: This batch script will submit a job requesting two nodes and eight GPUs per
     node to be executed on the `long_job_gpu` partition. Like in the launching script,
     we also need to export the `MASTER_ADDR` and `MASTER_PORT` variables so the `init_process_group`
     method can create the communication group.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个批处理脚本将提交一个作业请求两个节点，每个节点八个GPU，在`long_job_gpu`分区上执行。就像在启动脚本中一样，我们还需要导出`MASTER_ADDR`和`MASTER_PORT`变量，以便`init_process_group`方法可以创建通信组。
 - en: 'After creating the script, we just need to submit the job by executing the
     following command:'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建脚本后，我们只需执行以下命令提交作业：
 - en: '[PRE7]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Note
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The batch script presented before is just an illustrative example of how to
     submit a distributed training job on SLURM. As each computing cluster environment
     can have particularities, the best approach is always to take the guidelines from
     the cluster administrator concerning the usage of Open MPI. Anyway, you can consult
     the official SLURM documentation about running Open MPI jobs at [https://slurm.schedmd.com/mpi_guide.html](https://slurm.schedmd.com/mpi_guide.html).
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 之前提供的批处理脚本只是展示如何在SLURM上提交分布式训练作业的示例。由于每个计算集群环境可能有特殊性，最佳方法始终是遵循集群管理员关于使用Open
+    MPI的指导方针。无论如何，您可以参考官方SLURM文档了解在[https://slurm.schedmd.com/mpi_guide.html](https://slurm.schedmd.com/mpi_guide.html)上运行Open
+    MPI作业的详细信息。
 - en: In the next section, we will look at the results of running the distributed
     training on two machines.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将看一下在两台机器上运行分布式训练的结果。
 - en: Experimental evaluation
+  id: totrans-170
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实验评估
 - en: To evaluate the distributed training on multiple machines, we have trained the
     EfficientNet model against the CIFAR-10 dataset over 25 epochs by using two machines,
     each one equipped with 8 GPUs NVIDIA A100\. As a baseline, we will use the execution
     time of training this model with 8 GPUs in a single machine, which was equal to
     109 seconds.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 要评估在多台机器上进行的分布式训练效果，我们使用了两台每台装有8块NVIDIA A100 GPU的机器，对EfficientNet模型在CIFAR-10数据集上进行了25个epochs的训练作为实验基准，我们将使用在单台装有8块GPU的机器上训练此模型所需的执行时间作为基准，其时间为109秒。
 - en: The execution time of training the model with 16 GPUs was equal to 64 seconds,
     representing a performance improvement of 70% compared to the execution time spent
     to train the model with eight GPUs in a single machine.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用16块GPU训练模型的执行时间为64秒，与在单台装有八块GPU的机器上训练模型所需的时间相比，性能提升了70%。
 - en: At first sight, this result can seem a little bit disappointing because we have
     used double the computing resources and got only a 70% performance improvement.
     As we used twice the number of resources, we should achieve 100% improvement.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 乍一看，这个结果可能会有点令人失望，因为我们使用了双倍的计算资源，但只获得了70%的性能提升。由于我们使用了两倍的资源，我们应该达到100%的提升。
 - en: 'However, we should remember that there is an additional component of this system:
     the interconnection between machines. Despite being a high-performance network,
     it is expected that an extra element has some impact on the performance. Even
     so, this result is quite good since we got closer to the maximum performance improvement
     we could achieve – in other words, 100%.'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 但是，我们应该记住，这个系统还有一个额外的组成部分：机器之间的互联。尽管它是一个高性能网络，但预计额外的元素会对性能产生一定影响。即便如此，这个结果还是相当不错的，因为我们接近了我们可以实现的最大性能改进——换句话说，接近了100%。
 - en: As expected, the model’s accuracy decreased from 68.82% to 63.73%, corroborating
     the assertion about the relation between accuracy and the number of model replicas
     in the distributed training.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如预期的那样，模型的准确性从68.82%降至63.73%，证实了分布式训练中模型副本数量与精度之间关系的断言。
 - en: 'To summarize these results, we can highlight two interesting insights, as follows:'
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结这些结果，我们可以强调两个有趣的见解如下：
 - en: We must always keep an eye on the model’s quality when seeking performance improvement.
     As we have seen here and in the last two chapters, there is a potential depreciation
     of model accuracy in the face of an increased number of model replicas.
+  id: totrans-177
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当寻求性能改进时，我们必须始终关注模型的质量。正如我们在这里和前两章中看到的那样，在增加模型副本数量时，模型精度可能会出现潜在的降低。
 - en: We should ponder the possible impact caused by the interconnection network when
     deciding to distribute the training among multiple machines. Depending on the
     scenario, it could be more advantageous to keep the training inside a single machine
     with multiple GPUs rather than using multiple servers.
+  id: totrans-178
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当决定在多台机器之间分发训练时，我们应考虑互连网络可能带来的影响。根据具体情况，保持在单台多GPU机器内进行训练可能比使用多台服务器更有优势。
 - en: In short, a blind pursuit of performance improvement is often a bad idea because
     we can fall on resource wastage caused by a tiny performance improvement or a
     silent degradation of the model’s quality. Therefore, we should always pay attention
     to the tradeoff between performance improvement, accuracy, and resource usage.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，盲目追求性能提升通常不是一个好主意，因为我们可能会因微小的性能提升或模型质量的悄然降低而导致资源浪费。因此，我们应始终注意性能改进、准确性和资源使用之间的权衡。
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节提供了几个问题，帮助你巩固本章学到的内容。
 - en: Quiz time!
+  id: totrans-181
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     First, try to answer these questions without consulting the material.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答一些问题来回顾本章学到的内容。首先，尝试在不查阅材料的情况下回答这些问题。
 - en: Note
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md).
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些问题的答案都可以在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md)找到。
 - en: Before starting the quiz, remember that it is not a test at all! This section
     aims to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始测验之前，请记住这根本不是一个测试！本节旨在通过复习和巩固本章节涵盖的内容来补充您的学习过程。
 - en: 'Choose the correct option for the following questions:'
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择以下问题的正确选项：
 - en: What is a task submitted to a computing cluster called?
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提交给计算集群的任务称为什么？
 - en: Thread.
+  id: totrans-188
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 线程。
 - en: Process.
+  id: totrans-189
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 进程。
 - en: Job.
+  id: totrans-190
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 作业。
 - en: Work.
+  id: totrans-191
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 工作。
 - en: What are the main tasks executed by a workload manager?
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 工作负载管理器执行的主要任务是什么？
 - en: Resource management and job scheduling.
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 资源管理和作业调度。
 - en: Memory allocation and thread scheduling.
+  id: totrans-194
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 内存分配和线程调度。
 - en: GPU management and node scheduling.
+  id: totrans-195
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: GPU 管理和节点调度。
 - en: Resource management and node scheduling.
+  id: totrans-196
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 资源管理和节点调度。
 - en: Which of the following is an open source, fault-tolerant, and highly scalable
     workload manager for large and small Linux clusters?
+  id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下哪个是大型和小型 Linux 集群的开源、容错和高度可扩展的工作负载管理器？
 - en: MPI.
+  id: totrans-198
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: MPI。
 - en: SLURM.
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: SLURM。
 - en: NCCL.
+  id: totrans-200
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NCCL。
 - en: Gloo.
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Gloo。
 - en: A computing cluster is usually equipped with a high-performance network such
     as NVIDIA InfiniBand. Besides providing a high bandwidth, a high-performance interconnection
     provides which of the following?
+  id: totrans-202
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算集群通常配备高性能网络，如 NVIDIA InfiniBand。除了提供高带宽外，高性能互连还提供以下哪些功能？
 - en: A high latency.
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 高延迟。
 - en: A high number of connections.
+  id: totrans-204
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 高数量的连接。
 - en: A low number of connections.
+  id: totrans-205
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 低连接数量。
 - en: A very low latency.
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 非常低的延迟。
 - en: RDMA reduces drastically the communication latency between two remote GPUs because
     it enables which of the following?
+  id: totrans-207
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: RDMA 显著降低了两个远程 GPU 之间的通信延迟，因为它使以下哪个操作成为可能？
 - en: Allocation of higher memory space on GPUs.
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 GPU 上分配更高的内存空间。
 - en: Special hardware capabilities on GPUs.
+  id: totrans-209
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: GPU 上的特殊硬件能力。
 - en: Data transfer without involving the CPU and main memory.
+  id: totrans-210
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在不涉及 CPU 和主内存的情况下进行数据传输。
 - en: Data transfer without involving network adapters and switches.
+  id: totrans-211
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在不涉及网络适配器和交换机的情况下进行数据传输。
 - en: Which of the following is the best definition of Open MPI?
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Open MPI 的最佳定义是以下哪个？
 - en: Open MPI is a compiler to create distributed applications.
+  id: totrans-213
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Open MPI 是用来创建分布式应用的编译器。
 - en: Open MPI is a toolset comprised of compilers, debuggers, and a complete runtime
     mechanism to create, debug, and run distributed applications.
+  id: totrans-214
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Open MPI 是一个工具集，包括编译器、调试器和完整的运行时机制，用于创建、调试和运行分布式应用。
 - en: Open MPI is a standard that specifies a set of communication routines, data
     types, events, and operations used to implement distributed applications.
+  id: totrans-215
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '[Open MPI](https://wiki.example.org/open_mpi) 是一个标准，指定了一组用于实现分布式应用的通信例程、数据类型、事件和操作。'
 - en: Open MPI is a communication backend exclusively created to run the distributed
     training under PyTorch.
+  id: totrans-216
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Open MPI 是专门用于在 PyTorch 下运行分布式训练的通信后端。
 - en: Consider the scenario in which a distributed training is running four processes
     under two machines (each machine is executing two processes). In this case, what
     are the ranks assigned by Open MPI for the two processes executing on the second
     machine?
+  id: totrans-217
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 考虑这样一个情景，一个分布式训练在两台机器上运行四个进程（每台机器执行两个进程）。在这种情况下，Open MPI 为第二台机器上执行的两个进程分配了什么等级？
 - en: 0 and 1.
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 0 和 1。
 - en: 0 and 2.
+  id: totrans-219
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 0 和 2。
 - en: 2 and 3.
+  id: totrans-220
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 2 和 3。
 - en: 0 and 3.
+  id: totrans-221
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 0 和 3。
 - en: Concerning the decision to distribute the training process among multiple machines
     or keep it in a single host, it is reasonable to ponder which of the following?
+  id: totrans-222
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 关于将训练过程分布在多台机器上还是保留在单个主机的决定，合理考虑以下哪个选项？
 - en: The power consumption of using network adapters.
+  id: totrans-223
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用网络适配器的功耗。
 - en: The leak of memory space available on the network adapters.
+  id: totrans-224
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 网络适配器上可用内存空间的泄漏。
 - en: Nothing; it is always recommended to use multiple machines to run the distributed
     training.
+  id: totrans-225
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 没有；通常建议使用多台机器来运行分布式训练。
 - en: The impact the interconnection network may have on the communication between
     the processes participating in the distributed training.
+  id: totrans-226
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 互连网络可能对参与分布式训练的进程之间的通信产生何种影响。
 - en: Summary
+  id: totrans-227
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结。
 - en: In this chapter, we learned how to distribute the training process across multiple
     GPUs located on multiple machines. We used Open MPI as the launch provider and
     NCCL as the communication backend.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了如何将训练过程分布到多台机器上的多个 GPU 上。我们使用 Open MPI 作为启动提供程序和 NCCL 作为通信后端。
 - en: We decided to use Open MPI as the launcher because it provides an easy and elegant
     way to create distributed processes on remote machines. Although Open MPI can
     also be employed like the communication backend, it is preferable to adopt NCCL
     since it has the most optimized implementation of collective operations for NVIDIA
     GPUs.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们决定使用Open MPI作为启动器，因为它提供了一种简单而优雅的方式在远程机器上创建分布式进程。虽然Open MPI也可以作为通信后端使用，但更推荐采用NCCL，因为它在NVIDIA
+    GPU上具有最优化的集合操作实现。
 - en: Results showed that the distributed training with 16 GPUs on two machines was
     70% faster than running with 8 GPUs on a single machine. The model accuracy decreased
     from 68.82% to 63.73%, which is expected since we have doubled the number of model
     replicas in the distributed training process.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果显示，使用两台机器上的16个GPU进行分布式训练比单机上的8个GPU运行速度快70%。模型准确率从68.82%降到了63.73%，这是预料之中的，因为我们在分布式训练过程中复制了模型的数量。
 - en: 'This chapter ends our journey about learning how to accelerate the training
     process with PyTorch. More than knowing how to apply techniques and methods to
     speed up the model training, we expect that you have caught the foremost message
     of this book: performance improvement is not always related to new computing resources
     or novel hardware; it is possible to accelerate the training process with what
     we have on our hands by using the resources more efficiently.'
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章结束了我们关于如何通过PyTorch加速训练过程的旅程。除了了解如何应用技术和方法来加快模型训练速度之外，我们希望您已经领悟到本书的核心信息：性能改进并不总是与新的计算资源或新型硬件有关；通过更有效地利用手头上的资源，我们可以加速训练过程。
