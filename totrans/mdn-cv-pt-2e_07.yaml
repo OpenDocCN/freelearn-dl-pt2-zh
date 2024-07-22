@@ -1,11 +1,15 @@
 - en: '5'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '5'
 - en: Transfer Learning for Image Classification
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 图像分类的迁移学习
 - en: In the previous chapter, we learned that as the number of images available in
     the training dataset increased, the classification accuracy of the model kept
     on increasing, to the extent that a training dataset comprising 8,000 images had
@@ -13,20 +17,28 @@
     1,000 images. However, we do not always have the option of hundreds or thousands
     of images, along with the ground truths of their corresponding classes, in order
     to train a model. This is where transfer learning comes to the rescue.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章中，我们了解到随着训练数据集中可用图像数量的增加，模型的分类准确率也在不断提高，以至于一个包含 8000 张图像的训练数据集在验证数据集上的准确率比一个包含
+    1000 张图像的训练数据集要高。然而，我们并不总是有数百或数千张图像以及它们对应类别的实际数据集选项，来训练模型。这就是迁移学习能发挥作用的地方。
 - en: Transfer learning is a technique where we transfer the learning of the model
     on a generic dataset to the specific dataset of interest. Typically, the pretrained
     models used to perform transfer learning are trained on millions of images (which
     are generic and not the dataset of interest to us) and those pretrained models
     are now fine-tuned to our dataset of interest.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 迁移学习是一种技术，其中我们将模型在通用数据集上的学习迁移到感兴趣的特定数据集上。通常，用于进行迁移学习的预训练模型是在数百万张图像（这些图像是通用的，不是我们感兴趣的数据集）上训练的，然后这些预训练模型现在被微调到我们感兴趣的数据集上。
 - en: In this chapter, we will learn about two different families of transfer learning
     architectures – variants of **Visual** **Geometry** **Group** (**VGG**) architecture
     and variants of **residual network** (**ResNet**) architecture.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将学习关于两种不同的迁移学习架构家族 - **视觉几何组** (**VGG**) 架构的变体和 **残差网络** (**ResNet**)
+    架构的变体。
 - en: Along with understanding the architectures, we will also understand their application
     in two different use cases, age and gender classification, where we will learn
     about optimizing over both cross-entropy and mean absolute error losses at the
@@ -37,67 +49,96 @@
     continuous outputs in a single prediction. Finally, we will learn about a new
     library that assists in reducing code complexity considerably across the remaining
     chapters.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了理解架构之外，我们还将了解它们在两个不同用例中的应用，即年龄和性别分类，在这里我们将学习如何同时优化交叉熵和平均绝对误差损失，以估计一个人的年龄并预测其性别（给定一个人的图像），以及面部关键点检测（检测眼睛、眉毛和下巴轮廓等关键点，给定一个面部图像作为输入），在这里我们将学习如何利用神经网络在单次预测中生成多个（136
+    个而不是 1 个）连续输出。最后，我们将学习一个新的库，可以大大减少跨其余章节的代码复杂性。
 - en: 'In summary, the following topics are covered in the chapter:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结一下，本章涵盖了以下主题：
 - en: Introducing transfer learning
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 引入迁移学习
 - en: Understanding the VGG16 and ResNet architectures
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解 VGG16 和 ResNet 架构
 - en: Implementing facial keypoint detection
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 实现面部关键点检测
 - en: 'Multi-task learning: Implementing age estimation and gender classification'
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 多任务学习：实现年龄估计和性别分类
 - en: Introducing the `torch_snippets` library
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 引入 `torch_snippets` 库
 - en: All the code in this chapter is available for reference in the `Chapter05` folder
     of this book’s GitHub repository – [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章所有的代码都可以在本书 GitHub 仓库的 `Chapter05` 文件夹中找到 - [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: Introducing transfer learning
+  id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入迁移学习
 - en: Transfer learning is a technique where knowledge gained from one task is leveraged
     to solve another similar task.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 迁移学习是一种技术，利用从一个任务中获得的知识来解决另一个类似的任务。
 - en: Imagine a model that is trained on millions of images that span thousands of
     object classes (not just cats and dogs). The various filters (kernels) of the
     model would activate for a wide variety of shapes, colors, and textures within
     the images. Those filters can then be reused to learn features on a new set of
     images. Post learning the features, they can be connected to a hidden layer prior
     to the final classification layer for customizing on the new data.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个模型，它在数百万张涵盖数千种物体类别（不仅仅是猫和狗）的图像上进行了训练。该模型的各种滤波器（核）会对图像中各种形状、颜色和纹理进行广泛激活。这些滤波器然后可以被重复使用，用于在新的图像上学习特征。在学习特征后，它们可以连接到隐藏层，然后连接到最终分类层，以便在新数据上进行自定义。
 - en: ImageNet ([http://www.image-net.org/](http://www.image-net.org/)) is a competition
     hosted to classify approximately 14 million images into 1,000 different classes.
     It has a variety of classes in the dataset, including Indian elephant, lionfish,
     hard disk, hair spray, and jeep.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: ImageNet ([http://www.image-net.org/](http://www.image-net.org/)) 是一个比赛，旨在将大约1400万张图像分类为1000个不同的类别。数据集中包含各种类别，包括印度大象、狮子鱼、硬盘、发胶和吉普车。
 - en: The deep neural network architectures that we will go through in this chapter
     have been trained on the ImageNet dataset. Furthermore, given the variety and
     the volume of objects that are to be classified in ImageNet, the models are very
     deep so as to capture as much information as possible.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中要介绍的深度神经网络架构已经在ImageNet数据集上进行了训练。此外，考虑到在ImageNet中需要分类的对象的种类和数量，模型非常深，以尽可能多地捕捉信息。
 - en: Let’s understand the importance of transfer learning through a hypothetical
     scenario.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过一个假设的场景来理解迁移学习的重要性。
 - en: Consider a situation where we are working with images of a road, trying to classify
     them in terms of the objects they contain. Building a model from scratch might
     result in suboptimal results, as the number of images could be insufficient to
@@ -109,298 +150,429 @@
     on the large ImageNet dataset. Hence, leveraging the already trained model would
     result in faster and more accurate training as the model already knows the generic
     shapes and now has to fit them for the specific images.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑以下情况，我们正在处理道路的图像，并试图根据它们所包含的对象进行分类。从头开始建立模型可能会导致结果不佳，因为图像数量可能不足以学习数据集内的各种变化（正如我们在先前的用例中看到的，训练8000张图像比训练1000张图像在验证数据集上获得更高的准确性）。在这种情况下，预训练模型在ImageNet上训练就非常方便。在训练过程中，它已经学习了与交通相关的各种类别，如汽车、道路、树木和人类。因此，利用已训练好的模型将会导致更快速和更准确的训练，因为模型已经了解了通用形状，现在只需将其适配到特定图像上。
 - en: 'With the intuition in place, let’s now understand the high-level flow of transfer
     learning, as follows:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 有了直觉之后，让我们现在来理解迁移学习的高级流程，如下所示：
 - en: Normalize the input images, normalized by the same *mean* and *standard deviation*
     that was used during the training of the pretrained model.
+  id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 标准化输入图像，使用在预训练模型训练期间使用的相同*平均值*和*标准差*进行标准化。
 - en: Fetch the pretrained model’s architecture. Fetch the weights for this architecture
     that arose as a result of being trained on a large dataset.
+  id: totrans-22
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取预训练模型的架构。获取这种架构的权重，这些权重是在大数据集上训练得到的结果。
 - en: Discard the last few layers of the pretrained model so that we can fine-tune
     the last layers for this specific dataset.
+  id: totrans-23
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 丢弃预训练模型的最后几层，以便我们可以微调这个特定数据集的最后几层。
 - en: Connect the truncated pretrained model to a freshly initialized layer (or layers)
     where weights are randomly initialized. Ensure that the output of the last layer
     has as many neurons as the classes/outputs we would want to predict.
+  id: totrans-24
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将截断的预训练模型连接到一个刚初始化的层（或多层），其中权重是随机初始化的。确保最后一层的输出具有与我们想要预测的类别/输出一样多的神经元。
 - en: Ensure that the weights of the pretrained model are not trainable (in other
     words, frozen/not updated during backpropagation), but that the weights of the
     newly initialized layer and the weights connecting it to the output layer are
     trainable.
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 确保预训练模型的权重不可训练（换句话说，在反向传播期间被冻结/不更新），但新初始化层的权重及其与输出层连接的权重是可训练的。
 - en: We do not train the weights of the pretrained model, as we assume those weights
     are already well learned for the task, and hence leverage the learning from a
     large model. In summary, we only *learn* the newly initialized layers for our
     small dataset.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们不会训练预训练模型的权重，因为我们假设这些权重已经很好地适应了任务，因此利用大模型的学习。总结一下，我们只会学习我们小数据集的新初始化层。
 - en: Update the trainable parameters over increasing epochs to fit a model.
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 逐步增加时期更新可训练参数，以适应模型。
 - en: Now that we have an idea of how to implement transfer learning, let’s understand
     the various architectures, how they are built, and the results when we apply transfer
     learning to the cats versus dogs use case in subsequent sections. First, we will
     cover in detail some of the various architectures that came out of VGG.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何实现迁移学习，让我们在接下来的章节中了解各种架构，它们是如何构建的，以及在将迁移学习应用于猫对狗的用例时的结果。首先，我们将详细介绍一些出自VGG的各种架构。
 - en: Understanding the VGG16 architecture
+  id: totrans-29
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解VGG16的架构
 - en: '**VGG** stands for **Visual** **Geometry** **Group**, which is based out of
     the University of Oxford. *16* stands for the number of layers in the model. The
     VGG16 model is trained to classify objects in the ImageNet competition and stood
     as the runner-up architecture in 2014\. The reason we are studying this architecture
     instead of the winning architecture (GoogleNet) is because of its simplicity and
     its broader use by the vision community for several other tasks.'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: '**VGG**代表**Visual** **Geometry** **Group**，它位于牛津大学。 *16*代表模型中的层数。VGG16模型经过训练，用于在ImageNet竞赛中分类对象，并在2014年排名第二。我们研究这种架构而不是获胜架构（GoogleNet）的原因是其简单性及其被视觉社区广泛用于多种其他任务。'
 - en: Let’s understand the architecture of VGG16 along with how a VGG16 pretrained
     model is accessible and represented in PyTorch.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们了解VGG16的架构以及如何在PyTorch中访问和表示预训练的VGG16模型。
 - en: The following code can be found in the `VGG_architecture.ipynb` file located
     in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码可以在GitHub上的`Chapter05`文件夹中的`VGG_architecture.ipynb`文件中找到，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'To get started with using the VGG16 pretrained model in PyTorch, follow these
     steps:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 要开始使用PyTorch中的预训练VGG16模型，请按照以下步骤进行：
 - en: 'Install the required packages:'
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包：
 - en: '[PRE0]'
+  id: totrans-35
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: The `models` module in the `torchvision` package hosts the various pretrained
     models available in PyTorch.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: '`torchvision`包中的`models`模块托管了PyTorch中可用的各种预训练模型。'
 - en: 'Load the VGG16 model and register the model within the device:'
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载VGG16模型并在设备上注册模型：
 - en: '[PRE1]'
+  id: totrans-38
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: In the preceding code, we have called the `vgg16` method within the `models`
     class. By mentioning `pretrained=True`, we are specifying that we load the weights
     that were used to classify images in the ImageNet competition, and then we are
     registering the model to the device.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们调用了`models`类中的`vgg16`方法。通过指定`pretrained=True`，我们指定加载用于在ImageNet竞赛中分类图像的权重，然后将模型注册到设备上。
 - en: 'Fetch the summary of the model:'
+  id: totrans-40
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取模型的总结：
 - en: '[PRE2]'
+  id: totrans-41
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: The output of the preceding code is available in the associated notebook on
     GitHub.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出可以在GitHub上的相关笔记本中找到。
 - en: 'In the preceding summary, the 16 layers we mentioned are grouped as follows:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述总结中，我们提到的16层被分组如下：
 - en: '[PRE3]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The same summary can also be visualized thus:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样的总结也可以通过可视化呈现：
 - en: '![Diagram, schematic  Description automatically generated](img/B18457_05_01.png)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![Diagram, schematic  Description automatically generated](img/B18457_05_01.png)'
 - en: 'Figure 5.1: VGG16 archietcture'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.1：VGG16架构
 - en: Note that there are ~138 million parameters (of which ~122 million are the linear
     layers at the end of the network – 102 + 16 + 4 million parameters) in this network,
     which comprises 13 layers of convolution and/or pooling, with an increasing number
     of filters, and 3 linear layers.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，该网络中有大约138 million个参数（其中大约122 million个是网络末端的线性层– 102 + 16 + 4 million个参数），包括13层卷积和/或池化层，以及3个线性层。
 - en: 'Another way to understand the components of the VGG16 model is by simply printing
     it as follows:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种理解VGG16模型组件的方式是通过如下方式打印它：
 - en: '[PRE4]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The output of the preceding code is available on GitHub.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出可以在GitHub上找到。
 - en: Note that there are three major sub-modules in the model–`features`, `avgpool`,
     and `classifier`. Typically, we would freeze the `features` and `avgpool` modules.
     Delete the `classifier` module (or only a few layers at the bottom) and create
     a new one in its place that will predict the required number of classes corresponding
     to our dataset (instead of the existing 1,000).
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，模型中有三个主要子模块– `features`、`avgpool`和`classifier`。通常，我们会冻结`features`和`avgpool`模块。删除`classifier`模块（或仅删除底部的几层）并创建一个新模块，以预测与我们的数据集对应的所需类别数（而不是现有的1,000个类）。
 - en: Implementing VGG16
+  id: totrans-53
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实现VGG16
 - en: 'Let’s now understand how the VGG16 model is used in practice, using the cats
     versus dogs dataset (considering only 500 images in each class for training) in
     the following code:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们了解如何在实践中使用VGG16模型，使用猫狗数据集（仅考虑每个类别的500张图像进行训练）在以下代码中：
 - en: The following code can be found in the `Implementing_VGG16_for_image_classification.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Be sure to copy the URL from the notebook on GitHub to avoid any issues while
     reproducing the results.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 可在GitHub上的`Chapter05`文件夹中的`Implementing_VGG16_for_image_classification.ipynb`文件中找到以下代码，位于[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。请务必从GitHub的笔记本复制URL，以避免在复制结果时出现任何问题。
 - en: 'Install the required packages:'
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的软件包：
 - en: '[PRE5]'
+  id: totrans-57
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Download the dataset and specify the training and test directories:'
+  id: totrans-58
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集并指定训练和测试目录：
 - en: 'Assuming that we are working on Google Colab, we perform the following steps,
     where we provide the authentication key and place it in a location where Kaggle
     can use the key to authenticate us and download the dataset:'
+  id: totrans-59
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 假设我们正在使用Google Colab，我们执行以下步骤，提供认证密钥并将其放置在Kaggle可以使用该密钥进行身份验证并下载数据集的位置：
 - en: '[PRE6]'
+  id: totrans-60
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Download the dataset and unzip it:'
+  id: totrans-61
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集并解压缩：
 - en: '[PRE7]'
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Specify the training and test image folders:'
+  id: totrans-63
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定训练和测试图像文件夹：
 - en: '[PRE8]'
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Provide the class that returns input-output pairs for the cats and dogs dataset,
     just like we did in the previous chapter. Note that, in this case, we are fetching
     only the first 500 images from each folder:'
+  id: totrans-65
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提供返回猫和狗数据集的输入输出对的类，就像我们在前一章中所做的那样。请注意，在这种情况下，我们仅从每个文件夹中获取前500张图像：
 - en: '[PRE9]'
+  id: totrans-66
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: The main difference between the `cats_dogs` class in this section and in *Chapter
     4* is the `normalize` function that we are applying using the `Normalize` function
     from the `transforms` module.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中`cats_dogs`类与*第4章*中的主要区别在于我们正在使用`transforms`模块中的`Normalize`函数应用`normalize`函数。
 - en: When leveraging pretrained models, it is mandatory to resize, permute, and then
     normalize images (as appropriate for that pretrained model), where the images
     are first scaled to a value between 0 and 1 across the 3 channels and then normalized
     to a mean of `[0.485, 0.456, 0.406]` and a standard deviation of `[0.229, 0.224,
     0.225]` across the RGB channels.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 当利用预训练模型时，必须对图像进行调整、排列，然后进行归一化（适用于该预训练模型），首先将图像缩放到0到1之间的值，跨越3个通道，然后对RGB通道进行均值归一化为`[0.485,
+    0.456, 0.406]`，标准差归一化为`[0.229, 0.224, 0.225]`。
 - en: 'Fetch the images and their labels:'
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取图像及其标签：
 - en: '[PRE10]'
+  id: totrans-70
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Let’s now inspect a sample image and its corresponding class:'
+  id: totrans-71
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们检查一个样本图像及其对应的类别：
 - en: '[PRE11]'
+  id: totrans-72
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-73
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 上述代码会产生以下输出：
 - en: '[PRE12]'
+  id: totrans-74
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: '![A cat wearing a garment  Description automatically generated with low confidence](img/B18457_05_02.png)'
+  id: totrans-75
   prefs: []
   type: TYPE_IMG
+  zh: '![一只穿着衣物的猫，自动生成的描述，置信度较低](img/B18457_05_02.png)'
 - en: 'Figure 5.2: Input sample image'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.2：输入样本图像
 - en: 'Download the pretrained VGG16 weights and then freeze the `features` module
     and train using the `avgpool` and `classifier` modules:'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载预训练的VGG16权重，然后冻结`features`模块，并使用`avgpool`和`classifier`模块进行训练：
 - en: 'First, we download the pretrained VGG16 model from the `models` class:'
+  id: totrans-78
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，从`models`类中下载预训练的VGG16模型。
 - en: '[PRE13]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Specify that we want to freeze all the parameters in the model downloaded previously:'
+  id: totrans-80
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定我们要冻结先前下载的模型中的所有参数：
 - en: '[PRE14]'
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Replace the `avgpool` module to return a feature map of size 1 x 1 instead
     of 7 x 7; in other words, the output is now going to be `batch_size x 512 x 1
     x 1`:'
+  id: totrans-82
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 替换`avgpool`模块以返回大小为1 x 1的特征映射，而不是7 x 7；换句话说，输出现在将是`batch_size x 512 x 1 x 1`：
 - en: '[PRE15]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: We have seen `nn.MaxPool2d`, where we are picking the maximum value from every
     section of a feature map. There is a counterpart to this layer called `nn.AvgPool2d`,
     which returns the average of a section instead of the maximum. In both these layers,
@@ -412,176 +584,259 @@
     advantage of this layer is that whatever the input size, the output from this
     layer is always fixed and, hence, the neural network can accept images of any
     height and width.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经见过 `nn.MaxPool2d`，在这里我们从特征图的每个部分选取最大值。这个层的对应物称为 `nn.AvgPool2d`，它返回一个部分的平均值而不是最大值。在这两个层中，我们固定了核大小。上面的层
+    `nn.AdaptiveAvgPool2d` 是带有变化的另一种池化层。我们指定输出特征图的大小。该层自动计算核大小，以便返回指定的特征图大小。例如，如果输入特征图大小的维度为
+    `batch_size x 512 x k x k`，那么池化核大小将是 `k x k`。该层的主要优势是，无论输入大小如何，该层的输出始终是固定的，因此神经网络可以接受任何高度和宽度的图像。
 - en: 'Define the `classifier` module of the model, where we first flatten the output
     of the `avgpool` module, connect the 512 units to the 128 units, and perform an
     activation prior to connecting to the output layer:'
+  id: totrans-85
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型的 `classifier` 模块，在这里我们首先展平 `avgpool` 模块的输出，将 512 单元连接到 128 单元，并在连接到输出层之前执行激活：
 - en: '[PRE16]'
+  id: totrans-86
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Define the loss function (`loss_fn`) and `optimizer`, and return them along
     with the defined model:'
+  id: totrans-87
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义损失函数（`loss_fn`）和 `optimizer`，并将它们与定义的模型一起返回：
 - en: '[PRE17]'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: Note that, in the preceding code, we have first frozen all the parameters of
     the pretrained model and have then overwritten the `avgpool` and `classifier`
     modules. Now, the rest of the code is going to look similar to what we have seen
     in the previous chapter.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在前面的代码中，我们首先冻结了预训练模型的所有参数，然后重写了 `avgpool` 和 `classifier` 模块。现在，剩下的代码将看起来与我们在前一章中看到的类似。
 - en: 'A summary of the model is as follows:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 模型的摘要如下：
 - en: '[PRE18]'
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: The output of the preceding code is available in the associated notebook on
     GitHub.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面代码的输出可以在 GitHub 上关联的笔记本中找到。
 - en: Note that the number of trainable parameters is only 65,793 out of a total of
     14.7 million, as we have frozen the `features` module and have overwritten the
     `avgpool` and `classifier` modules. Now, only the `classifier` module will have
     weights that will be learned.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，可训练参数的数量仅为 65,793，总共为 14.7 百万，因为我们已冻结了 `features` 模块并已重写了 `avgpool` 和 `classifier`
+    模块。现在，只有 `classifier` 模块将具有将被学习的权重。
 - en: 'Define a function to train on a batch, calculate the accuracy, and get data
     just like we did in the previous chapter:'
+  id: totrans-94
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数来训练一个批次数据，计算准确率，并获取数据，就像我们在上一章中做的那样：
 - en: 'Train on a batch of data:'
+  id: totrans-95
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在一批数据上进行训练：
 - en: '[PRE19]'
+  id: totrans-96
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Define a function to calculate accuracy on a batch of data:'
+  id: totrans-97
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数来计算一批数据的准确率：
 - en: '[PRE20]'
+  id: totrans-98
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Define a function to fetch the data loaders:'
+  id: totrans-99
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数来获取数据加载器：
 - en: '[PRE21]'
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Initialize the `get_data` and `get_model` functions:'
+  id: totrans-101
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化 `get_data` 和 `get_model` 函数：
 - en: '[PRE22]'
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Train the model over increasing epochs, just like we did in the previous chapter:'
+  id: totrans-103
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型在不断增加的 epoch 上，就像我们在前一章中所做的那样：
 - en: '[PRE23]'
+  id: totrans-104
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Plot the training and test accuracy values over increasing epochs:'
+  id: totrans-105
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制随着 epoch 增加的训练和测试准确率值的图表：
 - en: '[PRE24]'
+  id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'This results in the following output:'
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果如下输出：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_03.png)'
+  id: totrans-108
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，折线图 自动生成的描述](img/B18457_05_03.png)'
 - en: 'Figure 5.3: Training and validation accuracy of VGG16 with 1K training data
     points'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.3：VGG16 使用 1K 训练数据点的训练和验证准确率
 - en: Note that we are able to get an accuracy of 98% within the first epoch, even
     on a small dataset of 1,000 images (500 images of each class).
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，即使在 1,000 张图像（每类 500 张图像）的小数据集上，我们在第一个 epoch 内也能获得 98% 的准确率。
 - en: In addition to VGG16, there are the VGG11 and VGG19 pretrained architectures,
     which work just like VGG16 but with a different number of layers. VGG19 has more
     parameters than that of VGG16 as it has a higher number of layers.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了 VGG16 外，还有 VGG11 和 VGG19 预训练架构，它们的工作原理与 VGG16 类似，但层数不同。VGG19 的参数比 VGG16 多，因为它有更多的层。
 - en: 'The training and validation accuracy when we use VGG11 and VGG19 in place of
     the VGG16 pretrained model is as follows:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们在 VGG16 的位置上使用 VGG11 和 VGG19 预训练模型时，训练和验证准确率如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_04.png)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
+  zh: '![Chart, line chart  Description automatically generated](img/B18457_05_04.png)'
 - en: 'Figure 5.4: (Left) VGG19 accuracy with 1K training data points; (Right) VGG11
     accuracy with 1K training data points'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.4：（左）使用1K训练数据点的VGG19准确率；（右）使用1K训练数据点的VGG11准确率
 - en: Note that while the VGG19-based model has slightly better accuracy than that
     of a VGG16-based model with an accuracy of 98% on validation data, the VGG11-based
     model has a slightly lower accuracy of 97%.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，尽管基于VGG19的模型在验证数据上的准确率略高于基于VGG16的模型，达到了98%，基于VGG11的模型准确率稍低，只有97%。
 - en: From VGG16 to VGG19, we have increased the number of layers, and generally,
     the deeper the neural network, the better its accuracy.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 从VGG16到VGG19，我们增加了层次的数量，通常来说，神经网络层数越深，准确率就会越好。
 - en: However, if merely increasing the number of layers is the trick, then we could
     keep on adding more layers (while taking care to avoid overfitting) to the model
     to get more accurate results on ImageNet and then fine-tune it for a dataset of
     interest. Unfortunately, that does not turn out to be true.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，如果仅仅增加层数就是诀窍的话，那么我们可以继续向模型中添加更多层次（同时要注意避免过拟合），以在ImageNet上获得更精确的结果，然后对感兴趣的数据集进行微调。不幸的是，这并不是真的。
 - en: 'There are multiple reasons why it is not that easy. Any of the following are
     likely to happen as we go deeper in terms of architecture:'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 有多种原因使得这并不那么容易。当我们在架构上变得更深时，可能会发生以下任何一种情况：
 - en: We have to learn a larger number of features.
+  id: totrans-119
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们必须学习更多的特征。
 - en: Vanishing gradients arise.
+  id: totrans-120
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 梯度消失问题会出现。
 - en: There is too much information modification at deeper layers.
+  id: totrans-121
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在更深的层次上有太多的信息修改。
 - en: ResNet comes into the picture to address this specific scenario of identifying
     when not to learn, which we will discuss in the next section.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: ResNet在此特定场景中应运而生，以解决识别不需要学习的情况，我们将在下一节讨论。
 - en: Understanding the ResNet architecture
+  id: totrans-123
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解ResNet架构
 - en: When building too deep a network, there are two problems. In forward propagation,
     the last few layers of the network have almost no information about what the original
     image was. In backpropagation, the first few layers near the input hardly get
@@ -591,29 +846,41 @@
     the last layer will have the entire information of the original image due to this
     highway network. And because of the skipping layers, the backward gradients will
     flow freely to the initial layers with little modification.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 当构建过深的网络时，会出现两个问题。在前向传播中，网络的最后几层几乎无法获取原始图像的信息。在反向传播中，靠近输入的前几层由于梯度消失几乎不会获得梯度更新（换句话说，它们几乎为零）。为了解决这两个问题，ResNet使用类似高速公路的连接，将前几层的原始信息传递给后面的层次。理论上，甚至最后一层也将由于这种高速公路网络而获得原始图像的所有信息。由于跳跃连接的存在，反向梯度将自由流动到初始层，并几乎没有修改。
 - en: The term **residual** in the residual network is the additional information
     that the model is expected to learn from the previous layer that needs to be passed
     on to the next layer.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 在残差网络中，“残差”一词指的是模型预期从前一层学习到的额外信息，需要传递给下一层。
 - en: 'A typical residual block appears as follows:'
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 典型的残差块如下所示：
 - en: '![Diagram  Description automatically generated](img/B18457_05_05.png)'
+  id: totrans-127
   prefs: []
   type: TYPE_IMG
+  zh: '![Diagram  Description automatically generated](img/B18457_05_05.png)'
 - en: 'Figure 5.5: Residual block'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.5：残差块
 - en: As you can see, while so far we have been interested in extracting the `F(x)`
     value, where `x` is the value coming from the previous layer, in the case of a
     residual network, we are not only extracting the value after passing through the
     weight layers, which is F(x), but also summing up F(x) with the original value,
     which is `x`.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您所见，到目前为止，我们一直对提取`F(x)`值感兴趣，其中`x`是来自前一层的值，在残差网络的情况下，我们不仅仅是提取通过权重层传递后的值，即F(x)，还将F(x)与原始值`x`相加。
 - en: So far, we have been using standard layers that performed either linear or convolution
     transformations, `F(x)`, along with some non-linear activation. Both of these
     operations in some sense destroy the input information. For the first time, we
@@ -621,654 +888,955 @@
     adding the input directly to the transformation – `F(x) + x`. This way, in certain
     scenarios, the layer has very little burden in remembering what the input is and
     can focus on learning the correct transformation for the task.
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们一直在使用执行线性或卷积变换 `F(x)` 的标准层以及一些非线性激活。这两种操作在某种意义上都会破坏输入信息。这是第一次，我们看到一个层不仅转换输入，还通过将输入直接添加到转换中来保留输入，即
+    `F(x) + x`。因此，在某些情况下，该层几乎不需要记住输入是什么，并且可以专注于学习任务的正确转换。
 - en: 'Let’s have a more detailed look at the residual layer through code by building
     a residual block:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过代码更详细地查看残差层，构建一个残差块：
 - en: The full code for this section can be found in the `Implementing_ResNet18_for_image_classification.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 此部分的完整代码可以在 GitHub 上的 `Implementing_ResNet18_for_image_classification.ipynb`
+    文件中找到，位于 `Chapter05` 文件夹中，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Define a class with the convolution operation (weight layer in the previous
     diagram) in the `__init__` method:'
+  id: totrans-133
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `__init__` 方法中定义一个具有卷积操作（前面图表中的权重层）的类：
 - en: '[PRE25]'
+  id: totrans-134
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: Note that, in the preceding code, we defined `padding` as the dimension of the
     output when passed through convolution, and the dimension of the input should
     remain the same if we were to sum the two.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在上述代码中，我们将 `padding` 定义为通过卷积传递时的输出维度，如果我们要对两者求和，则输入的维度应保持不变。
 - en: 'Define the `forward` method:'
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `forward` 方法：
 - en: '[PRE26]'
+  id: totrans-137
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: In the preceding code, we are getting an output that is a sum of the input passed
     through the convolution operations and the original input.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们得到一个输出，它是输入经过卷积操作和原始输入的和。
 - en: 'Now that we have learned how residual blocks work, let’s understand how the
     residual blocks are connected in a pretrained, residual block-based network, ResNet18:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经学习了残差块的工作原理，让我们了解一下如何在预训练的基于残差块的网络 ResNet18 中连接残差块：
 - en: '![Diagram  Description automatically generated](img/B18457_05_06.png)'
+  id: totrans-140
   prefs: []
   type: TYPE_IMG
+  zh: '![Diagram  Description automatically generated](img/B18457_05_06.png)'
 - en: 'Figure 5.6: ResNet18 architecture'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.6：ResNet18 架构
 - en: As you can see, there are 18 layers in the architecture, hence it is referred
     to as a ResNet18 architecture. Furthermore, notice how the skip connections are
     made across the network. They are not made at every convolution layer but after
     every two layers instead.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您所见，该架构中有 18 层，因此被称为 ResNet18 架构。此外，请注意如何跨网络进行跳跃连接。它们不是在每个卷积层之后进行连接，而是在每两个层之后进行连接。
 - en: Implementing ResNet18
+  id: totrans-143
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实现 ResNet18
 - en: With an understanding of the composition of a ResNet architecture, let’s build
     a model based on the ResNet18 architecture to classify between dogs and cats,
     just like we did in the previous section using VGG16.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过理解 ResNet 架构的组成，让我们基于 ResNet18 架构构建一个模型，用于对狗和猫进行分类，就像我们在之前的部分中使用 VGG16 一样。
 - en: 'To build a classifier, the code up to *step 3* of the *Implementing VGG16*
     section remains the same as it deals with importing packages, fetching data, and
     inspecting them. So, we will start by understanding the composition of a pretrained
     ResNet18 model:'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 要构建一个分类器，*实现 VGG16* 部分到 *步骤 3* 的代码保持不变，因为它涉及导入包、获取数据和检查它们。因此，我们将从理解预训练的 ResNet18
+    模型的组成开始：
 - en: The full code for this section can be found in the `Resnet_block_architecture.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Given that a majority of the code is similar to the code in the *Implementing
     VGG16* section, we have only provided additional code for brevity. For the full
     code, do refer to the notebook on GitHub.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 此部分的完整代码可以在 GitHub 上的 `Resnet_block_architecture.ipynb` 文件中找到，位于 `Chapter05`
+    文件夹中，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。考虑到大部分代码与 *实现 VGG16*
+    部分的代码相似，我们只提供了额外的代码以简洁为目的。如需完整代码，请参考 GitHub 上的笔记本。
 - en: 'Load the pretrained ResNet18 model and inspect the modules within the loaded
     model:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载预训练的 ResNet18 模型并检查加载模型中的模块：
 - en: '[PRE27]'
+  id: totrans-148
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'The structure of the ResNet18 model contains the following components:'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: ResNet18 模型的结构包含以下组件：
 - en: Convolution
+  id: totrans-150
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 卷积
 - en: Batch normalization
+  id: totrans-151
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 批归一化
 - en: ReLU
+  id: totrans-152
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: ReLU
 - en: '`MaxPooling`'
+  id: totrans-153
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`MaxPooling`'
 - en: Four layers of ResNet blocks
+  id: totrans-154
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 四层 ResNet 块
 - en: Average pooling (`avgpool`)
+  id: totrans-155
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 平均池化（`avgpool`）
 - en: A fully connected layer (`fc`)
+  id: totrans-156
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个全连接层（`fc`）
 - en: As we did in VGG16, we will freeze all the different modules but update the
     parameters in the `avgpool` and `fc` modules in the next step.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 就像我们在VGG16中所做的那样，我们将冻结所有不同的模块，但在接下来的步骤中更新`avgpool`和`fc`模块的参数。
 - en: 'Define the model architecture, loss function, and optimizer:'
+  id: totrans-158
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型架构、损失函数和优化器：
 - en: '[PRE28]'
+  id: totrans-159
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: In the preceding model, the input shape of the `fc` module is 512, as the output
     of `avgpool` has the shape of batch size x 512 x 1 x 1.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述模型中，`fc`模块的输入形状是512，因为`avgpool`的输出形状为批次大小 x 512 x 1 x 1。
 - en: 'Now that we have defined the model, let’s execute *steps 5* and *6* from the
     *Implementing VGG* section. The variation in training and validation accuracies
     after training the model (where the model is ResNet18, ResNet34, ResNet50, ResNet101,
     and ResNet152 for each of the following charts) over increasing epochs is as follows:'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了模型，让我们执行*实施VGG*部分的*步骤5*和*6*。在对模型（其中模型为ResNet18、ResNet34、ResNet50、ResNet101和ResNet152，每个图表的训练和验证精度）进行增加的epoch训练后，训练和验证精度的变化如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_07.png)'
+  id: totrans-162
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图  自动生成描述](img/B18457_05_07.png)'
 - en: 'Figure 5.7: Training and validation accuracy with varying numbers of ResNet
     layers'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.7：使用不同数量的ResNet层进行训练和验证的准确率
 - en: We see that the accuracy of the model, when trained on only 1,000 images, varies
     between 97% and 98%, where accuracy increases with an increase in the number of
     layers in ResNet.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们看到模型在仅训练了1,000张图像后的准确性在97%到98%之间变化，其中随着ResNet层数的增加，准确性也随之增加。
 - en: Besides VGG and ResNet, some of the other prominent pretrained models are Inception,
     MobileNet, DenseNet, and SqueezeNet.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了VGG和ResNet之外，其他一些著名的预训练模型还包括Inception、MobileNet、DenseNet和SqueezeNet。
 - en: 'Now that we have learned about leveraging pretrained models to predict for
     a class that is binary, in the next sections, we will learn about leveraging pretrained
     models to solve real-world use cases that involve the following:'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何利用预训练模型来预测一个二元类别，接下来，在接下来的几节中，我们将学习如何利用预训练模型来解决涉及以下内容的真实用例：
 - en: '**Multi-regression**: Prediction of multiple values given an image as input
     – facial keypoint detection'
+  id: totrans-167
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**多重回归**：针对给定图像进行多个值的预测 – 面部关键点检测'
 - en: '**Multi-task learning**: Prediction of multiple items in a single shot – age
     estimation and gender classification'
+  id: totrans-168
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**多任务学习**：在单次预测中预测多个项目 – 年龄估计和性别分类'
 - en: Implementing facial keypoint detection
+  id: totrans-169
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 实现面部关键点检测
 - en: So far, we have learned about predicting classes that are binary (cats versus
     dogs) or are multi-label (Fashion-MNIST). Let’s now learn a regression problem
     and, in so doing, a task where we are predicting not one but several continuous
     outputs (and hence a multi-regression learning).
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了如何预测二元类别（猫与狗）或多标签（时尚-MNIST）。现在让我们学习一个回归问题，通过这样做，我们可以预测不止一个而是多个连续输出（因此是多重回归学习）。
 - en: Imagine a scenario where you are asked to predict the keypoints present on an
     image of a face; for example, the location of the eyes, nose, and chin. In this
     scenario, we need to employ a new strategy to build a model to detect the keypoints.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情境，您被要求预测图像上面部的关键点；例如，眼睛、鼻子和下巴的位置。在这种情况下，我们需要采用一种新策略来构建一个检测关键点的模型。
 - en: 'Before we dive further, let’s understand what we are trying to achieve through
     the following image:'
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们进一步深入之前，让我们通过下面的图像了解我们试图实现什么：
 - en: '![Graphical user interface  Description automatically generated with medium
     confidence](img/B18457_05_08.png)'
+  id: totrans-173
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面  自动生成描述（中等置信度）](img/B18457_05_08.png)'
 - en: 'Figure 5.8: (Left) Input image; (Right) Input image overlaid with facial keypoints'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.8：（左）输入图像；（右）覆盖了面部关键点的输入图像
 - en: As you can observe in the preceding image, facial keypoints denote the markings
     of various keypoints on an image that contains a face.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您可以在前面的图像中观察到的那样，面部关键点表示了图像中包含面部的各种关键点的标记。
 - en: 'To solve this problem, we would first have to solve a few other problems:'
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 要解决这个问题，我们首先必须解决其他几个问题：
 - en: Images can be of different shapes. This warrants an adjustment in the keypoint
     locations while adjusting images to bring them all to a standard image size.
+  id: totrans-177
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 图像可以有不同的形状。这要求在调整图像以将它们全部调整为标准图像尺寸时，调整关键点的位置。
 - en: Facial keypoints are similar to points on a scatter plot, but scattered based
     on a certain pattern this time. This means that the values are anywhere between
     0 and 224 if the image is resized to a shape of 224 x 224 x 3.
+  id: totrans-178
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 面部关键点类似于散点图上的点，但这次基于某种模式分散。这意味着这些值在图像被调整为224 x 224 x 3的形状时，可以在0到224之间的任何地方。
 - en: Normalize the dependent variable (the location of facial keypoints) as per the
     size of the image. The keypoint values are always between 0 and 1 if we consider
     their location relative to image dimensions.
+  id: totrans-179
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 根据图像的大小规范化因变量（面部关键点的位置）。如果考虑到它们相对于图像尺寸的位置，关键点值始终在0和1之间。
 - en: Given that the dependent variable values are always between 0 and 1, we can
     use a sigmoid layer at the end to fetch values that will be between 0 and 1.
+  id: totrans-180
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 鉴于因变量值始终在0和1之间，我们可以在最后使用一个sigmoid层来获取值，这些值将在0和1之间。
 - en: 'Let’s formulate the pipeline for solving this facial keypoint detection use
     case:'
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们为解决面部关键点检测用例制定流水线：
 - en: The following code can be found in the `2D_and_3D facial_keypoints_detection.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Be sure to copy code from the notebook on GitHub to avoid issues when reproducing
     the results.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码可以在位于GitHub的`Chapter05`文件夹中的`2D_and_3D facial_keypoints_detection.ipynb`文件中找到，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。确保从GitHub的笔记本中复制代码，以避免在重现结果时出现问题。
 - en: 'Import the relevant packages and the dataset:'
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入相关包和数据集：
 - en: '[PRE29]'
+  id: totrans-184
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Download and import the relevant data. You can download the relevant data that
     contains images and their corresponding facial keypoints:'
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载并导入相关数据。您可以下载包含图像及其对应的面部关键点的相关数据：
 - en: '[PRE30]'
+  id: totrans-186
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'A sample of the imported dataset is as follows:'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 导入数据集的样本如下所示：
 - en: '![Table  Description automatically generated with low confidence](img/B18457_05_09.png)'
+  id: totrans-188
   prefs: []
   type: TYPE_IMG
+  zh: '![Table  Description automatically generated with low confidence](img/B18457_05_09.png)'
 - en: 'Figure 5.9: Input dataset'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.9：输入数据集
 - en: In the preceding output, column 1 represents the name of the image, even columns
     represent the *x*-axis value corresponding to each of the 68 keypoints of the
     face, and the rest of the odd columns (except the first column) represent the
     *y*-axis value corresponding to each of the 68 keypoints.
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述输出中，第1列表示图像的名称，偶数列表示与脸部68个关键点中的每一个对应的*x*轴值，其余的奇数列（除了第一列）表示与脸部68个关键点中的每一个对应的*y*轴值。
 - en: 'Define the `FacesData` class, which provides input and output data points for
     the data loader:'
+  id: totrans-191
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`FacesData`类，为数据加载器提供输入和输出数据点：
 - en: '[PRE31]'
+  id: totrans-192
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Now let’s define the `__init__` method, which takes the DataFrame of the file
     (`df`) as input:'
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们定义`__init__`方法，该方法以文件的DataFrame (`df`) 作为输入：
 - en: '[PRE32]'
+  id: totrans-194
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Define the mean and standard deviation with which images are to be pre-processed
     so that they can be consumed by the pretrained VGG16 model:'
+  id: totrans-195
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义用于预处理图像以便预训练VGG16模型能够使用的均值和标准差：
 - en: '[PRE33]'
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Now, define the `__len__` method:'
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，定义`__len__`方法：
 - en: '[PRE34]'
+  id: totrans-198
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Define the `__getitem__` method and fetch the path of the image corresponding
     to a given index (`ix`):'
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`__getitem__`方法，并获取与给定索引(`ix`)对应的图像路径：
 - en: '[PRE35]'
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Scale the image:'
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 缩放图像：
 - en: '[PRE36]'
+  id: totrans-202
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Normalize the expected output values (keypoints) as a proportion of the size
     of the original image:'
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将预期的输出值（关键点）规范化为原始图像大小的比例：
 - en: '[PRE37]'
+  id: totrans-204
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: In the preceding code, we are ensuring that keypoints are provided as a proportion
     of the original image’s size. This is done so that when we resize the original
     image, the location of the keypoints is not changed, as the keypoints are provided
     as a proportion of the original image. Furthermore, by doing so, we have expected
     output values that are between 0 and 1.
+  id: totrans-205
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们确保关键点被提供为原始图像尺寸的比例。这样做是为了在调整原始图像大小时，关键点的位置不会改变，因为关键点是按照原始图像的比例提供的。此外，通过这样做，我们有了预期的输出值，这些值在0到1之间。
 - en: 'Return the keypoints (`kp2`) and image (`img`) after pre-processing the image:'
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在预处理图像后返回关键点(`kp2`)和图像(`img`)：
 - en: '[PRE38]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Define the function to pre-process an image (`preprocess_input`):'
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义预处理图像的函数(`preprocess_input`)：
 - en: '[PRE39]'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Define a function to load the image, which will be useful when we want to visualize
     a test image and the predicted keypoints of the test image:'
+  id: totrans-210
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个加载图像的函数，当我们希望可视化测试图像和测试图像的预测关键点时，这将非常有用：
 - en: '[PRE40]'
+  id: totrans-211
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Let’s now create a training and test data split and establish training and
     test datasets and data loaders:'
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们创建训练和测试数据集，并建立训练和测试数据加载器：
 - en: '[PRE41]'
+  id: totrans-213
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: In the preceding code, we have split the training and test datasets by person
     name in the input data frame and fetched their corresponding objects.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们已经按输入数据帧中的人名拆分了训练和测试数据集，并获取了它们对应的对象。
 - en: 'Let’s now define the model that we will leverage to identify keypoints in an
     image:'
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们定义一个模型，我们将利用它来识别图像中的关键点：
 - en: 'Load the pretrained VGG16 model:'
+  id: totrans-216
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载预训练的 VGG16 模型：
 - en: '[PRE42]'
+  id: totrans-217
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Ensure that the parameters of the pretrained model are frozen first:'
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 确保先冻结预训练模型的参数：
 - en: '[PRE43]'
+  id: totrans-219
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Overwrite and unfreeze the parameters of the last two layers of the model:'
+  id: totrans-220
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 覆盖并解冻模型的最后两层参数：
 - en: '[PRE44]'
+  id: totrans-221
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'Note that the last layer of the model in the `classifier` module is a sigmoid
     function that returns a value between 0 and 1 and that the expected output will
     always be between 0 and 1 as keypoint locations are a fraction of the original
     image’s dimensions:'
+  id: totrans-222
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 请注意，在 `classifier` 模块中模型的最后一层是一个返回值在 0 到 1 之间的 sigmoid 函数，并且预期的输出将始终在 0 到 1
+    之间，因为关键点位置是原始图像尺寸的一部分。
 - en: 'Define the loss function and optimizer and return them along with the model:'
+  id: totrans-223
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义损失函数和优化器，并将它们与模型一起返回：
 - en: '[PRE45]'
+  id: totrans-224
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: Note that the loss function is `L1Loss`; in other words, we are performing mean
     absolute error reduction on the prediction of the location of facial keypoints
     (which will be predicted as a percentage of the image’s width and height).
+  id: totrans-225
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 请注意，损失函数为 `L1Loss`；换句话说，我们正在对面部关键点位置的预测进行均值绝对误差减小（这将被预测为图像宽度和高度的百分比）。
 - en: 'Get the model, the loss function, and the corresponding optimizer:'
+  id: totrans-226
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取模型、损失函数和相应的优化器：
 - en: '[PRE46]'
+  id: totrans-227
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'Define functions to train on a batch of data points and also to validate on
     the test dataset:'
+  id: totrans-228
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义函数以在一批数据点上进行训练，并在测试数据集上进行验证：
 - en: 'Training a batch, as we have done earlier, involves fetching the output of
     passing input through the model, calculating the loss value, and performing backpropagation
     to update the weights:'
+  id: totrans-229
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练一个批次，与之前所做的一样，涉及获取通过模型传递输入的输出、计算损失值并进行反向传播以更新权重：
 - en: '[PRE47]'
+  id: totrans-230
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'Build a function that returns the loss on test data and the predicted keypoints:'
+  id: totrans-231
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 构建一个函数，返回测试数据上的损失和预测的关键点：
 - en: '[PRE48]'
+  id: totrans-232
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'Train the model based on training the data loader and test it on test data,
     as we have done hitherto in previous sections:'
+  id: totrans-233
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 根据训练数据加载器训练模型，并在测试数据上进行测试，就像我们在之前的章节中所做的那样：
 - en: '[PRE49]'
+  id: totrans-234
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'Plot the training and test loss over increasing epochs:'
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制随着 epoch 增加的训练和测试损失：
 - en: '[PRE50]'
+  id: totrans-236
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出如下所示：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_10.png)'
+  id: totrans-238
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图 通过自动生成的描述](img/B18457_05_10.png)'
 - en: 'Figure 5.10: Training and test loss over increasing epochs'
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.10：随着 epoch 增加的训练和测试损失
 - en: 'Test our model on a random test image’s index, let’s say `0`. Note that in
     the following code, we are leveraging the `load_img` method in the `FacesData`
     class that was created earlier:'
+  id: totrans-240
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 测试我们的模型在一个随机测试图像的索引上，假设为 `0`。请注意，在以下代码中，我们正在利用早前创建的 `FacesData` 类中的 `load_img`
+    方法：
 - en: '[PRE51]'
+  id: totrans-241
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出如下所示：
 - en: '![Graphical user interface  Description automatically generated with low confidence](img/B18457_05_11.png)'
+  id: totrans-243
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面 通过低置信度自动生成的描述](img/B18457_05_11.png)'
 - en: 'Figure 5.11: (Left) Original image; (Right) Original image overlaid with predicted
     facial keypoints'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.11：（左）原始图像；（右）与预测的面部关键点叠加的原始图像
 - en: From the preceding image, we see that the model is able to identify the facial
     keypoints fairly accurately.
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 从上述图像中，我们看到模型能够相当精确地识别面部关键点。
 - en: In this section, we have built the facial keypoint detector model from scratch.
     However, there are pretrained models that are built both for 2D and 3D point detection.
     Given that there are multiple datasets/sources to fetch images of faces, what
     if we build a model on a larger dataset that contains a larger number of images
     of faces than what we have in the dataset we used previously?
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们从头开始构建了面部关键点检测器模型。然而，有些预训练模型既适用于 2D 又适用于 3D 点检测。考虑到有多个数据集/来源可获取面部图像，如果我们在包含比我们之前使用的数据集中更多面部图像的大型数据集上构建模型，会怎么样？
 - en: 2D and 3D facial keypoint detection
+  id: totrans-247
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 2D 和 3D 面部关键点检测
 - en: In this section, we will leverage a pretrained model that can detect the 2D
     and 3D keypoints present in a face in a few lines of code.
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将利用一个预训练模型，该模型可以在几行代码中检测人脸中存在的二维和三维关键点。
 - en: The following code can be found in the `2D_and_3D facial_keypoints.ipynb` file
     located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Be sure to copy the code from the notebook on GitHub to avoid issues when reproducing
     the results.
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以在GitHub上的`Chapter05`文件夹中的`2D_and_3D facial_keypoints.ipynb`文件中找到以下代码。请确保从GitHub的笔记本中复制代码，以避免再现结果时出现问题。
 - en: 'To work on this, we will leverage the `face-alignment` library:'
+  id: totrans-250
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了处理这个问题，我们将利用`face-alignment`库：
 - en: 'Install the required packages:'
+  id: totrans-251
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包：
 - en: '[PRE52]'
+  id: totrans-252
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Import the image:'
+  id: totrans-253
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入图片：
 - en: '[PRE53]'
+  id: totrans-254
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'Define the face alignment method, where we specify whether we want to fetch
     keypoint landmarks in 2D or 3D:'
+  id: totrans-255
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义面部对齐方法，我们可以指定是否要获取2D或3D中的关键点地标：
 - en: '[PRE54]'
+  id: totrans-256
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Read the input image and provide it to the `get_landmarks` method:'
+  id: totrans-257
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 读取输入图像并将其提供给`get_landmarks`方法：
 - en: '[PRE55]'
+  id: totrans-258
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: In the preceding lines of code, we are leveraging the `get_landmarks` method
     in the `fa` class to fetch the 68 *x* and *y* coordinates corresponding to the
     facial keypoints.
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码行中，我们利用`fa`类中的`get_landmarks`方法来获取对应于面部关键点的68个*x*和*y*坐标。
 - en: 'Plot the image with the detected keypoints:'
+  id: totrans-260
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制带有检测到的关键点的图像：
 - en: '[PRE56]'
+  id: totrans-261
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'The preceding code results in the following output. Notice the scatter plot
     of + symbols around the 68 possible facial keypoints:'
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果如下。请注意在68个可能的面部关键点周围的+符号的散点图：
 - en: '![Graphical user interface, application  Description automatically generated
     with medium confidence](img/B18457_05_12.png)'
+  id: totrans-263
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面，应用程序  自动以中等置信度生成的描述](img/B18457_05_12.png)'
 - en: 'Figure 5.12: Input image overlaid with predicted keypoints'
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.12：叠加预测关键点的输入图像
 - en: 'In a similar manner, the 3D projections of facial keypoints are obtained as
     follows:'
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似地，通过以下方式获得面部关键点的3D投影：
 - en: '[PRE57]'
+  id: totrans-266
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'Note that the only change from the code used in the 2D keypoints scenario is
     that we specified `LandmarksType` to be 3D in place of 2D. The preceding code
     results in the following output:'
+  id: totrans-267
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，与2D关键点场景中使用的代码唯一的更改是我们在`LandmarksType`中指定为3D，而不是2D。上述代码的结果如下：
 - en: '![Chart  Description automatically generated](img/B18457_05_13.png)'
+  id: totrans-268
   prefs: []
   type: TYPE_IMG
+  zh: '![图表  自动生成的描述](img/B18457_05_13.png)'
 - en: 'Figure 5.13: Predicted 3D facial keypoints'
+  id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.13：预测的3D面部关键点
 - en: With the code leveraging the `face_alignment` library, we see that we are able
     to leverage the pretrained facial keypoint detection models to have high accuracy
     in predicting on new images.
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 利用`face_alignment`库的代码，我们可以利用预训练的面部关键点检测模型，在新图像上有高准确率的预测能力。
 - en: 'So far, across different use cases, we have learned the following:'
+  id: totrans-271
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，在不同的使用案例中，我们学到了以下内容：
 - en: '**Cats versus dogs**: Predicting for binary classification'
+  id: totrans-272
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**猫与狗**：进行二元分类预测'
 - en: '**FashionMNIST**: Predicting for a label among 10 possible classes'
+  id: totrans-273
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**FashionMNIST**：在10个可能的类别中预测标签'
 - en: '**Facial keypoints**: Predicting multiple values between 0 and 1 for a given
     image'
+  id: totrans-274
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**面部关键点**：预测给定图像的多个值，介于0和1之间'
 - en: In the next section, we will learn about predicting a binary class and a regression
     value together in a single shot using a single network.
+  id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何使用单个网络同时预测二进制类和回归值。
 - en: Implementing age estimation and gender classification
+  id: totrans-276
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 实施年龄估计和性别分类
 - en: Multi-task learning is a branch of research where a single/few inputs are used
     to predict several different but ultimately connected outputs. For example, in
     a self-driving car, the model needs to identify obstacles, plan routes, and give
@@ -1277,8 +1845,10 @@
     would come from several sensors). Furthermore, multi-task learning helps in learning
     domain-specific features that can be cross-leveraged across different tasks, potentially
     within the same domain.
+  id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: 多任务学习是研究的一个分支，其中使用单个/少量输入来预测几个不同但最终相关的输出。例如，在自动驾驶汽车中，模型需要识别障碍物、规划路线以及正确控制油门/刹车和转向等。它需要通过考虑相同的输入（来自多个传感器）在瞬间完成所有这些任务。此外，多任务学习有助于学习可以跨多个任务交叉利用的领域特定特征，可能在同一领域内。
 - en: From the various use cases we have solved so far, we are in a position to train
     a neural network and estimate the age of a person when given an image or predict
     the gender of the person given an image, separately, one task at a time. However,
@@ -1286,501 +1856,718 @@
     gender in a single shot from an image. Predicting two different attributes in
     a single shot is important, as the same image is used for both predictions (this
     will be further appreciated as we perform object detection in *Chapter 7*).
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据我们迄今解决的各种用例，我们现在能够训练神经网络并在给定图像时估计一个人的年龄或预测一个人的性别，分别一次处理一个任务。但是，我们尚未查看过能够从图像中一次预测年龄和性别的情况。在单次预测中预测两种不同的属性非常重要，因为同一图像用于两种预测（在*第7章*中进行对象检测时将进一步体现）。
 - en: In this section, we will learn about predicting both attributes, continuous
     and categorical predictions, in a single forward pass.
+  id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将学习如何在单个前向传递中预测连续和分类预测两个属性。
 - en: The full code for this section can be found in the `Age_and_gender_prediction.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Be sure to copy the code from the notebook on GitHub to avoid any issues while
     reproducing the results.
+  id: totrans-280
   prefs: []
   type: TYPE_NORMAL
+  zh: 可在GitHub的`Chapter05`文件夹中的`Age_and_gender_prediction.ipynb`文件中找到本节的完整代码，位于[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。请确保从GitHub笔记本中复制代码以避免重现结果时出现任何问题。
 - en: 'To begin with predicting both continuous and categorical attributes in a single
     forward pass, follow the steps outlined below:'
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 要开始在单个前向传递中预测连续和分类属性，请按照以下步骤进行操作：
 - en: 'Import the relevant packages:'
+  id: totrans-282
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入相关包：
 - en: '[PRE58]'
+  id: totrans-283
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'Fetch the dataset:'
+  id: totrans-284
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取数据集：
 - en: '[PRE59]'
+  id: totrans-285
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'The dataset we downloaded can be loaded and is structured in the following
     way:'
+  id: totrans-286
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们下载的数据集可以加载，并且结构如下所示：
 - en: '[PRE60]'
+  id: totrans-287
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的代码会产生如下输出：
 - en: '![Table  Description automatically generated](img/B18457_05_14.png)'
+  id: totrans-289
   prefs: []
   type: TYPE_IMG
+  zh: '![表 描述自动生成](img/B18457_05_14.png)'
 - en: 'Figure 5.14: Input dataset'
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.14：输入数据集
 - en: In the preceding figure, note that the dataset contains the path to the file,
     age, gender, and race corresponding to the image.
+  id: totrans-291
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上图中，请注意数据集包含文件的路径、年龄、性别和与图像相关的种族。
 - en: 'Build the `GenderAgeClass` class, which takes a filename as input and returns
     the corresponding image, gender, and scaled age. We scale `age` as it is a continuous
     number and, as we have seen in *Chapter 3*, it is better to scale data to avoid
     vanishing gradients and then rescale it during post-processing:'
+  id: totrans-292
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 构建`GenderAgeClass`类，该类以文件名作为输入，并返回相应的图像、性别和缩放后的年龄。我们对`age`进行缩放，因为它是一个连续的数值，并且正如我们在*第3章*中看到的，缩放数据可以避免梯度消失，并且在后处理期间重新缩放它：
 - en: 'Provide file paths (`fpaths`) of images in the `__init__` method:'
+  id: totrans-293
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`__init__`方法中提供图像的文件路径（`fpaths`）：
 - en: '[PRE61]'
+  id: totrans-294
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'Define the `__len__` method as the one that returns the number of images in
     the input:'
+  id: totrans-295
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`__len__`方法，该方法返回输入中图像的数量：
 - en: '[PRE62]'
+  id: totrans-296
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: 'Define the `__getitem__` method that fetches information of an image at a given
     position, `ix`:'
+  id: totrans-297
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`__getitem__`方法，用于获取给定位置`ix`的图像信息：
 - en: '[PRE63]'
+  id: totrans-298
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: 'Write a function that pre-processes an image, which involves resizing the image,
     permuting the channels, and performing normalization on a scaled image:'
+  id: totrans-299
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编写一个预处理图像的函数，包括调整图像大小、置换通道和对缩放图像进行归一化：
 - en: '[PRE64]'
+  id: totrans-300
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Create the `collate_fn` method, which fetches a batch of data where the data
     points are pre-processed as follows:'
+  id: totrans-301
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建`collate_fn`方法，获取一个批次的数据，其中数据点按以下方式预处理：
 - en: Process each image using the `process_image` method.
+  id: totrans-302
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用`process_image`方法处理每个图像。
 - en: Scale the age by 80 (the maximum `age` value present in the dataset), so that
     all values are between 0 and 1.
+  id: totrans-303
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将年龄按80（数据集中的最大`age`值）进行缩放，以使所有值都在0到1之间。
 - en: Convert `gender` to a float value.
+  id: totrans-304
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将`gender`转换为浮点值。
 - en: '`image`, `age`, and `gender` are each converted into `torch` objects and returned:'
+  id: totrans-305
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`image`、`age`和`gender`分别转换为`torch`对象并返回：'
 - en: '[PRE65]'
+  id: totrans-306
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: 'We now define the training and validation datasets and data loaders:'
+  id: totrans-307
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们定义训练和验证数据集以及数据加载器：
 - en: 'Create the datasets:'
+  id: totrans-308
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建数据集：
 - en: '[PRE66]'
+  id: totrans-309
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: 'Specify the data loaders:'
+  id: totrans-310
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定数据加载器：
 - en: '[PRE67]'
+  id: totrans-311
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: 'Define the model, loss function, and optimizer:'
+  id: totrans-312
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型、损失函数和优化器：
 - en: 'First, in the function, we load the pretrained VGG16 model:'
+  id: totrans-313
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，在函数中加载预训练的VGG16模型：
 - en: '[PRE68]'
+  id: totrans-314
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: 'Next, freeze the loaded model (by specifying `param.requires_grad = False`):'
+  id: totrans-315
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，冻结加载的模型（通过指定`param.requires_grad = False`）：
 - en: '[PRE69]'
+  id: totrans-316
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: 'Overwrite the `avgpool` layer with our own layer:'
+  id: totrans-317
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 用我们自己的层覆盖`avgpool`层：
 - en: '[PRE70]'
+  id: totrans-318
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: 'Now comes the key part. We deviate from what we have learned so far by creating
     two branches of outputs. This is performed as follows:'
+  id: totrans-319
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在到了关键部分。我们偏离了迄今为止学到的内容，通过创建两个输出分支来执行：
 - en: 'Build a neural network `class` named `ageGenderClassifier` with the following
     in the `__init__` method:'
+  id: totrans-320
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `__init__` 方法中构建名为 `ageGenderClassifier` 的神经网络类：
 - en: '[PRE71]'
+  id: totrans-321
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: 'Define the `intermediate` layer calculations:'
+  id: totrans-322
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `intermediate` 层的计算：
 - en: '[PRE72]'
+  id: totrans-323
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: 'Define `age_classifier` and `gender_classifier`:'
+  id: totrans-324
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `age_classifier` 和 `gender_classifier`：
 - en: '[PRE73]'
+  id: totrans-325
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: Note that, in the preceding code, the last layers have a sigmoid activation
     since the `age` output will be a value between 0 and 1 (as it is scaled by 80)
     and `gender` has a sigmoid as the output is either a `0` or a `1`.
+  id: totrans-326
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 注意，在上述代码中，最后的层具有 sigmoid 激活，因为 `age` 输出将是一个在 0 到 1 之间的值（因为它被 80 缩放），而 `gender`
+    的输出是 sigmoid，因为输出要么是 `0` 要么是 `1`。
 - en: 'Define the `forward` pass method that stacks layers as `intermediate` first,
     followed by `age_classifier` and then `gender_classifier`:'
+  id: totrans-327
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义前向传递方法，首先堆叠 `intermediate` 层，然后是 `age_classifier`，然后是 `gender_classifier`：
 - en: '[PRE74]'
+  id: totrans-328
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: 'Overwrite the `classifier` module with the class we defined previously:'
+  id: totrans-329
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用我们之前定义的类覆盖 `classifier` 模块：
 - en: '[PRE75]'
+  id: totrans-330
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: 'Define the loss functions of both the gender (binary cross-entropy loss) and
     age (L1 loss) predictions. Define the optimizer and return the model, loss functions,
     and optimizer, as follows:'
+  id: totrans-331
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义性别（二元交叉熵损失）和年龄（L1损失）预测的损失函数。定义优化器并返回模型、损失函数和优化器，如下所示：
 - en: '[PRE76]'
+  id: totrans-332
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: 'Call the `get_model` function to initialize values in the variables:'
+  id: totrans-333
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调用 `get_model` 函数以初始化变量中的值：
 - en: '[PRE77]'
+  id: totrans-334
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: 'Define the function to train on a batch of data and validate on a batch of
     the dataset. The `train_batch` method takes an image, then actual values of gender,
     age, model, optimizer, and loss function, as input, in order to calculate the
     loss, as follows:'
+  id: totrans-335
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义训练批次数据和验证数据集批次的函数。`train_batch` 方法接受图像、实际的性别、年龄值、模型、优化器和损失函数作为输入，以计算损失，如下所示：
 - en: 'Define the `train_batch` method with the input arguments in place:'
+  id: totrans-336
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义带有输入参数的 `train_batch` 方法：
 - en: '[PRE78]'
+  id: totrans-337
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: 'Specify that we are training the model, reset the optimizer to `zero_grad`,
     and calculate the predicted value of `age` and `gender`:'
+  id: totrans-338
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定我们正在训练模型，将优化器重置为 `zero_grad`，并计算预测的 `age` 和 `gender` 的值：
 - en: '[PRE79]'
+  id: totrans-339
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: 'Fetch the loss functions for both age and gender before calculating the loss
     corresponding to age estimation and gender classification:'
+  id: totrans-340
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在计算年龄估计和性别分类的损失之前获取年龄和性别的损失函数：
 - en: '[PRE80]'
+  id: totrans-341
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: 'Calculate the overall loss by summing up `gender_loss` and `age_loss` and perform
     backpropagation to reduce the overall loss by optimizing the trainable weights
     of the model and return the overall loss:'
+  id: totrans-342
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过将 `gender_loss` 和 `age_loss` 相加来计算总体损失，并通过优化模型的可训练权重执行反向传播以减少总体损失，并返回总体损失：
 - en: '[PRE81]'
+  id: totrans-343
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: 'The `validate_batch` method takes the image, model, and loss functions, as
     well as the actual values of age and gender, as input to calculate the predicted
     values of age and gender along with the loss values, as follows:'
+  id: totrans-344
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`validate_batch` 方法接受图像、模型和损失函数，以及实际的年龄和性别值作为输入，计算年龄和性别的预测值以及损失值，如下所示：'
 - en: 'Define the `validate_batch` function with proper input parameters:'
+  id: totrans-345
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用适当的输入参数定义 `validate_batch` 函数：
 - en: '[PRE82]'
+  id: totrans-346
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: 'Specify that we want to evaluate the model, and so no gradient calculations
     are required before predicting the age and gender values by passing the image
     through the model:'
+  id: totrans-347
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定我们要评估模型，因此在通过模型传递图像预测年龄和性别值之前不需要进行梯度计算：
 - en: '[PRE83]'
+  id: totrans-348
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: 'Calculate the loss values corresponding to age and gender predictions (`gender_loss`
     and `age_loss`). We squeeze the predictions (which have a shape of `(batch size,
     1)` so that they are reshaped to the same shape as the original values (which
     have a shape of batch size):'
+  id: totrans-349
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算对应于年龄和性别预测的损失值 (`gender_loss` 和 `age_loss`)。我们将预测值（其形状为 `(批次大小，1)`）压缩，以便将其重塑为与原始值相同形状的形式（其形状为批次大小）：
 - en: '[PRE84]'
+  id: totrans-350
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: 'Calculate the overall loss and the final predicted gender class (`pred_gender`),
     and return the predicted gender, age, and total loss:'
+  id: totrans-351
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算总体损失和最终预测的性别类别 (`pred_gender`)，并返回预测的性别、年龄和总损失：
 - en: '[PRE85]'
+  id: totrans-352
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: 'Train the model over five epochs:'
+  id: totrans-353
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在五个周期内训练模型：
 - en: 'Define placeholders to store the train and test loss values and also to specify
     the number of epochs:'
+  id: totrans-354
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义占位符以存储训练和测试损失值，并指定周期数：
 - en: '[PRE86]'
+  id: totrans-355
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: 'Loop through different epochs and reinitialize the train and test loss values
     at the start of each epoch:'
+  id: totrans-356
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 循环遍历不同的周期，并在每个周期开始时重新初始化训练和测试损失值：
 - en: '[PRE87]'
+  id: totrans-357
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: 'Loop through the training data loader (`train_loader`) and train the model:'
+  id: totrans-358
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 遍历训练数据加载器（`train_loader`）并训练模型：
 - en: '[PRE88]'
+  id: totrans-359
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: 'Loop through the test data loader and calculate gender accuracy as well as
     the `mae` of `age`:'
+  id: totrans-360
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 遍历测试数据加载器并计算性别准确率以及年龄的 `mae`：
 - en: '[PRE89]'
+  id: totrans-361
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: 'Calculate the overall accuracy of age prediction and gender classification:'
+  id: totrans-362
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算年龄预测和性别分类的总体准确率：
 - en: '[PRE90]'
+  id: totrans-363
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: 'Log the metrics for each epoch:'
+  id: totrans-364
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 记录每个 epoch 的指标：
 - en: '[PRE91]'
+  id: totrans-365
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: 'Store the age and gender accuracy of the test dataset in each epoch:'
+  id: totrans-366
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在每个 epoch 中存储测试数据集的年龄和性别准确率：
 - en: '[PRE92]'
+  id: totrans-367
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: 'Plot the accuracy of age estimation and gender prediction over increasing epochs:'
+  id: totrans-368
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制随着 epoch 增加的年龄估计和性别预测的准确率：
 - en: '[PRE93]'
+  id: totrans-369
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE93]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-370
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果如下输出：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_15.png)'
+  id: totrans-371
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图  自动生成描述](img/B18457_05_15.png)'
 - en: 'Figure 5.15: (Left) Gender prediction accuracy; (Right) Mean Absolute Error
     in predicting age'
+  id: totrans-372
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.15：（左）性别预测准确率；（右）预测年龄的平均绝对误差
 - en: We are off by 6 years in terms of age prediction and are approximately 84% accurate
     in predicting the gender.
+  id: totrans-373
   prefs: []
   type: TYPE_NORMAL
+  zh: 在年龄预测方面我们偏差 6 年，性别预测准确率约为 84%。
 - en: 'Make a prediction of age and gender on a random test image:'
+  id: totrans-374
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对随机测试图像进行年龄和性别预测：
 - en: 'Fetch an image. Feel free to choose your own image:'
+  id: totrans-375
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取图像。随意选择您自己的图像：
 - en: '[PRE94]'
+  id: totrans-376
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE94]'
 - en: 'Load the image and pass it through the `preprocess_image` method in the `trn`
     object that we created earlier:'
+  id: totrans-377
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载图像并将其通过我们之前创建的 `trn` 对象中的 `preprocess_image` 方法处理：
 - en: '[PRE95]'
+  id: totrans-378
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE95]'
 - en: 'Pass the image through the trained model:'
+  id: totrans-379
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像传递到训练好的模型中：
 - en: '[PRE96]'
+  id: totrans-380
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE96]'
 - en: 'Plot the image along with printing the original and predicted values:'
+  id: totrans-381
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制图像并打印原始值和预测值：
 - en: '[PRE97]'
+  id: totrans-382
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE97]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-383
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果如下输出：
 - en: '![Graphical user interface, application  Description automatically generated](img/B18457_05_16.png)'
+  id: totrans-384
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面，应用程序  自动生成描述](img/B18457_05_16.png)'
 - en: 'Figure 5.16: Prediction on sample image'
+  id: totrans-385
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.16：样本图像的预测
 - en: With the preceding use case, we can see that we are able to make predictions
     for both age and gender in a single shot. However, we need to note that this is
     highly unstable and that the age value varies considerably with different orientations
@@ -1788,26 +2575,35 @@
     such a scenario. Further, as an exercise, do train your own model where you extract
     the facial region only. This way, the background information is not being considered
     to calculate the age and gender of a person.
+  id: totrans-386
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述用例中，我们可以看到我们能够一次性进行年龄和性别的预测。但是，需要注意的是这是非常不稳定的，不同图像方向和光照条件下年龄值会有很大变化。数据增强在这种情况下非常有用。此外，作为练习，可以训练自己的模型，仅提取面部区域来计算人的年龄和性别，这样就不考虑背景信息了。
 - en: So far, we have learned about transfer learning, pretrained architectures, and
     how to leverage them in two different use cases. You would have also noticed that
     the code is slightly on the lengthier side where we import extensive packages
     manually, create empty lists to log metrics, and constantly read/show images for
     debugging purposes. In the next section, we will learn about a library that the
     authors have built to avoid such verbose code.
+  id: totrans-387
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了迁移学习、预训练架构以及如何在两种不同的用例中利用它们。您可能还注意到，代码稍微有些冗长，我们手动导入大量包，创建空列表以记录指标，并不断读取/显示图像以进行调试。在下一节中，我们将学习关于避免这种冗长代码的作者建立的一个库。
 - en: Introducing the torch_snippets library
+  id: totrans-388
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 介绍 `torch_snippets` 库
 - en: As you may have noticed, we are using the same functions in almost all the sections.
     It is a waste of our time to write the same lines of functions again and again.
     For convenience, we, the authors of this book, have written a Python library by
     the name of `torch_snippets` so that our code looks short and clean.
+  id: totrans-389
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您可能注意到的，我们几乎在所有部分中都使用相同的函数。反复编写相同的函数代码是浪费时间的。为了方便起见，我们这本书的作者编写了一个名为 `torch_snippets`
+    的 Python 库，使我们的代码看起来简短而干净。
 - en: Utilities such as reading an image, showing an image, and the entire training
     loop are quite repetitive. We want to circumvent writing the same functions over
     and over by wrapping them in code that is preferably a single function call. For
@@ -1816,8 +2612,10 @@
     for `plt.imshow(...)`, there are numerous hassles, including the fact that the
     size of the image should be optimal, and that the channel dimension should be
     last (remember, PyTorch has them first).
+  id: totrans-390
   prefs: []
   type: TYPE_NORMAL
+  zh: 诸如读取图像、显示图像和整个训练循环等工具是非常重复的。我们希望通过将它们封装在尽可能是单个函数调用的代码中来避免一遍又一遍地编写相同的函数。例如，要读取彩色图像，我们无需每次写`cv2.imread(...)`然后跟着`cv2.cvtColor(...)`。相反，我们只需简单地调用`read(...)`即可。同样地，对于`plt.imshow(...)`，存在许多麻烦，包括图像的大小应该是最佳的，通道维度应该是最后一个（记住，PyTorch将它们放在第一位）。
 - en: These will always be taken care of by the single function, `show`. Similar to
     `read` and `show`, there are over 20 convenience functions and classes that we
     will be using throughout the book. We will use `torch_snippets` from now on so
@@ -1825,63 +2623,87 @@
     little and understand the salient functions by training `age` and `gender` with
     this library instead so that we can learn how to use these functions and derive
     the maximum benefit.
+  id: totrans-391
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些都将由单个函数`show`处理。类似于`read`和`show`，我们将在整本书中使用超过20个便捷函数和类。从现在开始，我们将使用`torch_snippets`，以便更多地专注于实际的深度学习工作而不受干扰。让我们稍微深入一下，通过这个库训练`age`和`gender`，以便学习如何使用这些函数并获得最大的收益。
 - en: The full code for this section can be found in the `age_gender_torch_snippets.ipynb`
     file located in the `Chapter05` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     For brevity, we have only provided the additional code here. For the full code,
     refer to the notebook on GitHub.
+  id: totrans-392
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节的完整代码可以在GitHub上的`age_gender_torch_snippets.ipynb`文件中找到，位于`Chapter05`文件夹中，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。为简洁起见，我们仅在此提供附加代码。如需完整代码，请参阅GitHub上的笔记本。
 - en: 'To better understand and utilize the functions for training a model that predicts
     both age and gender, we’ll start by installing and loading the necessary library.
     Follow the steps below to get started:'
+  id: totrans-393
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了更好地理解和利用用于训练同时预测年龄和性别的模型的函数，我们将从安装和加载必要的库开始。按照以下步骤开始：
 - en: 'Install and load the library:'
+  id: totrans-394
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装并加载该库：
 - en: '[PRE98]'
+  id: totrans-395
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE98]'
 - en: Right out of the gate, the library allows us to load all the important `torch`
     modules and utilities such as NumPy, pandas, Matplotlib, Glob, Os, and more.
+  id: totrans-396
   prefs: []
   type: TYPE_NORMAL
+  zh: 一开始，该库允许我们加载所有重要的`torch`模块和工具，例如NumPy、pandas、Matplotlib、Glob、Os等等。
 - en: 'Download the data and create a dataset as in the previous section. Create a
     dataset class, `GenderAgeClass`, with a few changes, which are shown in bold in
     the following code:'
+  id: totrans-397
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据并按照前面部分创建数据集。创建一个名为**`GenderAgeClass`**的数据集类，并做出一些改变，以下面的代码为例：
 - en: '[PRE99]'
+  id: totrans-398
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE99]'
 - en: In the preceding code block, the line `im = read(file, 1)` is wrapping `cv2.imread`
     and `cv2.COLOR_BGR2RGB` into a single function call. The “1” stands for “read
     as color image” and, if not given, will load a black and white image by default.
     There is also a `resize` function that wraps `cv2.resize`. Next, let’s look at
     the `show` function.
+  id: totrans-399
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码块中，行`im = read(file, 1)`将`cv2.imread`和`cv2.COLOR_BGR2RGB`封装为单个函数调用。数字“1”代表“读取为彩色图像”，如果未指定，将默认加载黑白图像。还有一个`resize`函数封装了`cv2.resize`。接下来，让我们看看`show`函数。
 - en: 'Specify the training and validation datasets and view the sample images:'
+  id: totrans-400
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定训练和验证数据集，并查看样本图像：
 - en: '[PRE100]'
+  id: totrans-401
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE100]'
 - en: As we are dealing with images throughout the book, it makes sense to wrap `import
     matplotlib.pyplot as plt` and `plt.imshow` into a function. Calling `show(<2D/3D-Tensor>)`
     will do exactly that. Unlike Matplotlib, it can plot torch arrays present on the
     GPU, irrespective of whether the image contains a channel as the first dimension
     or the last dimension.
+  id: totrans-402
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于本书涉及到图像处理，将`import matplotlib.pyplot as plt`和`plt.imshow`封装成一个函数是有意义的。调用`show(<2D/3D-Tensor>)`将实现这一功能。与Matplotlib不同，它可以绘制在GPU上存在的torch数组，无论图像是否包含作为第一维还是最后一维的通道。
 - en: The keyword `title` will plot a title with the image, and the keyword `sz` (short
     for size) will plot a larger/smaller image based on the integer value passed (if
     not passed, `sz` will pick a sensible default based on image resolution). In the
@@ -1889,41 +2711,57 @@
     to show bounding boxes as well. Check out `help(show)` for more arguments. Let’s
     create some datasets here and inspect the first batch of images along with their
     targets.
+  id: totrans-403
   prefs: []
   type: TYPE_NORMAL
+  zh: 关键词`title`将在图像上绘制标题，关键词`sz`（缩写大小）将根据传递的整数值绘制较大/较小的图像（如果未传递，则`sz`将根据图像分辨率选择合理的默认值）。在目标检测章节（*第7*和*第8*章）中，我们将使用同一函数显示边界框。查看`help(show)`获取更多参数。让我们在这里创建一些数据集，并检查第一批图像及其目标。
 - en: 'Create data loaders and inspect the tensors. Inspecting tensors for their data
     type, min, mean, max, and shape is such a common activity that it is wrapped as
     a function. It can accept any number of tensor inputs:'
+  id: totrans-404
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建数据加载器并检查张量。检查张量的数据类型、最小值、均值、最大值和形状是如此常见的活动，它被封装为一个函数。它可以接受任意数量的张量输入：
 - en: '[PRE101]'
+  id: totrans-405
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE101]'
 - en: 'The `inspect` output will look like this:'
+  id: totrans-406
   prefs: []
   type: TYPE_NORMAL
+  zh: '`inspect`输出将如下所示：'
 - en: '[PRE102]'
+  id: totrans-407
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE102]'
 - en: Create `model`, `optimizer`, `loss_functions`, `train_batch`, and `validate_batch`
     as usual. As each deep learning experiment is unique, there aren’t any wrapper
     functions for this step.
+  id: totrans-408
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 像往常一样创建`model`、`optimizer`、`loss_functions`、`train_batch`和`validate_batch`。由于每个深度学习实验都是独特的，因此此步骤没有任何包装函数。
 - en: In this section, we will leverage the `get_model`, `train_batch`, and `validate_batch`
     functions that we defined in the previous section. For brevity, we are not providing
     the code in this section. However, all the relevant code is available in the corresponding
     notebook on GitHub.
+  id: totrans-409
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将利用在前一节中定义的`get_model`、`train_batch`和`validate_batch`函数。为简洁起见，本节中不提供代码。然而，所有相关代码均可在GitHub上对应的笔记本中找到。
 - en: Finally, we need to load all the components and start training. Log the metrics
     over increasing epochs.
+  id: totrans-410
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们需要加载所有组件并开始训练。记录随着增加的epochs的指标。
 - en: 'This is a highly repetitive loop with minimal changes required. We will always
     loop over a fixed number of epochs, first over the training data loader and then
     over the validation data loader. Each batch is called using either `train_batch`
@@ -1935,15 +2773,21 @@
     using `matplotlib`. All of these are wrapped into a single utility called `Report`.
     This is a Python class that has different methods to understand. The bold parts
     in the following code highlight the functionality of `Report`:'
+  id: totrans-411
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个高度重复的循环，只需进行最小的更改。我们将始终在固定数量的epochs上进行循环，首先是在训练数据加载器上，然后是在验证数据加载器上。每个批次都是使用`train_batch`或`validate_batch`调用的。每次您必须创建指标的空列表，并在训练/验证后跟踪它们的平均值。在epoch结束时，您必须打印所有这些指标的平均值并重复此任务。还有一个有用的方法，您要知道每个epoch/批次将训练多长时间（以秒为单位）。最后，在训练结束时，通常会使用`matplotlib`绘制相同的指标。所有这些都包装在一个名为`Report`的单一实用程序中。这是一个Python类，具有不同的方法来理解。以下代码中的粗体部分突出了`Report`的功能性：
 - en: '[PRE103]'
+  id: totrans-412
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE103]'
 - en: The `Report` class is instantiated with the only argument, the number of epochs
     to be trained on, and is instantiated just before the start of training.
+  id: totrans-413
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始训练之前，使用要训练的epoch数实例化`Report`类，并在训练开始之前实例化。
 - en: At each training/validation step, we can call the `Report.record` method with
     exactly one positional argument, which is the position (in terms of batch number)
     of training/validation we are at (typically, this is `( epoch_number + (1+batch
@@ -1952,8 +2796,11 @@
     to be captured, the keyword argument could be `trn_loss`. In the preceding, we
     are logging four metrics, `trn_loss`, `val_loss`, `val_gender_acc`, and `val_age_mae`,
     without creating a single empty list.
+  id: totrans-414
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每个训练/验证步骤中，我们可以调用`Report.record`方法，传递一个位置参数（在批次号中的位置），通常是`(epoch_number + (1+batch
+    number)/(total_N_batches)`。在位置参数之后，我们传递一堆关键字参数，可以自由选择。如果需要捕获训练损失，关键字参数可以是`trn_loss`。在前面的例子中，我们记录了四个指标，`trn_loss`、`val_loss`、`val_gender_acc`和`val_age_mae`，而不创建单个空列表。
 - en: Not only does it record but it will also print the same losses in the output.
     The use of `'\r'` as an end argument is a special way of saying replace this line
     the next time a new set of losses are to be recorded. Furthermore, `Report` will
@@ -1961,8 +2808,10 @@
     that too. `Report` will remember when the metric was logged and print all the
     average metrics at that epoch when the `Report.report_avgs` function is called.
     This will be a permanent print.
+  id: totrans-415
   prefs: []
   type: TYPE_NORMAL
+  zh: 它不仅记录，还会将相同的损失打印在输出中。使用`'\r'`作为结束参数的方式特殊地表示：在记录新的损失集合时替换此行。此外，`Report`将自动计算训练和验证的剩余时间并打印出来。当调用`Report.report_avgs`函数时，`Report`将记住指标的记录时间并在该epoch时打印所有平均指标。这将是一个永久性的打印。
 - en: Finally, the same average metrics are plotted as a line chart in the function
     call `Report.plot_epochs`, without the need for formatting (you can also use `Report.plot`
     to plot every batch metric of the entire training, but this might look messy).
@@ -1971,82 +2820,119 @@
     `val_loss` metrics, this can be done by calling `log.plot_epochs(['trn_loss, 'val_loss'])`
     or even simply `log.plot_epochs('_loss')`. This will search for a string match
     with all the metrics and figure out what metrics we are asking for.
+  id: totrans-416
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，相同的平均指标作为线图显示在函数调用`Report.plot_epochs`中，无需格式化（您也可以使用`Report.plot`来绘制整个训练的每个批次指标，但这可能看起来很混乱）。同样的函数可以在需要时选择性地绘制指标。举个例子，在前述情况下，如果您只想绘制`trn_loss`和`val_loss`指标，可以通过调用`log.plot_epochs(['trn_loss',
+    'val_loss'])`或者简单地`log.plot_epochs('_loss')`来实现。这将搜索所有指标并确定我们要请求的指标。
 - en: 'Once training is complete, the output for the preceding code snippet should
     look like this:'
+  id: totrans-417
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦训练完成，前面代码段的输出应如下所示：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_05_17.png)'
+  id: totrans-418
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图  自动生成描述](img/B18457_05_17.png)'
 - en: 'Figure 5.17: Training and validation loss over increasing epochs'
+  id: totrans-419
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.17：随着epoch增加的训练和验证损失
 - en: Note that the output has corresponding training and validation dataset loss
     and accuracy values for age and gender values, even though we did not initialize
     any empty lists to log those metrics in the training and validation datasets (which
     we did in the previous sections).
+  id: totrans-420
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，输出具有对应的年龄和性别值的训练和验证数据集损失和准确性值，即使我们没有在训练和验证数据集中初始化任何空列表来记录这些指标（这在前几节中我们已经做过）。
 - en: 'Load a sample image and effect a prediction:'
+  id: totrans-421
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载样本图像并进行预测：
 - en: '[PRE104]'
+  id: totrans-422
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE104]'
 - en: 'With the above steps, we are able to get the task done with much fewer lines
     of code. To summarize, here are the important functions (and the functions they
     are wrapped around) that we will use in the rest of the book wherever needed:'
+  id: totrans-423
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过上述步骤，我们能够用更少的代码完成任务。总结一下，在接下来的书中，我们将在需要的任何地方使用以下重要函数（以及它们包装的函数）：
 - en: '`from torch_snippets import *`'
+  id: totrans-424
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`from torch_snippets import *`'
 - en: Glob (`glob.glob`)
+  id: totrans-425
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 全局（`glob.glob`）
 - en: Choose`(np.random.choice)`
+  id: totrans-426
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择（`np.random.choice`）
 - en: Read (`cv2.imread`)
+  id: totrans-427
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 读取（`cv2.imread`）
 - en: Show (`plt.imshow`)
+  id: totrans-428
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 显示（`plt.imshow`）
 - en: Subplots (`plt.subplots` – show a list of images)
+  id: totrans-429
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 子图（`plt.subplots` – 显示图像列表）
 - en: Inspect (`tensor.min`, `tensor.mean`, `tensor.max`, `tensor.shape`, and `tensor.dtype`
     – statistics of several tensors)
+  id: totrans-430
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 检查（`tensor.min`、`tensor.mean`、`tensor.max`、`tensor.shape`和`tensor.dtype` – 多个张量的统计信息）
 - en: Report (keeping track of all metrics while training and plotting them after
     training)
+  id: totrans-431
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 报告（在训练过程中跟踪所有指标并在训练后绘制它们）
 - en: You can view the complete list of functions by running `torch_snippets; print(dir(torch_snippets))`.
     For each function, you can print its help using `help(function)` or even simply
     `??function` in a Jupyter notebook. With the understanding of leveraging `torch_snippets`,
     you should be able to simplify the code considerably. You will notice this in
     action starting with the next chapter.
+  id: totrans-432
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过运行`torch_snippets.print(dir(torch_snippets))`查看所有函数的完整列表。对于每个函数，您可以使用`help(function)`或者在Jupyter笔记本中简单地使用`??function`来打印其帮助信息。通过充分利用`torch_snippets`，您应该能够大大简化代码。从下一章开始，您将看到这一点的实际应用。
 - en: Summary
+  id: totrans-433
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概要
 - en: In this chapter, we have learned how transfer learning helps to achieve high
     accuracy, even with a smaller number of data points. We have also learned about
     the popular pretrained models VGG and ResNet. Furthermore, we understood how to
@@ -2054,84 +2940,122 @@
     of keypoints on a face and combining loss values when training a model to predict
     for both age and gender together, where age is of a certain data type and gender
     is of a different data type.
+  id: totrans-434
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们已经学习了如何通过迁移学习在数据点较少的情况下实现高准确度。我们还了解了流行的预训练模型 VGG 和 ResNet。此外，我们理解了在试图预测不同场景时如何构建模型，例如在面部关键点的位置和在训练模型同时预测年龄和性别时如何组合损失值，其中年龄是某种数据类型，而性别是另一种数据类型。
 - en: With this foundation of image classification through transfer learning, in the
     next chapter, we will learn about some of the practical aspects of training an
     image classification model. We will learn how to explain a model, tips and tricks
     for training a model to achieve high accuracy, and finally, the pitfalls that
     a practitioner needs to avoid when implementing a trained model.
+  id: totrans-435
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过迁移学习的图像分类基础，我们将在下一章中学习关于训练图像分类模型的一些实际方面。我们将学习如何解释模型，训练模型以实现高准确度的技巧和窍门，以及实施训练模型时从业者需要避免的陷阱。
 - en: Questions
+  id: totrans-436
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: What are VGG and ResNet pre-trained architectures trained on?
+  id: totrans-437
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: VGG 和 ResNet 的预训练架构是在什么上训练的？
 - en: Why does VGG11 have an inferior accuracy to VGG16?
+  id: totrans-438
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为什么 VGG11 的准确性不如 VGG16？
 - en: What does the number 11 in VGG11 represent?
+  id: totrans-439
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: VGG11 中的数字 11 代表什么？
 - en: What does the term *residual* mean in “residual network” refer to?
+  id: totrans-440
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: “残差网络”中的术语*残差*指的是什么？
 - en: What is the advantage of a residual network?
+  id: totrans-441
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 什么是残差网络的优势？
 - en: What are the various popular pretrained models discussed in the book and what
     is the speciality of each network?
+  id: totrans-442
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 书中讨论的各种流行的预训练模型及其各自的特点是什么？
 - en: During transfer learning, why should images be normalized with the same mean
     and standard deviation as those that were used during the training of the pre-trained
     model?
+  id: totrans-443
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在迁移学习期间，为什么应该使用与训练预训练模型时相同的均值和标准差对图像进行标准化？
 - en: When and why do we freeze certain parameters in a model?
+  id: totrans-444
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 何时以及为什么我们应该冻结模型中的某些参数？
 - en: How do we know the various modules that are present in a pre-trained model?
+  id: totrans-445
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们如何知道预训练模型中存在的各种模块？
 - en: How do we train a model that predicts categorical and numerical values together?
+  id: totrans-446
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们如何训练一个可以同时预测分类和数值的模型？
 - en: Why might age and gender prediction code not always work for an image of your
     own if we were to execute the same code as that which we wrote in the *Implementing
     age estimation and gender classification* section?
+  id: totrans-447
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果我们执行与我们在*实现年龄估计和性别分类*部分编写的相同代码，则为什么年龄和性别预测代码不总是适用于您自己的图像？
 - en: How can we further improve the accuracy of the facial keypoint recognition model
     that we discussed in the *Implementing facial keypoint detection* section?
+  id: totrans-448
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们如何进一步提高我们在*实现面部关键点检测*部分讨论的面部关键点识别模型的准确性？
 - en: Learn more on Discord
+  id: totrans-449
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Discord 上了解更多
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-450
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者进行讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-451
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-452
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
