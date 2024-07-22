@@ -1,66 +1,94 @@
 - en: '9'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '9'
 - en: Image Segmentation
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 图像分割
 - en: In the previous chapter, we learned about detecting objects present in images,
     along with the classes that correspond to the detected objects. In this chapter,
     we will go one step further by not only drawing a bounding box around an object
     but also by identifying the exact pixels that contain the object. In addition
     to that, by the end of this chapter, we will be able to single out instances/objects
     that belong to the same class.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们学习了如何检测图像中存在的对象，以及与检测到的对象相对应的类别。在本章中，我们将更进一步，不仅在对象周围绘制边界框，还将确定包含对象的确切像素。此外，在本章结束时，我们将能够单独识别属于同一类别的实例/对象。
 - en: 'We will also learn about semantic segmentation and instance segmentation by
     looking at the U-Net and Mask R-CNN architectures. Specifically, we will cover
     the following topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过查看 U-Net 和 Mask R-CNN 架构，我们还将学习语义分割和实例分割。具体来说，我们将涵盖以下主题：
 - en: Exploring the U-Net architecture
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 探索 U-Net 架构
 - en: Implementing semantic segmentation using U-Net to segment objects on a road
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用 U-Net 实现语义分割以在道路上分割对象
 - en: Exploring the Mask R-CNN architecture
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 探索 Mask R-CNN 架构
 - en: Implementing instance segmentation using Mask R-CNN to identify multiple instances
     of a given class
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用 Mask R-CNN 实现实例分割以识别给定类别的多个实例
 - en: 'A succinct illustration of what we are trying to achieve through image segmentation
     is as follows:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过图像分割，我们试图实现的简明示例如下所示：
 - en: '![Graphical user interface  Description automatically generated with low confidence](img/B18457_09_01.png)'
+  id: totrans-9
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面 Description automatically generated with low confidence](img/B18457_09_01.png)'
 - en: 'Figure 9.1: Difference between object localization & segmentation tasks on
     a sample image (source: [https://arxiv.org/pdf/1405.0312.pdf](https://arxiv.org/pdf/1405.0312.pdf))'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.1: 在示例图像上对象定位和分割任务的差异（来源：[https://arxiv.org/pdf/1405.0312.pdf](https://arxiv.org/pdf/1405.0312.pdf)）'
 - en: 'The figure above shows: (a) object classes that are identified from an image,
     (b) object locations that are identified from an image, (c) object class masks
     that are identified from an image, and (d) object instances that are segregated
     from an image. Now that you know what to expect, let’s get started!'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 上图显示了：(a) 从图像中识别的对象类别，(b) 从图像中识别的对象位置，(c) 从图像中识别的对象类别掩码，以及 (d) 从图像中分离出的对象实例。现在你知道可以期待什么了，让我们开始吧！
 - en: All the code in this chapter can be found in the `Chapter09` folder in the GitHub
     repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中的所有代码可以在 GitHub 仓库的 `Chapter09` 文件夹中找到，链接为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: Exploring the U-Net architecture
+  id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 探索 U-Net 架构
 - en: Imagine a scenario where you’re given an image and are asked to predict which
     pixel corresponds to what object. So far, when we have been predicting an object
     class and bounding box, we passed the image through a network, which then passes
@@ -73,47 +101,66 @@
     in the original image will not vary in the output image in the case of image segmentation,
     so the networks we have dealt with so far (which flatten the last layer and connect
     additional dense layers) are not optimal when we perform segmentation.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，你被要求预测图像中哪些像素对应于什么对象。到目前为止，当我们预测对象类别和边界框时，我们通过网络传递图像，然后通过骨干架构（如VGG或ResNet）传递图像，将输出在某一层展平，并在进行类别和边界框偏移预测之前连接额外的密集层。然而，在图像分割的情况下，输出形状与输入图像的形状相同，展平卷积的输出然后重构图像可能会导致信息丢失。此外，在图像分割的情况下，原始图像中存在的轮廓和形状在输出图像中不会发生变化，因此我们到目前为止处理过的网络（展平最后一层并连接额外的密集层）在执行分割时并不是最优的。
 - en: 'In this section, we will learn how to perform image segmentation. The two aspects
     that we need to keep in mind while performing segmentation are as follows:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将学习如何执行图像分割。在执行分割时，我们需要牢记以下两个方面：
 - en: The shape and structure of the objects in the original image remain the same
     in the segmented output.
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 原始图像中的对象的形状和结构在分割输出中保持不变。
 - en: Leveraging a fully convolutional architecture (and not a structure where we
     flatten a certain layer) can help here, since we are using one image as input
     and another as output.
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 利用完全卷积架构（而不是我们将某一层展平的结构）可以帮助我们，因为我们使用一个图像作为输入和另一个作为输出。
 - en: 'The U-Net architecture helps us achieve this. A typical representation of U-Net
     is as follows (the input image is of the shape 3 x 96 x 128, while the number
     of classes present in the image is 21; this means that the output contains 21
     channels):'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: U-Net 架构帮助我们实现了这一点。U-Net 的典型表示如下（输入图像形状为 3 x 96 x 128，图像中类别数为 21；这意味着输出包含 21
+    个通道）：
 - en: '![Diagram  Description automatically generated](img/B18457_09_02.png)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图表描述](img/B18457_09_02.png)'
 - en: 'Figure 9.2: A sample U-Net architecture'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.2：一个样例 U-Net 架构
 - en: The preceding architecture is called a **U-Net architecture** because of its
     **U**-like shape.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述架构被称为**U-Net 架构**，因为它具有类似**U**字形的形状。
 - en: In the left half of the preceding diagram, we can see that the image passes
     through convolution layers, as we have seen in previous chapters, and that the
     image size keeps reducing while the number of channels keeps increasing. However,
     in the right half, we can see that we upscale the downscaled image, back to the
     original height and width but with as many channels as there are classes (21 in
     this case).
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述图的左半部分，我们可以看到图像通过卷积层，就像我们在前几章中所见到的那样，并且图像的大小在减小，而通道数在增加。然而，在右半部分，我们可以看到我们将缩小的图像进行了上采样，回到原始的高度和宽度，但通道数与类别数相同（在这种情况下是21）。
 - en: In addition, while upscaling, we also leverage information from the corresponding
     layers in the left half using **skip connections** (similar to the ones in ResNet
     that we learned about in *Chapter 5*, *Transfer Learning for Image Classification*)
@@ -121,603 +168,886 @@
     the U-Net architecture learns to preserve the structure (and shapes of objects)
     of the original image while leveraging the convolution’s features to predict the
     classes that correspond to each pixel.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在上采样过程中，我们还利用左半部分相应层的信息使用**跳跃连接**（类似于我们在第5章中学到的 ResNet 中的那些），以便保留原始图像中的结构/对象。这样，U-Net
+    架构学习保留原始图像的结构（和对象的形状），同时利用卷积特征来预测每个像素对应的类别。
 - en: In general, we have as many channels in the output as the number of classes
     we want to predict.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般来说，输出的通道数与我们想要预测的类别数相同。
 - en: Now that we understand the high level of a U-Net architecture, let us understand
     the new concept we introduced, upscaling, in the next section.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了 U-Net 架构的高层次，让我们在下一节中了解我们介绍的新概念，上采样。
 - en: Performing upscaling
+  id: totrans-26
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 执行上采样
 - en: 'In the U-Net architecture, upscaling is performed using the `nn.ConvTranspose2d`
     method, which takes the number of input channels, the number of output channels,
     the kernel size, and stride as input parameters. An example calculation for `ConvTranspose2d`
     is as follows:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 U-Net 架构中，使用 `nn.ConvTranspose2d` 方法进行上采样，该方法接受输入通道数、输出通道数、核心大小和步幅作为输入参数。`ConvTranspose2d`
+    的一个示例计算如下：
 - en: '![A group of black and white squares  Description automatically generated](img/B18457_09_03.png)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![一组黑白方块的描述](img/B18457_09_03.png)'
 - en: 'Figure 9.3: Upscaling operation'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.3：上采样操作
 - en: In the preceding example, we took an input array of shape 3 x 3 (**Input array**),
     applied a stride of 2 where we distributed the input values to accommodate the
     stride (**Input array adjusted for stride**), padded the array with zeros (**Input
     array adjusted for stride and padding**), and convolved the padded input with
     a filter (**Filter/Kernel**) to fetch the output array.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述示例中，我们采取了一个形状为 3 x 3 的输入数组（**输入数组**），应用了步长为 2 的步幅，在这里我们分布输入值以适应步幅（**调整为步幅的输入数组**），用零填充数组（**调整为步幅和填充的输入数组**），并使用滤波器（**过滤器/核心**）与填充的输入进行卷积以获取输出数组。
 - en: By leveraging a combination of padding and stride, we have upscaled an input
     that is 3 x 3 in shape to an array of 6 x 6 in shape. While the preceding example
     is only for illustration purposes, the optimal filter values learn (because the
     filter weights and bias are optimized during the model training process) to reconstruct
     the original image as much as possible.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过利用填充和步幅的组合，我们已经将形状为 3 x 3 的输入上采样到形状为 6 x 6 的数组。虽然前述示例仅用于说明目的，但优化的滤波器值学习（因为在模型训练过程中优化了滤波器权重和偏差）尽可能地重建原始图像。
 - en: 'The hyperparameters in `nn.ConvTranspose2d` are as follows:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: '`nn.ConvTranspose2d`中的超参数如下：'
 - en: '![Text, letter  Description automatically generated](img/B18457_09_04.png)'
+  id: totrans-33
   prefs: []
   type: TYPE_IMG
+  zh: '![文本，信函说明自动生成](img/B18457_09_04.png)'
 - en: 'Figure 9.4: Arguments of ConvTranspose2d'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '图9.4: `ConvTranspose2d`的参数'
 - en: 'In order to understand how `nn.ConvTranspose2d` helps upscale an array, let’s
     go through the following code:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解`nn.ConvTranspose2d`如何帮助放大数组，让我们来看下面的代码：
 - en: 'Import the relevant packages:'
+  id: totrans-36
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入相关软件包：
 - en: '[PRE0]'
+  id: totrans-37
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Initialize a network, `m`, with the `nn.ConvTranspose2d` method:'
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`nn.ConvTranspose2d`方法初始化网络`m`：
 - en: '[PRE1]'
+  id: totrans-39
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: In the preceding code, we are specifying that the input channel’s value is `1`,
     the output channel’s value is `1`, the size of the kernel is `(2,2)`, the stride
     is `2`, and the padding is `0`.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述代码中，我们指定输入通道值为`1`，输出通道值为`1`，核的大小为`(2,2)`，步长为`2`，填充为`0`。
 - en: Internally, padding is calculated as dilation * (kernel_size – 1) - padding.
     Hence, it is 1*(2-1)-0 = 1, where we add zero padding of 1 to both dimensions
     of the input array.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 内部填充的计算方式为扩展 * (核大小 - 1) - 填充。因此，它是 1*(2-1)-0 = 1，在输入数组的两个维度上都添加零填充为1。
 - en: 'Initialize an input array and pass it through the model:'
+  id: totrans-42
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化输入数组并通过模型传递：
 - en: '[PRE2]'
+  id: totrans-43
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: The preceding code results in a shape of `1x1x6x6`, as shown in the example
     image provided earlier.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码生成的形状为`1x1x6x6`，如前文提供的示例图像所示。
 - en: Now that we understand how the U-Net architecture works and how `nn.ConvTranspose2d`
     helps upscale an image, let’s implement it so that we can predict the different
     objects present in an image of a road scene.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了U-Net架构的工作原理以及`nn.ConvTranspose2d`如何帮助放大图像，让我们来实现它，以便可以预测道路场景图像中存在的不同物体。
 - en: Implementing semantic segmentation using U-Net
+  id: totrans-46
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用U-Net实现语义分割
 - en: 'In this section, we’ll leverage the U-Net architecture to predict the class
     that corresponds to all the pixels in the image. A sample of such an input-output
     combination is as follows:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将利用U-Net架构来预测图像中所有像素对应的类别。如下所示是这种输入-输出组合的示例：
 - en: '![](img/B18457_09_05.png)'
+  id: totrans-48
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_09_05.png)'
 - en: 'Figure 9.5: (Left) input image; (Right) output image with classes corresponding
     to the various objects present in the image'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: '图9.5: (左) 输入图像；(右) 输出图像，显示图像中存在的各种对象对应的类别'
 - en: 'Note that, in the preceding picture, the objects that belong to the same class
     (in the left image, the input image) have the same pixel value (in the right image,
     the output image), which is why we **segment** the pixels that are **semantically**
     similar to each other. This is also known as semantic segmentation. Let’s learn
     how to code semantic segmentation:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在前述图片中，属于同一类的对象（左图中的输入图像）具有相同的像素值（右图中的输出图像），这就是我们将语义相似的像素进行**分割**的原因。这也称为语义分割。让我们学习如何编写语义分割代码：
 - en: Find the following code in the `Semantic_Segmentation_with_U_Net.ipynb` file
     in the `Chapter09` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     The code contains URLs to download data from and is moderately lengthy.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GitHub的`Chapter09`文件夹中的`Semantic_Segmentation_with_U_Net.ipynb`文件中找到以下代码，位于[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)，代码包含用于下载数据的URL，并且长度适中。
 - en: 'Let’s begin by downloading the necessary datasets, installing the necessary
     packages, and then importing them. Once we’ve done that, we can define the device:'
+  id: totrans-52
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们从下载必要的数据集、安装必要的软件包并导入它们开始。完成后，我们可以定义设备：
 - en: '[PRE3]'
+  id: totrans-53
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Define the function that will be used to transform images (`tfms`):'
+  id: totrans-54
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义用于转换图像(`tfms`)的函数：
 - en: '[PRE4]'
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Define the dataset class (`SegData`) to fetch input and output images for training:'
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义数据集类(`SegData`)以获取训练所需的输入和输出图像：
 - en: 'Specify the folder that contains images in the `__init__` method:'
+  id: totrans-57
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定包含图像的文件夹在`__init__`方法中：
 - en: '[PRE5]'
+  id: totrans-58
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Define the `__len__` method:'
+  id: totrans-59
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`__len__`方法：
 - en: '[PRE6]'
+  id: totrans-60
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Define the `__getitem__` method:'
+  id: totrans-61
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`__getitem__`方法：
 - en: '[PRE7]'
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: In the `__getitem__` method, we are resizing both the input (`image`) and output
     (`mask`) images so that they’re the same shape. Note that the mask images contain
     integers that fall in the range `[0,11]`. This indicates that there are 12 different
     classes.
+  id: totrans-63
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在`__getitem__`方法中，我们将输入(`image`)和输出(`mask`)图像都调整大小，使它们具有相同的形状。请注意，掩码图像包含的整数值在`[0,11]`范围内。这表明有12种不同的类别。
 - en: 'Define a function (`choose`) to select a random image index (mainly for debugging
     purposes):'
+  id: totrans-64
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数(`choose`)来选择一个随机图像索引（主要用于调试目的）：
 - en: '[PRE8]'
+  id: totrans-65
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Define the `collate_fn` method to perform preprocessing on a batch of images:'
+  id: totrans-66
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`collate_fn`方法来对图像批次进行预处理：
 - en: '[PRE9]'
+  id: totrans-67
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: In the preceding code, we preprocess all the input images so that they have
     a channel (so that each image can be passed through a CNN later) once we’ve transformed
     the scaled images. Notice that `ce_masks` is a tensor of long integers, similar
     to the cross-entropy targets.
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在前述代码中，我们对所有输入图像进行预处理，以便它们具有一个通道（这样每个图像稍后可以通过CNN传递），一旦我们转换了缩放后的图像。注意，`ce_masks`
+    是一个长整数张量，类似于交叉熵目标。
 - en: 'Define the training and validation datasets, as well as the dataloaders:'
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义训练和验证数据集，以及数据加载器：
 - en: '[PRE10]'
+  id: totrans-70
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Define the neural network model architecture to train for segmentation. Note
     that a U-Net contains the traditional convolutions as well as up-convolution:'
+  id: totrans-71
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义神经网络模型架构以进行分割训练。请注意，U-Net 包含传统的卷积以及上采样卷积：
 - en: 'Define the convolution block (`conv`):'
+  id: totrans-72
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义卷积块（`conv`）：
 - en: '[PRE11]'
+  id: totrans-73
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: In the preceding definition of `conv`, we sequentially perform the `Conv2d`
     operation, the `BatchNorm2d` operation, and the `ReLU` operation.
+  id: totrans-74
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `conv` 的定义中，我们依次执行 `Conv2d` 操作、`BatchNorm2d` 操作和 `ReLU` 操作。
 - en: 'Define the `up_conv` block:'
+  id: totrans-75
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `up_conv` 块：
 - en: '[PRE12]'
+  id: totrans-76
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: '`ConvTranspose2d` ensures that we upscale the images. This differs from the
     `Conv2d` operation, where we reduce the dimensions of the image. It takes an image
     that has `in_channels` number of channels as input channels and produces an image
     that has `out_channels` number of output channels.'
+  id: totrans-77
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`ConvTranspose2d` 确保我们放大图像。这与 `Conv2d` 操作不同，后者减少图像的维度。它接受具有 `in_channels` 通道数的图像作为输入通道，并生成具有
+    `out_channels` 输出通道数的图像。'
 - en: 'Define the network class (`UNet`):'
+  id: totrans-78
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义网络类（`UNet`）：
 - en: '[PRE13]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: In the preceding `__init__` method, we define all the layers that we would use
     in the `forward` method.
+  id: totrans-80
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在前述的 `__init__` 方法中，我们定义了在 `forward` 方法中使用的所有层。
 - en: 'Define the `forward` method:'
+  id: totrans-81
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `forward` 方法：
 - en: '[PRE14]'
+  id: totrans-82
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: In the preceding code, we make the U-style connection between the downscaling
     and upscaling convolution features by using `torch.cat` on the appropriate pairs
     of tensors.
+  id: totrans-83
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在前述代码中，我们通过在适当的张量对上使用 `torch.cat` 来制作U型连接，连接了降采样和上采样卷积特征。
 - en: 'Define a function (`UNetLoss`) that will calculate our loss and accuracy values:'
+  id: totrans-84
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数（`UNetLoss`），用于计算我们的损失和准确性值：
 - en: '[PRE15]'
+  id: totrans-85
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Define a function that will train on a batch (`train_batch`) and calculate
     the metrics on the validation dataset (`validate_batch`):'
+  id: totrans-86
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数，该函数将对批次进行训练（`train_batch`），并计算验证数据集上的指标（`validate_batch`）：
 - en: '[PRE16]'
+  id: totrans-87
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Define the model, optimizer, loss function, and the number of epochs for training:'
+  id: totrans-88
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型、优化器、损失函数以及训练的epochs数量：
 - en: '[PRE17]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Train the model over increasing epochs:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加的epochs上训练模型：
 - en: '[PRE18]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Plot the training, validation loss, and accuracy values over increasing epochs:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制随着epochs增加的训练、验证损失和准确性值：
 - en: '[PRE19]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'The preceding code generates the following output:'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码生成以下输出：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_09_06.png)'
+  id: totrans-95
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，折线图 自动生成描述](img/B18457_09_06.png)'
 - en: 'Figure 9.6: Training and validation loss over increasing epochs'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.6：随着epochs增加的训练和验证损失
 - en: 'Calculate the predicted output on a new image to observe model performance
     on unseen images:'
+  id: totrans-97
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算在新图像上的预测输出，以观察模型在未见图像上的性能：
 - en: 'Fetch model predictions on a new image:'
+  id: totrans-98
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在新图像上获取模型预测：
 - en: '[PRE20]'
+  id: totrans-99
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Fetch the channel that has the highest probability:'
+  id: totrans-100
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取具有最高概率的通道：
 - en: '[PRE21]'
+  id: totrans-101
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Show the original and predicted images:'
+  id: totrans-102
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 展示原始和预测图像：
 - en: '[PRE22]'
+  id: totrans-103
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'The preceding code generates the following output:'
+  id: totrans-104
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 前述代码生成以下输出：
 - en: '![](img/B18457_09_07.png)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_09_07.png)'
 - en: 'Figure 9.7: (Left) Original image; (Middle) original mask; (Right) predicted
     mask'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.7：（左）原始图像；（中）原始掩模；（右）预测掩模
 - en: From the preceding picture, we see that we can successfully generate a segmentation
     mask using the U-Net architecture. However, all instances of the same class will
     have the same predicted pixel value. What if we want to separate the instances
     of the `Person` class in the image?
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 从前面的图片中，我们看到使用U-Net架构可以成功生成分割掩模。然而，同一类的所有实例将具有相同的预测像素值。如果我们想要分开图像中`Person`类的实例会怎样？
 - en: In the next section, we will learn about the Mask R-CNN architecture, which
     helps to generate instance-level masks so that we can differentiate between instances
     (even instances of the same class).
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将学习关于Mask R-CNN架构，它帮助生成实例级别的掩模，以便我们可以区分实例（即使是同一类的实例）。
 - en: Exploring the Mask R-CNN architecture
+  id: totrans-109
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 探索Mask R-CNN架构
 - en: The Mask R-CNN architecture helps identify/highlight the instances of objects
     of a given class within an image. This becomes especially handy when there are
     multiple objects of the same type present within the image. Furthermore, the term
     **Mask** represents the segmentation that’s done at the pixel level by Mask R-CNN.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: Mask R-CNN 架构有助于识别/突出显示图像中给定类别的对象实例。当图像中存在多个相同类型的对象时，这尤为方便。此外，术语 **Mask** 表示由
+    Mask R-CNN 在像素级别执行的分割。
 - en: 'The Mask R-CNN architecture is an extension of the Faster R-CNN network, which
     we learned about in the previous chapter. However, a few modifications have been
     made to the Mask R-CNN architecture, as follows:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: Mask R-CNN 架构是 Faster R-CNN 网络的扩展，我们在上一章中学习过。然而，Mask R-CNN 架构进行了一些修改，如下所示：
 - en: The `RoI Pooling` layer has been replaced with the `RoI Align` layer.
+  id: totrans-112
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`RoI Pooling` 层已被 `RoI Align` 层取代。'
 - en: A mask head has been included to predict a mask of objects in addition to the
     head, which already predicts the classes of objects and bounding-box correction
     in the final layer.
+  id: totrans-113
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在最终层中，除了预测对象的类别和边界框修正外，还包括了一个掩码头来预测对象的掩码。
 - en: A **fully convolutional network** (**FCN**) is leveraged for mask prediction.
+  id: totrans-114
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**全卷积网络**（**FCN**）用于掩码预测。'
 - en: 'Let’s have a quick look at the events that occur within Mask R-CNN before we
     understand how each of the components works (image source: [https://arxiv.org/pdf/1703.06870.pdf](https://arxiv.org/pdf/1703.06870.pdf)):'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们理解各个组件如何工作之前，让我们快速看一下 Mask R-CNN 中发生的事件（图片来源：[https://arxiv.org/pdf/1703.06870.pdf](https://arxiv.org/pdf/1703.06870.pdf)）：
 - en: '![Diagram  Description automatically generated](img/B18457_09_08.png)'
+  id: totrans-116
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图示](img/B18457_09_08.png)'
 - en: 'Figure 9.8: Mask R-CNN workflow'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.8：Mask R-CNN 工作流程
 - en: In the preceding diagram, note that we are fetching the class and bounding-box
     information from one layer and the mask information from another layer.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上图中，请注意我们从一个图层获取类别和边界框信息，从另一个图层获取掩码信息。
 - en: 'The working details of the Mask R-CNN architecture are as follows:'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: Mask R-CNN 架构的工作细节如下：
 - en: '![Diagram  Description automatically generated](img/B18457_09_09.png)'
+  id: totrans-120
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图示](img/B18457_09_09.png)'
 - en: 'Figure 9.9: Working details of Mask R-CNN'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.9：Mask R-CNN 的工作细节
 - en: Before we implement the Mask R-CNN architecture, we need to understand its components.
     We’ll start with RoI Align.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们实现 Mask R-CNN 架构之前，我们需要理解其组成部分。我们将从 RoI Align 开始。
 - en: RoI Align
+  id: totrans-123
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: RoI Align
 - en: With Faster R-CNN, we learned about RoI pooling. One of the drawbacks of RoI
     pooling is that we are likely to lose certain information when we perform the
     RoI pooling operation. This is because we are likely to have an uneven representation
     of content across all the areas of an image before pooling.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Faster R-CNN 中，我们了解到了 RoI 池化。RoI 池化的一个缺点是，在执行 RoI 池化操作时，我们可能会丢失某些信息。这是因为在池化之前，图像的各个区域可能具有不均匀的内容表示。
 - en: 'Let’s go through the example we provided in the previous chapter:'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过前一章节提供的示例来看一下：
 - en: '![Table  Description automatically generated](img/B18457_09_10.png)'
+  id: totrans-126
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的表格描述](img/B18457_09_10.png)'
 - en: 'Figure 9.10: RoI pooling calculation'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.10：RoI 池化计算
 - en: In the preceding image, the region proposal is 5 x 7 in shape, and we have to
     convert it into a 2 x 2 shape. While converting it into a 2 x 2 shape, one part
     of the region has less representation compared to other parts of the region. This
     results in information loss, since certain parts of the region have more weight
     than others. RoI Align comes to the rescue to address such a scenario.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上图中，区域提议的形状为 5 x 7，并且我们必须将其转换为 2 x 2 的形状。在转换为 2 x 2 的过程中，区域的某些部分的表示较少，相比其他部分更有权重。这导致信息丢失，RoI
+    Align 应运而生以解决这种情况。
 - en: 'Let’s go through a simple example to understand how RoI Align works. Here,
     we try to convert the following region (which is represented by dashed lines)
     into a 2 x 2 shape:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过一个简单的示例来理解 RoI Align 的工作原理。在这里，我们试图将以下区域（用虚线表示）转换为 2 x 2 的形状：
 - en: '![A picture containing calendar  Description automatically generated](img/B18457_09_11.png)'
+  id: totrans-130
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图片描述](img/B18457_09_11.png)'
 - en: 'Figure 9.11: Region represented with dashed lines'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.11：用虚线表示的区域
 - en: Note that the region (in dashed lines) is not equally spread across all the
     cells in the feature map.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，区域（用虚线表示）在特征图的所有单元格中并不均匀分布。
 - en: 'We must perform the following steps to get a reasonable representation of the
     region in a 2 x 2 shape:'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们必须执行以下步骤以获取2 x 2形状中区域的合理表示：
 - en: 'First, divide the region into an equal 2 x 2 shape:'
+  id: totrans-134
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，将区域分成相等的2 x 2形状：
 - en: '![A picture containing table  Description automatically generated](img/B18457_09_12.png)'
+  id: totrans-135
   prefs: []
   type: TYPE_IMG
+  zh: '![包含表格的图片说明自动生成](img/B18457_09_12.png)'
 - en: 'Figure 9.12: Calculating the four corners of the region'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.12: 计算区域的四个角'
 - en: 'Define four points that are equally spaced within each of the 2 x 2 cells:'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义在每个2 x 2单元格内均匀间隔的四个点：
 - en: '![Diagram  Description automatically generated with medium confidence](img/B18457_09_13.png)'
+  id: totrans-138
   prefs: []
   type: TYPE_IMG
+  zh: '![中等置信度自动生成的图表说明](img/B18457_09_13.png)'
 - en: 'Figure 9.13: Calculating the four selected points'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.13: 计算四个选定点'
 - en: Note that, in the preceding diagram, the distance between two consecutive points
     is 0.75 (either horizontally or vertically).
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在上述图表中，两个连续点之间的距离为0.75（水平或垂直）。
 - en: 'Calculate the weighted average value of each point based on its distance to
     the nearest known value:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 根据每个点到最近已知值的距离计算加权平均值：
 - en: '![A picture containing diagram  Description automatically generated](img/B18457_09_14.png)'
+  id: totrans-142
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图表说明](img/B18457_09_14.png)'
 - en: 'Figure 9.14: Extrapolating the value corresponding to each point'
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.14: 扩展到每个点对应值'
 - en: 'Repeat the preceding interpolation step for all four points in a cell:'
+  id: totrans-144
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对单元格中所有四个点重复前述插值步骤：
 - en: '![Table  Description automatically generated](img/B18457_09_15.png)'
+  id: totrans-145
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的表格说明](img/B18457_09_15.png)'
 - en: 'Figure 9.15: Values of the four corners'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.15: 四个角的数值'
 - en: 'Perform average pooling across all four points within a cell:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在单元格内所有四个点上执行平均池化：
 - en: '![A picture containing table  Description automatically generated](img/B18457_09_16.png)'
+  id: totrans-148
   prefs: []
   type: TYPE_IMG
+  zh: '![包含表格的图片说明自动生成](img/B18457_09_16.png)'
 - en: 'Figure 9.16: Output of pooling for all the four cells'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.16: 所有四个单元格的池化输出'
 - en: By implementing the preceding steps, we don’t lose out on information when performing
     RoI Align, that is, when we place all the regions inside the same shape.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过实施上述步骤，在执行RoI Align时，我们不会丢失信息，也就是说，当我们将所有区域放置在相同形状内时。
 - en: Mask head
+  id: totrans-151
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 掩码头
 - en: Using RoI Align, we can get a more accurate representation of the region proposal
     that is obtained from the region proposal network. Now, we want to obtain the
     segmentation (mask) output, given a standard-shaped RoI Align output, for every
     region proposal.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用RoI Align，我们可以获得从区域建议网络获取的标准形状RoI Align输出更准确的表示。现在，我们希望获取分割（掩码）输出，对于每个区域建议给定标准形状的RoI
+    Align输出。
 - en: Typically, in the case of object detection, we would pass the RoI Align through
     a flattened layer to predict the object’s class and bounding-box offset. However,
     in the case of image segmentation, we predict the pixels within a bounding box
     that contains the object. Hence, we now have a third output (apart from the class
     and bounding-box offset), which is the predicted mask within the region of interest.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常情况下，在目标检测中，我们会通过平坦化层传递RoI Align以预测物体的类别和边界框偏移量。然而，在图像分割的情况下，我们预测包含对象的边界框内的像素。因此，现在我们有了第三个输出（除了类别和边界框偏移量），即感兴趣区域内的预测掩码。
 - en: 'Here, we predict the mask, which is an image overlay on top of the original
     image. Given that we predict an image, instead of flattening the RoI Align’s output,
     we’ll connect it to another convolution layer to get another image-like structure
     (width x height in dimensions). Let’s understand this phenomenon by looking at
     the following diagram:'
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们预测掩码，它是叠加在原始图像上的图像。考虑到我们预测的是一个图像，而不是展平RoI Align的输出，我们将其连接到另一个卷积层以获得另一个类似图像的结构（宽度
+    x 高度的维度）。让我们通过查看以下图表来理解这一现象：
 - en: '![Diagram  Description automatically generated](img/B18457_09_17.png)'
+  id: totrans-155
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图表说明](img/B18457_09_17.png)'
 - en: 'Figure 9.17: Workflow to obtain masks'
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.17: 获取掩码的工作流程'
 - en: 'In the preceding diagram, we have obtained an output of shape 7 x 7 x 2,048
     using the **feature pyramid network** (**FPN**), which now has two branches:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述图表中，我们使用特征金字塔网络（FPN）获得了形状为7 x 7 x 2048的输出，现在具有两个分支：
 - en: The first branch returns the class of the object and the bounding box, after
     flattening the FPN output.
+  id: totrans-158
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 第一个分支在展平FPN输出后返回对象的类别和边界框。
 - en: The second branch performs convolution on top of the FPN’s output to get a mask.
+  id: totrans-159
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 第二个分支在FPN的输出上执行卷积以获取掩码。
 - en: The ground truth corresponding to the 14 x 14 output is the resized image of
     the region proposals. The ground truth of the region proposal is of the shape
     80 x 14 x 14 if there are 80 unique classes in the dataset. Each of the 80 x 14
     x 14 pixels is a 1 or a 0, which indicates whether the pixel contains an object
     or not. Thus, we are performing binary cross-entropy loss minimization while predicting
     the class of a pixel.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
 - en: Post model training, we can detect regions, get classes, get bounding-box offsets,
@@ -725,13 +1055,16 @@
     detect the objects present in the image and make bounding-box corrections. Then,
     we pass the region offsets to the mask head to predict the mask that corresponds
     to different pixels in the region.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
 - en: Now that we understand how the Mask R-CNN architecture works, let’s code it
     up so that we can detect instances of people in an image.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
 - en: Implementing instance segmentation using Mask R-CNN
+  id: totrans-163
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -740,92 +1073,117 @@
     we’ll be using has been created from a subset of the ADE20K dataset that contains
     input images and their corresponding masks, which is available at [https://groups.csail.mit.edu/vision/datasets/ADE20K/](https://groups.csail.mit.edu/vision/datasets/ADE20K/).
     We will only use those images where we have masks for people.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
 - en: 'The strategy we’ll adopt is as follows:'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
 - en: Fetch the dataset and then create datasets and dataloaders from it.
+  id: totrans-166
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Create a ground truth in a format needed for PyTorch’s official implementation
     of Mask R-CNN.
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Download the pre-trained Faster R-CNN model and attach a Mask R-CNN head to
     it.
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Train the model with a PyTorch code snippet that has been standardized to train
     Mask R-CNN.
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Infer on an image by performing non-max suppression first and then identifying
     the bounding box and the mask corresponding to the people in the image.
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Let’s code up the preceding strategy:'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
 - en: Find the following code in the `Instance_Segmentation.ipynb` file in the `Chapter09`
     folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
 - en: 'Import the relevant dataset and training utilities from GitHub:'
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE23]'
+  id: totrans-174
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Import all the necessary packages and define `device`:'
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE24]'
+  id: totrans-176
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'Fetch images that contain masks of people, as follows:'
+  id: totrans-177
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Loop through the `images` and `annotations_instance` folders to fetch filenames:'
+  id: totrans-178
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE25]'
+  id: totrans-179
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Inspect the original image and the representation of masks of instances of
     people:'
+  id: totrans-180
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE26]'
+  id: totrans-181
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'The preceding code generates the following output. We can see that a separate
     mask has been generated for each person. Here, there are four instances of the
     `Person` class:'
+  id: totrans-182
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
 - en: '![A picture containing text  Description automatically generated](img/B18457_09_18.png)'
+  id: totrans-183
   prefs:
   - PREF_IND
   type: TYPE_IMG
 - en: 'Figure 9.18: Separate mask generation for each individual'
+  id: totrans-184
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
@@ -834,501 +1192,735 @@
     while the Green channel corresponds to the instance number (if there are multiple
     objects of the same class in the image, as in our example here). Furthermore,
     the `Person` class is encoded with a value of 4.
+  id: totrans-185
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在这个特定的数据集中，实例的地面实况注释是以这样一种方式提供的，即 RGB 中的红色通道对应于对象的类别，而绿色通道对应于实例编号（如果图像中有多个相同类别的对象，如我们此处的示例）。此外，`Person`
+    类以值 4 编码。
 - en: 'Loop through the annotations and store the files that contain at least one
     person:'
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 遍历注释并存储至少包含一个人的文件：
 - en: '[PRE27]'
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Split the files into training and validation files:'
+  id: totrans-188
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将文件分为训练文件和验证文件：
 - en: '[PRE28]'
+  id: totrans-189
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Define the transformation method:'
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义转换方法：
 - en: '[PRE29]'
+  id: totrans-191
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Create the dataset class (`MasksDataset`), as follows:'
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建数据集类（`MasksDataset`），如下所示：
 - en: 'Define the `__init__` method, which takes the image names (`items`), transformation
     method (`transforms`), and the number of files to consider (`N`) as input:'
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `__init__` 方法，该方法接受图像名称（`items`）、转换方法（`transforms`）和要考虑的文件数（`N`）作为输入：
 - en: '[PRE30]'
+  id: totrans-194
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Define a method (`get_mask`) that will fetch the number of masks that’s equivalent
     to the instances present in the image:'
+  id: totrans-195
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个方法（`get_mask`），将获取等于图像中存在的实例数的面具数量：
 - en: '[PRE31]'
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Fetch the image and the corresponding target values to be returned. Each person
     (instance) is treated as a different object class; that is, each instance is a
     different class. Note that, similar to training the Faster R-CNN model, the targets
     are returned as a dictionary of tensors. Let’s define the `__getitem__` method:'
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取图像及其对应的目标值以返回。每个人（实例）被视为不同的对象类别；即每个实例都是不同的类别。请注意，类似于训练 Faster R-CNN 模型，目标作为张量字典返回。让我们定义
+    `__getitem__` 方法：
 - en: '[PRE32]'
+  id: totrans-198
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Apart from the masks themselves, Mask R-CNN also needs the bounding-box information.
     However, this is easy to prepare, as shown in the following code:'
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了面具本身外，Mask R-CNN 还需要边界框信息。然而，这很容易准备，如下所示的代码：
 - en: '[PRE33]'
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: In the preceding code, we adjust for scenarios where there are dubious ground
     truths (i.e., the height or width of the `Person` class is less than 10 pixels)
     by adding 10 pixels to the minimums of the `x` and `y` coordinates of the bounding
     box.
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在上述代码中，通过在边界框的 `x` 和 `y` 坐标的最小值上添加 10 个像素，来调整存在可疑地面实况的情况（即 `Person` 类的高度或宽度小于
+    10 像素）。
 - en: 'Convert all the target values into tensor objects:'
+  id: totrans-202
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将所有目标值转换为张量对象：
 - en: '[PRE34]'
+  id: totrans-203
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Store the target values in a dictionary:'
+  id: totrans-204
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将目标值存储在字典中：
 - en: '[PRE35]'
+  id: totrans-205
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Specify the transformation method and return the image after scaling it:'
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定转换方法并在缩放图像后返回图像：
 - en: '[PRE36]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Specify the `__len__` method:'
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定 `__len__` 方法：
 - en: '[PRE37]'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Define the function that will choose a random image:'
+  id: totrans-210
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义将选择随机图像的函数：
 - en: '[PRE38]'
+  id: totrans-211
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Inspect an input-output combination:'
+  id: totrans-212
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 检查输入输出组合：
 - en: '[PRE39]'
+  id: totrans-213
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'The following is some example output that the preceding code produces when
     it’s run. We can see that the mask’s shape is 2 x 512 x 683, indicating that there
     are two people in the image:'
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是运行上述代码时生成的一些示例输出。我们可以看到面具的形状为 2 x 512 x 683，表明图像中有两个人物：
 - en: '![Graphical user interface  Description automatically generated](img/B18457_09_19.png)'
+  id: totrans-215
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面 自动生成的描述](img/B18457_09_19.png)'
 - en: 'Figure 9.19: (Left) Input image; (Middle and right), predicted masks of persons'
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.19：（左）输入图像；（中间和右侧）预测的人物面具
 - en: Note that, in the `__getitem__` method, we have as many masks and bounding boxes
     in an image as there are objects (instances) present within the image. Furthermore,
     because we only have two classes (the `Background` class and the `Person` class),
     we specify the `Person` class as `1`.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在 `__getitem__` 方法中，图像中有多少个对象（实例），就有多少个面具和边界框。此外，因为我们只有两个类别（`Background`
+    类和 `Person` 类），我们将 `Person` 类指定为 `1`。
 - en: By the end of this step, we have quite a lot of information in the output dictionary,
     that is, the object classes, bounding boxes, masks, the area of the masks, and
     if a mask corresponds to a crowd. All of this information is available in the
     `target` dictionary. For the training function that we are going to use, it is
     important for the data to be standardized in the format that the `torchvision.models.detection.maskrcnn_resnet50_fpn`
     class requires it to be in.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 到此步骤结束时，输出字典中有相当多的信息，即对象类别、边界框、面具、面具区域以及面具是否对应于人群。所有这些信息都在 `target` 字典中可用。对于我们将要使用的训练函数，数据以
+    `torchvision.models.detection.maskrcnn_resnet50_fpn` 类所要求的格式标准化非常重要。
 - en: 'Next, we need to define the instance segmentation model (`get_model_instance_segmentation`).
     We are going to use a pre-trained model with only the heads reinitialized to predict
     two classes (background and person). First, we need to initialize a pre-trained
     model and replace the `box_predictor` and `mask_predictor` heads so that they
     can be learned from scratch:'
+  id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要定义实例分割模型（`get_model_instance_segmentation`）。我们将使用一个预训练模型，只重新初始化头部以预测两类（背景和人）。首先，我们需要初始化一个预训练模型，并替换`box_predictor`和`mask_predictor`头部，以便从头学习：
 - en: '[PRE40]'
+  id: totrans-220
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: '`FastRCNNPredictor` expects two inputs: `in_features` (the number of input
     channels) and `num_classes` (the number of classes). Based on the number of classes
     to predict, the number of bounding box predictions is calculated, which is four
     times the number of classes.'
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: '`FastRCNNPredictor`期望两个输入：`in_features`（输入通道数）和`num_classes`（类别数）。基于要预测的类别数，计算出边界框预测的数量，即类别数的四倍。'
 - en: '`MaskRCNNPredictor` expects three inputs: `in_features_mask` (the number of
     input channels), `hidden_layer` (the number of channels in the output), and `num_classes`
     (the number of classes to predict).'
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: '`MaskRCNNPredictor`期望三个输入：`in_features_mask`（输入通道数）、`hidden_layer`（输出通道数）和`num_classes`（要预测的类别数）。'
 - en: 'Details of the defined model can be obtained by specifying the following:'
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 可通过指定以下内容获取所定义模型的详细信息：
 - en: '[PRE41]'
+  id: totrans-224
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'The bottom half of the model (that is, without the backbone) would look like
     this:'
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 模型的底半部（即不包含骨干网络的部分）如下所示：
 - en: '![Text  Description automatically generated](img/B18457_09_20.png)'
+  id: totrans-226
   prefs: []
   type: TYPE_IMG
+  zh: '![文本  自动生成描述](img/B18457_09_20.png)'
 - en: 'Figure 9.20: Mask R-CNN model architecture'
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.20：Mask R-CNN模型架构
 - en: 'Note that the major difference between the Faster R-CNN (which we trained in
     the previous chapter) and the Mask R-CNN model is in the `roi_heads` module, which
     itself contains multiple sub-modules. Let’s take a look at what tasks they perform:'
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，Faster R-CNN（我们在前一章节中训练的）与Mask R-CNN模型之间的主要区别在于`roi_heads`模块，它本身包含多个子模块。让我们看看它们执行的任务：
 - en: '`roi_heads`: Aligns the inputs taken from the FPN network and creates two tensors.'
+  id: totrans-229
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`roi_heads`：对从FPN网络获取的输入进行对齐，并创建两个张量。'
 - en: '`box_predictor`: Uses the outputs we obtained to predict classes and bounding-box
     offsets for each RoI.'
+  id: totrans-230
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`box_predictor`：使用我们获得的输出来预测每个RoI的类别和边界框偏移量。'
 - en: '`mask_roi_pool`: This layer then aligns the outputs coming from the FPN.'
+  id: totrans-231
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`mask_roi_pool`：该层然后对来自FPN的输出进行对齐。'
 - en: '`mask_head`: Converts the aligned outputs obtained previously into feature
     maps that can be used to predict masks.'
+  id: totrans-232
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`mask_head`：将先前获得的对齐输出转换为可用于预测掩码的特征图。'
 - en: '`mask_predictor`: Takes the outputs from `mask_head` and predicts the final
     masks.'
+  id: totrans-233
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`mask_predictor`：接受来自`mask_head`的输出并预测最终的掩码。'
 - en: 'Fetch the dataset and dataloaders that correspond to the train and validation
     images:'
+  id: totrans-234
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取对应于训练和验证图像的数据集和数据加载器：
 - en: '[PRE42]'
+  id: totrans-235
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Define the model, parameters, and optimization criterion:'
+  id: totrans-236
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型、参数和优化标准：
 - en: '[PRE43]'
+  id: totrans-237
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'The defined pre-trained model architecture takes the image and the `targets`
     dictionary as input to reduce loss. A sample of the output that will be received
     from the model can be seen by running the following command:'
+  id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 所定义的预训练模型架构将图像和`targets`字典作为输入来减少损失。通过运行以下命令可以查看模型接收到的输出样本：
 - en: '[PRE44]'
+  id: totrans-239
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的输出如下所示：
 - en: '![Table  Description automatically generated](img/B18457_09_21.png)'
+  id: totrans-241
   prefs: []
   type: TYPE_IMG
+  zh: '![表格  自动生成描述](img/B18457_09_21.png)'
 - en: 'Figure 9.21: Sample predictions'
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.21：样本预测
 - en: Here, we can see a dictionary with bounding boxes (`BOXES`), classes corresponding
     to bounding boxes (`LABELS`), confidence scores corresponding to class predictions
     (`SCORES`), and the location of our mask instances (`MASKS`). As you can see,
     the model is hardcoded to return 100 predictions, which is reasonable, since we
     shouldn’t expect more than 100 objects in a typical image.
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们可以看到一个包含边界框（`BOXES`）、对应于边界框的类别（`LABELS`）、对应于类别预测的置信度分数（`SCORES`）以及我们掩码实例的位置（`MASKS`）的字典。正如您所见，该模型硬编码为返回100个预测，这是合理的，因为我们不应该期望一张典型图像中有超过100个对象。
 - en: 'To fetch the number of instances that have been detected, we would use the
     following code:'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 要获取已检测到的实例数量，我们将使用以下代码：
 - en: '[PRE45]'
+  id: totrans-245
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: The preceding code fetches a maximum of 100 mask instances (where the instances
     correspond to a non-background class) for an image (along with the dimensions
     corresponding to the image). For these 100 instances, it would also return the
     corresponding class label, the bounding box, and the 100 corresponding confidence
     values of the class.
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码获取图像的最多 100 个掩模实例（其中实例对应于非背景类），以及与图像相对应的尺寸。对于这 100 个实例，还会返回相应的类别标签、边界框和该类别的
+    100 个相应置信度值。
 - en: 'Train the model over increasing epochs:'
+  id: totrans-247
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加纪元的训练模型：
 - en: '[PRE46]'
+  id: totrans-248
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'By doing this, we can now overlay our masks over people in an image. We can
     log our training loss variation over increasing epochs as follows:'
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这样做，我们现在可以在图像中的人物上覆盖我们的掩模。我们可以记录我们在增加纪元期间的训练损失变化如下：
 - en: '[PRE47]'
+  id: totrans-250
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的结果如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_09_22.png)'
+  id: totrans-252
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图  自动生成描述](img/B18457_09_22.png)'
 - en: 'Figure 9.22: Training loss over increasing epochs'
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.22: 随着增加纪元的训练损失'
 - en: 'Predict on a test image:'
+  id: totrans-254
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对测试图像进行预测：
 - en: '[PRE48]'
+  id: totrans-255
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'The preceding code results in the following output. We can see that we can
     successfully identify the four people in the image. Furthermore, the model predicts
     multiple other segments in the image (which we have not shown in the preceding
     output), although this is with low confidence:'
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的结果如下。我们可以看到我们成功地识别了图像中的四个人物。此外，模型还预测了图像中的多个其他部分（我们在前述输出中未显示），尽管置信度较低：
 - en: '![Graphical user interface  Description automatically generated with medium
     confidence](img/B18457_09_23.png)'
+  id: totrans-257
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面  描述自动生成，置信度中等](img/B18457_09_23.png)'
 - en: 'Figure 9.23: (Left) Input image; (rest) predicted masks'
+  id: totrans-258
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.23: （左）输入图像；（其余）预测的掩模'
 - en: Now that the model can detect instances well, let’s run predictions on a custom
     image that is not present within the provided dataset.
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在模型能够很好地检测实例，让我们对一个不在提供数据集中的自定义图像进行预测。
 - en: 'Run predictions on a new image of your own:'
+  id: totrans-260
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对自己的新图像进行预测：
 - en: '[PRE49]'
+  id: totrans-261
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'The input image is as follows:'
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 输入图像如下：
 - en: '![A person holding a child  Description automatically generated with low confidence](img/B18457_09_24.png)'
+  id: totrans-263
   prefs: []
   type: TYPE_IMG
+  zh: '![一个人抱着一个孩子  描述自动生成，置信度低](img/B18457_09_24.png)'
 - en: 'Figure 9.24: Sample input image outside of validation data'
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.24: 样本输入图像在验证数据之外'
 - en: 'Fetch predictions on the input image:'
+  id: totrans-265
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取输入图像的预测：
 - en: '[PRE50]'
+  id: totrans-266
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-267
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的结果如下：
 - en: '![Graphical user interface  Description automatically generated](img/B18457_09_25.png)'
+  id: totrans-268
   prefs: []
   type: TYPE_IMG
+  zh: '![图形用户界面  描述自动生成](img/B18457_09_25.png)'
 - en: 'Figure 9.25: (Left) Input image; (rest) predicted masks'
+  id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 9.25: （左）输入图像；（其余）预测的掩模'
 - en: 'Note that, in the preceding image, the trained model did not work as well as
     it did on the test images. This could be due to the following reasons:'
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在前述图像中，经过训练的模型表现不如在测试图像上的表现好。这可能是由于以下原因：
 - en: The people might not have been in such close proximity and overlapped during
     training.
+  id: totrans-271
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 人们在训练期间可能没有如此接近并重叠。
 - en: The model might not have been trained on as many images where the classes of
     interest occupy the majority of the image.
+  id: totrans-272
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 模型可能没有在大多数占据图像的感兴趣类别的图像上进行训练。
 - en: The images in the dataset that we have trained our model on have a different
     data distribution from the image being predicted on.
+  id: totrans-273
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们在训练模型的数据集中的图像与预测图像具有不同的数据分布。
 - en: However, even though duplicate masks have been detected, having lower class
     scores in those regions (starting with the third mask) is a good indicator that
     there might be duplicates in predictions.
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，尽管检测到了重复的掩模，但在这些区域中具有较低的类别得分（从第三个掩模开始）表明可能存在重复的预测。
 - en: So far, we have learned about segmenting multiple instances of the `Person`
     class. In the next section, we will learn about what we need to tweak in the code
     we built in this section to segment multiple instances of multiple classes of
     objects in an image.
+  id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了如何分割多个“Person”类的实例。在下一节中，我们将了解在本节构建的代码中需要调整的内容，以便在图像中分割多个类别的多个实例。
 - en: Predicting multiple instances of multiple classes
+  id: totrans-276
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 预测多个类别的多个实例
 - en: 'In the previous section, we learned about segmenting the `Person` class. In
     this section, we will learn about segmenting for person and table instances in
     one go by using the same model we built in the previous section. Let’s get started:'
+  id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一节中，我们学习了如何分割 `Person` 类。在本节中，我们将学习如何同时为人物和桌子实例进行分割，使用的是我们在前一节构建的同一模型。让我们开始吧：
 - en: Given that the majority of the code remains the same as it was in the previous
     section, we will only explain the additional code within this section. While executing
     code, we encourage you to go through the `predicting_multiple_instances_of_multiple_classes.ipynb`
     notebook, which can be found in the `Chapter09` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 鉴于大部分代码与前一节保持一致，我们只会解释本节中的附加代码。在执行代码时，我们建议您查看 GitHub 上的 `Chapter09` 文件夹中的 `predicting_multiple_instances_of_multiple_classes.ipynb`
+    笔记本，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Fetch images that contain the classes of interest – `Person` (class ID 4) and
     `Table` (class ID 6):'
+  id: totrans-279
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取包含感兴趣类别（`Person`（类别ID 4）和 `Table`（类别ID 6））的图像：
 - en: '[PRE51]'
+  id: totrans-280
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: In the preceding code, we fetch the images that contain at least one of the
     classes of interest (`classes_list`).
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们获取包含至少一个感兴趣类别（`classes_list`）的图像。
 - en: 'Modify the `get_mask` method so that it returns both masks, as well as the
     classes that correspond to each mask in the `MasksDataset` class:'
+  id: totrans-282
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 修改 `get_mask` 方法，使其返回每个掩码对应的类别的掩码和类别在 `MasksDataset` 类中的定义：
 - en: '[PRE52]'
+  id: totrans-283
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: In the preceding code, we fetch the classes of interest that exist within the
     image and store them in `cls`. Next, we loop through each identified class (`cls`)
     and store the locations where the red channel values correspond to the class (`cls`)
     in `nzs`. Then, we fetch the instance IDs (`instances`) in those locations. Furthermore,
     we append `instances` to `masks` and the classes corresponding to instances in
     `labels` before returning the NumPy arrays for `masks` and `labels`.
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们获取存在于图像中的感兴趣类别（`cls`），并将它们存储在 `labels` 中。接下来，我们遍历每个识别的类别（`cls`），并将红色通道值对应于类别（`cls`）的位置存储在
+    `nzs` 中。然后，我们获取这些位置上的实例ID（`instances`）。此外，在返回 `masks` 和 `labels` 的 NumPy 数组之前，我们将
+    `instances` 追加到 `masks` 中，并将对应于实例的类别追加到 `labels` 中。
 - en: 'Modify the `labels` object in the `__getitem__` method so that it contains
     labels that have been obtained from the `get_mask` method, instead of filling
     it with `torch.ones`. The bold part of the following code is where this change
     was implemented on the `__getitem__` method in the previous section:'
+  id: totrans-285
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `__getitem__` 方法中修改 `labels` 对象，使其包含从 `get_mask` 方法获取的标签，而不是用 `torch.ones`
+    填充。下面代码的粗体部分是在前一节的 `__getitem__` 方法中实现这些更改的地方：
 - en: '[PRE53]'
+  id: totrans-286
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'Specify that you have three classes instead of two while defining `model`,
     as we now have person, table, and background classes to predict:'
+  id: totrans-287
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定在定义 `model` 时有三个类别而不是两个，因为现在我们需要预测人物、桌子和背景类别：
 - en: '[PRE54]'
+  id: totrans-288
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Upon training the model, as we did in the previous section, we’ll see that
     the variation of training loss over increasing epochs is as follows:'
+  id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练模型之后，与前一节相比，随着迭代次数增加，训练损失的变化如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_09_26.png)'
+  id: totrans-290
   prefs: []
   type: TYPE_IMG
+  zh: '![图，折线图 说明自动生成](img/B18457_09_26.png)'
 - en: 'Figure 9.26: Training loss over increasing epochs'
+  id: totrans-291
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.26：随着迭代次数增加的训练损失
 - en: 'Furthermore, the predicted segments for a sample image that contains a person
     and a table are as follows:'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，对于包含人物和桌子的样本图像，预测的段如下所示：
 - en: '![Chart  Description automatically generated](img/B18457_09_27.png)'
+  id: totrans-293
   prefs: []
   type: TYPE_IMG
+  zh: '![图 说明自动生成](img/B18457_09_27.png)'
 - en: 'Figure 9.27: (Left) Input image; (rest) predicted masks and the corresponding
     class'
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.27：（左）输入图像；（其余）预测的掩码和相应的类
 - en: From the preceding figure, we can see that we are able to predict both classes
     using the same model. As an exercise, we encourage you to increase the number
     of classes and the number of epochs and see what results you get.
+  id: totrans-295
   prefs: []
   type: TYPE_NORMAL
+  zh: 从上述图中，我们可以看到使用同一模型能够预测两个类别。作为练习，我们鼓励您增加类别数量和迭代次数，并查看您的结果。
 - en: Summary
+  id: totrans-296
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we learned how to leverage U-Net and Mask R-CNN to perform
     segmentation on top of images. We understood how the U-Net architecture can perform
     downscaling and upscaling on images using convolutions to retain the structure
@@ -1339,51 +1931,77 @@
     image quantization are addressed. After that, we learned how Mask R-CNN works
     so that we could train models to predict instances of people in images, as well
     as instances of people and tables in an image.
+  id: totrans-297
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了如何利用 U-Net 和 Mask R-CNN 对图像进行分割。我们了解到 U-Net 架构如何通过卷积进行图像的降采样和升采样，以保留图像的结构，同时能够预测图像中物体周围的掩码。接着，我们通过道路场景检测练习巩固了这一理解，将图像分割成多个类别。然后，我们了解了
+    RoI Align，它有助于解决 RoI 池化在图像量化方面的问题。随后，我们学习了 Mask R-CNN 的工作原理，以便训练模型来预测图像中的人物实例，以及图像中的人物和表格实例。
 - en: Now that we have a good understanding of various object detection techniques
     and image segmentation techniques, in the next chapter, we will learn about applications
     that leverage the techniques we have learned about so far so that we can expand
     the number of classes that we will predict. In addition, we will also learn about
     the Detectron2 framework, which reduces code complexity while we build Faster
     R-CNN and Mask R-CNN models.
+  id: totrans-298
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们对各种目标检测技术和图像分割技术有了很好的理解，在下一章中，我们将学习如何利用我们迄今所学的技术来扩展我们将预测的类别数量的应用。此外，我们还将学习
+    Detectron2 框架，该框架在构建 Faster R-CNN 和 Mask R-CNN 模型时减少了代码复杂性。
 - en: Questions
+  id: totrans-299
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: How does upscaling help in the U-Net architecture?
+  id: totrans-300
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 U-Net 架构中，升采样如何帮助？
 - en: Why do we need to have a fully convolutional network in U-Net?
+  id: totrans-301
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 U-Net 中为什么需要一个完全卷积网络？
 - en: How does RoI Align improve upon RoI pooling in Mask R-CNN?
+  id: totrans-302
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: RoI Align 如何改进 Mask R-CNN 中的 RoI 池化？
 - en: What is the major difference between U-Net and Mask R-CNN for segmentation?
+  id: totrans-303
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: U-Net 和 Mask R-CNN 在分割中的主要区别是什么？
 - en: What is instance segmentation?
+  id: totrans-304
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 什么是实例分割？
 - en: Learn more on Discord
+  id: totrans-305
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Discord 上了解更多信息
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-306
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-308
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
