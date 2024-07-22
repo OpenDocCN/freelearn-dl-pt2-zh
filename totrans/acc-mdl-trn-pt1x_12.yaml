@@ -1,60 +1,74 @@
 - en: '9'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Training with Multiple CPUs
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: When accelerating the model-building process, we immediately think of machines
     endowed with GPU devices. What if I told you that running distributed training
     on machines equipped only with multicore processors is possible and advantageous?
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
 - en: Although the performance improvement obtained from GPUs is incomparable, we
     should not disdain the computing power provided by modern CPUs. Processor vendors
     have continuously increased the number of computing cores on CPUs, besides creating
     sophisticated mechanisms to treat access contention to shared resources.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
 - en: Using CPUs to run distributed training is especially interesting for cases where
     we do not have easy access to GPU devices. Thus, learning this topic is vital
     to enrich our knowledge about distributed training.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
 - en: In this chapter, we show how to execute the distributed training process on
     multiple CPUs in a single machine by adopting a general approach and using the
     Intel oneCCL backend.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
 - en: The advantages of distributing training on multiple CPUs
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: How to distribute the training process among multiple CPUs
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: How to burst the distributed training by using Intel oneCCL
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Technical requirements
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: You can find the complete code of examples mentioned in this chapter in the
     book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
 - en: You can access your favorite environments to execute this notebook, such as
     Google Colab or Kaggle.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
 - en: Why distribute the training on multiple CPUs?
+  id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -62,15 +76,18 @@
     CPUs in a single machine sounds slightly confusing. After all, we could increase
     the number of threads used in the training process to allocate all available CPUs
     (computing cores).
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
 - en: However, as said by Carlos Drummond de Andrade, a famous Brazilian poet, “*In
     the middle of the road there was a stone. There was a stone in the middle of the
     road*.” Let’s see what happens to the training process when we just increase the
     number of threads in a machine with multiple cores.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
 - en: Why not increase the number of threads?
+  id: totrans-16
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -78,11 +95,13 @@
     we learned that PyTorch relies on OpenMP to accelerate the training process by
     employing the multithreading technique. OpenMP assigns threads to physical cores
     intending to improve the performance of the training process.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
 - en: So, if we have a certain number of available computing cores, why not increase
     the number of threads used in the training process rather than thinking about
     going distributed? The answer is quite simple, actually.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
 - en: PyTorch has a *limit on the level of parallelism* it can achieve in running
@@ -90,433 +109,630 @@
     be a performance improvement after crossing a certain number of threads. In simpler
     terms, after a certain threshold, the training time will be the same, no matter
     how many extra cores we use to train the model.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用多线程运行训练过程时，PyTorch 对并行性的限制意味着在超过某个线程数后，性能不会有所提升。简单来说，达到一定阈值后，训练时间将保持不变，无论我们使用多少额外的核心来训练模型。
 - en: This behavior is not exclusive to the training process executed by PyTorch.
     It is very common in many kinds of parallel applications. Depending on the problem
     and the design of the parallel strategy, increasing the number of threads can
     turn the parallel task into being so small and simple to execute that the benefits
     of parallelizing the problem will be suppressed by the overhead of controlling
     the execution of each parallel task.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种行为不仅限于 PyTorch 执行的训练过程。在许多种类的并行应用中，这种情况都很普遍。根据问题和并行策略的设计，增加线程数可能会导致并行任务变得太小和简单，以至于并行化问题的好处会被控制每个并行任务的开销所抑制。
 - en: 'Let’s see a practical example of this behavior. *Table 9.1* presents the execution
     time of training a CNN model against the CIFAR-10 dataset over five epochs using
     a machine equipped with 16 physical cores:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 看一个行为的实际例子。*表 9.1* 展示了使用一台装备有 16 个物理核心的机器，在 CIFAR-10 数据集上训练 CNN 模型五个周期的执行时间：
 - en: '| **Threads** | **Execution Time** |'
+  id: totrans-22
   prefs: []
   type: TYPE_TB
+  zh: '| **线程** | **执行时间** |'
 - en: '| 1 | 311 |'
+  id: totrans-23
   prefs: []
   type: TYPE_TB
+  zh: '| 1 | 311 |'
 - en: '| 2 | 189 |'
+  id: totrans-24
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 189 |'
 - en: '| 4 | 119 |'
+  id: totrans-25
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 119 |'
 - en: '| 8 | 93 |'
+  id: totrans-26
   prefs: []
   type: TYPE_TB
+  zh: '| 8 | 93 |'
 - en: '| 12 | 73 |'
+  id: totrans-27
   prefs: []
   type: TYPE_TB
+  zh: '| 12 | 73 |'
 - en: '| 16 | 73 |'
+  id: totrans-28
   prefs: []
   type: TYPE_TB
+  zh: '| 16 | 73 |'
 - en: Table 9.1 – Execution time of training process
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.1 – 训练过程的执行时间
 - en: As shown in *Table 9.1*, there is no difference in the execution time whether
     using 12 or 16 cores to train the model. Due to the limit imposed by the parallelism
     level, PyTorch is stuck on the same execution time despite increasing the number
     of cores by more than 30%. Moreover, even when the training process used 50% more
     threads (8 to 12), the performance improvement was less than 27%.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 如 *表 9.1* 所示，无论是使用 12 还是 16 个核心来训练模型，执行时间都没有差异。由于并行级别的限制，尽管核心数量增加了超过 30%，PyTorch
+    在相同的执行时间上被限制住了。而且，即使训练过程使用了比之前多 50% 的线程（8 到 12），性能改善也不到 27%。
 - en: These results pinpoint that using more than eight threads to execute the training
     process will not significantly reduce the execution time in this case. Consequently,
     we will incur resource wastage because PyTorch allocates a given number of cores
     that do not contribute to accelerating the training process. Actually, a higher
     number of threads can slow down the training process since it can increase the
     overhead imposed by communication and control tasks.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些结果表明，在这种情况下，使用超过八个线程执行训练过程将不会显著减少执行时间。因此，我们会因为 PyTorch 分配了一定数量的核心而产生资源浪费，这些核心并没有加速训练过程。实际上，线程数越多，可能会增加通信和控制任务的开销，从而减慢训练过程。
 - en: To work around this opposite effect, we should consider distributing the training
     process by running distinct training instances on the same machine. Instead of
     looking at the code, let’s jump directly to the results so you can see the benefits
     of this strategy!
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 要解决这种相反的效果，我们应考虑通过在同一台机器上运行不同的训练实例来分布训练过程。与其看代码，让我们直接看结果，这样您就能看到这种策略的好处！
 - en: Distributed training on rescue
+  id: totrans-33
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 救援上的分布式训练
 - en: We conducted the following tests by using the same model, parameters, and dataset
     as the previous experiment. Naturally, we used the same machine as well.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用与前一个实验相同的模型、参数和数据集进行了以下测试。当然，我们也使用了同一台机器。
 - en: 'In the first test, we created two instances of the distributed training process,
     each using eight cores, as shown in *Figure 9**.1*:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个测试中，我们创建了两个分布式训练过程的实例，每个实例使用八个核心，如 *图 9.1* 所示：
 - en: '![Figure 9.1 – Allocation of distributed training instances](img/B20959_09_1.jpg)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![图 9.1 – 分布式训练实例的分配](img/B20959_09_1.jpg)'
 - en: Figure 9.1 – Allocation of distributed training instances
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.1 – 分布式训练实例的分配
 - en: The distributed training process took 58 seconds to complete, representing an
     *improvement of 26%* in the time needed to execute the model-building process.
     We have reduced the execution time by more than 25% by adopting the parallel data
     strategy technique. Nothing else had changed, neither in the hardware capacity
     nor in the software stack. Furthermore, the performance improvement can be even
     higher for machines with more computing cores.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 分布式训练过程花费了58秒完成，代表了执行模型构建过程所需时间的*26%改善*。我们通过采用并行数据策略技术将执行时间减少了超过25%。除此之外，硬件能力和软件堆栈都没有改变。此外，性能改善对于具有更多计算核心的机器来说可能会更高。
 - en: However, as we have been saying throughout the book, everything usually has
     a cost. In this case, the cost is related to the model accuracy. The traditional
     training process built a model with an accuracy equal to 45.34%, whereas the model
     created by the distributed training achieved an accuracy of 44.01%. Although the
     difference is tiny (around 1.33%), we should not ignore it because there is a
     relation between model accuracy and the number of distributed training instances.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，正如本书中一直所言，一切通常都有代价。在这种情况下，成本与模型准确性有关。传统训练过程构建的模型准确性为45.34%，而分布式训练创建的模型达到了44.01%的准确性。尽管差异很小（约为1.33%），但我们不应忽视它，因为模型准确性与分布式训练实例的数量之间存在关系。
 - en: '*Table 9.2* shows the results of tests involving different combinations of
     training instances (processes of the distributed training) and the number of threads
     used by each training instance. As the tests were executed in a machine with 16
     physical cores, and when considering numbers to the power of 2, we have three
     possible combinations of training instances and threads:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: '*表格9.2*展示了涉及不同训练实例组合和每个训练实例使用的线程数的测试结果。由于测试是在一个具有16个物理核心的机器上执行的，并考虑到2的幂次方，我们有三种可能的训练实例和线程组合：'
 - en: '| **Training instances** | **Number** **of threads** | **Execution time** |
     **Accuracy** |'
+  id: totrans-41
   prefs: []
   type: TYPE_TB
+  zh: '| **训练实例** | **线程数** | **执行时间** | **准确性** |'
 - en: '| 2 | 8 | 58 | 44.01% |'
+  id: totrans-42
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 8 | 58 | 44.01% |'
 - en: '| 4 | 4 | 45 | 40.11% |'
+  id: totrans-43
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 4 | 45 | 40.11% |'
 - en: '| 8 | 2 | 37 | 38.63% |'
+  id: totrans-44
   prefs: []
   type: TYPE_TB
+  zh: '| 8 | 2 | 37 | 38.63% |'
 - en: Table 9.2 – Execution time of distributed training process
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 表格9.2 – 分布式训练过程的执行时间
 - en: As we can verify from *Table 9.2*, the higher the number of training instances,
     the lower the model accuracy. This behavior is expected because model replicas
     update their parameters accordingly to an *average* gradient, which results in
     a loss of information concerning the optimization process.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*表格9.2*所示，训练实例数量越多，模型准确性越低。这种行为是预期的，因为模型副本根据*平均*梯度更新其参数，这导致了关于优化过程的信息损失。
 - en: Conversely, the execution time decreases as the number of training instances
     increases. When running eight training instances with two threads each, the distributed
     training process took only 37 seconds to complete, which is almost *two times
     faster* than running the traditional training with 16 threads. As a counterpart,
     the accuracy decreased from 45% to 39%.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 相反，训练实例数量增加时，执行时间减少。当使用每个8个训练实例2个线程时，分布式训练过程仅需37秒即可完成，几乎比使用16个线程的传统训练快*两倍*。然而，准确性从45%下降到39%。
 - en: Undeniably, distributing the training process among multiple processing cores
     is advantageous in terms of accelerating the training process. We should only
     take care of model accuracy.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 无可否认，将训练过程分布在多个处理核心之间在加速训练过程方面是有利的。我们只需关注模型的准确性。
 - en: In the next section, we will learn how to code and run the distributed training
     on multiple CPUs.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何在多个CPU上编码和运行分布式训练。
 - en: Implementing distributed training on multiple CPUs
+  id: totrans-50
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在多个CPU上实施分布式训练
 - en: This section shows how to implement and run the distributed training on multiple
     CPUs using **Gloo**, a simple yet powerful communication backend.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示了如何使用**Gloo**，一种简单而强大的通信后端，在多个CPU上实施和运行分布式训练。
 - en: The Gloo communication backend
+  id: totrans-52
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Gloo通信后端
 - en: In [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed Training at
     a Glance*, we learned PyTorch relies on backends to control the communication
     among devices and machines involved in distributed training.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[*第8章*](B20959_08.xhtml#_idTextAnchor117)，*一瞥分布式训练*，我们学习到PyTorch依赖于后端来控制涉及到的设备和机器之间的通信。
 - en: The most basic communication backend supported by PyTorch is called Gloo. This
     backend comes with PyTorch by default and does not require any particular configuration.
     The Gloo backend is a collective communication library created by Facebook, and
     it is now an open-source project governed by the BSD license.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: PyTorch 支持的最基本通信后端称为 Gloo。这个后端默认随 PyTorch 提供，不需要特别的配置。Gloo 后端是由 Facebook 创建的集体通信库，现在是一个由
+    BSD 许可证管理的开源项目。
 - en: Note
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can find the source code of Gloo at [http://github.com/facebookincubator/gloo](http://github.com/facebookincubator/gloo).
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在 [http://github.com/facebookincubator/gloo](http://github.com/facebookincubator/gloo)
+    找到 Gloo 的源代码。
 - en: As Gloo is very simple to use and is available by default on PyTorch, it appears
     to be the first option to run the distributed training in an environment comprising
     only CPUs and machines interconnected by a regular network. Let’s see this backend
     in practice in the following sections.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于 Gloo 使用简单且在 PyTorch 中默认可用，因此看起来是在只包含 CPU 和通过常规网络连接的机器的环境中运行分布式训练的第一选择。让我们在接下来的几节中实际看一下这个后端的运作。
 - en: Coding distributed training to run on multiple CPUs
+  id: totrans-58
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编写在多个 CPU 上运行分布式训练的代码
 - en: This section presents the code to run the distributed training process on a
     *single machine with multiple computing cores*. The code is pretty much the same
     as the one presented in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed
     Training at a Glance*, except for a few particularities related to the context
     of this scenario.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示了在 *单机多核心* 上运行分布式训练过程的代码。这段代码基本与 [*第8章*](B20959_08.xhtml#_idTextAnchor117)
+    中展示的一致，只是与当前情境相关的一些细节不同。
 - en: Note
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py).
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可以在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py)
+    找到。
 - en: For this reason, this section describes the main changes required to adjust
     the basic workflow described in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117),
     *Distributed Training at a Glance*, to make it feasible to run the distributed
     training on multiple cores. Essentially, we need to perform two modifications,
     as explained in the following two sections.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，本节描述了调整基本工作流程以在多核心上运行分布式训练所需的主要更改。基本上，我们需要进行两个修改，如下两个部分所述。
 - en: Initialization of the communication group
+  id: totrans-63
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 初始化通信组
 - en: 'The *first modification* is related to the initialization of the communication
     group. Instead of calling `dist.init_process_group` without parameters, this implementation
     will pass two arguments, as we have mentioned in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117),
     *Distributed Training at* *a Glance*:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个修改涉及通信组的初始化。不再像以前那样调用 `dist.init_process_group` 而是要传入两个参数，正如我们在 [*第8章*](B20959_08.xhtml#_idTextAnchor117)
+    中提到的 *一览分布式训练*：
 - en: '[PRE0]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: The `backend` argument tells PyTorch which communication backend it must use
     to control the communication among multiple training instances. In this primary
     example, we will use Gloo as the communication backend. So, we just need to pass
     a lowercase string of the backend’s name to the parameter.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: '`backend` 参数告诉 PyTorch 使用哪个通信后端来控制多个训练实例之间的通信。在这个主要的例子中，我们将使用 Gloo 作为通信后端。所以，我们只需要向参数传递后端名称的小写字符串。'
 - en: Note
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: To check whether a backend is available, we can execute the `torch.distributed.is_<backend>_available()`
     command. For example, to verify if Gloo is available on the current PyTorch environment,
     we just need to call `torch.distributed.is_gloo_available()`. This method returns
     `True` when it is available and `False` if not.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 要检查后端是否可用，我们可以执行 `torch.distributed.is_<backend>_available()` 命令。例如，要验证当前 PyTorch
+    环境中是否有 Gloo 可用，我们只需要调用 `torch.distributed.is_gloo_available()`。该方法在可用时返回 `True`，否则返回
+    `False`。
 - en: The second parameter, named `init_method`, defines the initialization method
     used by PyTorch to create the communication group. The method tells PyTorch how
     to get the information it needs to initialize the distributed environment.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个名为 `init_method` 的参数，定义了 PyTorch 用于创建通信组的初始化方法。该方法告诉 PyTorch 如何获取其初始化分布式环境所需的信息。
 - en: 'Nowadays, there are three possible methods to inform the configuration required
     to initialize the communication group:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，有三种可能的方法来通知初始化通信组所需的配置：
 - en: '**TCP**: Use a specified IP address and TCP port'
+  id: totrans-71
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**TCP**：使用指定的 IP 地址和 TCP 端口'
 - en: '**Shared file system**: Use a file system that is accessible to all processes
     participating in the communication group'
+  id: totrans-72
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**共享文件系统**：使用一个对所有参与通信组的进程都可访问的文件系统'
 - en: '**Environment variables**: Use the environment variables defined on the scope
     of the operating system'
+  id: totrans-73
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**环境变量**：使用操作系统范围内定义的环境变量'
 - en: As you might guess, the `env://` value, which is used in this example, refers
     to the third method to initialize the communication group, i.e., the environment
     variables option. In the next section, we will learn which environment variables
     we use to set up the communication group. For now, it is essential to remember
     how PyTorch gets the information it needs to establish the communication group.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你可能猜到的那样，这个例子中使用的 `env://` 值，指的是初始化通信组的第三种方法，即环境变量选项。在下一节中，我们将了解用于设置通信组的环境变量。现在，重要的是记住
+    PyTorch 如何获取所需信息以建立通信组。
 - en: CPU allocation map
+  id: totrans-75
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: CPU 分配映射
 - en: The *second modification* refers to defining the allocation of threads belonging
     to each training instance to different cores. By doing this, we guarantee that
     all threads use exclusive computing resources and do not compete for a given processing
     core.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: '*第二次修改* 指的是定义每个训练实例中线程分配到不同核心的操作。通过这样做，我们确保所有线程使用独占的计算资源，不会竞争给定的处理核心。'
 - en: To explain what this means, let’s use a practical example. Suppose we want to
     run the distributed training in a machine with 16 physical cores. We decided to
     run two training instances, each one using eight threads. If we do not take care
     of the allocation of these threads, both training instances may compete for a
     given computing core, leading to a performance bottleneck. This is precisely the
     opposite of what we want.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解释这意味着什么，让我们举一个实际例子。假设我们希望在一个具有 16 个物理核心的机器上运行分布式训练。我们决定运行两个训练实例，每个实例使用八个线程。如果我们不注意这些线程的分配，两个训练实例可能会竞争同一个计算核心，导致性能瓶颈。这恰恰是我们所不希望的。
 - en: 'To avoid this problem, we must define the allocation map for all threads at
     the beginning of the code. The following snippet of code shows how to do it:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 要避免这个问题，我们必须在代码开始时为所有线程定义分配映射。以下代码片段显示了如何做到这一点：
 - en: '[PRE1]'
+  id: totrans-79
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: Note
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: It is essential to remember that all communication group processes execute the
     same code. If we need to define a different execution flow for the processes,
     we must use the rank.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 需要记住，所有通信组进程执行相同的代码。如果我们需要为进程定义不同的执行流程，必须使用等级。
 - en: Let’s take this line by line to understand what this code is doing.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们逐行理解这段代码在做什么。
 - en: 'We start by defining the number of threads used by each training instance,
     i.e., by each process participating in the distributed training:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先定义每个参与分布式训练的进程使用的线程数：
 - en: '[PRE2]'
+  id: totrans-84
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Next, we calculate the `index` of the process considering its rank and the
     number of threads. The rank is obtained from an environment variable called `RANK`,
     which is properly defined by the program launcher:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们计算进程的 `index`，考虑其等级和线程数。等级从称为 `RANK` 的环境变量中获得，该变量由程序启动器正确定义：
 - en: '[PRE3]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: This index is used to identify the first processing core allocated to that process.
     For example, when considering the case of 8 threads and two processes, the processes
     identified by ranks 0 and 1 will have indexes equal to 0 and 8, respectively.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 此索引用于标识分配给该进程的第一个处理核心。例如，考虑到 8 个线程和两个进程的情况，等级为 0 和 1 的进程的索引分别为 0 和 8。
 - en: Starting from that index, each process will allocate the subsequent cores to
     its threads. So, by taking the previous scenario as an example, the process with
     rank 0 will assign its threads to computing cores 0, 1, 2, 3, 4, 5, 6, and 7\.
     Likewise, the process with rank 1 will use the computing cores 8, 9, 10, 11, 12,
     13, 14, and 15.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 从该索引开始，每个进程将为其线程分配后续的核心。因此，以前述场景为例，等级为0的进程将把其线程分配给计算核心0、1、2、3、4、5、6和7。同样，等级为1的进程将使用计算核心8、9、10、11、12、13、14和15。
 - en: 'As OpenMP accepts an interval list format as input for setting the CPU affinity,
     we can define the allocation map by indicating the first and last cores. The first
     core is the index, and the last core is obtained by summing up the index with
     the number of threads and then subtracting from 1:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于 OpenMP 接受间隔列表格式作为设置 CPU 亲和性的输入，我们可以通过指示第一个和最后一个核心来定义分配映射。第一个核心是索引，最后一个核心通过将索引与线程数相加并从1中减去来获得：
 - en: '[PRE4]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: When considering our example, the process with rank 0 and 1 will set the variable
     `cpu_affinity` with values “0-7” and “8-15”, respectively.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 在考虑我们的例子时，等级为0和1的进程将使用变量 `cpu_affinity` 分别设置为“0-7”和“8-15”。
 - en: 'The last two lines of our piece of code define the `OMP_NUM_THREADS` and `KMP_AFFINITY`
     environment variables according to the values we obtained before:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们代码片段的最后两行根据之前获得的值定义了 `OMP_NUM_THREADS` 和 `KMP_AFFINITY` 环境变量：
 - en: '[PRE5]'
+  id: totrans-93
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: As you should remember, those variables are used to control the behavior of
     OpenMP. The `OMP_NUM_THREADS` variable tells OpenMP the number of threads to use
     in multithreading, and `KMP_AFFINITY` defines the CPU affinity for these threads.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您应该记得的那样，这些变量用于控制 OpenMP 的行为。`OMP_NUM_THREADS` 变量告诉 OpenMP 在多线程中使用的线程数，`KMP_AFFINITY`
+    定义了这些线程的 CPU 亲和性。
 - en: These two modifications are enough to adjust the basic workflow presented in
     [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed Training at a Glance*,
     to execute the distributed training on multiple CPUs.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两个修改足以调整[*第8章*](B20959_08.xhtml#_idTextAnchor117)中介绍的基本工作流程，以在多个 CPU 上执行分布式训练。
 - en: With the code ready to execute, the subsequent step concerns defining the program
     launcher and configuring the parameters to launch the distributed training.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 当代码准备好执行时，接下来的步骤涉及定义程序启动器和配置参数以启动分布式训练。
 - en: Launching distributed training on multiple CPUs
+  id: totrans-97
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在多个 CPU 上启动分布式训练
 - en: As we have learned in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed
     Training at a Glance*, PyTorch relies on a program launcher to set up the distributed
     environment and create the processes needed to run the distributed training.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在[*第8章*](B20959_08.xhtml#_idTextAnchor117)中学到的，*一览分布式训练*，PyTorch 依赖程序启动器来设置分布环境并创建运行分布式训练所需的进程。
 - en: For this scenario, we will use `torchrun`, which is a native PyTorch launcher.
     Besides being simple to use, `torchrun` is already available on the default PyTorch
     installation. Let’s look at more details about this tool.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这个场景，我们将使用 `torchrun`，它是一个本地的 PyTorch 启动器。除了使用简单外，`torchrun` 已经包含在默认的 PyTorch
+    安装中。让我们看看关于这个工具的更多细节。
 - en: torchrun
+  id: totrans-100
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: torchrun
 - en: 'Roughly speaking, `torchrun` performs two main tasks: it *defines the environment
     variables related to the distributed environment* and *instantiates the processes
     on the* *operating system*.'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 粗略地说，`torchrun` 执行两个主要任务：*定义与分布式环境相关的环境变量* 和 *在操作系统上实例化进程*。
 - en: '`torchrun` defines a set of environment variables to inform PyTorch about the
     parameters it needs to initialize the communication group. After setting the appropriate
     environment variables, `torchrun` creates the processes that will participate
     in the distributed training.'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: '`torchrun` 定义了一组环境变量，用于通知 PyTorch 关于初始化通信组所需的参数。设置适当的环境变量后，`torchrun` 将创建参与分布式训练的进程。'
 - en: Note
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Besides these two main tasks, torchrun provides more advanced functionalities
     such as resuming a failed training process or dynamically adjusting the resources
     used in the training phase.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了这两个主要任务外，torchrun 还提供了更多高级功能，如恢复失败的训练进程或动态调整训练阶段使用的资源。
 - en: 'To run the distributed training in a single machine, torchrun requires a few
     parameters:'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在单台机器上运行分布式训练，torchrun 需要一些参数：
 - en: '`nnodes`: number of nodes used in the distributed training'
+  id: totrans-106
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`nnodes`: 分布式训练中使用的节点数'
 - en: '`nproc-per-node`: number of processes to run in each machine'
+  id: totrans-107
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`nproc-per-node`: 每台机器上运行的进程数'
 - en: '`master-addr`: IP address of the machine used to run the distributed training'
+  id: totrans-108
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'The command to execute `torchrun` for our example is the following:'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE6]'
+  id: totrans-110
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: As the distributed training will run in a single machine, we set the `nnodes`
     parameter to `1` and the `master-addr` argument to localhost, which is the alias
     name for the local machine. In this example, we desire to run two training instances;
     hence, the parameter `nproc-per-node` is set to `2`.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
 - en: 'From these parameters, `torchrun` will set the appropriate environment variables
     and instantiate two processes on the local operating system to run the program
     `pytorch_ddp.py`, as shown in *Figure 9**.2*:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 9.2 – Scheme of torchrun execution](img/B20959_09_2.jpg)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
 - en: Figure 9.2 – Scheme of torchrun execution
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
 - en: As illustrated in *Figure 9**.2*, each process has its rank and communicates
@@ -525,447 +741,610 @@
     map. These processes will act as different instances of the distributed training
     process despite being executed in the same machine and running upon the same CPU
     die.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
 - en: To make things easier, we can create a bash script to facilitate the usage of
     `torchrun` in different situations. Let’s learn how to do it in the next section.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
 - en: Launching script
+  id: totrans-117
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: Instead of typing the `torchrun` command several times for different scenarios,
     we can create a bash script to simplify the launch of the distributed training
     process and run it on a single machine with multiple computing cores.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
 - en: 'An example of this launching script is shown here:'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE7]'
+  id: totrans-120
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Important note
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter09/launch_multiple_cpu.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter09/launch_multiple_cpu.sh).
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
 - en: 'This script sets immutable parameters, such as `nnodes` and `master-addr`,
     with default values and leaves the customizable arguments, such as the name of
     the program and `nproc-per-node`, open to be defined in the execution line. So,
     to run our previous example, we just need to execute the following command:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE8]'
+  id: totrans-124
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: The `launch_multiple_cpu.sh` script will call `torchrun` with the appropriate
     set of parameters. As you might imagine, it is effortless to change the arguments
     of this script to use it with another training program, as well as to run a different
     number of training instances.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
 - en: 'Furthermore, we can adapt this script to use it along with container images
     provided by solutions such as Apptainer and Docker. So, instead of calling `torchrun`
     directly on the command line, the script could be modified to execute `torchrun`
     inside a container image:'
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE9]'
+  id: totrans-127
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'By considering a container image named `pytorch.sif`, the command line of this
     new version of `local_launch` will be the following:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE10]'
+  id: totrans-129
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: In the next section, we will learn how to run this same distributed training
     process but using Intel oneCCL as the communication backend.
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何运行相同的分布式训练过程，但使用 Intel oneCCL 作为通信后端。
 - en: Getting faster with Intel oneCCL
+  id: totrans-131
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 Intel oneCCL 加速
 - en: The results shown in *Table 9.2* attest that Gloo fulfills the role of the communication
     backend for the distributed training process in PyTorch very well.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 *Table 9.2* 中显示的结果证明，Gloo 在 PyTorch 的分布式训练过程中很好地完成了通信后端的角色。
 - en: 'Even so, there is another option for the communication backend to go even faster
     on Intel platforms: the Intel oneCCL collective communication library. In this
     section, we will learn what this library is and how to use it as a communication
     backend for PyTorch.'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管如此，还有另一种选择用于通信后端，可以在 Intel 平台上更快地运行：Intel oneCCL 集体通信库。在本节中，我们将了解这个库是什么，以及如何将其用作
+    PyTorch 的通信后端。
 - en: What is Intel oneCCL?
+  id: totrans-134
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Intel oneCCL 是什么？
 - en: Intel oneCCL is a collective communication library created and maintained by
     Intel. Along the lines of Gloo, oneCCL also provides collective communication
     primitives such as the so-called “All-reduce.”
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: Intel oneCCL 是由英特尔创建和维护的集体通信库。与 Gloo 类似，oneCCL 还提供诸如所谓的“全局归约”之类的集体通信原语。
 - en: Naturally, Intel oneCCL is optimized to run on Intel platform environments,
     though this does not necessarily mean it will not work on other platforms. We
     can use this library to provide collective communication among the processes executing
     in the same machine (intraprocess communication) or the processes running in multiple-node
     (interprocess communication.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: Intel oneCCL 自然地优化为在 Intel 平台环境下运行，尽管这并不一定意味着它在其他平台上无法工作。我们可以使用此库在同一台机器上执行的进程之间（进程内通信）或在多节点上运行的进程之间提供集体通信。
 - en: Although its primary usage lies in providing collective communication for deep
     learning frameworks and applications, oneCCL can also be used by any distributed
     program written in C++ or Python.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管其主要用途在于为深度学习框架和应用程序提供集体通信，但任何用 C++ 或 Python 编写的分布式程序都可以使用 oneCCL。
 - en: 'Like Intel OpenMP, the Intel oneCCL does not come by default with the regular
     PyTorch installation; we need to install it on our own. When considering a pip-based
     environment, we can easily install oneCCL by executing the following command:'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 Intel OpenMP 一样，Intel oneCCL 不会默认随常规 PyTorch 安装一起提供；我们需要自行安装它。在考虑基于 pip 的环境时，我们可以通过执行以下命令轻松安装
+    oneCCL：
 - en: '[PRE11]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: After installing oneCCL, we are ready to incorporate it into our code and launch
     the distributed training. Let’s see how to do this in the subsequent sections.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 安装完 oneCCL 后，我们准备将其整合到我们的代码中，并启动分布式训练。让我们看看如何在接下来的章节中实现这一点。
 - en: Note
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can find more information about Intel oneCCL at [https://oneapi-src.github.io/oneCCL/](https://oneapi-src.github.io/oneCCL/).
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在 [https://oneapi-src.github.io/oneCCL/](https://oneapi-src.github.io/oneCCL/)
+    找到关于 Intel oneCCL 的更多信息。
 - en: Code implementation and launching
+  id: totrans-143
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 代码实现和启动
 - en: To use Intel oneCCL as a communication backend, we must change a few parts of
     the code presented in the previous section.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将 Intel oneCCL 作为通信后端使用，我们必须更改前一节中呈现的代码的几个部分。
 - en: Note
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py).
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节展示的完整代码可在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py)
+    找到。
 - en: 'The first modification concerns importing an artifact and setting three environment
     variables:'
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个修改涉及导入一个 artifact 和设置三个环境变量：
 - en: '[PRE12]'
+  id: totrans-148
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: These environment variables configure the behavior of oneCCL. The `CCL_PROCESS_LAUNCHER`
     parameter talks to oneCCL, which launches it. In our case, we must set this environment
     variable to `torch` since PyTorch is calling oneCCL. Environment variables `CCL_ATL_SHM`
     and `CCL_ATL_TRANSPORT`, when set to `1` and `ofi`, respectively, configure oneCCL
     to use the shared memory as the means to provide communication among processes.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些环境变量配置了 oneCCL 的行为。`CCL_PROCESS_LAUNCHER` 参数用于与 oneCCL 通信，并启动它。在我们的情况下，必须将此环境变量设置为
+    `torch`，因为 PyTorch 在调用 oneCCL。环境变量 `CCL_ATL_SHM` 和 `CCL_ATL_TRANSPORT` 分别设置为 `1`
+    和 `ofi`，以将共享内存配置为 oneCCL 用于进程间通信的手段。
 - en: Shared memory is an interprocess communication technique.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 共享内存是一种进程间通信技术。
 - en: Note
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can dive into the environment variables of Intel oneCCL by consulting this
     website: [https://oneapi-src.github.io/oneCCL/env-variables.html](https://oneapi-src.github.io/oneCCL/env-variables.html).'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过访问此网站深入了解 Intel oneCCL 的环境变量：[https://oneapi-src.github.io/oneCCL/env-variables.html](https://oneapi-src.github.io/oneCCL/env-variables.html)。
 - en: 'The second modification is related to changing the backend set in the initialization
     of the communication group:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二次修改涉及更改初始化通信组中的后端设置：
 - en: '[PRE13]'
+  id: totrans-154
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: The rest of the code and the launching method are equal to Gloo’s code. We can
     set the `CCL_LOG_LEVEL` to `debug` or `trace` environment variable to verify whether
     oneCCL is being used.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 代码的其余部分和启动方法与 Gloo 的代码相同。我们可以将 `CCL_LOG_LEVEL` 设置为 `debug` 或 `trace` 环境变量，以验证是否正在使用
+    oneCCL。
 - en: After making those modifications, you may wonder if oneCCL is worth it. Let’s
     find out in the next section.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 在进行这些修改之后，您可能会想知道 oneCCL 是否值得。让我们在下一节中找出答案。
 - en: Is oneCCL really better?
+  id: totrans-157
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: oneCCL 真的更好吗？
 - en: 'As shown in *Table 9.3*, oneCCL has accelerated our training process by approximately
     10% when compared to Gloo’s implementation. If compared to the traditional execution
     with 16 threads, the performance improvement with oneCCL achieved almost 40%:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 如 *表 9.3* 所示，与 Gloo 的实现相比，oneCCL 将我们的训练过程加速了约 10%。如果与传统的 16 线程执行进行比较，使用 oneCCL
+    的性能改进几乎达到了 40%：
 - en: '|  |  | **oneCCL** | **Gloo** |'
+  id: totrans-159
   prefs: []
   type: TYPE_TB
+  zh: '|  |  | **oneCCL** | **Gloo** |'
 - en: '| **Training** **instances** | **Number** **of threads** | **Execution time**
     | **Accuracy** | **Execution time** | **Accuracy** |'
+  id: totrans-160
   prefs: []
   type: TYPE_TB
+  zh: '| **训练** **实例** | **线程数** | **执行时间** | **准确率** | **执行时间** | **准确率** |'
 - en: '| 2 | 8 | 53 | 43.12% | 58 | 44.01% |'
+  id: totrans-161
   prefs: []
   type: TYPE_TB
+  zh: '| 2 | 8 | 53 | 43.12% | 58 | 44.01% |'
 - en: '| 4 | 4 | 42 | 41.03% | 45 | 40.11% |'
+  id: totrans-162
   prefs: []
   type: TYPE_TB
+  zh: '| 4 | 4 | 42 | 41.03% | 45 | 40.11% |'
 - en: '| 8 | 2 | 35 | 37.99% | 37 | 38.63% |'
+  id: totrans-163
   prefs: []
   type: TYPE_TB
+  zh: '| 8 | 2 | 35 | 37.99% | 37 | 38.63% |'
 - en: Table 9.3 – Execution time of distributed training process running under Intel
     oneCCL and Gloo
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.3 – 在 Intel oneCCL 和 Gloo 下运行的分布式训练过程的执行时间
 - en: Regarding the model’s accuracy, the distributed training with oneCCL and Gloo
     practically achieved the same results for all scenarios.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于模型的准确性，使用 oneCCL 和 Gloo 进行的分布式训练在所有场景中实际上取得了相同的结果。
 - en: So, the question that comes to our mind is, When do we use one backend or another?
     If we are using an Intel-based environment, then oneCCL is preferable. After all,
     the training process with Intel oneCCL was 10 % faster than using Gloo.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，让我们心中产生的问题是，何时使用一种后端而不是另一种后端？如果我们使用的是基于 Intel 的环境，那么 oneCCL 更可取。毕竟，使用 Intel
+    oneCCL 进行的训练过程比使用 Gloo 快了 10%。
 - en: On the other hand, Gloo comes by default with PyTorch, is very simple to use,
     and achieves a reasonable performance improvement. So, if we are not training
     in an Intel platform nor seeking the maximum possible performance, Gloo is a good
     choice.
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一方面，Gloo 默认与 PyTorch 一起使用，非常简单，并实现了合理的性能改进。因此，如果我们不在 Intel 平台上训练，也不追求最大可能的性能，那么
+    Gloo 是一个不错的选择。
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节提供了一些问题，帮助您记住本章学到的内容。
 - en: Quiz time!
+  id: totrans-169
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     At first, try to answer these questions without consulting the material.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答几个问题来回顾本章学到的内容。首先，尝试回答这些问题时不要查阅材料。
 - en: Note
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md).
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些问题的答案都可以在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md)
+    上找到。
 - en: Before starting the quiz, remember that it is not a test at all! This section
     aims to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始测验之前，请记住这根本不是一个测试！本节旨在通过复习和巩固本章涵盖的内容来补充您的学习过程。
 - en: Choose the correct option for the following questions.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择以下问题的正确选项。
 - en: In multicore systems, we can improve the performance of the training process
     by increasing the number of threads used by PyTorch. Concerning this topic, we
     can affirm which of the following?
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在多核系统中，通过增加 PyTorch 使用的线程数，可以改善训练过程的性能。关于这个话题，我们可以确认以下哪一个？
 - en: After crossing a certain number of threads, the performance improvement can
     deteriorate or stay the same.
+  id: totrans-176
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在超过一定数量的线程后，性能改进可能会恶化或保持不变。
 - en: The performance improvement always keeps rising, no matter the number of threads.
+  id: totrans-177
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: There is no performance improvement when increasing the number of threads.
+  id: totrans-178
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Performance improvement is only achieved when using 16 threads.
+  id: totrans-179
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which is the most basic communication backend supported by PyTorch?
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: NNI.
+  id: totrans-181
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Gloo.
+  id: totrans-182
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: MPI.
+  id: totrans-183
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: TorchInductor.
+  id: totrans-184
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which is the default program launcher provided by PyTorch?
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: PyTorchrun.
+  id: totrans-186
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Gloorun.
+  id: totrans-187
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: MPIRun.
+  id: totrans-188
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Torchrun.
+  id: totrans-189
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: In the context of PyTorch, what is Intel oneCCL?
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Communication backend.
+  id: totrans-191
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Program launcher.
+  id: totrans-192
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Checkpointing automation tool.
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Profiling tool.
+  id: totrans-194
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: When considering a non-Intel environment, what would be the most reasonable
     choice for the communication backend?
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Gloorun.
+  id: totrans-196
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Torchrun.
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: oneCCL.
+  id: totrans-198
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Gloo.
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Concerning the performance of the training process when using Gloo or oneCCL
     as a communication backend, we can say which of the following?
+  id: totrans-200
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: There is no difference at all.
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Gloo is always better than oneCCL.
+  id: totrans-202
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: oneCCL can overcome Gloo in Intel platforms.
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: oneCCL is always better than Gloo.
+  id: totrans-204
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: When distributing the training process among multiple CPUs and cores, we need
     to define the allocation of threads in order to do which of the following?
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Guarantee all threads have exclusive usage of computing resources.
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Guarantee secure execution.
+  id: totrans-207
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Guarantee protected execution.
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Guarantee that data are shared among all threads.
+  id: totrans-209
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: What are the two main tasks of torchrun?
+  id: totrans-210
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Create a pool of shared memory and instantiate the processes in the operating
     system.
+  id: totrans-211
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Define the environment variables related to the distributed environment and
     instantiate the processes on the operating system.
+  id: totrans-212
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Define the environment variables related to the distributed environment and
     create a pool of shared memory.
+  id: totrans-213
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Identify the best number of threads to run with PyTorch.
+  id: totrans-214
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-215
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -973,12 +1352,14 @@
     computing cores can be more advantageous than increasing the number of threads
     used in traditional training. This happens because PyTorch can face a limit on
     the parallelism level employed in the regular training process.
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
 - en: To distribute the training among multiple computing cores located in a single
     machine, we can use Gloo, a simple communication backend that comes by default
     with PyTorch. The results showed that the distributed training with Gloo achieved
     a performance improvement of 25% while retaining the same model accuracy.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
 - en: We also learned that oneCCL, an Intel collective communication library, can
@@ -986,9 +1367,11 @@
     Intel oneCCL as the communication backend, we reduced the training time by more
     than 40%. If we are willing to reduce the model accuracy a little bit, it is possible
     to train the model two times faster.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
 - en: In the next chapter, we will learn how to spread out the distributed training
     process to run on multiple GPUs located in a single machine.
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
