@@ -1,0 +1,1349 @@
+- en: '15'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Combining Computer Vision and NLP Techniques
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about applications that combine reinforcement
+    learning and computer vision. In this chapter, we will switch gears and learn
+    about how a **convolutional neural network** (**CNN**) can be used in conjunction
+    with algorithms in the broad family of **transformers**, which are heavily used
+    (as of the time of writing this book) in **natural language processing** (**NLP**)
+    to develop solutions that leverage both computer vision and NLP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand combining CNNs and transformers, we will first learn how **vision
+    transformers** (**ViTs**) work and how they help in performing image classification.
+    After that, we will learn about leveraging transformers to perform the transcription
+    of handwritten images using **Transformer optical character recognition** (**TrOCR**).
+    Next, we will learn about combining transformers and OCR to perform question answering
+    on document images using a technique named **LayoutLM**. Finally, we will learn
+    about performing visual question answering using a transformer architecture named
+    **Bootstrapping Language Image Pre-training** (**BLIP2**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you will have learned about the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing ViTs for image classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing LayoutLM for document question answering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transcribing handwritten images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Visual question answering using BLIP2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You are advised to go through the supplemental chapter on training with minimal
+    data points to get familiarity with word embeddings, available in the `Extra chapters
+    from first edition` folder on GitHub.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The code in this chapter is available in the `Chapter15` folder of this book’s
+    GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the field evolves, we will periodically add valuable supplements to the GitHub
+    repository. Do check the `supplementary_sections` folder within each chapter’s
+    directory for new and useful content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing transformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before we learn about ViTs, let us understand transformers from an NLP perspective.
+    A transformer helps in generating a representation (word/vector embedding) that
+    best describes the word given its context (surrounding words). Some of the major
+    limitations of **recurrent neural networks** (**RNNs**) and **long short-term
+    memory** (**LSTM**) architecture (detailed information about which is provided
+    in the associated GitHub repository) are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A word embedding corresponding to a word is not dependent on the context in
+    which the word appears (the word *apple* will have the same embedding irrespective
+    of whether the context is about the fruit or the company).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hidden state calculation during training happens sequentially (a word’s hidden
+    state is dependent on the previous word’s hidden state and thus can only be calculated
+    after the previous hidden state is calculated), resulting in a considerable time
+    taken to process text.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Transformers address these two major limitations, which results in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ability to pre-train transformers on a large corpus of data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fine-tuning transformers to a variety of downstream tasks (including leveraging
+    them for vision tasks)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging the intermediate states/hidden states in a variety of architectures
+    – encoder-only, decoder-only, or encoder-decoder architectures (more on encoders
+    and decoders in the following section)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The ability to train transformer outputs in parallel when compared to sequentially
+    in RNN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the advantages of transformers in place, let us understand how they work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basics of transformers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To understand transformers, let us go through a scenario of machine translation
+    – where the source language is English and the target language is French.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A transformer architecture can be illustrated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18475_15_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.1: Transformer architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: [https://arxiv.org/pdf/1706.03762](https://arxiv.org/pdf/1706.03762))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the above architecture, the left-hand-side block is the encoder and the right-hand-side
+    one is the decoder. Let us first understand the encoder block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder block
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The first step is to fetch the tokens corresponding to the input sentence in
+    English. In traditional language modeling, we assign an “unknown” token to rare
+    words and fetch the embeddings corresponding to the remaining (frequent) words.
+    However, during the tokenization process of transformer architecture, we perform
+    byte pair encoding (tokenization) in such a way that we break individual words
+    (for example, the word `anand` could be broken into `###an`, `###and`, while a
+    frequent word like `computer` would remain as is). This way, we would not have
+    any unknown words. Additionally, each token would then have an embedding associated
+    with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, we leverage tokenization to obtain the input word embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s now learn about the **self-attention** module, which is at the heart
+    of a transformer. It takes three two-dimensional matrices – called **query** (**Q**),
+    **key** (**K**), and **value** (**V**) matrices – as input. The matrices can have
+    very large embedding sizes (as they would contain vocabulary x embedding size
+    number of values), so they are split up into smaller components first (*Step 1*
+    in the following diagram), before running through the scaled dot-product attention
+    (*Step 2* in the following diagram):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18475_15_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.2: Workflow of scaled-dot product attention and multi-head attention'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s understand how self-attention works. Let’s imagine a hypothetical scenario
+    where the sequence length of input is 3 tokens – i.e., we have three word/token
+    embeddings (*W1*, *W2*, and *W3*) as input. Say each embedding is of size 512
+    values. The following steps can be performed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each of these embeddings is individually converted into three additional vectors,
+    which are the `Q`, `K`, and `V` vectors corresponding to each input. In the following
+    image, `512` is the embedding dimension of the Q, K, and V vectors and `3` is
+    the sequence length (3 words/tokens):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A picture containing calendar  Description automatically generated](img/B18475_15_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.3: Initializing Q, K, and V vectors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We use a multi-head approach where we split each of these vectors into smaller
+    “heads” (eight in this example), with eight sets of vectors (of size 64 x 3) for
+    each key, query, and value tensor. Here, `64` is obtained by dividing 512 (embedding
+    size) by 8 (number of heads), and `3` is the sequence length:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A group of black letters  Description automatically generated](img/B18475_15_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.4: Q, K, and V values of each head'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that there will be eight sets of tensors of key, query, and value as there
+    are eight heads. Furthermore, each head could learn about different aspects of
+    a word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In each head, we first perform matrix multiplication between the key transpose
+    and query matrices. This way, we end up with a 3 x 3 matrix. Divide the resulting
+    matrix by the square root of the number of dimensions of vectors (`d = 64` in
+    this case). Pass it through softmax activation. Now, we have a matrix showing
+    how important each word is in relation to every other word:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_15_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.5: Operations on Q and K vectors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we perform matrix multiplication of the preceding tensor output with
+    the value tensor to get the output of our self-attention operation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_15_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.6: Self-attention calculation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Formally, this scaled-dot product attention calculation can be written as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_15_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the preceding equation, *d* refers to the dimension of vector (64 in this
+    case) and k represents the index of head.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A step-by-step calculation on a sample input and randomly initialized Q, K,
+    and V weight matrices is provided in the associated GitHub repository as `self-attention.ipynb`
+    in the `Chapter15` folder at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then combine the eight outputs of this step using the concat layer (*Step
+    3* in *Figure 15.2*), and end up with a single tensor of size 512 x 3\. As there
+    are eight heads (i.e., eight Q, K, and V matrices), the layer is also called **multi-head
+    self-attention** (source: *Attention Is All You Need*, [https://arxiv.org/pdf/1706.03762.pdf](https://arxiv.org/pdf/1706.03762.pdf)).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: For our example in computer vision, when searching for an object such as a horse,
+    the query would contain information to search for an object that is large in dimension
+    and is brown, black, or white in general. The softmax output of scaled dot-product
+    attention will reflect those parts of the key matrix that contain this color (brown,
+    black, white, and so on) in the image. Thus, the values output from the self-attention
+    layer will have those parts of the image that are roughly of the desired color
+    and are present in the values matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then pass the output of multi-head attention through a residual block, in
+    which we first add the inputs and output of multi-head attention, and then perform
+    normalization of this final output.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, we pass the output through a linear network to get the output, which has
+    similar dimensions as that of the input.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We use the self-attention block several times (`Nx` in *Figure 15.1*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoder block
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'While the decoder block is very similar to the encoder block, there are two
+    additions to the architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Masked multi-head attention
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cross-attention
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: While multi-head attention works in a manner similar to the encoder block, we
+    mask the tokens in future timesteps while calculating the attention of a token
+    at a given timestep. This way, we are building the network so that it does not
+    peek into future tokens. We mask future tokens by adding a mask/identity matrix,
+    which ensures that future tokens are not considered during attention calculation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key and value matrices of the encoder are used as the key and query inputs
+    for the cross-head attention of the decoding half, while the value input is learned
+    by the neural network, independent of the encoding half. We call it cross-attention
+    as key and value matrices are fetched from the encoder layer while the query is
+    fetched from the decoder layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, even though this is a sequence of inputs, there’s no sign of which
+    token (word) is first and which is next. Positional encodings are learnable embeddings
+    that we add to each input as a function of its position in the sequence. This
+    is done so that the network understands which word embedding is first in the sequence,
+    which is second, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way to create a transformer network in PyTorch is very simple. There is
+    a built-in transformer block that you can create, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `hidden_dim` is the size of the embeddings, `nheads` is the number of
+    heads in the multi-head self-attention, and `num_encoder_layers` and `num_decoder_layers`
+    are the number of encoding and decoding blocks in the network, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The working details of transformers and their implementation from scratch is
+    provided in the `Transformers_from_scratch.ipynb` file within the `Chapter15`
+    folder of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know how transformers work, in the next section, let us learn how
+    ViTs work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How ViTs work
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A ViT can be easily understood with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a process  Description automatically generated](img/B18475_15_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.7: ViT architecture (source: [https://arxiv.org/pdf/2010.11929](https://arxiv.org/pdf/2010.11929))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at the workflow that is being followed in the preceding figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are taking an image and extracting 9 (3 x 3) patches from it. For example,
+    let us assume the original image is of size 300 x 300 and each of the 9 patches
+    would be 100 x 100 in shape.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we take each of the patches, flatten them, and pass them through a linear
+    projection. This exercise is like extracting word embeddings corresponding to
+    a word (token).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we add the positional embedding corresponding to the patch. We add a positional
+    embedding as we need to preserve the information of the location of the patch
+    in original image. In addition, we are also initializing a class token that would
+    be helpful in the final classification of image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, all the embeddings are passed through the transformer encoder. In a transformer,
+    these embeddings pass through a sequence of normalization, multi-head attention,
+    and a skip connection with a linear head (MLP stands for multi-layer perceptron).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, we have output embeddings corresponding to each patch. We now attach the
+    final head, depending on the problem we are trying to solve. In the case of image
+    classification, we would attach a linear layer only for the **classification**
+    (**CLS**) token. The outputs of remaining patches can be used as a feature extractor
+    for downstream tasks like object recognition or image captioning.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we understand how ViTs work, we will go ahead and implement transformers
+    on a dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing ViTs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will implement ViTs on the cats vs dogs dataset that we leveraged in *Chapters
+    4* and *5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `ViT_Image_classification.ipynb` file
+    in the `Chapter15` folder of this book’s GitHub repository at `https://bit.ly/mcvp-2e`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install and import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that we will be leveraging the pre-trained ViT model (checkpoint location
+    provided above).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the training data location:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the dataset class as we did in *Chapters 4* and *5*:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the ViT model architecture:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding architecture, we are fetching the features corresponding to
+    each of the patches, fetching the feature of the first one (CLS token) and then
+    passing it through a sigmoid layer because we want to classify it as one of the
+    possible classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the model, loss function, and optimizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to perform training, calculate accuracy, and fetch data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Training and validation accuracy are as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A graph with a line graph  Description automatically generated](img/B18475_15_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.8: Training loss and accuracy over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the accuracy is similar to the accuracy that we saw with VGG and ResNet
+    in *Chapter 5*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about leveraging an encoder-only transformer to
+    perform image classification. In the next section, we will learn about leveraging
+    encoder-decoder architecture-based transformers to transcribe images containing
+    handwritten words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transcribing handwritten images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where you must extract information from a scanned document
+    (extracting keys and values from a picture of an ID card or a picture of a manually
+    filled-in form). You’ll have to extract (transcribe) text from the image. This
+    problem gets tricky due to variety in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handwriting
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Quality of the scan/picture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lighting conditions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this section, we will learn about the technique to transcribe handwritten
+    images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us first understand how an encoder-decoder architecture of a transformer
+    can be applied to transcribe a handwritten image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handwriting transcription workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will leverage the TrOCR architecture (source: [https://arxiv.org/abs/2109.10282](https://arxiv.org/abs/2109.10282))
+    to transcribe handwritten information.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the workflow that is followed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer program  Description automatically generated](img/B18475_15_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.9: TrOCR workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the preceding picture, the workflow is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We take an input and resize it to a fixed height and width.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, we divide the image into a set of patches.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then flatten the patches and fetch embeddings corresponding to each patch.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We combine the patch embeddings with position embeddings and pass them through
+    an encoder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The key and value vectors of the encoder are fed into the cross-attention of
+    the decoder to fetch the outputs in the final layer.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The tokenizer and the model that we will use to train the model will leverage
+    the `trocr-base-handwritten` model released by Microsoft. Let us go ahead and
+    code up handwriting recognition in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handwriting transcription in code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following steps can be followed for handwriting transcription:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This code is available as `TrOCR_fine_tuning.ipynb` in the `Chapter15` folder
+    of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download and import the dataset of images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we have downloaded the dataset in which the images are
+    provided; the filename of the image contains the ground truth of transcription
+    corresponding to that image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A sample from the images that were downloaded is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing chart  Description automatically generated](img/B18475_15_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.10: Sample image along with ground truth (as title)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages and import them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the location of the images and the function to fetch the ground truth
+    from the images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Note that we are creating the `fname2label` function as the ground truth of
+    an image is available after the `@` symbol in the filename. A sample of the filenames
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B18475_15_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.11: Sample filenames'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch 5,000 samples (images and their corresponding labels) from the 25K image
+    dataset for faster training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the training and test DataFrames:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `Dataset` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are fetching the image, passing through a processor
+    to fetch the pixel values. Furthermore, we are passing the label through the tokenizer
+    of the model to fetch the tokens of labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define `TrOCRProcessor`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are defining the processor that preprocesses the images
+    and performs the tokenization of labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the training and evaluation datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `TrOCR` model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model configuration parameters and training arguments:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to calculate the character error rate:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A table of numbers with numbers on it  Description automatically generated](img/B18475_15_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.12: Training and validation loss along with the character error rate
+    over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the error rate kept reducing over increasing steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Perform inference on a sample image from our dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in images as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black text on a white background  Description automatically generated](img/B18475_15_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.13: Sample prediction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about using the encoder-decoder architecture for handwriting
+    recognition. In the next section, we will learn about leveraging the transformer
+    architecture to fetch keys and values within a document.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Document layout analysis
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you are tasked with extracting the values for the various
+    keys present in a passport (like name, date of birth, issue date, and expiry date).
+    In certain passports, values are present below the keys; in others, they are present
+    on the right side of keys, while others have them on the left side. How do we
+    build a single model that is able to assign a value corresponding to each text
+    within the document image? LayoutLM comes in handy in such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding LayoutLM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'LayoutLM is a pre-trained model that is trained on a huge corpus of document
+    images. The architecture of LayoutLM is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a diagram  Description automatically generated](img/B18475_15_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.14: LayoutLM architecture (source: [https://arxiv.org/pdf/1912.13318](https://arxiv.org/pdf/1912.13318))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the preceding diagram, the corresponding workflow consists of the
+    following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We take an image of the document and extract the various words and their bounding-box
+    coordinates (x0, x1, y0, and y1) – this is done using tools that help in OCR where
+    they provide not only the text but also the bounding box in which the text is
+    present in the document.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We take the position embeddings corresponding to these bounding-box coordinates
+    – position embeddings are calculated based on the bounding-box coordinates.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We add the embeddings corresponding to the various texts extracted (**text embeddings**
+    in the above picture) where we pass the text through a tokenizer, which in turn
+    is passed through a pre-trained **Bi-directional Encoder Representation of Transformers**
+    (**BERT**)-like model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: During the training phase of the pre-trained LayoutLM, we randomly mask certain
+    words (but not the position embeddings of those words) and predict the masked
+    words given the context (surrounding words and their corresponding position embeddings).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once the pre-trained LayoutLM model is fine-tuned, we extract the embeddings
+    corresponding to each word by summing up the text embeddings of the word with
+    the position embeddings corresponding to the word.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we leverage Faster R-CNN to obtain the image embedding corresponding to
+    the location of the word. We leverage image embedding so that we obtain key information
+    regarding the text style (for example, bold, italics, or underlined) that is not
+    available with OCR.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, we perform the downstream task of extracting the keys and values corresponding
+    to the image. In the case of document key value extraction, it translates to the
+    task of named entity recognition, where each output word is classified as one
+    of the possible keys or a value associated with a key.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'LayoutLMv3 is an improvement over LayoutLM, and its architecture is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a computer program  Description automatically generated](img/B18475_15_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.15: LayoutLMv3 architecture (source: [https://arxiv.org/pdf/2204.08387](https://arxiv.org/pdf/2204.08387))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding architecture shows the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Words are obtained from an image using a typical OCR parser.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The words are then converted into embeddings using the `RoBERTa` model (more
+    details here: [https://arxiv.org/abs/1907.11692](https://arxiv.org/abs/1907.11692)).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The document is resized into a fixed shape and then converted into multiple
+    patches.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each patch is flattened and passed through a linear layer to obtain embeddings
+    corresponding to the patch.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The 1D position embeddings correspond to the index of the word/patch while the
+    2D position embeddings correspond to the bounding box/segment.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once the embeddings are in place, we perform masked pre-training (`MLM Head`)
+    in a manner similar to that of LayoutLM, where we mask certain words and predict
+    them using the context. Similarly in **masked image modeling** (**MIM Head**),
+    we mask certain blocks and predict the tokens within the block.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Word patch alignment** (**WPA Head**) is then performed, which refers to
+    the task of predicting whether a masked image patch has the corresponding tokens
+    masked. If a token is masked and the corresponding image patch is masked, it is
+    aligned; it is unaligned if one of these is masked and the other isn’t.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the following section, we’ll learn how to implement this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing LayoutLMv3
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let us code up `LayoutLMv3` using a passport dataset – where we try to associate
+    each token in the image to the corresponding key or value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in `LayoutLMv3_passports.ipynb` in the `Chapter15`
+    folder of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages and import them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import a dataset of synthetic passports:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The input dataset contains words, boxes, and labels, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close-up of a number  Description automatically generated](img/B18475_15_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.16: Sample expected output'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A sample image is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close-up of a passport  Description automatically generated](img/B18475_15_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.17: Sample synthetic passport'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specify the train and test split:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the `label2id` and `id2label` mapping:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the processor and prepare the function to encode inputs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are leveraging the pre-trained `LayoutLMv3` model’s
+    processor, which we are fine-tuning for our dataset. We are then passing the image,
+    words, and boxes through the processor to get the corresponding encoding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Prepare the train and evaluation datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the evaluation metric:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to calculate the metrics:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are fetching the output that is not padding in ground
+    truth and computing the precision, recall, F1 score, and accuracy metrics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the pre-trained `LayoutLMv3` model by importing the relevant module
+    from the transformers library:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are defining the base model that we will use to fine-tune
+    the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the training parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize the trainer and train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we perform inference (the code for which is provided in the associated
+    GitHub repository) to get results for an input image. A sample inference with
+    the predicted keys and values (present as bounding boxes within the image) is
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18475_15_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.18: Predicted output with bounding boxes of different keys and values
+    extracted'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we’ve learned about extracting keys and values from a document.
+    In the next section, we will learn about performing question answering given a
+    generic image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visual question answering
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you are given an image and are asked to answer certain
+    questions by looking at that image. This is a task of **visual question answering**
+    (**VQA**). A high-level strategy for VQA could be to leverage a pre-trained image
+    to encode image information, encode the question (text) using a **large language
+    model** (**LLM**), and then use the image and text representations to generate
+    (decode) the answer – essentially, a multimodal model, which has input in both
+    text and image mode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way of performing visual question answering is by getting the caption corresponding
+    to the image and then performing question answering on the caption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand the reason why we cannot use this, let’s look at the following
+    image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A cat wearing sunglasses  Description automatically generated](img/B18475_15_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.19: Sample image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A set of possible questions for the same caption of the original image are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Extracted caption** | **Question** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| A cat wearing sunglasses | What is the subject of the image? |'
+  prefs: []
+  type: TYPE_TB
+- en: '| A cat wearing sunglasses | What is the background color in the image? |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 15.1: Some questions for the given image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding scenario, while we can answer the first question, we are unable
+    to answer the second as the information related to the question is not extracted
+    in the context (extracted caption).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s learn about BLIP2 – a model that helps in addressing this problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing BLIP2
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One of the problems associated with encoder-decoder models (as discussed in
+    the high-level strategy we just discussed, where captioning is the process of
+    encoding, and question answering on the caption is the process of decoding) is
+    that the model is likely to result in **catastrophic** **forgetting** when VQA
+    models integrate both visual perception and language understanding. When these
+    models are updated with new visual or linguistic patterns, the complex interplay
+    between these two domains can lead to the forgetting of previously learned patterns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'BLIP with frozen image encoders and LLMs (BLIP2) addresses this with a unique
+    architecture, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a language model  Description automatically generated](img/B18475_15_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.20: BLIP2 architecture (source: [https://ar5iv.labs.arxiv.org/html/2301.12597](https://ar5iv.labs.arxiv.org/html/2301.12597))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **querying transformer** (**Q-Former**) acts as a bridge between the image
+    encoder and the LLM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Q-Former extracts information from the image that is most relevant to the
+    question that is asked; so, in the scenario presented at the start of this section,
+    it would extract visual information from the image that is most relevant to the
+    question asked. Now, we append the context (information extracted by Q-Former)
+    to the question asked and provide it as an input to the LLM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, Q-Former acts as a bridge between the image encoder and LLM to
+    modify the features extracted from the image in such a way that they are most
+    relevant to the question asked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two stages in which Q-Former is trained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bootstrapping vision-language **representation learning** from a frozen encoder
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Bootstrapping vision-language **generative learning** from a frozen LLM
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s look at these stages in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Representation learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In the representation learning stage, we connect Q-Former to a frozen image
+    encoder and perform pre-training using image-text pairs. We aim to train the Q-Former
+    such that the queries (32 learnable query vectors) can learn to extract the visual
+    representation that is most relevant to the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We jointly optimize three pre-training objectives that share the same input
+    format and model parameters. Each objective employs a different attention masking
+    strategy between queries and text to control their interaction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a process  Description automatically generated with medium confidence](img/B18475_15_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.21: Details of representation learning (source: [https://arxiv.org/pdf/2301.12597.pdf](https://arxiv.org/pdf/2301.12597.pdf))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the preceding image, the three objectives are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Image-text matching:** In this task, within the self-attention module, query
+    tokens can attend to text tokens and the text tokens can attend to query vectors.
+    The objective of this pre-training is to perform a binary classification of whether
+    the image and text pair match.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Image-grounded text generation:** In this task, within the self-attention
+    module, query vectors do not have access (are masked) to the text tokens while
+    the text tokens have access to the query vectors and also the previously generated
+    tokens. The objective of this training is to generate text that matches the image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Image-text contrastive learning:** In this task, we have the self-attention
+    module that is shared between the learned queries and the input text. The learned
+    queries interact with the image encoder to get an output vector. The input text
+    is converted to embedding vectors and interacts with the self-attention and feed-forward
+    network to generate an embedding corresponding to the text. We pre-train the Q-Former
+    to have a high similarity for matching image-text pairs and a low similarity for
+    an image and a different text (similar to how CLIP is trained). Note that while
+    the self-attention layer is common, text tokens are masked from image tokens (learned
+    queries) so that information does not leak between the two.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the above three pre-training objectives, we have completed the representation
+    learning exercise, where we extract the visual information that is most informative
+    of the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generative learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In the generative learning stage, we pass the learned queries through the Q-Former
+    to get an output vector, which is then passed through a fully connected layer
+    to get an embedding that has the same dimensions as that of the text embedding
+    dimensions. This can be illustrated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a computer process  Description automatically generated](img/B18475_15_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.22: Details of generative learning (source: [https://ar5iv.labs.arxiv.org/html/2301.12597](https://ar5iv.labs.arxiv.org/html/2301.12597))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now have two ways of generating text through the frozen LLM. A decoder-based
+    LLM takes the output of the **fully connected** (**FC**) layer and generates the
+    output text, while an encoder-decoder-based model takes the concatenation of FC
+    output and prefix text to generate subsequent text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the above, we are done with the two stages of pre-training BLIP2 and getting
+    the context that is most relevant to the question asked. This is how we provide
+    the most relevant image context to a question and generate an answer. Let’s go
+    ahead and implement BLIP2 in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing BLIP2
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will leverage BLIP2 to perform the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image captioning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Image question answering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can use the following steps to achieve this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This code is available in the `Visual_Question_answering.ipynb` file in the
+    `Chapter15` folder of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the required packages and load the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the model requires a high VRAM and thus we have used a V100 machine
+    on Colab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Load the image – you can use any image of your choice:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A baby wearing a yellow crown  Description automatically generated](img/B18475_15_23.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 15.23: Sample image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pass the image through the processor to generate a caption corresponding to
+    the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This gives us the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Perform question answering on the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code results in the output `blue`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that when performing question answering, we should explicitly mention the
+    start of the question and the start of the answer, as provided in the prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how transformers work. Furthermore, we learned about
+    leveraging ViTs to perform image classification. We then learned about document
+    understanding while learning about leveraging TrOCR for handwriting transcription
+    and LayoutLM for key-value extraction from documents. Finally, we learned about
+    visual question answering using the pre-trained BLIP2 model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this, you should be comfortable in tackling some of the most common real-world
+    use cases, such as OCR on documents, extracting key-value pairs from documents,
+    and visual question answering on an image (handling multimodal data). Furthermore,
+    with the understanding of transformers, you are now in a good position to dive
+    deep into foundation models in the next chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What are the inputs, steps for calculation, and outputs of self-attention?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is an image transformed into a sequence input in a vision transformer?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the inputs to the BERT transformer in a LayoutLM model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the three objectives of BLIP?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

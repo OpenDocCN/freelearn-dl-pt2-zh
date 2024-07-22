@@ -1,0 +1,1491 @@
+- en: '13'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Advanced GANs to Manipulate Images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about leveraging **Generative Adversarial
+    Networks** (**GANs**) to generate realistic images. In this chapter, we will learn
+    about leveraging GANs to manipulate images. We will learn about two variations
+    of generating images using GANs – paired and unpaired methods. With the paired
+    method, we will provide the input and output pair combinations to generate novel
+    images based on an input image, which we will learn about in the **Pix2Pix GAN**.
+    With the unpaired method, we will specify the input and output; however, we will
+    not provide one-to-one correspondence between the input and output, but expect
+    the GAN to learn the structure of the two classes, and convert an image from one
+    class to another, which we will learn about when we discuss **CycleGAN**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another class of unpaired image manipulation involves generating images from
+    a latent space of random vectors and seeing how images change as the latent vector
+    values change, which we will learn about in the *Leveraging StyleGAN on custom
+    images* section. Finally, we will learn about leveraging a pre-trained GAN – **Super
+    Resolution Generative Adversarial Network** (**SRGAN**), with which we can turn
+    a low-resolution image into an image with high resolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, we will learn about the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging the Pix2Pix GAN to convert a sketch/ picture of edges to a picture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging CycleGAN to convert apples to oranges and vice versa
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging StyleGAN on custom images to change the expression of images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Super-resolution of an image using SRGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All code snippets within this chapter are available in the `Chapter13` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Leveraging the Pix2Pix GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where we have pairs of images that are related to each other
+    (for example, an image of the edges of an object as input and an actual image
+    of the object as output). The challenge given is that we want to generate an image
+    given the input image of the edges of an object. In a traditional setting, this
+    would have been a simple mapping of input to output and hence a supervised learning
+    problem. However, imagine that you are working with a creative team that is trying
+    to come up with a fresh look for products. In this scenario, supervised learning
+    does not help much as it only learns from history. A GAN would come in handy here
+    because it would ensure that the generated image would look realistic and would
+    leave room for experimentation (as we are interested in checking whether the generated
+    image is similar to the images that we want to generate). Specifically, Pix2Pix
+    GAN comes in handy in scenarios in which it is trained to generate an image from
+    another image that only contains its edges (or contours).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will learn about the architecture used to generate an image
+    of a shoe from a hand-drawn doodle of the edges of a shoe. The strategy that we
+    will adopt to generate a realistic image from the doodle is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetch a lot of actual images and create the corresponding edges using standard
+    `cv2` edge detection techniques.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample colors from patches of the original image so that the generator knows
+    which colors to generate.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Build a UNet architecture that takes the edges with the sample patch colors
+    as input and predicts the corresponding image – this is our generator.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Build a discriminator architecture that takes an image and predicts whether
+    it is real or fake.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the generator and discriminator together to a point where the generator
+    can generate images that fool the discriminator.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let’s code the strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code is available as `Pix2Pix_GAN.ipynb` in the `Chapter13` folder
+    of this book’s GitHub repository: [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)
+    The code contains URLs to download data from and is moderately lengthy. We strongly
+    recommend you execute the notebook in GitHub to reproduce the results while you
+    follow the steps to perform and read the explanations of the various code components
+    in the text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the dataset (available here: [https://sketchx.eecs.qmul.ac.uk/downloads/](https://sketchx.eecs.qmul.ac.uk/downloads/))
+    and install the relevant packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code downloads images of shoes. A sample of the downloaded images
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing footwear, clothing  Description automatically generated](img/B18457_13_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.1: Sample images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For our problem, we want to draw a shoe given the edges and some sample patch
+    colors of the shoe. In the next step, we will fetch the edges from an image of
+    a shoe. This way, we can train a model that reconstructs an image of a shoe from
+    the edges and sample patch colors of the shoe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a function to fetch the edges from the downloaded images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are leveraging the various methods available in the
+    OpenCV package to fetch the edges from an image (there are more details on how
+    the OpenCV methods work in the OpenCV chapter within the `Extra chapters from
+    first edition` folder in the GitHub repository).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the image transformation pipeline to pre-process and normalize the dataset
+    (`preprocess` and `normalize`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Define the dataset class (`ShoesData`). This dataset class returns the original
+    image and the image with edges. One additional detail we will pass to the network
+    is some patches of color that are present in randomly chosen regions. This way,
+    we are enabling the user to take a hand-drawn contour image, sprinkle the required
+    colors in different parts of the image, and generate a new image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'An example input (the first image) and output (the third image) are shown here
+    (you can view them in color in the digital version of this book):'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![A picture containing footwear  Description automatically generated](img/B18457_13_02.png)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: 'Figure 13.2: (Left) Original image; (middle) contours of the original image;
+    (right) contour image with color information'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'However, the input image we have is just of the shoe (the leftmost image),
+    which we will use to extract the edges of the shoe (the middle image). Further,
+    we will sprinkle color in the next step to fetch the color information of the
+    original image (the rightmost image). The output of the rightmost image, when
+    passed through our network, should be the leftmost image. In the following code,
+    we will build the class that takes the contour images, sprinkles colors, and returns
+    the pair of color-sprinkled images and the original shoe image (the image that
+    generated the image with contours):'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Define the `ShoesData` class, the `__init__` method, and the `__len__` method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Define the `__getitem__` method. In this method, we will process the input
+    image to fetch an image with edges and then sprinkle the image with the colors
+    present in the original image. Here, we are fetching the edges of a given image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Once we have fetched the edges in the image, we resize and normalize the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Sprinkle color on the `edges` image and preprocess the original and `edges`
+    images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Define the functions to sprinkle color:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Define the training and validation data’s corresponding datasets and data loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the generator and discriminator architectures, which use the weight
+    initialization (`weights_init_normal`), `UNetDown`, and `UNetUp` architectures,
+    just as we did in *Chapter 9*, *Image Segmentation*, and *Chapter 10*, *Applications
+    of Object Detection and Segmentation*, to define the `GeneratorUNet` and `Discriminator`
+    architectures:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Initialize weights so that they follow a normal distribution:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `UnetDown` and `UNetUp` classes:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `GeneratorUNet` class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `Discriminator` class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `generator` and `discriminator` model objects and fetch summaries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The generator architecture summary is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close-up of a document  Description automatically generated with medium
+    confidence](img/B18457_13_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.3: Summary of the generator architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The discriminator architecture summary is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing text, receipt, screenshot  Description automatically
+    generated](img/B18457_13_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.4: Summary of the discriminator architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the function to train the discriminator (`discriminator_train_step`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The discriminator function takes the source image (`real_src`), real target
+    (`real_trg`), and fake target (`fake_trg`) as input:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the loss (`error_real`) by comparing the real target (`real_trg`)
+    and the predicted values (`real_src`) of the target; the expectation is that the
+    discriminator will predict the images as real (indicated by `torch.ones`) and
+    then perform backpropagation:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the discriminator loss (`error_fake`) corresponding to the fake images
+    (`fake_trg`); the expectation is that the discriminator classifies the fake targets
+    as fake images (indicated by `torch.zeros`) and then performs backpropagation:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Perform the optimizer step and return the overall error and loss values on
+    the predicted real and fake targets:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to train the generator (`generator_train_step`), which
+    takes a fake target (`fake_trg`) and trains it so that it has a low chance of
+    being identified as fake when passed through the discriminator:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that in the preceding code, in addition to generator loss, we are also
+    fetching the pixel loss (`loss_pixel`) corresponding to the difference between
+    the generated and the real image of a given contour.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a function to fetch a sample of predictions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Apply weight initialization (`weights_init_normal`) to the generator and discriminator
+    model objects:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the loss criterion and optimization methods (`criterion_GAN` and `criterion_pixelwise`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over 100 epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Generate the output (image) on a sample hand-drawn contour:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_13_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.5: (Left) Input image; (middle) generated image; (right) original
+    image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that in the preceding output, we have generated images that have similar
+    colors as those of the original image. As an exercise, we encourage you to train
+    the model for more epochs and see the improvement in generated images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we have learned about using the contours of an image to generate
+    an image. However, this required us to provide the input and output as pairs,
+    which can be a tedious process. In the next section, we will learn about unpaired
+    image translation. This is a process by which the network figures out the translation
+    without needing us to specify the input and output mappings of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging CycleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where we ask you to perform image translation from one class
+    to another, but without using the input and the corresponding output images to
+    train the model. For example, change the actor present in the current scene of
+    a movie from one actor another. However, we give you the images of both classes/actors
+    in two distinct folders. CycleGAN comes in handy in such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to train CycleGAN ([https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593))
+    to convert an image of an apple into an image of an orange and vice versa. But
+    first, let’s understand how CycleGAN works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How CycleGAN works
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The **Cycle** in CycleGAN refers to the fact that we are translating (converting)
+    an image from one class to another and back to the original class. At a high level,
+    we will have three separate loss values in this architecture. More details about
+    the loss calculations in the next pages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Adversarial loss**: This ensures that the both the domain generators accurately
+    create objects in their respective domains using the other domain images as inputs.
+    The only difference from a standard GAN, in this case, is that the generators
+    accept images instead of noise.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Cycle loss**: The loss of recycling an image from the generated image to
+    the original to ensure that the surrounding pixels are not changed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Identity loss**: The loss when an input image of one class is passed through
+    a generator that is expected to convert an image of another class into the class
+    of the input image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Here, we will go through the high-level steps of building CycleGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Import and preprocess the dataset.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Build the generator and discriminator network UNet architectures.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define two generators:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**G_AB**: A generator that converts an image of class A to an image of class
+    B'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**G_BA**: A generator that converts an image of class B to an image of class
+    A'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Define the **identity loss**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you were to send an orange image to an orange generator, ideally if the generator
+    has understood everything about oranges, it should not change the image and should
+    “generate” the exact same image. We thus create an identity using this knowledge.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Identity loss should be minimal when an image of class A (real_A) is passed
+    through G_BA and compared with real_A.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Identity loss should be minimal when an image of class B (real_B) is passed
+    through G_AB and compared with real_B.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Define the **GAN loss:**
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The discriminator and generator loss for real_A and fake_A (fake_A is obtained
+    when real_B image is passed through G_BA)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The discriminator and generator loss for real_B and fake_B (fake_B is obtained
+    when the real_A image is passed through G_AB)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Define the **re-cycle** **loss:**
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Consider a scenario where an image of an apple is to be transformed by an orange
+    generator to generate a fake orange, and the fake orange is to be transformed
+    back into an apple by the apple generator.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: fake_B, which is the output when real_A is passed through G_AB, should regenerate
+    real_A when fake_B is passed through G_BA.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: fake_A, which is the output when real_B is passed through G_BA, should regenerate
+    real_B when fake_A is passed through G_AB.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimize for the weighted loss of the three losses.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we understand the steps, let’s code them to convert apples to oranges
+    and vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing CycleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To implement the steps that we just discussed, you can use the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This code is available as `CycleGAN.ipynb` in the `Chapter13` folder of this
+    book’s GitHub repository: [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). The
+    code contains URLs to download data from and is moderately lengthy. We strongly
+    recommend you execute the notebook in GitHub to reproduce results while you read
+    the steps to perform and the explanations of the code components in the text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download and extract the datasets that contain the folders that have the images
+    of apples and oranges:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here’s a sample of the images we will be working on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A red apple and an orange  Description automatically generated with low confidence](img/B18457_13_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.6: Sample images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that there is no one-to-one correspondence between the apple and orange
+    images (unlike the contour-to-shoe generation use case that we learned about in
+    the *Leveraging the Pix2Pix GAN* section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the image transformation pipeline (`transform`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the dataset class (`CycleGANDataset`), which takes the `apple` and `orange`
+    folders (which are obtained after unzipping the downloaded dataset) as input and
+    provides a batch of apple and orange images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the training and validation datasets and data loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the weight initialization method of the network (`weights_init_normal`)
+    as defined in previous sections:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the residual block network (`ResidualBlock`) because in this instance,
+    we will use ResNet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the generator network (`GeneratorResNet`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the discriminator network (`Discriminator`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to generate a sample of images – `generate_sample`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to train the generator (`generator_train_step`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The function takes the two generator models (G_AB and G_BA) as `Gs` and `optimizer`,
+    and real images of the two classes, `real_A` and `real_B`, as input:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the generators:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Set the gradients to zero for the optimizer:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you were to send an orange image to an orange generator, ideally, if the
+    generator has understood everything about oranges, it should not make any changes
+    to the image and should “generate” the exact image. We thus create an identity
+    using this knowledge. The loss function corresponding to `criterion_identity`
+    will be defined just prior to training the model. Calculate the identity loss
+    (`loss_identity`) for images of type A (apples) and type B (oranges):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the GAN loss when the image is passed through the generator and the
+    generated image is expected to be as close to the other class as possible (we
+    have `np.ones` in this case when training the generator, as we are passing the
+    fake images of a class to the discriminator of the same class):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the cycle loss. Consider a scenario in which an image of an apple
+    is to be transformed by an orange generator to generate a fake orange, and this
+    fake orange is to be transformed back into an apple by the apple generator. If
+    the generators were perfect, this process should give back the original image,
+    which means the following cycle losses should be zero:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the overall weighted loss (where `lambda_cyc` and `lambda_id` are
+    the weights associated with cycle loss and identity loss respectively) and perform
+    backpropagation before returning the calculated values:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to train the discriminator (`discriminator_train_step`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the generator, discriminator objects, optimizers, and loss functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the networks over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Generate the images once we have trained the models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_13_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.7: Original and reconstructed apples to oranges and vice versa'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we can see that we are successfully able to convert
+    apples into oranges (the first two rows) and oranges into apples (the last two
+    rows).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about paired image-to-image translation through the
+    Pix2Pix GAN and unpaired image-to-image translation through CycleGAN. In the next
+    section, we will learn about leveraging StyleGAN to convert an image of one style
+    into an image of another style.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging StyleGAN on custom images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 11*, we learned about neural style transfer. We generated an image
+    by blending the style of one image with the content of another image. However,
+    what if we want to create a younger version of a person in a picture or add certain
+    attributes to an image, such as glasses? StyleGAN can do this. Let’s learn how
+    in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The evolution of StyleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s first look at a few developments prior to the invention of StyleGAN.
+    As we know, generating fake faces (as we saw in the previous chapter) involves
+    the usage of GANs. The biggest problem that research faced was that the images
+    that could be generated were small (typically 64 x 64). Any effort to generate
+    larger images caused the generators or discriminators to fall into local minima,
+    which would stop training and generate gibberish. One of the major leaps in generating
+    high-quality images appeared in a research paper that proposed **Progressive GAN**
+    (**ProGAN** – [https://arxiv.org/abs/1710.10196](https://arxiv.org/abs/1710.10196)),
+    which used a clever trick. The size of both the generator and discriminator is
+    progressively increased:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, you create a generator and discriminator to generate 4 x 4 images from
+    a latent vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Additional convolution (and upscaling) layers are then added to the trained
+    generator and discriminator, which will be responsible for accepting the 4 x 4
+    images (which are generated from latent vectors in step 1) and generating/discriminating
+    8 x 8 images.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, new layers are created in the generator and discriminator once again so
+    they can be trained to generate larger images. Step by step, the image size is
+    increased in this way, the logic being that it is easier to add a new layer to
+    an already well-functioning network than trying to learn all the layers from scratch.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In this manner, images are upscaled to a resolution of 1,024 x 1,024 pixels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_13_08.png)Figure
+    13.8: Image upscaling process(source: [https://arxiv.org/pdf/1710.10196v3.pdf](https://arxiv.org/pdf/1710.10196v3.pdf))'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As much as it succeeded, it was fairly difficult to control individual aspects
+    of the generated image (such as gender and age), primarily because the network
+    gets exactly one input (in the preceding image, this is **Latent** at the top
+    of the network). StyleGAN addresses this problem. It uses a similar training scheme
+    where images are progressively generated, but with an added set of latent inputs
+    every time the network grows. This means the network now accepts multiple latent
+    vectors at regular intervals (as shown in block *(a)* in *Figure 13.9*). Every
+    latent given at a stage of generation dictates the features that are going to
+    be generated at that stage of that network. Let’s discuss the working details
+    of StyleGAN in more detail here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_13_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.9: StyleGAN working details'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: [https://arxiv.org/pdf/1812.04948](https://arxiv.org/pdf/1812.04948)*)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram, we can contrast the traditional way of generating
+    images and the style-based generator. In a traditional generator, there is only
+    one input. However, there is a mechanism in place within a style-based generator.
+    Let’s look at the details:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a random noise vector *z* of size 1 x 512.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Feed this to an auxiliary network called the style network (or mapping network),
+    which creates a tensor *w* of size 18 x 512.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The generator (synthesis) network contains 18 convolution layers. Each layer
+    will accept the following as inputs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The corresponding row of *w* (A)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A random noise vector (B)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The output from the previous layer
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that noise (B) is given only for regularization purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding three combined will create a pipeline that takes in a 1 x 512
+    vector and creates a 1,024 x 1,024 image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s now discuss how each of the 18 1 x 512 vectors within the 18 x 512 vector
+    that is generated from the mapping network contributes to the generation of an
+    image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The 1 x 512 vector that is added in the first few layers of the synthesis network
+    contributes to the large-scale features present in the image such as pose and
+    face shape (as they are responsible for generating the 4 x 4, 8 x 8 images, and
+    so on – which are the first few images that will be further enhanced in the later
+    layers).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vectors added in the middle layers correspond to small-scale features such
+    as hairstyle and whether the eyes are open or closed (as they are responsible
+    for generating the 16 x 16, 32 x 32, and 64 x 64 images).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vectors added in the last few layers correspond to the color scheme and
+    other microstructures of the image. By the time we reach the last few layers,
+    the image structure is preserved, and the facial features are preserved but only
+    image-level details such as lighting conditions are changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next section, we will leverage a pre-trained StyleGAN2 model to customize
+    our image of interest to have different styles. For our objective, we will perform
+    style transfer using the StyleGAN2 model. At a high level, here’s how style transfer
+    on faces works (the following will be clearer as you go through the results of
+    the code):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Say the `w1` style vector is used to generate `face-1` and the `w2` style vector
+    is used to generate `face-2`. Both vectors have a shape of 18 x 512.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The first few of the 18 vectors in `w2` (which are responsible for generating
+    images from 4 x 4 to 8 x 8 resolutions) are replaced with the corresponding vectors
+    from `w1`. Then, we transfer very coarse features such as the pose from `face-1`
+    to `face-2`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the later style vectors (say the third to the fifteenth of the 18 x 512 vectors
+    – which are responsible for generating 64 x 64 to 256 x 256 resolution images)
+    are replaced in `w2` with those from `w1`, then we transfer features such as eyes,
+    nose, and other mid-level facial features.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the last few style vectors (which are responsible for generating 512 x 512
+    to 1,024 x 1,024 resolution images) are replaced, fine-level features such as
+    complexion and background (which don’t affect the overall face in a significant
+    manner) are transferred.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With an understanding of how style transfer is done, let’s now see how to perform
+    style transfer using StyleGAN2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing StyleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To achieve style transfer on custom images using StyleGAN2, we follow these
+    broad steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take a custom image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Align the custom image so that only the face region of the image is stored.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fetch the latent vector that is likely to generate the custom aligned image
+    when passed through StyleGAN2.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generate an image by passing a random noise/latent vector (1 x 512) to the mapping
+    network.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'By this step, we have two images – our custom aligned image and the image generated
+    by the StyleGAN2 network. We now want to transfer some of the features of the
+    custom image to the generated image and vice versa. Let’s code up the preceding
+    strategy (note that we are leveraging a pre-trained network fetched from a GitHub
+    repository, as training such a network takes days if not weeks):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You need a CUDA-enabled environment to run the following code. The following
+    code is available as `Customizing_StyleGAN2.ipynb` in the `Chapter13` folder of
+    this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    The code contains URLs to download data from and is moderately lengthy. We strongly
+    recommend you execute the notebook in GitHub to reproduce results while you read
+    the steps to perform and the explanations of the various code components in the
+    text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clone the repository, install the requirements, and fetch the pre-trained weights:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the pre-trained generator and the synthesis network, mapping the network’s
+    weights:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to generate an image from a random vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Generate a random vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are passing the random 1 x 512-dimensional vector
+    through mapping and truncation networks to generate a vector that is 1 x 18 x
+    512\. These 18 x 512 vectors are the ones that dictate the style of the generated
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Generate an image from the random vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close-up of a person smiling  Description automatically generated](img/B18457_13_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.10: Image from random latents'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have generated an image. In the next few lines of code, you will
+    learn about performing style transfer between the preceding generated image and
+    an image of your choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch a custom image (`MyImage.jpg`) and align it. Alignment is important to
+    generate proper latent vectors because all generated images in StyleGAN have the
+    face centered and features prominently visible:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Align the custom image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Use the aligned image to generate latents that can reproduce the aligned image
+    perfectly. This is the process of identifying the latent vector combination that
+    minimizes the difference between the aligned image and the image generated from
+    the latent vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text  Description automatically generated](img/B18457_13_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.11: Original image and the synthesized image from the corresponding
+    latents'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `encode_image.py` Python script, at a high level, does the following (for
+    a thorough understanding of each step, we encourage you to go through the script
+    in the GitHub repo):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creates a random vector in latent space. Alternatively, we can get a set of
+    initial latents (vector) that require lesser number of optimizations by passing
+    the original image through a network initialized with the weights `image_to_latent.pt`
+    and architecture from the file `models/image_to_latent.py` in the same repo.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Synthesizes an image with this vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compares the synthesized image with the original input image using VGG’s perceptual
+    loss.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Performs backpropagation on the `w` random vector to reduce this loss for a
+    fixed number of iterations.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The optimized latent vector will now synthesize an image for which VGG gives
+    near-identical features as the input image, and hence the synthesized image will
+    look similar to the input image. We now have the latent vectors that correspond
+    to the image of interest.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Perform style transfer between images. As discussed, the core logic behind
+    style transfer is actually the transfer of parts of style tensors, that is, a
+    subset of 18 of the 18 x 512 style tensors. Here, we will be transferring the
+    first two rows (of the 18 x 512 tensors) in one case, 3-15 rows in one case, and
+    15-18 rows in one case. Since each set of vectors is responsible for generating
+    different aspects of the image, each set of swapped vectors swaps different features
+    in the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A collage of a child and child  Description automatically generated with
+    medium confidence](img/B18457_13_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.12: Original images (left side) and the corresponding style transfer
+    images (right side)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Figure 13.12*, since we are swapping very early in the pipeline, the most
+    high-level features, such as age, are swapped. While swapping the next level of
+    features (4 to 15), we will see that the next level of features, such as color
+    palette and background, get swapped. Finally, the layers (15,18) don’t seem to
+    change the images at all since these features are very subtle and affect very
+    fine details in the pictures, such as lighting. Here’s the output with `idxs_to_swap`
+    as `slice(4,15)` and `slice (15,18)` respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A collage of two people  Description automatically generated with low confidence](img/B18457_13_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.13: Style transfer with layer swaps at different levels'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we extrapolate a style vector so that the new vectors will only change
+    the expression of our custom image. To do this, you need to compute the right
+    direction to move the latent vector in. We can achieve this by first creating
+    a lot of fake images. An SVM classifier is then used to identify whether the people
+    within images are smiling or not. This SVM hence creates a hyperplane that separates
+    smiling from non-smiling faces. The required direction to move is going to be
+    normal to this hyperplane, which is presented as `stylegan_ffhq_smile_w_boundary.npy`.
+    Implementation details can be found in the `InterfaceGAN/edit.py` code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here’s how the generated images look:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A collage of a person''s face  Description automatically generated with medium
+    confidence](img/B18457_13_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.14: Progression of emotion from frown to smile'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, we have learned how research has progressed in generating very high-resolution
+    images of faces using GANs. The trick is to increase the complexity of both the
+    generator and discriminator in steps of increasing resolution so that at each
+    step, both the models are decent at their tasks. We learned how you can manipulate
+    the style of a generated image by ensuring that the features at every resolution
+    are dictated by an independent input called a style vector. We also learned how
+    to manipulate the styles of different images by swapping styles from one image
+    to another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**VToonify** can be used to generate high-quality artistic variations from
+    an input video. The paper and associated code can be found here: [https://github.com/williamyang1991/VToonify](https://github.com/williamyang1991/VToonify).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about leveraging the pre-trained StyleGAN2 model to
+    perform style transfer, in the next section, we will leverage the pre-trained
+    SRGAN model to generate images in high resolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing SRGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we saw a scenario in which we used a pre-trained StyleGAN
+    to generate images in a given style. In this section, we will take it a step further
+    and learn about using pre-trained models to perform image super-resolution. We
+    will gain an understanding of the architecture of the SRGAN model before implementing
+    it on images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will explain why a GAN is a good solution for the task of super-resolution.
+    Imagine a scenario in which you are given an image and asked to increase its resolution.
+    Intuitively, you would consider various interpolation techniques to perform super-resolution.
+    Here’s a sample low-resolution image along with the outputs of various techniques:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_13_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.15: The performance of different techniques of image super-resolution'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(source: [https://arxiv.org/pdf/1609.04802.pdf](https://arxiv.org/pdf/1609.04802.pdf))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we can see that traditional interpolation techniques
+    such as bicubic interpolation do not help as much when reconstructing an image
+    from a low resolution (in this case, a 4X down-scaled image of the original image).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While a super-resolution ResNet-based UNet could be useful in this scenario,
+    GANs can be more useful as they simulate human perception. The discriminator,
+    given that it knows what a typical super-resolution image looks like, can detect
+    a scenario where the generated image has properties that do not necessarily look
+    like an image with high resolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the usefulness of GANs for super-resolution established, let’s understand
+    and leverage the pre-trained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: While it is possible to code and train an SRGAN from scratch, we will use pre-trained
+    models where we can. Hence, for this section, we will leverage the model developed
+    by Christian Ledig and his team and published in the paper titled *Photo-Realistic
+    Single Image Super-Resolution Using a Generative Adversarial Network*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture of an SRGAN is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, bar chart  Description automatically generated](img/B18457_13_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.16: SRGAN architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(source: [https://arxiv.org/pdf/1609.04802.pdf](https://arxiv.org/pdf/1609.04802.pdf))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we can see that the discriminator takes high-resolution
+    images as input to train a model that predicts whether an image is a high-resolution
+    or a low-resolution image. The generator network takes a low-resolution image
+    as input and comes up with a high-resolution image. While training the model,
+    both content loss and adversarial loss are minimized. For a detailed explanation
+    of the details of model training and a comparison of the results obtained from
+    the various techniques used to come up with high-resolution images, we recommend
+    that you go through Ledig’s paper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a high-level understanding of how the model is built, we will now code
+    the way to leverage a pre-trained SRGAN model to convert a low-resolution image
+    into a high-resolution image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding SRGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Here are the steps for loading the pre-trained SRGAN and making our predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code is available as `Image super resolution using SRGAN.ipynb`
+    in the `Chapter13` folder of this book’s GitHub repository: [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)
+    The code contains URLs to download data from. We strongly recommend you execute
+    the notebook in GitHub to reproduce results while you go through the steps to
+    perform and the explanations of the various code components in the text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant packages and the pre-trained model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the image to convert to a higher resolution:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to preprocess and postprocess the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the image and preprocess it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that, in the preceding code, we have performed an additional resize on
+    the original image to further blur the image, but this is done only for illustration
+    because the improvement is more visible when we use a down-scaled image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pass the preprocessed image through the loaded `model` and postprocess the
+    output of the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the original and the high-resolution images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_13_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.17: Original image and the corresponding SRGAN output'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we can see that the high-resolution image captured details
+    that were blurred in the original image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the contrast between the original and the high-resolution image will
+    be high if the original image is blurred or low resolution. However, if the original
+    image is not blurred, the contrast will not be that high. We encourage you to
+    work with images of varying resolutions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have learned about generating images from the contours of
+    an image using the Pix2Pix GAN. Further, we learned about the various loss functions
+    in CycleGAN to convert images of one class to another. Next, we learned about
+    how StyleGAN can be used to generate realistic faces and also copy the style from
+    one image to another, depending on how the generator is trained. Finally, we learned
+    about using the pre-trained SRGAN model to generate high-resolution images. All
+    of these techniques lay a strong foundation as we advance to learn about more
+    modern ways of transferring image attributes in *Chapters 16* and *17*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will switch gears and learn about combining computer
+    vision techniques with other prominent techniques in reinforcement learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Why do we need a Pix2Pix GAN if a supervised learning algorithm such as UNet
+    could have worked to generate images from contours?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we need to optimize for three different loss functions in CycleGAN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do the tricks used by ProgressiveGAN help in building a StyleGAN model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do we identify the latent vectors that correspond to a given custom image?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

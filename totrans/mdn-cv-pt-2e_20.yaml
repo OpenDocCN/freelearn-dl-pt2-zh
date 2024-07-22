@@ -1,0 +1,2188 @@
+- en: '16'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Foundation Models in Computer Vision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about how we can build novel applications
+    using NLP and CV techniques. However, this requires a significant amount of training,
+    either from scratch or by fine-tuning a pre-trained model. When leveraging a pre-trained
+    model, the model has generally been trained on a large corpus of data – for example,
+    a dataset like ImageNet, which contains ~21 million images. However, on the internet,
+    we have access to hundreds of millions of images and the alt text corresponding
+    to those images. What if we pre-train models on internet-scale data and use those
+    models for different applications involving object detection, segmentation, and
+    text-to-image generation out of the box without any fine-tuning? This forms the
+    bedrock of foundation models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn about:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging image and text embeddings to identify the most relevant image for
+    a given text and vice versa
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging image and text encodings to perform zero-shot image object detection
+    and segmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a diffusion model from scratch, using which we’ll generate images both
+    conditionally (with text prompting) and unconditionally
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Prompt engineering to generate better images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More specifically, we will learn about **Contrastive Language-Image Pre-training**
+    (**CLIP**), which can identify images relevant to a given text and vice versa,
+    combining an image encoder and prompt (text) encoder to identify regions/segments
+    within an image. We’ll learn how to leverage CNN-based architectures with the
+    **Segment Anything Model** (**SAM**) to perform zero-shot segmentation ~50X faster
+    than transformer-based zero-shot segmentation. We will also learn about the fundamentals
+    of **Stable Diffusion** models and the XL variant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All code snippets within this chapter are available in the `Chapter16` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the field evolves, we will periodically add valuable supplements to the GitHub
+    repository. Do check the `supplementary_sections` folder within each chapter’s
+    directory for new and useful content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing CLIP
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you have access to an image dataset. You are not given
+    the labels corresponding to each image in the dataset. However, you have the information
+    in the form of an exhaustive list of all the unique labels present in the image
+    dataset. How would you assign the probable label for a given image?
+  prefs: []
+  type: TYPE_NORMAL
+- en: CLIP comes to the rescue in such a scenario. CLIP provides an embedding corresponding
+    to each image and label (text associated with the image – typically, the class
+    of image or the caption of the image). This way, we can associate an image with
+    the most probable label – where the similarity of image embeddings and the text
+    embeddings of all the unique labels are calculated and the label with the highest
+    similarity to the image embeddings is the most probable label.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, let us get an understanding of CLIP and build a CLIP model
+    from scratch before we use a pre-trained one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How CLIP works
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To understand how CLIP works, let us de-construct the acronym **CLIP** (**Contrastive
+    Language-Image Pre-training**):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pre-training: The model is trained on a huge corpus of data.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Language-Image Pre-training: The model is trained on a huge corpus of data
+    that contains both images and the text corresponding to them – for example, the
+    alt-text corresponding to an image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Contrastive Language-Image Pre-training: The language-image pre-training is
+    done in such a way that the image and text embeddings of similar images will be
+    similar while the image embedding of one object and the text embedding corresponding
+    to another object is as dissimilar as possible.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let us understand this with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a machine  Description automatically generated](img/B18457_16_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.1: Overview of CLIP'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding diagram, we have a set of images and texts. Further, we have
+    the embeddings (i[1], i[2]…i[N]) that are obtained once these images are passed
+    through the image encoder and a set of corresponding text embeddings (t[1], t[2]…t[N])
+    that are obtained once the texts are passed through the text encoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now need to train the model in such a way that i[N] has a high similarity
+    with t[N] and has very low similarity with text embeddings corresponding to other
+    images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, let us go ahead and train the CLIP model from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a CLIP model from scratch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To build a CLIP model from scratch, we will leverage the FLICKR-8K dataset
+    as it contains both the images and the associated captions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `CLIP_from_scratch.ipynb` file in the
+    `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    Do be sure to run the code from the notebook and refer to the explanations provided
+    here to understand the different steps. You will need a Kaggle account to download
+    the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages and import the required modules:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide your Kaggle credentials:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Download the Flickr dataset. Before running the next line of code, ensure you
+    agree to Kaggle’s terms on the webpage at [https://www.kaggle.com/datasets/adityajn105/flickr8k](https://www.kaggle.com/datasets/adityajn105/flickr8k),
+    otherwise, the download won’t happen.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A white rectangle with black text  Description automatically generated](img/B18457_16_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[PRE3]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Set up your training configuration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: You are advised to go through the full `ClipConfig` class in the notebook on
+    GitHub and understand the individual parameters – the learning rates of the image
+    encoder and text encoder, epochs, the backend model name, the image and text embeddings,
+    the maximum sequence length of text, and the dimensions of the projection layer
+    (as the embedding dimensions of images and text are different). For now, we are
+    simply pointing to the right dataset paths and setting the number of epochs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create the training and validation datasets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The key components of the dataset are given below (the code is imported from
+    the `dataset.py` script).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: All text is tokenized using the DistilBert tokenizer. All the images are transformed
+    to a fixed size and are normalized using the `get_transforms` method. We’ve omitted
+    the explanation of the other methods used in the `Dataset` class for brevity.
+    But be sure to inspect the class and understand the different methods defined
+    in the `dataset.py` script.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Use the following snippet to create the training and validation datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Load the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s look at the key components of the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The `ImageEncoder` class: Using the `ImageEncoder` class, we fetch embeddings
+    of the image, which are obtained by passing the image through a resnet-50 pre-trained
+    model:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`TextEncoder` converts the tokens into an embedding by passing the text (tokens)
+    through a BERT model.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`ProjectionHead`: This is needed as the text encoder output is 768-dimensional
+    while the image encoder is 2048-dimensional. We need to bring them to the same
+    dimensionality to perform a comparison.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Build the `CLIPModel`. To do this, we obtain `image_embedding` and `text_embedding`
+    of the same dimensionality. Next, we calculate logits to understand the similarity
+    between text and image embeddings. Then, we calculate the similarity between the
+    embedding of a given image with the embeddings of the remaining images (similarly
+    for text). Finally, we calculate the overall loss with the intuition that similar
+    images will have similar embeddings and dissimilar images will have embeddings
+    that are far away:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The loss function used in the preceding code is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We return the output as a dictionary with the `loss` key to keep it compatible
+    with Hugging Face.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Load the optimizer and define the learning rate for the image encoder and text
+    encoder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train with the Hugging Face API:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to the detectron trainer, mmaction2 runner, we have a Hugging Face trainer
+    that is a wrapper around `opt.zero_grad()`, `loss.backward()`, etc., steps to
+    keep the training code concise for the end user. Studying the actual trainer class
+    in depth is left as an exercise for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the training is done, we can fetch embeddings corresponding to all the
+    images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Find matches to a given query (user input text):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in an output, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A collage of dogs running  Description automatically generated](img/B18457_16_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.2: Images matching the query “dogs on the grass”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this, we are now able to provide a matching image for a given query.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how CLIP is trained from scratch, we will learn about
+    leveraging the OpenAI API to get embeddings corresponding to images and texts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging OpenAI CLIP
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One of the problems with training CLIP from scratch is that it would take considerable
+    resources – both compute as well as the data required to train the model. **OpenAI
+    CLIP** is already trained on a dataset of 400 million image text pairs. It is
+    queried using the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `OpenAI_CLIP.ipynb` file in the `Chapter16`
+    folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    Do be sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Clone the GitHub repository:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the pre-trained CLIP model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide an image and text and pre-process them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we provide an image of a diagram and the labels that
+    possibly correspond to the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The image we provided is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![CLIP](img/B18457_16_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.3: Input image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pass the image and the text embeddings through the feed-forward network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With the above, we can get the corresponding label, given an image and the set
+    of possible labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how to get a label in a zero-shot setting with the constraint
+    that the set of possible labels is provided, in the next section, we will learn
+    about segmenting an image and fetching the relevant content (only the mask corresponding
+    to the label) by specifying the label.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing SAM
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you are given an image and are asked to predict the
+    mask corresponding to a given text (let’s say a dog in an image where there are
+    multiple objects, like a dog, cat, person, and so on). How would you go about
+    solving this problem?
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a traditional setting, this is an object detection problem where we need
+    data to perform fine-tuning on a given dataset or leverage a pre-trained model.
+    We are unable to leverage CLIP as it classifies the overall picture and not individual
+    objects within it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further, in this scenario, we want to do all of this without even training a
+    model. Here is where **Segment Anything Model** (**SAM**) - [https://arxiv.org/pdf/2304.02643](https://arxiv.org/pdf/2304.02643)
+    from Meta helps in solving the problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How SAM works
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'SAM is trained on a corpus of 1 billion masks generated from 11 million images.
+    These 1 billion images (SAM 1B dataset) are from the data engine that Meta developed
+    in the following stages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assisted manual – SAM assists annotators in annotating masks
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Semi-automatic – SAM generates masks for a subset of objects present in an image,
+    while annotators mask the remaining objects present in the image
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fully automatic – Humans prompt SAM with a grid of points and SAM automatically
+    generates masks corresponding to the points
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Using these three steps, one can generate a greater number of masks per image
+    (as SAM prompts for small objects that humans might miss).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding steps result in a considerably high number of masks per image,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A collage of images of various objects  Description automatically generated](img/B18457_16_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.4: Masks generated using SAM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture of SAM is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a computer program  Description automatically generated](img/B18457_16_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.5: SAM architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding image, the following steps are being performed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An image is passed through an image encoder (which is a pre-trained vision transformer)
+    to get the corresponding image embeddings.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once we have the image embeddings, we can query for specific masks in the overall
+    image by providing the dense mask (mask in the above figure) or sparse masks (points,
+    boxes, and text).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The prompt encoder is responsible for taking in points, boxes, and masks, and
+    returning dense and sparse embeddings. Point and box embeddings are constructed
+    in a manner similar to how we calculated embeddings in LayoutLM. Let’s look at
+    the differences between different types of masks:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dense masks are useful in scenarios where we want to segment the hair of a person
+    or leaves in a tree, where we provide the rough contour of the mask that we want
+    to extract, and SAM does the job of extracting the mask.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sparse masks are useful when we want to specify the text/bounding box/point
+    corresponding to the image.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If we don’t provide any mask, text, or point input, the model will auto-generate
+    1,024 points uniformly across the input image for the point encoder.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'At a high level, the `forward` method for the prompt encoder looks like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.6: Forward pass of the prompt encoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The sample inputs and outputs look like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.7: Sample inputs and outputs of the prompt encoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the above example, we have sent 64 points to the encoder (64 x and y coordinates,
+    hence the shape of [64,2]) and obtained sparse and dense embeddings. In the case
+    of a text prompt, it is passed through CLIP embeddings to get the embedding corresponding
+    to the text when passed through the prompt encoder. In the case of points/bounding
+    boxes, they are represented by positional embeddings corresponding to the points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The embeddings are then passed through a mask decoder that calculates the attention
+    between prompt encoding and the image encoder and then outputs a set of masks.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The mask decoder architecture is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Uploaded image](img/B18457_16_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.8: Mask decoder architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s a step-by-step explanation of the components and what they are doing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Image embedding**: The process begins with an image embedding, which is a
+    representation of the input image transformed into a set of feature vectors (output
+    from the vision transformer where each feature vector corresponds to a different
+    patch).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Output tokens + prompt tokens**: A prompt (any point or bounding box/text)
+    is represented as an embedding. Output tokens are similar to the CLS token in
+    transformers. They are learnable embeddings that contain information for an effective
+    segmentation exercise (where we output three possible masks corresponding to a
+    prompt).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Attention blocks**: These blocks are similar to the blocks in a transformer
+    decoder block where we have self-attention (within the decoder output) and cross
+    attention between the encoder and decoder.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Image to token attention**: This block helps the model to focus on specific
+    features within the image embedding that are relevant to the tokens. It’s a form
+    of cross-attention where image features inform the processing of the tokens.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Token to image attention**: This does the reverse, allowing the tokens to
+    influence the processing of the image features.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Self-attention**: This mechanism allows the tokens to interact with each
+    other, helping the model to integrate information across the different tokens.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Multilayer perceptron (MLP)**: This is a neural network layer that processes
+    the features from the attention mechanisms to transform and combine information
+    further.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Iterations**: The attention blocks and MLPs are stacked in layers (as indicated
+    by x2), allowing the model to refine its understanding of the image and prompt
+    with each iteration.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**2x convolutional transpose**: This is an up-sampling operation that increases
+    the spatial resolution of the feature maps. It’s also known as deconvolution.
+    This operation is used to go from a lower-resolution embedding back to the higher-resolution
+    space of the original image, which is necessary for creating detailed masks.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Dot product per mask**: This step involves computing the dot product between
+    the refined features and each potential mask. It’s a way of scoring how well each
+    feature corresponds to each mask, effectively aligning the feature vectors with
+    the predicted masks.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Masks**: The result of the dot product per mask is used to generate the final
+    segmentation masks. Each mask corresponds to a particular region or object in
+    the image as defined by the prompt.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Intersection over union (IoU) scores**: Alongside the mask generation, the
+    model also outputs IoU scores. IoU measures the overlap between the predicted
+    segmentation mask and the ground truth mask.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The mask decoder is essentially responsible for taking the combined information
+    from the image and the prompts (points, boxes, text, etc.) and decoding it into
+    a set of segmentation masks that correspond to the objects or features in the
+    image as specified by the prompts. It uses attention mechanisms to focus on relevant
+    features, MLPs to process and combine information, and transposed convolutions
+    to map the lower-resolution embeddings back to the image space. The final output
+    is a set of masks, each with a corresponding IoU score indicating the quality
+    of the segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing SAM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you task an annotator with annotating an image as quickly
+    as possible, with only one click (point prompt on top of the object of interest)
+    as input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, let us go ahead and use the following code to leverage SAM
+    on a sample image and learn how SAM helps fast segmentation given a point prompt:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The below code is available in the `SAM.ipynb` file in the `Chapter16` folder
+    in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). Do be
+    sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clone the GitHub repository and install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the pre-trained vision transformer model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the SAM model and create the predictor instance:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The predictor will be responsible for the necessary preprocessing of the points/masks/boxes
+    followed by the model prediction followed by the necessary post-processing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Load the image on which we want to perform prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide the point/points/box/prompt for which we want to extract the corresponding
+    mask:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract the masks that correspond to the provided point:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A white truck with a green star on the side  Description automatically generated](img/B18457_16_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.9: Masks obtained by providing a point prompt'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on the preceding output, we can see that we are able to generate masks
+    corresponding to the point that was provided as input. This process can be extended
+    to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A box as input
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multiple points and boxes as input
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A text prompt as input
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We have provided examples for all of the above in the associated GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have learned about extracting masks given a prompt, let us now
+    learn about extracting all the possible masks from an image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To extract all the masks, follow steps 1-3 in the previous list of steps in
+    this section.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Load the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Generate the masks:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to visualize masks overlaid on top of the original image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Visualize the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A multi colored truck with a couple of doors  Description automatically generated](img/B18457_16_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.10: All the predicted masks within an image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding image, we can see that we have masks of different granular
+    regions in the original image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about leveraging the SAM to identify masks in an image.
+    However, it took a considerable amount of time (5-20 seconds depending on the
+    image resolution and the objects in the image) to fetch the masks for one image,
+    making it very difficult to use when leveraging it for real-time segmentation.
+    In the next section, we will learn about FastSAM, which helps with the real-time
+    generation of masks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How FastSAM works
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The SAM takes input prompts to calculate corresponding masks. If an input prompt
+    is provided, it passes the masks through a second block where prompt encodings
+    are done and if input prompts are not provided, the SAM will calculate all the
+    possible masks. All this leverages transformers for encoding images and also attention
+    calculations while decoding. This takes a considerable time (~10 seconds) to process
+    an input image and the prompts. How could we reduce the time it takes to generate
+    predictions? FastSAM helps in achieving that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'FastSAM breaks down the SAM into two tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculating the masks of instances
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Associating the prompt with one of the instances
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In addition, FastSAM leverages a CNN backbone, which further reduces the computation
+    complexity. FastSAM is trained on only 2% of the data points present in the SAM
+    1B dataset and its architecture is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a cow  Description automatically generated](img/B18457_16_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.11: FastSAM workflow (source: [https://arxiv.org/pdf/2306.12156](https://arxiv.org/pdf/2306.12156))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'FastSAM involves two steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All-instance segmentation
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Prompt-guided selection
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s look at these steps in some detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All-instance segmentation
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In *Figure 16.11* (in the top half of the workflow), we pass an input image
+    through a CNN backbone (like the ResNet101 architecture). We further pass the
+    output through a feature pyramid network that not only extracts features from
+    a given image but also ensures that diverse size features are captured. The output
+    of FPN has two different branches – detection and segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The detection branch outputs the category and bounding box, while the segmentation
+    branch outputs k prototypes (defaulted to 32 in FastSAM) along with k mask coefficients
+    (for more details on prototypes and mask coefficients, refer to the YOLACT++ paper
+    here: [https://arxiv.org/pdf/1912.06218.pdf](https://arxiv.org/pdf/1912.06218.pdf)).
+    The segmentation and detection tasks are computed in parallel. The segmentation
+    branch inputs a high-resolution feature map, preserves spatial details, and also
+    contains semantic information.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prompt-guided selection
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Prompt-guided selection then becomes easier as the point that falls within a
+    mask then highlights the instance/mask (in the case of a point prompt) and the
+    box that has the highest IoU determines the instance in the case of a box prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further, in the case of text embedding, we leverage the CLIP model to calculate
+    the text embeddings and compare those with the embeddings of each instance in
+    the image to identify the mask that is most likely to represent the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how FastSAM works at a high level, let us go ahead and
+    implement it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing FastSAM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To implement FastSam, use the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This code is available in the `FastSAM.ipynb` file in the `Chapter16` folder
+    in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). Do be
+    sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clone the Git repository associated with FastSAM:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the pre-trained model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Install the required packages and OpenAI clip:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Change the directory:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Instantiate the model and the image on which we want to work:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass the image through the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code generates all the possible masks that are detected in the
+    image. Note that the execution finishes in 0.5 seconds (which is ~20X faster than
+    SAM).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specify the prompt using which we want to obtain masks:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Write the processed image to disk:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code saves the picture with the corresponding mask of a cat.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about leveraging SAM to get masks corresponding to an
+    image and FastSAM to speed up the generation of predictions. However, in a real-world
+    scenario, we might want to keep track of a given instance/object over time across
+    all frames present in a video. The paper *Segment & Track Anything* ([https://arxiv.org/pdf/2305.06558.pdf](https://arxiv.org/pdf/2305.06558.pdf))
+    gives details on how to do that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code to track anything is provided as `SAMTrack.ipynb` in the associated
+    GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further, ImageBind is another foundation model that binds multiple modalities
+    – image, text, audio, video, heatmap, and depth – into one dimension and thus
+    could provide an opportunity to translate across modalities. For details regarding
+    ImageBind, do go through the associated paper and GitHub repository ([https://github.com/facebookresearch/ImageBind](https://github.com/facebookresearch/ImageBind)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we’ve learned about zero-shot recognition or zero-shot segmentation
+    given an image. In the next section, we will learn about diffusion models, which
+    will help with the zero-shot **generation** of an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing diffusion models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous GAN chapters, we learned about generating images from noise;
+    we also learned about generating images from conditional input like the class
+    of images that should be generated. However, in that scenario, we were able to
+    get the image of a face straight away from random noise. This is a step change.
+    What if we could generate an image from random noise in a more incremental way?
+    For example, what if we could gradually generate the contour corresponding to
+    the image initially and then slowly get the finer details of the image from the
+    contours over increasing epochs? Further, what if we could generate an image from
+    text input? Diffusion models come in handy in such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A diffusion model mimics the scenario of a diffusion process, which refers to
+    the gradual spread or dispersion of a quantity (in this case, pixel values in
+    an image) over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How diffusion models work
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you have a set of images. In the forward process, we
+    add a small amount of noise over increasing time steps – i.e., in the first iteration,
+    the amount of noise is very low, however, in the 100^(th) iteration, the amount
+    of noise is very high.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the reverse process, we take the noisy image (at the 100^(th) timestep) as
+    the input and predict the amount of noise present in the image. Next, we remove
+    the predicted noise, add a smaller amount of noise (to maintain stability; more
+    on this in the next section and the associated GitHub repository) and predict
+    the noise present in the 99^(th) timestep and will repeat the above sequence of
+    steps until we reach the first timestep.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A diffusion model is a typical U-Net model (modified with attention and resnet
+    modules) that works as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input image is a noisy image with varying noise depending on the timestep
+    (t)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the image along with the time embeddings (corresponding to the timestep)
+    through a few convolution and pooling steps to get an encoder vector
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the encoder vector through up-convolutions and add skip connections from
+    input just like we did in the segmentation exercise in the U-Net architecture
+    in *Chapter 9*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Predict the noise present in the input image
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Subtract the predicted noise from the input image
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat from step 1 for timestep t-1 with a slight amount of noise added back
+    to the image obtained in step 5
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the preceding process, there are a couple of aspects to consider:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The amount of noise to add in each time step – the noise curve
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The amount of noise to be added back after subtracting noise at a given time
+    step
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In our exercise, we will follow the pattern shown in this graph, where the
+    x axis is the timestep and the y axis is the amount of preservation of the original
+    (input) image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A blue line graph with numbers  Description automatically generated](img/B18457_16_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.12: Extent of noise added to an image over increasing timesteps'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initially, we would not modify the input image a lot. However, over increasing
+    timesteps, we add considerable noise to the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Such a pattern of noise addition is more helpful than the linear addition of
+    noise as this would help the model to take its time in picking the contours and
+    details of the image, whereas the linear addition of noise would force the model
+    to start learning right from the very first timestep.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how diffusion models work at a high level, let us understand
+    the architecture details of diffusion models in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Diffusion model architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To understand the architecture, we will build a diffusion model to generate
+    MNIST digits. This requires inputs that are 28x28x1 in shape and generates outputs
+    that are of the same shape. But first, let’s look at the architecture in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A diffusion model is a UNet model with the following layers/blocks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convolution
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Timestep embedding
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Attention blocks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ResNet blocks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Downsampling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A quick overview of the architecture is provided in the `unet_components_from_scratch.ipynb`
+    notebook on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture of the diffusion U-Net is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.13: Summary of Diffusion U-Net architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us understand the different modules/blocks present in the architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The convolution module – `Conv_in` – takes the original image and increases
+    the number of channels present in the image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `time_embedding` module takes the current timestep and converts it into
+    an embedding.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A `down_block` consists of the following modules:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'ResNet: A `ResNet` block consists of the following modules:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Group normalization: One of the limitations of training models to generate
+    images with high resolution is that on a standard GPU, one cannot fit many images
+    in one batch. This results in batch normalization being limited to a smaller number,
+    resulting in less stable training.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Group normalization comes in handy in such a scenario, as it operates on channels
+    within one input and not on a batch of inputs. In essence, group normalization
+    does the normalization (a mean of zero and a variance of one) across channels
+    within an image. This way, we ensure that a group of channels has a standard data
+    distribution and thus ensures more stable training.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Convolution: Once we perform group normalization, we pass the output through
+    a convolution layer.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Time embedding projection: Next, we add the time embedding by projecting time
+    embedding to a dimension that is consistent with the output of group normalization.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Non-linearity: The non-linearity used within this module is **Sigmoid Linear
+    Unit (SiLU**), which is calculated as follows:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_16_001.png)'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_IMG
+- en: '`Attention`: The output is then passed to the `attention` block, which does
+    the following operations:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We first perform group normalization and increase the number of groups present
+    in the input.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, we perform attention (just like we did using key, query, and value matrices
+    in the previous chapter).
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, we pass the output through a linear layer.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Downsampling: In the `downsampling` block, we take an input and reduce the
+    dimensions to half (stride = 2).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The exact reverse of the above steps happens in the `upsampling` blocks. Further,
+    skip connections from the input are added during upsampling. We will cover each
+    and every layer in greater depth in the next section – *Understanding Stable Diffusion*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the architecture of diffusion models, let us go ahead
+    and build a diffusion model on the MNIST dataset in the following section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a diffusion model from scratch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To implement a diffusion model, we will leverage the MNIST dataset and perform
+    the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `Diffusion_PyTorch.ipynb` file in the
+    `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    Do be sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required libraries and load the libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the batch size and `train_dataloader`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model architecture, where we will leverage the `UNet2DModel` from
+    the diffusers library. This consists of all the different blocks in the architecture
+    that we mentioned in the previous section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the noise scheduler:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The `DDPMScheduler` (**DDPM** stands for **Denoising Diffusion Probabilistic
+    Models**) is a component that manages the scheduling of this noise addition and
+    reversal process. It determines at what rate and in what manner the noise should
+    be added and then reversed. The scheduler typically controls aspects such as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of diffusion steps
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The variance of noise added at each step
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How the variance changes over the steps during the reverse process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Define a function that takes an input image along with the corresponding timestep
+    and corrupts the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model training configuration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, `CosineAnnealingLR` adjusts the learning rate following
+    a cosine annealing schedule. This means the learning rate keeps decreasing from
+    an initial high value to a minimum value, and then increases again. This could
+    potentially result in avoiding local minima.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The parameters of the scheduler are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`opt`: The optimizer for which the scheduler is adjusting the learning rate.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`T_max`: The number of iterations after which the learning rate will reset.
+    In your code, it’s set to the length of `train_dataloader`, meaning the learning
+    rate will complete a cosine cycle after each epoch.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The plot of loss value is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A graph with a blue line  Description automatically generated](img/B18457_16_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.14: Loss value over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s plot a few data points that are generated in this process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of numbers in squares  Description automatically generated](img/B18457_16_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.15: Image generated over increasing time steps'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the above, we can see that we are able to generate MNIST digits from random
+    noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, while the current model is able to generate images, we are unable to
+    specify the label that is of interest to us. In the next section, we will learn
+    about how to add additional context (like text prompts) to generate images conditionally.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conditional image generation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To train a diffusion model with conditional inputs, we modify the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extend the UNet so that it accepts additional input channels. This way, the
+    prompt is appended to the original channels of input.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the label through an embedding layer so that we convert it to an embedding.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Modify the image corrupt function to concatenate the embeddings of labels along
+    with input images.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Once the above changes are done, the rest of the training code remains the
+    same. Let us go ahead and code conditional image generation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The below code is available in the `Conditional_Diffuser_training.ipynb` file
+    in the `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    Do be sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Steps 1-3 remain the same as in the previous section.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, define the embedding layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are creating an embedding layer that takes any of
+    the 10 possible labels and converts it into an embedding of dimension 32.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Extend the `UNet` class so that it accepts 32 additional input channels:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Instantiate the UNet2D model object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the image corrupt function where the image corruption is done in a manner
+    similar to what we saw in the *How diffusion models work* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we pass the labels through `embedding_layer` to fetch
+    their corresponding embeddings. Finally, we concatenate the noisy image and the
+    label embedding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train the model just like we did in the previous section, in step 8.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Perform inference. To do this, we initialize 10 images with zero pixel values
+    and specify that the timestamp is 999:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we add noise to the initialized images using `noise_scheduler`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the labels we want to generate (we want to generate one image corresponding
+    to each label):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch embeddings corresponding to the labels:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Concatenate the noisy image and the label embeddings:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make predictions using the trained model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Visualize the generated images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A number in black squares  Description automatically generated](img/B18457_16_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.16: Generated images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding output, we see that we can conditionally generate images
+    by specifying their labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about generating images using a diffusion model from
+    scratch, we will learn about leveraging Stable Diffusion to generate images given
+    a text prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Stable Diffusion
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we’ve learned how diffusion models work. Stable Diffusion improves upon
+    the UNet2D model by first leveraging VAE to encode an image to a lower dimension
+    and then performing training on the down-scaled/latent space. Once the model training
+    is done, we use a VAE decoder to get a high-resolution image. This way, training
+    is faster as the model learns features from the latent space than from the pixel
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture of Stable Diffusion is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.17: Stable Diffusion overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The VAE encoder is a standard auto-encoder that takes an input image of shape
+    768x768 and returns a 96x96 image. The VAE decoder takes a 96x96 image and upscales
+    it to 768x768.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The pre-trained Stable Diffusion U-Net model architecture is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.18: Pre-trained Stable Diffusion U-Net model architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding diagram, noisy input represents the output obtained from the
+    VAE encoder. Text prompt represents the CLIP embeddings of text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building blocks of the Stable Diffusion model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The UNet2D architecture is central to the functionality of Stable Diffusion,
+    an in-depth understanding of it essential for mastering the Stable Diffusion landscape.
+    Given its complexity, characterized by numerous connections and data flows between
+    layers, it is crucial to comprehensively understand each key layer. To achieve
+    this, we will examine each layer through three critical components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inputs to the Layer: What data or tensors are fed into the layer?'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Transformation of Inputs: How does the layer process or transform these inputs?'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Final Outputs: What is the resulting output after the transformation? By delving
+    into these aspects, we aim to provide a clear picture of how tensors flow through
+    the model, thereby enabling you to master Stable Diffusion thoroughly.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let us understand what is under the hood of the UNet2D model by downloading
+    a pretrained Stable Diffusion model and calling its summary, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B18457_16_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.19: UNet2D model architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s try to uncover each piece in the pipeline for an in-depth understanding
+    of the theory behind such a successful network. We have the following high-level
+    blocks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: CrossAttnDownBlock2D
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: CrossAttnUpBlock2D
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: UNetMidBlock2DCrossAttn
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DownBlock2D
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: UpBlock2D
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s look at each of these blocks in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CrossAttnDownBlock2D
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Running `pipe.unet.down_blocks` gives us the four down-sampling modules (i.e.,
+    the left part of UNet in *Figure 16.18*). The first three are `CrossAttnDownBlock2D`
+    and the last one is `DownBlock2D`. On checking the summary for any of the `CrossAttnDownBlock2D`,
+    we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code results in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B18457_16_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.20: Summary of the first down block of the unet'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in *Figure 16.20*, a module is made of 3 types of blocks – `Transformer2DModel`,
+    `ResnetBlock2D`, and `Downsample2D`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inspecting the `forward` method of the `CrossAttnDownBlock2D` class in the
+    [github.com/huggingface/diffusers](https://github.com/huggingface/diffusers) GitHub
+    repo at `diffusers/models/unet_2d_blocks.py`, we see that the model works with
+    three inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.21: Inputs for CrossAttnDownBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in the preceding screenshot, these inputs are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`hidden_states`, which is the embeddings corresponding to the noisy x'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`temb`, which corresponds to the embeddings of `timestep`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`encoder_hidden_states`, which corresponds to the embeddings of the input text
+    prompt'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: At a high level, the (simplified) order of computations within a `CrossAttnDownBlock2D`
+    block (we have modified the code for better explainability) is provided in *Figure
+    16.22*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program  Description automatically generated](img/B18457_16_23.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.22: Forward method for CrossAttnDownBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the architecture diagram in *Figure 16.20*, note that `CrossAttnDownBlock2D`
+    has ResNet and Transformer2D blocks repeated twice before performing `DownBlock2D`,
+    and that is reflected as a `for` loop in *Figure 16.22*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key point to understand in the flow is that the `resnet` block uses `temb`,
+    whereas the `attn` module uses `encoder_hidden_states` (which is related to the
+    prompt).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ultimately, `CrossAttnDownBlock2D` takes the input hidden states and passes
+    them through its internal blocks in the following order, along with necessary
+    `temb` or `encoder_hidden_states` tensors as inputs to `resnet` and `attn` respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`resnet`->`attn`->`resnet`->`attn`->`downsampler`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the hidden states and intermediate hidden states are returned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_24.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.23: Outputs for CrossAttnDownBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we obtain 320 channels as `DownBlock2D` gives 320 channels as output.
+    The `hidden_states` are used as input for the next block, while output states
+    are used for skip connections. This step is repeated 2 more times with an increasing
+    number of channels before being fed to the middle block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: UNetMidBlock2DcrossAttn
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This block is the bottleneck of the UNet, acting as the point where the important
+    information is distilled as much as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It takes the following inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer code with numbers and symbols  Description automatically generated](img/B18457_16_25.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.24: Inputs for UNetMidBlock2DcrossAttn'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It also uses the following (simplified) forward method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.25: forward method (simplified) for UNetMidBlock2DcrossAttn'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that this module has an additional `ResNet`. The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black rectangular object with text  Description automatically generated](img/B18457_16_27.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.26: Output for UNetMidBlock2DcrossAttn'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This output is fed as `hidden_states` to the next `CrossAttnUpBlock2D` module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CrossAttnUpBlock2D
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The summary for this module is similar to that of `CrossAttnDownBlock2D`. One
+    might think the only difference here is in the names – just `Up` wherever `Down`
+    is present. But the important thing to consider is the fact that these blocks
+    additionally accept the output states (`res_hidden_states_tuple` in the following
+    screenshot) coming from the corresponding level of `CrossAttnDown2D`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_28.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.27: CrossAttnUpBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simplified forward method looks like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program  Description automatically generated](img/B18457_16_30.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.28: forward method (simplified) for CrossAttnUpBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The additional input called `res_hidden_states_tuple` is a collection of three
+    tensors (as there are three `output_states` per `down` block). Each tensor is
+    concatenated with `hidden_states` and fed to the `resnet`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output is a single tensor of hidden states:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black rectangular with green and purple text  Description automatically
+    generated](img/B18457_16_31.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.29: Output for CrossAttnUpBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we get output of shape 96x96, which is the input image shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DownBlock2D, UpBlock2D
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: These two blocks contain only Resnet2D blocks and do not have attention modules.
+    The activity to find the inputs, outputs, and forward of these blocks is left
+    as an exercise for the reader. You are encouraged to go through [github.com/huggingface/diffusers](https://github.com/huggingface/diffusers)
+    and search for the class definitions of `DownBlock2D` and `UpBlock2D`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer2DModel
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This is a standard self-attention-based transformer encoder module that has
+    an additional responsibility to convert 2D inputs to 1D during the input phase
+    and back to 2D outputs at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are the inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_32.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.30: Input of Transformer2DModel'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A (simplified) `forward` method for the module is given below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_33.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.31: forward method (simplified) for Transformer2DModel'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The input is stored as residual at first and then the `hidden_states` tensor
+    is projected through a convolution layer (`self.proj` in in the preceding code,
+    resulting in a shape of 2x786x96x96). The height and width dimensions are rearranged
+    in the shape `[bs, hxw, channels]`. Once this is passed through the transformer
+    blocks, the input and output shapes are the same. The output of this step is reshaped
+    and permuted to (bs x h x w x channels) and is passed through a convolution to
+    get the original dimensions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black rectangular with text and numbers  Description automatically generated](img/B18457_16_34.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.32: Output of Transformer2DModel'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ResnetBlock2D
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'This block is nothing different from a standard resnet, except for the acceptance
+    of a new `temb` variable. Here are the inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_35.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.33: Input for ResnetBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s the `forward` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_36.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.34: forward method for ResnetBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, `self.time_emb_proj` is a linear layer making sure the channel’s dimension
+    for `temb` is the same as `hidden_states`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output is simply the same shape as `hidden_states`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black rectangular with text and numbers  Description automatically generated](img/B18457_16_37.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.35: Output for ResnetBlock2D'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now take the 320x96x96 dimensional output and pass it through the VAE decoder
+    to fetch the output image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the working details of the Stable Diffusion model, let
+    us go ahead and leverage it to take a text prompt and convert it to an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing Stable Diffusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To generate images given a text prompt, we will leverage the diffusers library
+    built by the Hugging Face team. We will use the following code to do this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This code is available in the `Conditional_Diffuser_training.ipynb` file in
+    the `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    Do be sure to run the code from the notebook and refer to the following explanations
+    to understand the different steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Log in to Hugging Face and provide the auth token:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the generator and set the seed to ensure reproducibility:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As we have seen in previous chapters, huggingface (and by extension diffusers)
+    wraps models in the form of pipelines that are easy to use for the end user. Let’s
+    define the Hugging Face pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass a text prompt through the pipeline defined above:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Visualize the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This gives the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of babies in superhero clothing  Description automatically generated](img/B18457_16_38.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.36: Image generated by Stable Diffusion'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the above generated image has multiple issues – multiple babies are
+    generated, legs do not seem aligned, etc. Can we do better?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Stable Diffusion has an XL variant that has been trained on more data while
+    generating higher-resolution images (1024x1024), due to which the chances of such
+    mistakes are lower. Let’s replace the base model with the XL version of it, as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass the prompt through the pipeline that we just defined:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A baby in a garment  Description automatically generated](img/B18457_16_39.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.37: Output of SDXL'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, the image generated using the XL pipeline is much better than the
+    image generated using the base pipeline. However, can we get even better?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Prompt engineering comes to the rescue in this scenario. We can modify our
+    prompt as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding prompt, when passed through the XL pipeline, results in an output
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A baby in a garment  Description automatically generated](img/B18457_16_40.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 16.38: Realistic output of SDXL'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, by adding words like “photorealistic” and “cinematic”, we were able
+    to generate an image that looks more dramatic than the plain one generated earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how CLIP helps in aligning embeddings of both text
+    and images. We then gained an understanding of how to leverage the SAM to perform
+    segmentation on any image. Next, we learned about speeding up the SAM using FastSAM.
+    Finally, we learned about leveraging diffusion models to generate images both
+    unconditionally and conditionally given a prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We covered sending different modalities of prompts to the segment-anything model,
+    tracking objects using the SAM, and combining multiple modalities using `ImageBind`
+    in the associated GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this knowledge, you can leverage the foundational models on your data/tasks
+    with very limited/no training data points, such as training/leveraging models
+    for the segmentation/object detection tasks that we learned about in *Chapters
+    7* to *9* with minimal/no data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn about tweaking diffusion models further
+    to generate images of interest to you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How are text and images represented in the same domain using CLIP?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How are different types of tokens, such as point tokens, bounding box tokens,
+    and text tokens, calculated in Segment Anything architecture?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do diffusion models work?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What makes Stable Diffusion different from normal diffusion?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the difference between Stable Diffusion and the SDXL model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

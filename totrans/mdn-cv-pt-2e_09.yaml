@@ -1,0 +1,2012 @@
+- en: '7'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Basics of Object Detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapters, we learned about performing image classification.
+    Imagine a scenario where we leverage computer vision for a self-driving car. It
+    is not only necessary to detect whether the image of a road contains images of
+    vehicles, a sidewalk, and pedestrians, but it is also important to identify *where*
+    those objects are located. The various techniques of object detection that we
+    will study in this chapter and the next will come in handy in such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter and the next, we will learn about some of the techniques for
+    performing object detection. We will start by learning the fundamentals – labeling
+    the ground truth bounding-box of objects within an image using a tool named `ybat`,
+    extracting region proposals using the `selectivesearch` method, and defining the
+    accuracy of bounding-box predictions by using the **intersection over union**
+    (**IoU**) and mean average precision metrics. After this, we will learn about
+    two region proposal-based networks – R-CNN and Fast R-CNN – by first learning
+    about their working details and then implementing them on a dataset that contains
+    images belonging to trucks and buses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing object detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a bounding-box ground truth for training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding region proposals
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding IoU, non-max suppression, and mean average precision
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training R-CNN-based custom object detectors
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training Fast R-CNN-based custom object detectors
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All code snippets within this chapter are available in the `Chapter07` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Introducing object detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the rise of autonomous cars, facial detection, smart video surveillance,
+    and people-counting solutions, fast and accurate object detection systems are
+    in great demand. These systems include not only object classification from an
+    image but also the location of each one of the objects, by drawing appropriate
+    bounding boxes around them. This (drawing bounding boxes and classification) makes
+    object detection a harder task than its traditional computer vision predecessor,
+    image classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we explore the broad use cases of object detection, let’s understand
+    how it adds to the object classification task that we covered in the previous
+    chapter. Imagine a scenario where you have multiple objects in an image. I ask
+    you to predict the class of objects present in the image. For example, let’s say
+    that the image contains both cats and dogs. How would you classify such images?
+    Object detection comes in handy in such a scenario, where it not only predicts
+    the location of objects (bounding box) present in it but also predicts the class
+    of the objects present within the individual bounding boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand what the output of object detection looks like, let’s go through
+    the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.1: Distinction between object classification and detection'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding figure, we can see that, while a typical object classification
+    merely mentions the class of object present in the image, object localization
+    draws a bounding box around the objects present in the image. Object detection,
+    on the other hand, would involve drawing the bounding boxes around individual
+    objects in the image, along with identifying the class of object within a bounding
+    box across the multiple objects present in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some of the various use cases leveraging object detection include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Security**: This can be useful for recognizing intruders.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Autonomous cars**: This can be helpful in recognizing the various objects
+    present in the image of a road.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Image searching**: This can help identify the images containing an object
+    (or a person) of interest.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Automotives**: This can help in identifying a number plate within the image
+    of a car.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In all the preceding cases, object detection is leveraged to draw bounding boxes
+    around a variety of objects present within the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about predicting the class of the object and
+    having a tight bounding box around the object in the image, which is the localization
+    task. We will also learn about detecting the class corresponding to multiple objects
+    in the picture, along with a bounding box around each object, which is the object
+    detection task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Training a typical object detection model involves the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating ground-truth data that contains labels of the bounding box and class
+    corresponding to various objects present in the image
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Coming up with mechanisms that scan through the image to identify regions (region
+    proposals) that are likely to contain objects
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about leveraging region proposals generated by
+    a method named `SelectiveSearch`. In the next chapter, we will learn about leveraging
+    anchor boxes to identify regions containing objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the target class variable by using the IoU metric
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating the target bounding-box offset variable to make corrections to the
+    location of the region proposal in *step 2*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Building a model that can predict the class of object along with the target
+    bounding-box offset corresponding to the region proposal
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Measuring the accuracy of object detection using **mean average precision**
+    (**mAP**)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we have a high-level overview of what is to be done to train an object
+    detection model, we will learn about creating the dataset for a bounding box (which
+    is the first step in building an object detection model) in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a bounding-box ground truth for training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have learned that object detection gives us output in the form of a bounding
+    box surrounding the object of interest in an image. For us to build an algorithm
+    that detects this bounding box, we would have to create input-output combinations,
+    where the input is the image and the output is the bounding boxes and the object
+    classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that when we detect the bounding box, we are detecting the pixel locations
+    of the four corners of the bounding box surrounding the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To train a model that provides the bounding box, we need the image and the corresponding
+    bounding-box coordinates of all the objects in the image. In this section, we
+    will learn one way to create the training dataset, where the image is the input
+    and the corresponding bounding boxes and classes of objects are stored in an XML
+    file as output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we will install and use `ybat` to create (annotate) bounding boxes around
+    objects in the image. We will also inspect the XML files that contain the annotated
+    class and bounding-box information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that there are alternative image annotation tools like CVAT and Label Studio.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start by downloading `ybat-master.zip` from GitHub ([https://github.com/drainingsun/ybat](https://github.com/drainingsun/ybat))
+    and unzipping it. Then, open `ybat.html` using a browser of your choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we start creating the ground truth corresponding to an image, let’s
+    specify all the possible classes that we want to label across images and store
+    in the `classes.txt` file, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface, text, application  Description automatically generated](img/B18457_07_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.2: Providing class names'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s prepare the ground truth corresponding to an image. This involves
+    drawing a bounding box around objects (the persons in the following figure) and
+    assigning labels/classes to the objects present in the image, as seen in the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Upload all the images you want to annotate.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Upload the `classes.txt` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Label each image by first selecting the filename and then drawing a crosshair
+    around each object you want to label. Before drawing a crosshair, ensure you select
+    the correct class in the `classes` region (the `classes` pane can be seen below
+    *step 2* in the following image).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Save the data dump in the desired format. Each format was independently developed
+    by a different research team, and all are equally valid. Based on their popularity
+    and convenience, every implementation prefers a different format.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'As you can see, the preceding steps are represented in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.3: Annotation steps'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, when we download the PascalVOC format, it downloads a zip of XML
+    files. A snapshot of the XML file after drawing the rectangular bounding box is
+    available on GitHub as `sample_xml_file. xml`. There, you will observe that the
+    `bndbox` field contains the coordinates of the minimum and maximum values of the
+    *x* and *y* coordinates, corresponding to the objects of interest in the image.
+    We should also be able to extract the classes corresponding to the objects in
+    the image using the `name` field.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how to create a ground truth of objects (a class label
+    and bounding box) present in an image, let’s dive into the building blocks of
+    recognizing objects in an image. First, we will go through region proposals that
+    help to highlight the portions of the image that are most likely to contain an
+    object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding region proposals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a hypothetical scenario where the image of interest contains a person
+    and sky in the background. Let’s assume there is little change in the pixel intensity
+    of the background (sky) and a considerable change in the pixel intensity of the
+    foreground (the person).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just from the preceding description itself, we can conclude that there are two
+    primary regions here – the person and the sky. Furthermore, within the region
+    of the image of a person, the pixels corresponding to hair will have a different
+    intensity to the pixels corresponding to the face, establishing that there can
+    be multiple sub-regions within a region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Region proposal** is a technique that helps identify islands of regions where
+    the pixels are similar to one another. Generating a region proposal comes in handy
+    for object detection where we must identify the locations of objects present in
+    an image. Additionally, given that a region proposal generates a proposal for
+    a region, it aids in object localization where the task is to identify a bounding
+    box that fits exactly around an object. We will learn how region proposals assist
+    in object localization and detection in a later section, *Training R-CNN-based
+    custom object detectors*, but let’s first understand how to generate region proposals
+    from an image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging SelectiveSearch to generate region proposals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: SelectiveSearch is a region proposal algorithm used for object localization,
+    where it generates proposals of regions that are likely to be grouped together
+    based on their pixel intensities. SelectiveSearch groups pixels based on the hierarchical
+    grouping of similar pixels, which, in turn, leverages the color, texture, size,
+    and shape compatibility of content within an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initially, SelectiveSearch over-segments an image by grouping pixels based on
+    the preceding attributes. Then, it iterates through these over-segmented groups
+    and groups them based on similarity. At each iteration, it combines smaller regions
+    to form a larger region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s understand the `selectivesearch` process through the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the full code for this exercise at `Understanding_selectivesearch.ipynb`
+    in the `Chapter07` folder of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch and load the required image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract the `felzenszwalb` segments (which are obtained based on the color,
+    texture, size, and shape compatibility of content within an image) from the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that in the `felzenszwalb` method, `scale` represents the number of clusters
+    that can be formed within the segments of the image. The higher the value of `scale`,
+    the greater the detail of the original image that is preserved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Plot the original image and the image with segmentation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![](img/B18457_07_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.4: Original image and its corresponding segmentation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding output, note that the pixels belonging to the same group
+    have similar pixel values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pixels that have similar values form a region proposal. This helps in object
+    detection, as we now pass each region proposal to a network and ask it to predict
+    whether the region proposal is a background or an object. Furthermore, if it is
+    an object, it helps us to identify the offset to fetch the tight bounding box
+    corresponding to the object and the class corresponding to the content within
+    the region proposal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand what SelectiveSearch does, let’s implement the `selectivesearch`
+    function to fetch region proposals for the given image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing SelectiveSearch to generate region proposals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will define the `extract_candidates` function using `selectivesearch`
+    so that it can be leveraged in the subsequent sections on training R-CNN- and
+    Fast R-CNN-based custom object detectors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant packages and fetch an image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `extract_candidates` function, which fetches the region proposals
+    from an image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the function that takes an image as the input parameter:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the candidate regions within the image using the `selective_search` method,
+    available in the `selectivesearch` package:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the image area and initialize a list of candidates that we will use
+    to store the candidates that pass a defined threshold:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch only those candidates (regions) that are over 5% of the total image area
+    and less than or equal to 100% of the image area, and then return them:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract the candidates and plot them on top of an image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A dog in a cage  Description automatically generated with medium confidence](img/B18457_07_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.5: Region proposals within an image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The grids in the preceding figure represent the candidate regions (region proposals)
+    coming from the `selective_search` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand region proposal generation, one question remains unanswered.
+    How do we leverage region proposals for object detection and localization?
+  prefs: []
+  type: TYPE_NORMAL
+- en: A region proposal that has a high intersection with the location (ground truth)
+    of an object in the image of interest is labeled as the one that contains the
+    object, and a region proposal with a low intersection is labeled as the background.
+    In the next section, we will learn how to calculate the intersection of a region
+    proposal candidate with a ground-truth bounding box in our journey to understanding
+    the various techniques that form the backbone of building an object detection
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding IoU
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where we came up with a prediction of a bounding box for
+    an object. How do we measure the accuracy of our prediction? The concept IoU comes
+    in handy in such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The word *intersection* within the term *intersection over union* refers to
+    measuring how much the predicted and actual bounding boxes overlap, while *union*
+    refers to measuring the overall space possible for overlap. IoU is the ratio of
+    the overlapping region between the two bounding boxes over the combined region
+    of both bounding boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This can be represented in a diagram, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Shape  Description automatically generated](img/B18457_07_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.6: Visualizing IoU'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram of two bounding boxes (rectangles), let’s consider
+    the left bounding box as the ground truth and the right bounding box as the predicted
+    location of the object. IoU as a metric is the ratio of the overlapping region
+    over the combined region between the two bounding boxes. In the following diagram,
+    you can observe the variation in the IoU metric as the overlap between bounding
+    boxes varies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Shape, polygon  Description automatically generated](img/B18457_07_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: Variation of the IoU value in different scenarios'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that as the overlap decreases, IoU decreases, and in the final diagram,
+    where there is no overlap, the IoU metric is 0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how to measure IoU, let’s implement it in code and create
+    a function to calculate IoU as we will leverage it in the sections on training
+    R-CNN and training Fast R-CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Calculating_Intersection_Over_Union.ipynb` file
+    in the `Chapter07` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s define a function that takes two bounding boxes as input and returns
+    IoU as the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specify the `get_iou` function, which takes `boxA` and `boxB` as inputs, where
+    `boxA` and `boxB` are two different bounding boxes (you can consider `boxA` as
+    the ground-truth bounding box and `boxB` as the region proposal):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We define the `epsilon` parameter to address the rare scenario where the union
+    between the two boxes is 0, resulting in a division-by-zero error. Note that in
+    each of the bounding boxes, there will be four values corresponding to the four
+    corners of the bounding box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the coordinates of the intersection box:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that `x1` stores the maximum value of the left-most x value between the
+    two bounding boxes. Similarly, `y1` stores the top-most y value, and `x2` and
+    `y2` store the right-most x value and bottom-most y value, respectively, corresponding
+    to the intersection part.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate `width` and `height` corresponding to the intersection area (overlapping
+    region):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Calculate the area of overlap (`area_overlap`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that, in the preceding code, we specify that if the width or height corresponding
+    to the overlapping region is less than 0, the area of intersection is 0\. Otherwise,
+    we calculate the area of overlap (intersection) similar to the way a rectangle’s
+    area is calculated – width multiplied by height.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the combined area corresponding to the two bounding boxes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we calculated the combined area of the two bounding boxes
+    – `area_a` and `area_b` – and then subtracted the overlapping area while calculating
+    `area_combined`, since `area_overlap` is counted twice – once when calculating
+    `area_a` and then when calculating `area_b`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the IoU value and return it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we calculated `iou` as the ratio of the area of overlap
+    (`area_overlap`) over the area of the combined region (`area_combined`) and returned
+    the result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned how to create the ground truth and calculate IoU, which
+    helps prepare training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will hold off on building a model until later sections, as training a model
+    is more involved, and we would also have to learn a few more components before
+    we train it. In the next section, we will learn about non-max suppression, which
+    helps in narrowing down the different possible predicted bounding boxes around
+    an object when inferring, using the trained model on a new image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Non-max suppression
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where multiple region proposals are generated and significantly
+    overlap one another. Essentially, all the predicted bounding-box coordinates (offsets
+    to region proposals) significantly overlap one another. For example, let’s consider
+    the following image, where multiple region proposals are generated for the person
+    in the image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.8: Image and the possible bounding boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we identify the box, among the many region proposals, that we will consider
+    as the one containing an object and the boxes that we will discard? **Non-max
+    suppression** comes in handy in such a scenario. Let’s unpack that term.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Non-max** refers to the boxes that don’t have the highest probability of
+    containing an object, and **suppression** refers to us discarding those boxes.
+    In non-max suppression, we identify the bounding box that has the highest probability
+    of containing the object and discard all the other bounding boxes that have an
+    IoU below a certain threshold with the box showing the highest probability of
+    containing an object.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In PyTorch, non-max suppression is performed using the `nms` function in the
+    `torchvision.ops` module. The `nms` function takes the bounding-box coordinates,
+    the confidence of the object in the bounding box, and the threshold of IoU across
+    bounding boxes, identifying the bounding boxes to be retained. You will leverage
+    the `nms` function when predicting object classes and the bounding boxes of objects
+    in a new image in both the *Training R-CNN-based custom object detectors* and
+    *Training Fast R-CNN-based custom object detectors* sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mean average precision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, we have looked at getting an output that comprises a bounding box around
+    each object within an image and the class corresponding to the object within the
+    bounding box. Now comes the next question: how do we quantify the accuracy of
+    the predictions coming from our model? mAP comes to the rescue in such a scenario.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we try to understand mAP, let’s first understand precision, then average
+    precision, and finally, mAP:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Precision**: Typically, we calculate precision as:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A true positive refers to the bounding boxes that predicted the correct class
+    of objects and have an IoU with a ground truth that is greater than a certain
+    threshold. A false positive refers to the bounding boxes that predicted the class
+    incorrectly or have an overlap that is less than the defined threshold with the
+    ground truth. Furthermore, if there are multiple bounding boxes that are identified
+    for the same ground-truth bounding box, only one box can be a true positive, and
+    everything else is a false positive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Average precision:** Average precision is the average of precision values
+    calculated at various IoU thresholds.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**mAP:** mAP is the average of precision values calculated at various IoU threshold
+    values across all the classes of objects present within a dataset.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So far, we have looked at preparing a training dataset for our model, performing
+    non-max suppression on the model’s predictions, and calculating its accuracies.
+    In the following sections, we will learn about training a model (R-CNN-based and
+    Fast R-CNN-based) to detect objects in new images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training R-CNN-based custom object detectors
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: R-CNN stands for **region-based convolutional neural network**. **Region-based**
+    within R-CNN refers to the region proposals used to identify objects within an
+    image. Note that R-CNN assists in identifying both the objects present in the
+    image and their location within it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, we will learn about the working details of R-CNN
+    before training it on our custom dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working details of R-CNN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s get an idea of R-CNN-based object detection at a high level using the
+    following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_07_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.9: Sequence of steps for R-CNN (image source: `https://arxiv.org/pdf/1311.2524.pdf`)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We perform the following steps when leveraging the R-CNN technique for object
+    detection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extract region proposals from an image. We need to ensure that we extract a
+    high number of proposals to not miss out on any potential object within the image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resize (warp) all the extracted regions to get regions of the same size.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the resized region proposals through a network. Typically, we pass the
+    resized region proposals through a pretrained model, such as VGG16 or ResNet50,
+    and extract the features in a fully connected layer.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create data for model training, where the input is features extracted by passing
+    the region proposals through a pretrained model. The outputs are the class corresponding
+    to each region proposal and the offset of the region proposal from the ground
+    truth corresponding to the image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If a region proposal has an IoU greater than a specific threshold with the
+    object, we create training data. In this scenario, the region is tasked with predicting
+    both the class of the object it overlaps with and the offset of the region proposal
+    related to the ground-truth bounding box that encompasses the object of interest.
+    A sample image, region proposal, and ground-truth bounding box are shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.10: Sample image with the region proposal and ground-truth bounding
+    box'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, `o` (in red) represents the center of the region proposal
+    (dotted bounding box) and `x` represents the center of the ground-truth bounding
+    box (solid bounding box) corresponding to the `cat` class. We calculate the offset
+    between the region proposal bounding box and the ground-truth bounding box as
+    the difference between the center coordinates of the two bounding boxes (`dx`,
+    `dy`), and the difference between the height and width of the bounding boxes (`dw`,
+    `dh`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Connect two output heads, one corresponding to the class of image and the other
+    corresponding to the offset of region proposal with the ground-truth bounding
+    box, to extract the fine bounding box on the object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This exercise would be like the use case where we predicted gender (a categorical
+    variable, analogous to the class of object in this case study) and age (a continuous
+    variable, analogous to the offsets to be done on top of region proposals) based
+    on the image of the face of a person in *Chapter 5*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train the model after writing a custom loss function that minimizes both the
+    object classification error and the bounding-box offset error.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note that the loss function we will minimize differs from the loss function
+    that is optimized in the original paper ([https://arxiv.org/pdf/1311.2524.pdf](https://arxiv.org/pdf/1311.2524.pdf)).
+    We are doing this to reduce the complexity associated with building R-CNN and
+    Fast R-CNN from scratch. Once you are familiar with how the model works and can
+    build a model using the code in the next two sections, we highly encourage you
+    to implement the model in original paper from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn about fetching datasets and creating data
+    for training. In the section after that, we will learn about designing a model
+    and training it, before predicting the class of objects present and their bounding
+    boxes in a new image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing R-CNN for object detection on a custom dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'So far, we have a theoretical understanding of how R-CNN works. We will now
+    learn how to go about creating data for training. This process involves the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Downloading the dataset
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Preparing the dataset
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining the region proposal extraction and IoU calculation functions
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating the training data
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating input data for the model
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resizing the region proposals
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Passing them through a pretrained model to fetch the fully connected layer values
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating output data for the model
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Labeling each region proposal with a class or background label
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining the offset of the region proposal from the ground truth if the region
+    proposal corresponds to an object and not a background
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining and training the model
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Predicting on new images
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s get started with coding in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Downloading the dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For the scenario of object detection, we will download the data from the Google
+    Open Images v6 dataset (available at [https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv](https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv)).
+    However, in code, we will work on only those images that are of a bus or truck
+    to ensure that we can train images (as you will shortly notice the memory issues
+    associated with using `selectivesearch`). We will expand the number of classes
+    (more classes in addition to bus and truck) we will train on in *Chapter 10*,
+    *Applications of Object Detection and Segmentation*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Training_RCNN.ipynb` file in the `Chapter07`
+    folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). The code
+    contains URLs to download data from and is moderately lengthy. We strongly recommend
+    that you execute the notebook in GitHub to help you reproduce results and understand
+    the steps and the various code components in the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant packages to download the files that contain images and
+    their ground truths:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we execute the preceding code, we should have the images and their corresponding
+    ground truths stored in an available CSV file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing the dataset
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we have downloaded the dataset, we will prepare the dataset. This
+    involves the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching each image and its corresponding class and bounding-box values
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fetching the region proposals within each image, their corresponding IoU, and
+    the delta by which the region proposal will be corrected with respect to the ground
+    truth
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Assigning numeric labels for each class (where we have an additional background
+    class, besides the bus and truck classes, where IoU with the ground-truth bounding
+    box is below a threshold)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resizing each region proposal to a common size in order to pass them to a network
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'By the end of this exercise, we will have resized the crops of region proposals,
+    assigned the ground-truth class to each region proposal, and calculated the offset
+    of the region proposal in relation to the ground-truth bounding box. We will continue
+    coding from where we left off in the preceding section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specify the location of images, and read the ground truths present in the CSV
+    file that we downloaded:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![Table  Description automatically generated](img/B18457_07_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.11: Sample data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `XMin`, `XMax`, `YMin`, and `YMax` correspond to the ground truth
+    of the bounding box of the image. Furthermore, `LabelName` provides the class
+    of image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a class that returns the image and its corresponding class and ground
+    truth along with the file path of the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Pass the dataframe (`df`) and the path to the folder containing images (`image_folder`)
+    as input to the `__init__` method, and fetch the unique `ImageID` values present
+    in the data frame (`self.unique_images`). We do this because an image can contain
+    multiple objects, and so multiple rows can correspond to the same `ImageID` value:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `__getitem__` method, where we fetch the image (`image_id`) corresponding
+    to an index (`ix`), `fetch` its bounding-box coordinates (`boxes`), and classes
+    and return the image, bounding box, class, and image path:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inspect a sample image and its corresponding class and bounding-box ground
+    truth:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![](img/B18457_07_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.12: Sample image with the ground-truth bounding box and class of object'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the `extract_iou` and `extract_candidates` functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With that, we have now defined all the functions necessary to prepare data and
+    initialize data loaders. Next, we will fetch region proposals (input regions to
+    the model) and the ground truth of the bounding box offset, along with the class
+    of object (expected output).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching region proposals and the ground truth of offset
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this section, we will learn to create the input and output values corresponding
+    to our model. The input constitutes the candidates that are extracted using the
+    `selectivesearch` method, and the output constitutes the class corresponding to
+    candidates and the offset of the candidate with respect to the bounding box it
+    overlaps the most with if the candidate contains an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will continue coding from where we ended in the preceding section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Initialize empty lists to store file paths (`FPATHS`), ground truth bounding
+    boxes (`GTBBS`), classes (`CLSS`) of objects, the delta offset of a bounding box
+    with region proposals (`DELTAS`), region proposal locations (`ROIS`), and the
+    IoU of region proposals with ground truths (`IOUS`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Loop through the dataset and populate the lists initialized in *step 1*:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For this exercise, we can use all the data points for training or illustrate
+    with just the first 500 data points. You can choose between either of the two,
+    which dictates the training time and training accuracy (the greater the data points,
+    the greater the training time and accuracy):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we specify that we will work on 500 images.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Extract candidates from each image (`im`) in absolute pixel values (note that
+    `XMin`, `Xmax`, `YMin`, and `YMax` are available as a proportion of the shape
+    of images in the downloaded data frame) using the `extract_candidates` function
+    and convert the extracted regions coordinates from an (x,y,w,h) system to an (x,y,x+w,y+h)
+    system:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize `ious`, `rois`, `deltas`, and `clss` as lists that store `iou` for
+    each candidate, region proposal location, bounding box offset, and class corresponding
+    to every candidate for each image. We will go through all the proposals from SelectiveSearch
+    and store those with a high IOU as bus/truck proposals (whichever is the class
+    in labels) and the rest as background proposals:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Store the IoU of all candidates with respect to all ground truths for an image
+    where `bbs` is the ground truth bounding box of different objects present in the
+    image, and `candidates` consists of the region proposal candidates obtained in
+    the previous step:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Loop through each candidate and store the XMin (`cx`), YMin (`cy`), XMax (`cX`),
+    and YMax (`cY`) values of a candidate:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract the IoU corresponding to the candidate with respect to all the ground
+    truth bounding boxes that were already calculated when fetching the list of lists
+    of IoUs:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Find the index of a candidate (`best_iou_at`) that has the highest IoU and
+    the corresponding ground truth (`best_bb`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If IoU (`best_iou`) is greater than a threshold (0.3), we assign the label
+    of the class corresponding to the candidate, and the background otherwise:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the offsets needed (`delta`) to transform the current proposal into the
+    candidate that is the best region proposal (which is the ground truth bounding
+    box) – `best_bb` – in other words, how much the left, right, top, and bottom margins
+    of the current proposal should be adjusted so that it aligns exactly with `best_bb`
+    from the ground truth:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Append the file paths, IoU, RoI, class delta, and ground truth bounding boxes:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the image path names and store all the information obtained, `FPATHS`,
+    `IOUS`, `ROIS`, `CLSS`, `DELTAS`, and `GTBBS`, in a list of lists:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that, so far, classes are available as the name of the class. Now, we will
+    convert them into their corresponding indices so that a background class has a
+    class index of 0, a bus class has a class index of 1, and a truck class has a
+    class index of 2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Assign indices to each class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With that, we have assigned a class to each region proposal and also created
+    the other ground truth of the bounding box offset. Next, we will fetch the dataset
+    and the data loaders corresponding to the information obtained (`FPATHS`, `IOUS`,
+    `ROIS`, `CLSS`, `DELTAS`, and `GTBBS`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the training data
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: So far, we have fetched data, fetched region proposals across all images, prepared
+    the ground truths of the class of object present within each region proposal,
+    and the offset corresponding to each region proposal that has a high overlap (IoU)
+    with the object in the corresponding image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will prepare a dataset class based on the ground truth
+    of region proposals that were obtained at the end of *step 3 in the previous section*,
+    creating data loaders from it. Then, we will normalize each region proposal by
+    resizing them to the same shape and scaling them. We will continue coding from
+    where we left off in the preceding section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the function to normalize an image before passing through a pretrained
+    model like VGG16\. The standard normalization practice for VGG16 is as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a function (`preprocess_image`) to preprocess the image (`img`), where
+    we switch channels, normalize the image, and register it with the device:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to `decode` prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Define the dataset (`RCNNDataset`) using the preprocessed region proposals,
+    along with the ground truths obtained in the previous step (*step 2 of the previous
+    section*):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the crops as per the region proposals, along with the other ground truths
+    related to the class and bounding box offset:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define `collate_fn`, which performs the resizing and normalizing (`preprocess_image`)
+    of an image of a crop:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create the training and validation datasets and the data loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: So far, we have learned about preparing data for training. Next, we will learn
+    about defining and training a model that predicts the class and offset to be made
+    to a region proposal, to fit a tight bounding box around objects in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: R-CNN network architecture
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we have prepared the data, in this section, we will learn about building
+    a model that can predict both the class of a region proposal and the offset corresponding
+    to it, in order to draw a tight bounding box around the object in an image. The
+    strategy we adopt is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Define a VGG backbone.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fetch the features after passing the normalized crop through a pretrained model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Attach a linear layer with sigmoid activation to the VGG backbone to predict
+    the class corresponding to the region proposal.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Attach an additional linear layer to predict the four bounding-box offsets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the loss calculations for each of the two outputs (one to predict the
+    class and the other to predict the four bounding-box offsets).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the model that predicts both the class of region proposal and the four
+    bounding-box offsets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Execute the following code. We will continue coding from where we ended in
+    the preceding section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a VGG backbone:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `RCNN` network module:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the backbone (`self.backbone`) and how we calculate the class score
+    (`self.cls_score`) and the bounding-box offset values (`self.bbox`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the loss functions corresponding to class prediction (`self.cel`) and
+    bounding-box offset regression (`self.sl1`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the feed-forward method where we pass the image through a VGG backbone
+    (`self.backbone`) to fetch features (`feat`), which are further passed through
+    the methods corresponding to classification and bounding-box regression to fetch
+    the probabilities across classes (`cls_score`) and the bounding-box offsets (`bbox`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to calculate loss (`calc_loss`), where we return the sum
+    of detection and regression loss. Note that we do not calculate regression loss
+    corresponding to offsets if the actual class is the background class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the model class in place, we now define the functions to train on a batch
+    of data and predict on validation data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the `train_batch` function:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `validate_batch` function:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, let’s create an object of the model, fetch the loss criterion, and then
+    define the optimizer and the number of epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We now train the model over increasing epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'The plot of overall loss across training and validation data is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_07_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.13: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have trained a model, we will use it to predict on a new image in
+    the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predicting on a new image
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s leverage the model trained so far to predict and draw bounding boxes
+    around objects and the corresponding class of an object, within the predicted
+    bounding box on new images. The strategy we adopt is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extract region proposals from the new image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resize and normalize each crop.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Feed-forward the processed crops to predict the class and the offsets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Perform non-max suppression to fetch only those boxes that have the highest
+    confidence of containing an object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We execute the preceding strategy through a function that takes an image as
+    input and a ground-truth bounding box (this is used only so that we compare the
+    ground truth and the predicted bounding box).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will continue coding from where we left off in the preceding section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the `test_predictions` function to predict on a new image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The function takes `filename` as input, reads the image, and extracts the candidates:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Loop through the candidates to resize and preprocess the image:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Predict the class and offset:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract the candidates that do not belong to the background class and sum up
+    the candidates’ bounding box with the predicted bounding-box offset values:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Use non-max suppression (`nms`) to eliminate near-duplicate bounding boxes
+    (pairs of boxes that have an IoU greater than 0.05 are considered duplicates in
+    this case). Among the duplicated boxes, we pick the box with the highest confidence
+    and discard the rest:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the bounding box with the highest confidence:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the image along with the predicted bounding box:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Execute the preceding function on a new image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.14: Original image and the predicted bounding box and class'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding figure, we can see that the prediction of the class of an
+    image is accurate and the bounding-box prediction is decent, too. Note that it
+    took ~1.5 seconds to generate a prediction for the preceding image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All of this time is spent generating region proposals, resizing each region
+    proposal, passing them through a VGG backbone, and generating predictions using
+    the defined model. The most time spent is in passing each proposal through a VGG
+    backbone. In the next section, we will learn about getting around this *passing
+    each proposal to VGG* problem by using the Fast R-CNN architecture-based model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training Fast R-CNN-based custom object detectors
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One of the major drawbacks of R-CNN is that it takes considerable time to generate
+    predictions. This is because generating region proposals for each image, resizing
+    the crops of regions, and extracting features corresponding to **each crop** (region
+    proposal) create a bottleneck.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fast R-CNN gets around this problem by passing the **entire image** through
+    the pretrained model to extract features, and then it fetches the region of features
+    that correspond to the region proposals (which are obtained from `selectivesearch`)
+    of the original image. In the following sections, we will learn about the working
+    details of Fast R-CNN before training it on our custom dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working details of Fast R-CNN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s understand Fast R-CNN through the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing diagram  Description automatically generated](img/B18457_07_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.15: Working details of Fast R-CNN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s understand the preceding diagram through the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pass the image through a pretrained model to extract features prior to the flattening
+    layer; let’s call them output feature maps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Extract region proposals corresponding to the image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Extract the feature map area corresponding to the region proposals (note that
+    when an image is passed through a VGG16 architecture, the image is downscaled
+    by 32 at the output, as five pooling operations are performed. Thus, if a region
+    exists with a bounding box of (32,64,160,128) in the original image, the feature
+    map corresponding to the bounding box of (1,2,5,4) would correspond to the exact
+    same region).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the feature maps corresponding to region proposals through the **region
+    of interest** (**RoI**) pooling layer one at a time so that all feature maps of
+    region proposals have a similar shape. This is a replacement for the warping that
+    was executed in the R-CNN technique.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the RoI pooling layer output value through a fully connected layer.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the model to predict the class and offsets corresponding to each region
+    proposal.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note that the big difference between R-CNN and Fast R-CNN is that, in R-CNN,
+    we pass the crops (resized region proposals) through the pretrained model one
+    at a time, while in Fast R-CNN, we crop the feature map (which is obtained by
+    passing the whole image through a pretrained model) corresponding to each region
+    proposal, thereby avoiding the need to pass each resized region proposal through
+    the pretrained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now armed with an understanding of how Fast R-CNN works, in the next section,
+    we will build a model using the same dataset that we leveraged in the R-CNN section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing Fast R-CNN for object detection on a custom dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will work toward training our custom object detector using
+    Fast R-CNN. To remain succinct, we provide only the additional or changed code
+    in this section (you should run all the code until *step 2* in the *Creating the
+    training data* subsection in the previous section about R-CNN):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we only provide the additional code to train Fast R-CNN. Find the full
+    code in the `Training_Fast_R_CNN.ipynb` file in the `Chapter07` folder on GitHub
+    at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create an `FRCNNDataset` class that returns images, labels, ground truths,
+    region proposals, and the delta corresponding to each region proposal:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the preceding code is very similar to what we have learned in the
+    R-CNN section, with the only change being that we are returning more information
+    (`rois` and `rixs`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `rois` matrix holds information regarding which RoI belongs to which image
+    in the batch. Note that `input` contains multiple images, whereas `rois` is a
+    single list of boxes. We wouldn’t know how many RoIs belong to the first image,
+    how many belong to the second image, and so on. This is where `rixs` comes into
+    the picture. It is a list of indexes. Each integer in the list associates the
+    corresponding bounding box with the appropriate image; for example, if `rixs`
+    is `[0,0,0,1,1,2,3,3,3]`, then we know that the first three bounding boxes belong
+    to the first image in the batch, and the next two belong to the second image in
+    the batch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create training and test datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a model to train on the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'First, import the `RoIPool` method present in the `torchvision.ops` class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `FRCNN` network module:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the pretrained model and freeze the parameters:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract features until the last layer:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify that `RoIPool` is to extract a 7 x 7 output. Here, `spatial_scale`
+    is the factor by which proposals (which come from the original image) need to
+    be shrunk so that every output has the same shape before passing through the flatten
+    layer. Images are 224 x 224 in size, while the feature map is 14 x 14 in size:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the output heads – `cls_score` and `bbox`:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the loss functions:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `forward` method, which takes the image, region proposals, and the
+    index of region proposals as input for the network defined earlier:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass the `input` image through the pretrained model:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create a matrix of `rois` as input for `self.roipool`, first by concatenating
+    `ridx` as the first column and the next four columns being the absolute values
+    of the region proposal bounding boxes:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the loss value calculation (`calc_loss`), just like we did in the *R-CNN*
+    section:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to train and validate on a batch, just like we did in
+    the *Training* *R-CNN-based custom object detectors* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define and train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The variation in overall loss is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_07_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.16: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a function to predict on test images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the function that takes a filename as input and then reads the file
+    and resizes it to 224 x 224:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Obtain the region proposals, convert them to the `(x1,y1,x2,y2)` format (top-left
+    pixel and bottom-right pixel coordinates), and then convert these values to the
+    ratio of width and height that they are present in, in proportion to the image:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Preprocess the image and scale the RoIs (`rois`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As all proposals belong to the same image, `rixs` will be a list of zeros (as
+    many as the number of proposals):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Forward-propagate the input, RoIs through the trained model, and get the confidence
+    and class scores for each proposal:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Filter out the background class:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Remove near-duplicate bounding boxes with `nms`, and get indices of those proposals
+    in which the highly confident models are objects:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the bounding boxes obtained:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Predict on a test image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_07_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.17: Original image and the predicted bounding box and classes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding code executes in 1.5 seconds. This is primarily because we are
+    still using two different models, one to generate region proposals and another
+    to make predictions of class and corrections. In the next chapter, we will learn
+    about having a single model to make predictions so that inference is quick in
+    a real-time scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we began by learning about creating a training dataset for
+    the process of object localization and detection. Then, we learned about SelectiveSearch,
+    a region proposal technique that recommends regions based on the similarity of
+    pixels in proximity. We also learned about calculating the IoU metric to understand
+    the goodness of the predicted bounding box around the objects present in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, we looked at performing non-max suppression to fetch one bounding
+    box per object within an image, before learning about building R-CNN and Fast
+    R-CNN models from scratch. We also explored why R-CNN is slow and how Fast R-CNN
+    leverages RoI pooling and fetches region proposals from feature maps to make inference
+    faster. Finally, we understood that having region proposals coming from a separate
+    model results in more time taken to predict on new images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about some of the modern object detection
+    techniques that are used to make inferences on a more real-time basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How does the region proposal technique generate proposals?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is IoU calculated if there are multiple objects in an image?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why is Fast R-CNN faster than R-CNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does RoI pooling work?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the impact of not having multiple layers after obtaining a feature map
+    when predicting bounding-box corrections?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we have to assign a higher weight to regression loss when calculating
+    overall loss?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does non-max suppression work?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

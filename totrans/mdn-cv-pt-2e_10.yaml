@@ -1,0 +1,1646 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Advanced Object Detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about the R-CNN and Fast R-CNN techniques,
+    which leverage region proposals to generate predictions of the locations of objects
+    in an image along with the classes corresponding to objects in the image. Furthermore,
+    we learned about the bottleneck of the speed of inference, which happens due to
+    having two different models – one for region proposal generation and another for
+    object detection. In this chapter, we will learn about different modern techniques,
+    such as Faster R-CNN, YOLO, and **single-shot detector** (**SSD**), that overcome
+    slow inference time by employing a single model to make predictions for both the
+    class of the object and the bounding box in a single shot. We will start by learning
+    about anchor boxes and then proceed to learn how each of the techniques works
+    and how to implement them to detect objects in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Components of modern object detection algorithms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training Faster R-CNN on a custom dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working details of YOLO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training YOLO on a custom dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working details of SSD
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training SSD on a custom dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In addition to the above, as a bonus, we have covered the following in the
+    GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training YOLOv8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training the EfficientDet architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All code snippets within this chapter are available in the `Chapter08` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As the field evolves, we will periodically add valuable supplements to the GitHub
+    repository. Do check the `supplementary_sections` folder within each chapter’s
+    directory for new and useful content.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Components of modern object detection algorithms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The drawback of the R-CNN and Fast R-CNN techniques is that they have two disjointed
+    networks – one to identify the regions that likely contain an object and the other
+    to make corrections to the bounding box where an object is identified. Furthermore,
+    both models require as many forward propagations as there are region proposals.
+    Modern object detection algorithms focus heavily on training a single neural network
+    and have the capability to detect all objects in one forward pass. The various
+    components of a typical modern object detection algorithm are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anchor boxes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Region proposal network (RPN)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Region of interest (RoI) pooling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s discuss these in the following subsections (we’ll be focusing on anchor
+    boxes and RPN as we discussed RoI pooling in the previous chapter).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anchor boxes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: So far, we have had region proposals coming from the `selectivesearch` method.
+    Anchor boxes come in as a handy replacement for selective search – we will learn
+    how they replace `selectivesearch`-based region proposals in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typically, a majority of objects have a similar shape – for example, in a majority
+    of cases, a bounding box corresponding to an image of a person will have a greater
+    height than width, and a bounding box corresponding to the image of a truck will
+    have a greater width than height. Thus, we will have a decent idea of the height
+    and width of the objects present in an image even before training the model (by
+    inspecting the ground truths of bounding boxes corresponding to objects of various
+    classes).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, in some images, the objects of interest might be scaled – resulting
+    in a much smaller or much greater height and width than average – while still
+    maintaining the aspect ratio (that is, height/weight).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have a decent idea of the aspect ratio and the height and width of objects
+    (which can be obtained from ground-truth values in the dataset) present in our
+    images, we define the anchor boxes with heights and widths representing the majority
+    of objects’ bounding boxes within our dataset. Typically, this is obtained by
+    employing K-means clustering on top of the ground-truth bounding boxes of objects
+    present in images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we understand how anchor boxes’ heights and widths are obtained, we
+    will learn how to leverage them in the process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Slide each anchor box over an image from top left to bottom right.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The anchor box that has a high **intersection over union** (**IoU**) with the
+    object will have a label that mentions that it contains an object, and the others
+    will be labeled `0`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We can modify the threshold of the IoU by mentioning that if the IoU is greater
+    than a certain threshold, the object class is `1`; if it is less than another
+    threshold, the object class is `0`, and it is unknown otherwise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we obtain the ground truths as defined here, we can build a model that
+    can predict the location of an object and also the offset corresponding to the
+    anchor box to match it with the ground truth. Let’s now understand how anchor
+    boxes are represented in the following image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: Sample anchor boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we have two anchor boxes, one that has a greater height
+    than width and the other with a greater width than height, to correspond to the
+    objects (classes) in the image – a person and a car.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We slide the two anchor boxes over the image and note the locations where the
+    IoU of the anchor box with the ground truth is the highest and denote that this
+    particular location contains an object while the rest of the locations do not
+    contain an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition to the preceding two anchor boxes, we would also create anchor
+    boxes with varying scales so that we accommodate the differing scales at which
+    an object can be presented within an image. An example of how the different scales
+    of anchor boxes is as follows. Note that all the anchor boxes have the same center
+    but different aspect ratios or scales:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: Anchor boxes with different scale and aspect ratios'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand anchor boxes, in the next section, we will learn about
+    the RPN, which leverages anchor boxes to come up with predictions of regions that
+    are likely to contain an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Region proposal network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Imagine a scenario where we have a 224 x 224 x 3 image. Furthermore, let’s say
+    that the anchor box is of shape 8 x 8 for this example. If we have a stride of
+    8 pixels, we are fetching 224/8 = 28 crops of a picture for every row – essentially
+    28*28 = 576 crops from a picture. We then take each of these crops and pass them
+    through an RPN that indicates whether the crop contains an object. Essentially,
+    an RPN suggests the likelihood of a crop containing an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s compare the output of `selectivesearch` and the output of an RPN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`selectivesearch` gives us a region candidate based on a set of computations
+    on top of pixel values. However, an RPN generates region candidates based on the
+    anchor boxes and the strides with which anchor boxes are slid over the image.
+    Once we obtain the region candidates using either of these two methods, we identify
+    the candidates that are most likely to contain an object.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While region proposal generation based on `selectivesearch` is done outside
+    of the neural network, we can build an RPN that is a part of the object detection
+    network. Using an RPN, we are now in a position where we don’t have to perform
+    unnecessary computations to calculate region proposals outside of the network.
+    This way, we have a single model to identify regions, identify classes of objects
+    in an image, and identify their corresponding bounding box locations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will learn how an RPN identifies whether a region candidate (a crop
+    obtained after sliding an anchor box) contains an object or not. In our training
+    data, we would have the ground truth correspond to objects. We now take each region
+    candidate and compare it with the ground-truth bounding boxes of objects in an
+    image to identify whether the IoU between a region candidate and a ground-truth
+    bounding box is greater than a certain threshold. If the IoU is greater than a
+    certain threshold (say, `0.5`), the region candidate contains an object, and if
+    the IoU is less than a threshold (say, `0.1`), the region candidate does not contain
+    an object and all the candidates that have an IoU between the two thresholds (`0.1`
+    and `0.5`) are ignored while training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we train a model to predict if the region candidate contains an object,
+    we then perform non-max suppression, as multiple overlapping regions can contain
+    an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In summary, an RPN trains a model to enable it to identify region proposals
+    with a high likelihood of containing an object by performing the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Slide anchor boxes of different aspect ratios and sizes across the image to
+    fetch crops of an image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Calculate the IoU between the ground-truth bounding boxes of objects in the
+    image and the crops obtained in the previous step.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Prepare the training dataset in such a way that crops with an IoU greater than
+    a threshold contain an object and crops with an IoU less than a threshold do not
+    contain an object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the model to identify regions that contain an object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Perform non-max suppression to identify the region candidate that has the highest
+    probability of containing an object and eliminate other region candidates that
+    have a high overlap with it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We now pass the region candidates through an RoI pooling layer to get regions
+    of the shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classification and regression
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'So far, we have learned about the following steps in order to identify objects
+    and perform offsets to bounding boxes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identify the regions that contain objects.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Ensure that all the feature maps of regions, irrespective of the regions’ shape,
+    are exactly the same using RoI pooling (which we learned about in the previous
+    chapter).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Two issues with these steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The region proposals do not correspond tightly over the object (`IoU>0.5` is
+    the threshold we had in the RPN).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We identified whether the region contains an object or not, but not the class
+    of the object located in the region.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We address these two issues in this section, where we take the uniformly shaped
+    feature map obtained previously and pass it through a network. We expect the network
+    to predict the class of the object contained within the region and also the offsets
+    corresponding to the region to ensure that the bounding box is as tight as possible
+    around the object in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s understand this through the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: Predicting the class of object and the offset to be done to the
+    predicted bounding box'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram, we are taking the output of RoI pooling as input
+    (the 7 x 7 x 512 shape), flattening it, and connecting it to a dense layer before
+    predicting two different aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Class of object in the region
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Amount of offset to be done on the predicted bounding boxes of the region to
+    maximize the IoU with the ground truth
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hence, if there are 20 classes in the data, the output of the neural network
+    contains a total of 25 outputs – 21 classes (including the background class) and
+    the 4 offsets to be applied to the height, width, and two center coordinates of
+    the bounding box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have learned about the different components of an object detection
+    pipeline, let’s summarize it with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: Faster R-CNN workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: More details about Faster R-CNN can be found in the paper here – [https://arxiv.org/pdf/1506.01497.pdf](https://arxiv.org/pdf/1506.01497.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the working details of each of the components of Faster R-CNN in place,
+    in the next section, we will code up object detection using the Faster R-CNN algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training Faster R-CNN on a custom dataset
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the following code, we will train the Faster R-CNN algorithm to detect the
+    bounding boxes around objects present in images. For this, we will work on the
+    same truck versus bus detection exercise from the previous chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Training_Faster_RCNN.ipynb` file in the `Chapter08`
+    folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Read the DataFrame containing metadata of information about images and their
+    bounding box, and classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the indices corresponding to labels and targets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function to preprocess an image – `preprocess_image`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the dataset class – `OpenDataset`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define an `__init__` method that takes the folder containing images and the
+    DataFrame containing the metadata of the images as inputs:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `__getitem__` method, where we return the preprocessed image and
+    the target values:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that, for the first time, we are returning the output as a dictionary of
+    tensors and not as a list of tensors. This is because the official PyTorch implementation
+    of the `FRCNN` class expects the target to contain the absolute coordinates of
+    bounding boxes and the label information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the `collate_fn` method (by default, `collate_fn` works only with tensors
+    as inputs, but here, we are dealing with a list of dictionaries) and the `__len__`
+    method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Create the training and validation dataloaders and datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The model contains the following key submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.5: Faster R-CNN architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding output, we notice the following elements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`GeneralizedRCNNTransform` is a simple resize followed by a normalize transformation:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.6: Transformation on input'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`BackboneWithFPN` is a neural network that transforms input into a feature
+    map.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`RegionProposalNetwork` generates the anchor boxes for the preceding feature
+    map and predicts individual feature maps for classification and regression tasks:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7: RPN architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`RoIHeads` takes the preceding maps, aligns them using ROI pooling, processes
+    them, and returns classification probabilities for each proposal and the corresponding
+    offsets:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.8: The roi_heads architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define functions to train on batches of data and calculate loss values on the
+    validation data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the model:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model and calculate the loss values on the training and test datasets:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the variation of the various loss values over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.9: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Predict on a new image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The output of the trained model contains boxes, labels, and scores corresponding
+    to classes. In the following code, we define a `decode_output` function that takes
+    the model’s output and provides the list of boxes, scores, and classes after non-max
+    suppression:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the predictions of the boxes and classes on test images:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code provides the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.10: Predicted bounding boxes and classes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that it now takes ~400 ms to generate predictions for one image, compared
+    to 1.5 seconds with Fast R-CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we have trained a Faster R-CNN model using the `fasterrcnn_resnet50_fpn`
+    model class provided in the PyTorch `models` package. In the next section, we
+    will learn about YOLO, a modern object detection algorithm that performs both
+    object class detection and region correction in a single shot without the need
+    to have a separate RPN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working details of YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**You Only Look Once** (**YOLO**) and its variants are one of the prominent
+    object detection algorithms. In this section, we will understand at a high level
+    how YOLO works and the potential limitations of R-CNN-based object detection frameworks
+    that YOLO overcomes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s understand the possible limitations of R-CNN-based detection algorithms.
+    In Faster R-CNN, we slide over the image using anchor boxes and identify regions
+    likely to contain an object, and then make the bounding box corrections. However,
+    in the fully connected layer, where only the detected region’s RoI pooling output
+    is passed as input, in the case of regions that do not fully encompass the object
+    (where the object is beyond the boundaries of the bounding box of region proposal),
+    the network has to guess the real boundaries of the object, as it has not seen
+    the full image (but has seen only the region proposal). YOLO comes in handy in
+    such scenarios, as it looks at the whole image while predicting the bounding box
+    corresponding to an image. Furthermore, Faster R-CNN is still slow, as we have
+    two networks: the RPN and the final network that predicts classes and bounding
+    boxes around objects.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s understand how YOLO overcomes the limitations of Faster R-CNN, both by
+    looking at the whole image at once as well as by having a single network to make
+    predictions. We will look at how data is prepared for YOLO through the following
+    example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we create a ground truth to train a model for a given image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider an image with the given ground truth of bounding boxes in red:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.11: Input image with ground-truth bounding boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Divide the image into *N* x *N* grid cells – for now, let’s say *N*=3:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.12: Dividing the input image into a 3 x 3 grid'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identify those grid cells that contain the center of at least one ground-truth
+    bounding box. In our case, they are cells **b1** and **b3** of our 3 x 3 grid
+    image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The cell(s) where the middle point of the ground-truth bounding box falls is/are
+    responsible for predicting the bounding box of the object. Let’s create the ground
+    truth corresponding to each cell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The output ground truth corresponding to each cell is as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.13: Ground truth representation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, **pc** (the objectness score) is the probability of the cell containing
+    an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s understand how to calculate **bx**, **by**, **bw**, and **bh**. First,
+    we consider the grid cell (let’s consider the **b1** grid cell) as our universe,
+    and normalize it to a scale between 0 and 1, as follows:![](img/B18457_08_14.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 8.14: Step 1 of calculating bx, by, bw, and bh for each ground truth'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**bx** and **by** are the locations of the midpoint of the ground-truth bounding
+    box with respect to the image (of the grid cell), as defined previously. In our
+    case, **bx** = 0.5, as the midpoint of the ground truth is at a distance of 0.5
+    units from the origin. Similarly, **by** = 0.5:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.15: Calculating bx and by'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So far, we have calculated offsets from the grid cell center to the ground
+    truth center corresponding to the object in the image. Now, let’s understand how
+    **bw** and **bh** are calculated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**bw** is the ratio of the width of the bounding box with respect to the width
+    of the grid cell.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**bh** is the ratio of the height of the bounding box with respect to the height
+    of the grid cell.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, we will predict the class corresponding to the grid cell. If we have three
+    classes (`c1` – `truck`, `c2` – `car`, and `c3` – `bus`), we will predict the
+    probability of the cell containing an object among any of the three classes. Note
+    that we do not need a background class here, as **pc** corresponds to whether
+    the grid cell contains an object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now that we understand how to represent the output layer of each cell, let’s
+    understand how we construct the output of our 3 x 3 grid cells:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s consider the output of the grid cell **a3**:![](img/B18457_08_16.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 8.16: Calculating the ground truth corresponding to cell a3'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The output of cell **a3** is as shown in the preceding screenshot. As the grid
+    cell does not contain an object, the first output (**pc** – objectness score)
+    is `0` and the remaining values do not matter as the cell does not contain the
+    center of any ground-truth bounding boxes of an object.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Let’s consider the output corresponding to grid cell **b1**:![](img/B18457_08_17.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 8.17: Ground truth values corresponding to cell b1'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The preceding output is the way it is because the grid cell contains an object
+    with the **bx**, **by**, **bw**, and **bh** values that were obtained in the same
+    way as we went through earlier (in the bullet point before last), and finally,
+    the class being `car` resulting in c2 being `1` while c1 and c3 are `0`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that for each cell, we are able to fetch 8 outputs. Hence, for the 3 x
+    3 grid of cells, we fetch 3 x 3 x 8 outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at the next steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define a model where the input is an image and the output is 3 x 3 x 8 with
+    the ground truth being as defined in the previous step:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.18: Sample model architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Define the ground truth by considering the anchor boxes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'So far, we have been building for a scenario where the expectation is that
+    there is only one object within a grid cell. However, in reality, there can be
+    scenarios where there are multiple objects within the same grid cell. This would
+    result in creating ground truths that are incorrect. Let’s understand this phenomenon
+    through the following example image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.19: Scenario where there can be multiple objects in the same grid
+    cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding example, the midpoint of the ground-truth bounding boxes for
+    both the car and the person fall in the same cell – cell **b1**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to avoid such a scenario is by having a grid that has more rows and
+    columns – for example, a 19 x 19 grid. However, there can still be a scenario
+    where an increase in the number of grid cells does not help. Anchor boxes come
+    in handy in such a scenario. Let’s say we have two anchor boxes – one that has
+    a greater height than width (corresponding to the person) and another that has
+    a greater width than height (corresponding to the car):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.20: Leveraging anchor boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Typically, the anchor boxes would have the grid cell center as their centers.
+    The output for each cell in a scenario where we have two anchor boxes is represented
+    as a concatenation of the output expected of the two anchor boxes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.21: Ground truth representation when there are two anchor boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, **bx**, **by**, **bw**, and **bh** represent the offset from the anchor
+    box (which is the universe in this scenario, as seen in the image instead of the
+    grid cell).
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding screenshot, we see we have an output that is 3 x 3 x 16,
+    as we have two anchors. The expected output is of the shape *N* x *N* x `num_classes`
+    x `num_anchor_boxes`, where *N* x *N* is the number of cells in the grid, `num_classes`
+    is the number of classes in the dataset, and `num_anchor_boxes` is the number
+    of anchor boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we define the loss function to train the model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When calculating the loss associated with the model, we need to ensure that
+    we do not calculate the regression loss and classification loss when the objectness
+    score is less than a certain threshold (this corresponds to the cells that do
+    not contain an object).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, if the cell contains an object, we need to ensure that the classification
+    across different classes is as accurate as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, if the cell contains an object, the bounding box offsets should be
+    as close to expected as possible. However, since the offsets of width and height
+    can be much higher when compared to the offset of the center (as offsets of the
+    center range between 0 and 1, while the offsets of width and height need not),
+    we give a lower weightage to offsets of width and height by fetching a square
+    root value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the loss of localization and classification as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_08_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_08_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, we observe the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_004.png) is the weightage associated with regression loss'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_005.png) represents whether the cell contains an object'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_006.png) corresponds to the predicted class probability'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_007.png) represents the objectness score'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The overall loss is a sum of classification and regression loss values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this in place, we are now in a position to train a model to predict the
+    bounding boxes around objects. However, for a stronger understanding of YOLO and
+    its variants, we encourage you to go through the original paper at [https://arxiv.org/pdf/1506.02640](https://arxiv.org/pdf/1506.02640).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how YOLO predicts bounding boxes and classes of objects
+    in a single shot, we will code it up in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training YOLO on a custom dataset
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building on top of others’ work is very important to becoming a successful practitioner
+    in deep learning. For this implementation, we will use the official YOLOv4 implementation
+    to identify the location of buses and trucks in images. We will clone the repository
+    of the YOLO authors’ own implementation and customize it to our needs in the following
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To train the latest YOLO models, we strongly recommend you go through the following
+    repos – [https://github.com/ultralytics/ultralytics](https://github.com/ultralytics/ultralytics)
+    and [https://github.com/WongKinYiu/yolov7](https://github.com/WongKinYiu/yolov7).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have provided the working implementation of YOLOv8 as `Training_YOLOv8.ipynb`
+    within the `Chapter08` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing Darknet
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, pull the `darknet` repository from GitHub and compile it in the environment.
+    The model is written in a separate language called Darknet, which is different
+    from PyTorch. We will do so using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `Training_YOLO.ipynb` file in the `Chapter08`
+    folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pull the Git repo:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Reconfigure the `Makefile` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`Makefile` is a configuration file needed for installing `darknet` in the environment
+    (think of this process as similar to the selections you make when installing software
+    on Windows). We are forcing `darknet` to be installed with the following flags:
+    `OPENCV`, `GPU`, `CUDNN`, and `CUDNN_HALF`. These are all important optimizations
+    to make the training faster. Furthermore, in the preceding code, there is a curious
+    function called `sed`, which stands for **stream editor**. It is a powerful Linux
+    command that can modify information in text files directly from Command Prompt.
+    Specifically, here we are using its search-and-replace function to replace `OPENCV=0`
+    with `OPENCV=1`, and so on. The syntax to understand here is `sed ''s/<search-string>/<replace-with>/''path/to/text/file`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Compile the `darknet` source code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Install the `torch_snippets` package:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download and extract the dataset, and remove the ZIP file to save space:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the pre-trained weights to make a sample prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Test whether the installation is successful by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This would make a prediction on `data/person.jpg` using the network built from
+    `cfg/yolov4.cfg` and pre-trained weights – `yolov4.weights`. Furthermore, it fetches
+    the classes from `cfg/coco.data`, which is what the pre-trained weights were trained
+    on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding code results in predictions on the sample image (`data/person.jpg`),
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.22: Prediction on a sample image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about installing `darknet`, in the next section, we
+    will learn about creating ground truths for our custom dataset to leverage `darknet`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the dataset format
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: YOLO uses a fixed format for training. Once we store the images and labels in
+    the required format, we can train on the dataset with a single command. So, let’s
+    learn about the files and folder structure needed for YOLO to train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three important steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a text file at `data/obj.names` containing the names of classes, one
+    class per line, by running the following line (`%%writefile` is a magic command
+    that creates a text file at `data/obj.names` with whatever content is present
+    in the notebook cell):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create a text file at `data/obj.data` describing the parameters in the dataset
+    and the locations of text files containing the train and test image paths and
+    the location of the file containing object names and the folder where you want
+    to save trained models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The extensions for the preceding text files are not `.txt`. YOLO uses hardcoded
+    names and folders to identify where data is. Also, the magic `%%writefile` Jupyter
+    function creates a file with the content mentioned in a cell, as shown previously.
+    Treat each `%%writefile` `...` as a separate cell in Jupyter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Move all images and ground-truth text files to the `data/obj` folder. We will
+    copy images from the `bus-trucks` dataset to this folder along with the labels:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that all the training and validation images are in the same `data/obj`
+    folder. We also move a bunch of text files to the same folder. Each file that
+    contains the ground truth for an image shares the same name as the image. For
+    example, the folder might contain `1001.jpg` and `1001.txt`, implying that the
+    text file contains labels and bounding boxes for that image. If `data/train.txt`
+    contains `1001.jpg` as one of its lines, then it is a training image. If it’s
+    present in `val.txt`, then it is a validation image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The text file itself should contain information like so: `cls`, `xc`, `yc`,
+    `w`, `h`, where `cls` is the class index of the object in the bounding box present
+    at (`xc`, `yc`), which represents the centroid of the rectangle of width `w` and
+    height `h`. Each of `xc`, `yc`, `w`, and `h` is a fraction of the image width
+    and height. Store each object on a separate line.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, if an image of width (`800`) and height (`600`) contains one truck
+    and one bus at centers (`500,300`) and (`100,400`) respectively, and has widths
+    and heights of (`200,100`) and (`300,50`) respectively, then the text file would
+    look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have created the data, let’s configure the network architecture
+    in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring the architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: YOLO comes with a long list of architectures. Some are large and some are small,
+    to train on large or small datasets. Configurations can have different backbones.
+    There are pre-trained configurations for standard datasets. Each configuration
+    is a `.cfg` file present in the `cfgs` folder of the same GitHub repo that we
+    cloned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each of them contains the architecture of the network as a text file (as opposed
+    to how we were building it with the `nn.Module` class) along with a few hyperparameters,
+    such as batch size and learning rate. We will take the smallest available architecture
+    and configure it for our dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: This way, we have repurposed `yolov4-tiny` to be trainable on our dataset. The
+    only remaining step is to load the pre-trained weights and train the model, which
+    we will do in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and testing the model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will get the weights from the following GitHub location and store them in
+    `build/darknet/x64`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we will train the model using the following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `-dont_show` flag skips showing intermediate prediction images and `-mapLastAt`
+    will periodically print the mean average precision on the validation data. The
+    whole of the training might take 1 or 2 hours with GPU. The weights are periodically
+    stored in a backup folder and can be used after training for predictions such
+    as the following code, which makes predictions on a new image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_23.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.23: Predicted bounding box and class on input images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about leveraging YOLO to perform object detection on
+    our custom dataset, in the next section, we will learn about another object detection
+    technique – **Single-Shot Detector** (**SSD**) to perform object detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working details of SSD
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have seen a scenario where we made predictions after gradually convolving
+    and pooling the output from the previous layer. However, we know that different
+    layers have different receptive fields to the original image. For example, the
+    initial layers have a smaller receptive field when compared to the final layers,
+    which have a larger receptive field. Here, we will learn how SSD leverages this
+    phenomenon to come up with a prediction of bounding boxes for images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The workings behind how SSD helps overcome the issue of detecting objects with
+    different scales is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We leverage the pre-trained VGG network and extend it with a few additional
+    layers until we obtain a 1 x 1 block.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Instead of leveraging only the final layer for bounding box and class predictions,
+    we will leverage all of the last few layers to make class and bounding box predictions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In place of anchor boxes, we will come up with default boxes that have a specific
+    set of scale and aspect ratios.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each of the default boxes should predict the object and bounding box offset,
+    just like how anchor boxes are expected to predict classes and offsets in YOLO.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now that we understand the main ways in which SSD differs from YOLO (which
+    is that default boxes in SSD replace anchor boxes in YOLO and multiple layers
+    are connected to the final layer in SSD, instead of gradual convolution pooling
+    in YOLO), let’s learn about the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The network architecture of SSD
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to leverage different layers for bounding box and class predictions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to assign scale and aspect ratios for default boxes in different layers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The network architecture of SSD is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_24.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.24: SSD workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in the preceding diagram, we are taking an image of size 300
+    x 300 x 3 and passing it through a pre-trained VGG-16 network to obtain the `conv5_3`
+    layer’s output. Furthermore, we are extending the network by adding a few more
+    convolutions to the `conv5_3` output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we obtain a bounding box offset and class prediction for each cell and
+    each default box (more on default boxes in the next section; for now, let’s imagine
+    that this is similar to an anchor box). The total number of predictions coming
+    from the `conv5_3` output is 38 x 38 x 4, where 38 x 38 is the output shape of
+    the `conv5_3` layer and 4 is the number of default boxes operating on the `conv5_3`
+    layer. Similarly, the total number of detections across the network is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Layer** | **Number of detections per class** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `conv5_3` | 38 x 38 x 4 = 5,776 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `FC6` | 19 x 19 x 6 = 2,166 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `conv8_2` | 10 x 10 x 6 = 600 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `conv9_2` | 5 x 5 x 6 = 150 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `conv10_2` | 3 x 3 x 4 = 36 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `conv11_2` | 1 x 1 x 4 = 4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Total detections** | **8,732** |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 8.1: Number of detections per class'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that certain layers have a larger number of default boxes (6 and not 4)
+    when compared to other layers in the architecture described in the original paper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s learn about the different scales and aspect ratios of default boxes.
+    We will start with scales and then proceed to aspect ratios.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s imagine a scenario where the minimum scale of an object is 20% of the
+    height and 20% of the width of an image, and the maximum scale of the object is
+    90% of the height and 90% of the width. In such a scenario, we gradually increase
+    scale across layers (as we proceed toward later layers, the image size shrinks
+    considerably), as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_25.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.25: Scale of box with respect to size of object across layers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The formula that enables the gradual scaling of the image is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_08_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'With that understanding of how to calculate scale across layers, let’s learn
+    about coming up with boxes of different aspect ratios. The possible aspect ratios
+    are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The centers of the box for different layers are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_011.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *i* and *j* together represent a cell in layer *l*. On the other hand,
+    the width and height corresponding to different aspect ratios are calculated as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_012.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_08_013.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Note that we were considering four boxes in certain layers and six boxes in
+    another layer. If we want to have four boxes, we remove the `{3,1/3}` aspect ratios,
+    else we consider all of the six possible boxes (five boxes with the same scale
+    and one box with a different scale). Let’s see how we obtain the sixth box:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: With that, we have all the possible boxes. Let’s understand how we prepare the
+    training dataset next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The default boxes that have an IoU greater than a threshold (say, `0.5`) with
+    the ground truth are considered positive matches, and the rest are negative matches.
+    In the output of SSD, we predict the probability of the box belonging to a class
+    (where the 0^(th) class represents the background) and also the offset of the
+    ground truth with respect to the default box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we train the model by optimizing the following loss values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Classification loss**: This is represented using the following equation:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the preceding equation, *pos* represents the few default boxes that have
+    a high overlap with the ground truth, while *neg* represents the misclassified
+    boxes that were predicting a class but in fact did not contain an object. Finally,
+    we ensure that the *pos:neg* ratio is at most 1:3, as if we do not perform this
+    sampling, we would have a dominance of background class boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Localization loss:** For localization, we consider the loss values only when
+    the objectness score is greater than a certain threshold. The localization loss
+    is calculated as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_016.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *t* is the predicted offset and *d* is the actual offset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For an in-depth discussion on the SSD workflow, you can refer to [https://arxiv.org/abs/1512.02325](https://arxiv.org/abs/1512.02325).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we understand how to train SSD, let’s use it for our bus versus truck
+    object detection exercise in the next section. The core utility functions for
+    this section are present in the GitHub repo: [https://github.com/sizhky/ssd-utils/](https://github.com/sizhky/ssd-utils/).
+    Let’s learn about them one by one before starting the training process.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Components in SSD code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: There are three files in the GitHub repo. Let’s dig into them a little and understand
+    them before training. **Note that this section is not part of the training process,
+    but is instead for understanding the imports used during training.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are importing the `SSD300` and `MultiBoxLoss` classes from the `model.py`
+    file in the GitHub repository. Let’s learn about both of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SSD300
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'When you look at the `SSD300` function definition, it is evident that the model
+    comprises three submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: We send the input to `VGGBase` first, which returns two feature vectors of dimensions
+    `(N, 512, 38, 38)` and `(N, 1024, 19, 19)`. The second output is going to be the
+    input for `AuxiliaryConvolutions`, which returns more feature maps of dimensions
+    `(N, 512, 10, 10)`, `(N, 256, 5, 5)`, `(N, 256, 3, 3)`, and `(N, 256, 1, 1)`.
+    Finally, the first output from `VGGBase` and these four feature maps are sent
+    to `PredictionConvolutions`, which returns 8,732 anchor boxes, as we discussed
+    previously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The other key aspect of the `SSD300` class is the `create_prior_boxes` method.
+    For every feature map, there are three items associated with it: the size of the
+    grid, the scale to shrink the grid cell by (this is the base anchor box for this
+    feature map), and the aspect ratios for all anchors in a cell. Using these three
+    configurations, the code uses a triple `for` loop and creates a list of `(cx,
+    cy, w, h)` for all 8,732 anchor boxes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, the `detect_objects` method takes tensors of classification and regression
+    values (of the predicted anchor boxes) and converts them to actual bounding box
+    coordinates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MultiBoxLoss
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As humans, we are only worried about a handful of bounding boxes. But for the
+    way SSD works, we need to compare 8,732 bounding boxes from several feature maps
+    and predict whether an anchor box contains valuable information or not. We assign
+    this loss computation task to `MultiBoxLoss`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input for the forward method is the anchor box predictions from the model
+    and the ground-truth bounding boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we convert the ground-truth boxes into a list of 8,732 anchor boxes by
+    comparing each anchor from the model with the bounding box. If the IoU is high
+    enough, that particular anchor box will have non-zero regression coordinates and
+    associate an object as the ground truth for classification. Naturally, most of
+    the computed anchor boxes will have their associated class as `background` because
+    their IoU with the actual bounding box will be tiny or, in quite a few cases,
+    `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the ground truths are converted to these 8,732 anchor box regression and
+    classification tensors, it is easy to compare them with the model’s predictions
+    since the shapes are now the same. We perform `MSE-Loss` on the regression tensor
+    and `CrossEntropy-Loss` on the localization tensor and add them up to be returned
+    as the final loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training SSD on a custom dataset
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the following code, we will train the SSD algorithm to detect the bounding
+    boxes around objects present in images. We will use the truck versus bus object
+    detection task we have been working on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Training_SSD.ipynb` file in the `Chapter08`
+    folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). The code
+    contains URLs to download data from and is moderately lengthy. We strongly recommend
+    executing the notebook in GitHub to reproduce the results while following the
+    steps and explanations of various code components from the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download the image dataset and clone the Git repository hosting the code for
+    the model and the other utilities for processing the data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Preprocess the data, just like we did in the *Training Faster R-CNN on a custom
+    dataset* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Prepare a dataset class, just like we did in the *Training Faster R-CNN on
+    a custom dataset* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Prepare the training and test datasets and the dataloaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define functions to train on a batch of data and calculate the accuracy and
+    loss values on the validation data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize the model, optimizer, and loss function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The variation of training and test loss values over epochs is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.26: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch a prediction on a new image (fetch a random image):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the bounding box, label, and score corresponding to the objects present
+    in the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Overlay the obtained output on the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code fetches a sample of outputs as follows (one image for each
+    iteration of execution):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_08_27.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.27: Predicted bounding box and class on input images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this, we can see that we can detect objects in the image reasonably accurately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we have learned about the working details of modern object
+    detection algorithms: Faster R-CNN, YOLO, and SSD. We learned how they overcome
+    the limitation of having two separate models – one for fetching region proposals
+    and the other for fetching class and bounding box offsets on region proposals.
+    Furthermore, we implemented Faster R-CNN using PyTorch, YOLO using `darknet`,
+    and SSD from scratch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about image segmentation, which goes one
+    step beyond object localization by identifying the pixels that correspond to an
+    object. Furthermore, in *Chapter 10*, *Applications of Object Detection and Segmentation*,
+    we will learn about the Detectron2 framework, which helps in not only detecting
+    objects but also segmenting them in a single shot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Why is Faster R-CNN faster when compared to Fast R-CNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How are YOLO and SSD faster when compared to Faster R-CNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What makes YOLO and SSD single-shot detector algorithms?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the difference between the objectness score and class score?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

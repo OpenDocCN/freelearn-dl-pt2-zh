@@ -1,0 +1,1480 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Data Preparation in the Cloud
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn how data preparation can be set up in the cloud
+    by leveraging various AWS cloud services. Considering the importance of **extract,
+    transform, and load** (**ETL**) operations within data preparation, we will take
+    a deeper look into setting up and scheduling ETL jobs in a cost-efficient manner.
+    We will cover four different setups: ETL running on a single-node EC2 instance
+    and an EMR cluster, and then utilizing Glue and SageMaker for ETL jobs. This chapter
+    will also introduce Apache Spark, the most popular framework for ETL. By completing
+    this chapter, you will be able to leverage the different advantages of the presented
+    setups and select the right set of tools for your project.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data processing in the cloud
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to Apache Spark
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up a single-node EC2 instance for ETL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up an EMR cluster for ETL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a Glue job for ETL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Utilizing SageMaker for ETL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can download the supplemental material for this chapter from this book’s
+    GitHub repository: [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data processing in the cloud
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The success of **deep learning** (**DL**) projects depends on the quality and
+    the quantity of data. Therefore, the systems for data preparation must be stable
+    and scalable enough to process terabytes and petabytes of data efficiently. This
+    often requires more than a single machine; a cluster of machines running a powerful
+    ETL engine must be set up for the data process so that it can store and process
+    a large amount of data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we would like to introduce ETL, the core concept in data processing in
+    the cloud. Next, we will provide an overview of a distributed system setup for
+    data processing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to ETL
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Throughout the ETL process, data will be collected from one or more sources,
+    get transformed into different forms as necessary, and get saved in data storage.*
+    In short, ETL itself covers the overall data processing pipeline. ETL interacts
+    with three different types of data throughout: **structured**, **unstructured**,
+    and **semi-structured**. While structured data represents a set of data with a
+    schema (for example, a table), unstructured data does not have an explicit schema
+    defined (for example, text, image, or PDF files). Semi-structured data has partial
+    structures within the data itself (for example, HTML or emails).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Popular ETL frameworks include **Apache Hadoop** ([https://hadoop.apache.org](https://hadoop.apache.org/)),
+    **Presto** ([https://prestodb.io](https://prestodb.io/)), **Apache Flink** ([https://flink.apache.org](https://flink.apache.org/)),
+    and **Apache Spark** ([https://spark.apache.org](https://spark.apache.org/)).
+    Hadoop is one of the earliest data processing engines to take advantage of distributed
+    processing. Presto is specialized in processing data in SQL, and Apache Flink
+    is built to process streaming data. Out of these four frameworks, Apache Spark
+    is the most popular tool as it can process every data type. *Apache Spark exploits
+    in-memory data processing to increase its throughput* and provides much more scalable
+    data processing solutions than Hadoop. Furthermore, it can easily be integrated
+    with other ML and DL tools. For such reasons, we will mostly focus on Spark in
+    this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data processing system architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Setting up a system for data processing is not a trivial task because it involves
+    procuring high-end machines periodically, linking various data processing software
+    correctly, and making sure data is not lost when a failure occurs. Therefore,
+    many companies utilize cloud services, a wide range of software services that
+    are delivered on demand over the internet. While many companies provide various
+    cloud services, **Amazon Web Services** (**AWS**) stands out the most with its
+    stable and easy-to-use services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To give you a broader picture of how complex a data processing system can be
+    in real life, let’s look at a sample system architecture based on AWS services.
+    The *core component* of this system is open sourced *Apache Spark* carrying out
+    the main ETL logic. A typical system also contains components for scheduling individual
+    jobs, storing data, and visualizing the processed data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – A generic architecture for data processing pipelines'
+  prefs: []
+  type: TYPE_NORMAL
+- en: along with visualization and experimentation platforms
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.1 – A generic architecture for data processing pipelines along with
+    visualization and experimentation platforms
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at each of these components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Data Storage**: Data storage is responsible for keeping data and relevant
+    metadata:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Hadoop Distributed File System** (**HDFS**): Open-sourced HDFS is a *distributed
+    filesystem that can scale on demand* ([https://hadoop.apache.org](https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html)).
+    HDFS has been the traditional pick for data storage because Apache Spark and Apache
+    Hadoop demonstrate the best performance on HDFS.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Amazon Simple Storage Service (S3)**: This is a *data storage service provided
+    by AWS* ([https://aws.amazon.com/s3](https://aws.amazon.com/s3/)). S3 uses the
+    concept of objects and buckets, where an object refers to individual files and
+    a bucket refers to a container for objects. For each project or submodule, you
+    can create a bucket and configure the permission differently for reading and writing
+    operations. Buckets can also apply versioning to the data, keeping track of the
+    changes.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ml`, and costs are about 30 to 40% higher than the other EC2 instances ([https://aws.amazon.com/sagemaker/pricing](https://aws.amazon.com/sagemaker/pricing/)).
+    In the *Utilizing SageMaker for ETL* section, we will describe how to set up a
+    SageMaker for ETL process on EC2 instances.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Considering the amount of data that needs to be processed, a correctly chosen
+    ETL service, along with an appropriate data storage selection, can improve the
+    pipeline’s efficiency significantly. The key factors to consider include the source
+    of the data, the volume of the data, the available hardware resources, and scalability,
+    to name a few.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Scheduling**: Often, ETL jobs must be periodically run (for example, daily,
+    weekly, or monthly) and hence require a scheduler:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**AWS Lambda functions**: Lambda functions ([https://aws.amazon.com/lambda](https://aws.amazon.com/lambda/))
+    are designed to run jobs on EMR without provisioning or managing infrastructure.
+    Execution time can be configured dynamically; the job can run right away or can
+    be scheduled to run at different times. *The AWS Lambda function runs the code
+    in a serverless manner so that it does not require maintenance*. If there is any
+    error during the execution, the EMR cluster will shut down automatically.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Airflow**: Schedulers play an important role in automating the ETL process.
+    Airflow ([https://airflow.apache.org](https://airflow.apache.org/)) *is one of
+    the most popular scheduler frameworks used by data engineers*. Airflow’s **Directed
+    Acyclic Graph** (**DAG**) can be used to schedule a pipeline periodically. Airflow
+    is more common than AWS Lambda functions for running Spark jobs periodically because
+    Airflow makes it easy to backfill the data when any of the preceding executions
+    failed.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Build**: Build is the process of deploying a code package to an AWS computing
+    resource (such as EMR or EC2) or setting up a set of AWS services based on pre-defined
+    specifications:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**CloudFormation**: CloudFormation templates ([https://aws.amazon.com/cloudformation](https://aws.amazon.com/cloudformation/))
+    *help provision cloud infrastructure as code*. CloudFormation typically does a
+    particular task in setting up a system, such as creating an EMR cluster, preparing
+    an S3 bucket with a particular specification, or terminating a running EMR cluster.
+    It helps to standardize recurring tasks.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Jenkins**: Jenkins ([https://www.jenkins.io](https://www.jenkins.io/)) builds
+    executables written in Java and Scala. We use *Jenkins to build Spark pipeline
+    artifacts (for example, .jar files) and deploy them to EMR nodes*. Jenkins also
+    makes use of CloudFormation templates to execute a task in a standardized way.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Database**: The key difference between data storage and databases is that
+    databases are used to store structured data. Here, we will discuss two popular
+    types of databases: *relational databases* and *key-value storage databases*.
+    We will describe how they are different and explain appropriate use cases:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Relational databases**: *Relational databases store structured data with
+    a schema in table format*. The main benefit of storing data in a structured manner
+    comes from data management; the value of the data being stored is strictly controlled,
+    keeping the values in a consistent format. This allows the database to make additional
+    optimizations when storing and retrieving particular sets of data. ETL jobs generally
+    read the data from one or more data storage services, process the data, and store
+    the processed data in relational databases such as **MySQL** ([https://www.mysql.com](https://www.mysql.com/)),
+    and **PostgreSQL** ([https://www.postgresql.org](https://www.postgresql.org/)).
+    AWS provides a relational database service as well: **Amazon RDS** ([https://aws.amazon.com/rds](https://aws.amazon.com/rds/)).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Key-value storage databases**: Unlike the traditional relational databases,
+    these are *databases that are optimized for a high volume of read and write operations*.
+    Such databases store data in a distinct key-value pair fashion. In general, data
+    consists of a set of keys and a set of values that hold attributes for each key.
+    Many of the databases support schemas, but their main advantage comes from the
+    fact that they also support unstructured data. In other words, you can store any
+    data, even though each of them has a different structure. Popular databases of
+    this type include **Cassandra** ([https://cassandra.apache.org](https://cassandra.apache.org/))
+    and **MongoDB** ([https://www.mongodb.com](https://www.mongodb.com/)). Interestingly,
+    AWS provides a key-value storage database known as **DynamoDB** as a service ([https://aws.amazon.com/dynamodb](https://aws.amazon.com/dynamodb)).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Metastore**: In some cases, the initial set of data that’s collected and
+    made available in data storage may not consist of any information about itself:
+    for example, it may be missing column types or details about the source. Such
+    information often helps engineers when they are managing and processing the data.
+    Therefore, engineers have introduced the concept of the *metastore*, which *is
+    a repository for metadata*. The metadata, which is stored as a table, provides
+    the location, schema, and update history of the data it points to.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In the case of AWS, **Glue Data Catalog** plays the role of metastore to provide
+    built-in support for S3\. Hive ([https://hive.apache.org](https://hive.apache.org/)),
+    on the other hand, is an open-sourced metastore for HDFS. The main advantage of
+    Hive comes from data querying, summarization, and analysis, which comes naturally
+    as it provides interaction based on SQL-like language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Application programming interface** (**API**) **services**: *API endpoints
+    allow data scientists and engineers to interact with the data efficiently*. For
+    example, API endpoints can be set up to allow easy access to the data stored in
+    the S3 bucket. Many frameworks have been designed for API services. For example,
+    the **Flask API** ([https://flask.palletsprojects.com](https://flask.palletsprojects.com/))
+    and **Django** ([https://www.djangoproject.com](https://www.djangoproject.com/))
+    frameworks are based on Python, while the **Play** framework ([https://www.playframework.com](https://www.playframework.com/))
+    is often used for projects in Scala.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Experimental platforms**: Evaluating system performance in production is
+    often achieved by a popular user experience research methodology known as A/B
+    testing. *By deploying two different versions of the system and comparing the
+    user experiences, A/B testing allows us to understand whether the recent change
+    have made a positive impact on the system or not*. In general, setting up A/B
+    testing involves two components:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Rest API**: *A Rest API provides greater flexibility in handling a request
+    with different parameters and returning data in a processed manner*. Hence, it
+    is common to set up a Rest API service that aggregates necessary data from databases
+    or data storage for analytical purposes and provides data in JSON format to A/B
+    experimentation platforms.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**A/B experimentation platform**: Data scientists often use an application
+    with a **graphical user interface** (**GUI**) to schedule various A/B testing
+    experiments and visualize the aggregated data intuitively for analysis. GrowthBook
+    ([https://www.growthbook.io](https://www.growthbook.io/)) is an open source example
+    of such a platform.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Data visualization tools**: There are a few different teams and groups within
+    a company (for example, marketing, sales, and executives), who can benefit from
+    intuitively visualizing the data. Data visualization tools often support custom
+    dashboard creation, which helps with the data analysis process. Tableau ([https://www.tableau.com](https://www.tableau.com/))
+    is a popular tool among project leaders, but it’s proprietary software. On the
+    other hand, Apache Superset ([https://superset.apache.org](https://superset.apache.org/))
+    is an open-sourced data visualization tool that supports most of the standard
+    databases. If the management cost is a concern, Apache Superset can be configured
+    to read and plot visualizations using data stored in serverless databases such
+    as AWS Athena ([https://aws.amazon.com/athena](https://aws.amazon.com/athena/)).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Identity Access Management** (**IAM**): IAM is a permission system that regulates
+    access to AWS resources. Through IAM, it is possible to control a set of resources
+    that users can access and a set of operations that they can conduct on the provided
+    resources. More details about IAM can be found at [https://aws.amazon.com/iam](https://aws.amazon.com/iam).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Throughout an ETL process, data will be collected from one or more sources,
+    transformed into different forms as necessary, and get saved into data storage
+    or a database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. Apache Spark is an open source ETL engine that’s widely used for processing
+    large amounts of data of various types: structured, unstructured, and semi-structured.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. A typical system that’s been set up for a data processing job consists of
+    various components, including a data store, databases, ETL engines, data visualization
+    tools, and experimental platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d. ETL engines can run in several settings – on a single machine, a cluster,
+    a fully managed ETL service in the cloud, and on end-to-end services designed
+    for DL projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will cover key programming concepts in Apache Spark,
+    the most popular tool for ETL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to Apache Spark
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Apache Spark is an open-sourced data analytics engine that is used for data
+    processing. The most popular use case is ETL. As an introduction to Spark, we
+    will cover the key concepts surrounding Spark and some common Spark operations.
+    Specifically, we will start by introducing **resilient distributed datasets**
+    (**RDDs**) and DataFrames. Then, we will discuss Spark basics that you need to
+    know about for ETL tasks: how to load a set of data from data storage, apply various
+    transformations, and store the processed data. Spark applications can be implemented
+    using multiple programming languages: Scala, Java, Python, and R. In this book,
+    we will use Python so that we are aligned with the other implementations. The
+    code snippets in this section can be found in this book’s GitHub repository: [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/spark](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/spark).
+    The datasets we will use in our examples include Google Scholar and the COVID
+    datasets that we crawled in [*Chapter 2*](B18522_02.xhtml#_idTextAnchor034), *Data
+    Preparation for Deep Learning* *Projects*, and another COVID dataset provided
+    by the New York Times ([https://github.com/nytimes/covid-19-data](https://github.com/nytimes/covid-19-data)).
+    We will refer to the last dataset as NY Times COVID.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Resilient distributed datasets and DataFrames
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The unique advantage of Spark comes from RDDs, immutable distributed collections
+    of data objects. By exploiting RDDs, Spark can efficiently process data that exploits
+    parallelism. The built-in parallel processing of Spark operating on RDDs helps
+    with data processing, even when one or more of its processors fails. When a Spark
+    job is triggered, the RDD representation of the input data gets split into multiple
+    partitions and distributed to each node for transformations, maximizing the throughput.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like pandas DataFrames, Spark also has the concept of DataFrames, which represent
+    tables in a relational database with named columns. A DataFrame is also an RDD,
+    so the operations that we describe in the next section can be applied as well.
+    A DataFrame can be created from data structured as tables, such as CSV data, a
+    table in Hive, or existing RDDs. DataFrames come with schemas that an RDD does
+    not provide. As a result, an RDD is used for unstructured and semi-structured
+    data, while a DataFrame is used for structured data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting between RDDs and DataFrames
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The first step for any Spark operation is to create a `SparkSession` object.
+    Specifically, the `SparkSession` module from `pyspark.sql` is used to create a
+    `SparkSession` object. The `getOrCreate` function from the module is used to create
+    the session object, as shown here. A `SparkSession` object is the entry point
+    of a Spark application. It provides a way to interact with the Spark application
+    under different contexts, such as the Spark context, Hive context, and SQL context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Converting an RDD into a DataFrame is simple. Given that an RDD does not have
+    any schema, you can create a DataFrame without any schema, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To convert an RDD into a DataFrame with a schema, you need to use the `StructType`
+    class, which is part of the `pyspark.sql.types` module. Once a schema has been
+    created using the `StructType` method, the `createDataFrame` method of the Spark
+    session object can be used to convert an RDD into a DataFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have learned how to set up a Spark environment in Python, let’s
+    learn how to load a dataset as an RDD or a DataFrame.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Spark can load data of different formats that’s stored in various forms of
+    data storage. Loading data stored in CSV format is a basic operation of Spark.
+    This can easily be achieved using the `spark_session.read.csv` function. It reads
+    a CSV file located locally or in the cloud, such as in an S3 bucket, as a DataFrame.
+    In the following code snippet, we are loading Google Scholar data stored in S3\.
+    The `header` option can be used to indicate that the CSV file has a header:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following figure shows the results of `df_gs.show(n=3)`. The `show` function
+    prints the first *n* rows, along with the column headings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – A sample DataFrame created by loading a CSV file'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.2 – A sample DataFrame created by loading a CSV file
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, a JSON file from data storage can be read using the `read.json`
+    function of the `SparkSession` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we will learn how to process loaded data using Spark operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Processing data using Spark operations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Spark provides a set of operations that transforms an RDD into an RDD of a different
+    structure. Implementing a Spark application is the process of chaining a set of
+    Spark operations on an RDD to transform the data into the target format. In this
+    section, we will discuss the most commonly used – that is, `filter`, `map`, `flatMap`,
+    `reduceByKey`, `take`, `groupBy`, and `join`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: filter
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In most cases, filters are often applied first to drop unnecessary data. Applying
+    the `filter` method to a DataFrame can help you choose the rows of interest from
+    the given DataFrame. In the following code snippet, we are using this method to
+    only keep the rows where `research_interest` is not `None`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: map
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Like the `map` function in other programming languages, the `map` operation
+    in Spark applies the given function to each data entry. Here, we are using the
+    `map` function to only keep the `research_interest` column:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: flatMap
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The `flatMap` function flattens the RDD after applying the given function to
+    every entry and returns the new RDD. In this example, the `flatMap` operation
+    splits each data entry with the `##` separator and then creates a pair of `research_interest`
+    and a default frequency with a value of `1`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: reduceByKey
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`reduceByKey` groups the input RDD based on its key. Here, we are using `reduceByKey`
+    to sum the frequencies to understand the number of occurrences for each `research_interest`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: take
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One of the basic operations of Spark is `take`. This function is used to get
+    the first *n* elements from an RDD:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Grouping operations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The idea of grouping is to collect identical data entries within a DataFrame
+    into groups and perform aggregation (for example, average or summation) on the
+    groups.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As an example, let’s employ the Moderna COVID dataset to get the average number
+    of doses allocated per jurisdiction (state) using the `groupby` operation. Here,
+    we are using the `sort` function to sort the state-wise average number of doses.
+    The `toDF` and `alias` functions can help add a name for the new DataFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'While applying `groupby`, multiple aggregations (`sum` and `avg`) can be applied
+    in a single command. The columns that get created from aggregated functions such
+    as `F.avg` or `F.sum` can be renamed using `alias`. In the following example,
+    aggregations are being performed on the Moderna COVID dataset to get the average
+    number and sum of the first and second doses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The calculation is performed at the state level using the `groupby` function.
+    This dataset contains 63 states in total, including certain entities (federal
+    agencies) as a state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: join
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The `join` functionality helps combine rows from two DataFrames.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To demonstrate how `join` can be used, we will join the Moderna COVID dataset
+    with the NY Times COVID dataset. Before we explain any `join` operations, we must
+    apply aggregation to the NY Times COVID dataset, just like how we processed the
+    Moderna COVID dataset previously. In the following code snippet, the `groupby`
+    operation is being applied at the state level to get the aggregated (`sum`) value
+    representing the total number of deaths and the total number of cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Figure 5.3* shows the results of the `df_cases.show(n=3)` operation, which
+    visualizes the top three rows of the processed DataFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – The top three rows of the aggregated results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.3 – The top three rows of the aggregated results
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are now ready to demonstrate the two types of join: equi-join and left join.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Equi-join (inner-join)
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Equi-join, also called an inner-join, is the default `join` operation in Spark.
+    An inner join is used to join two DataFrames on common column values. The rows
+    where the keys don’t match will get dropped in the final DataFrame. In this example,
+    equi-join will be applied to the `state` column as a common column between the
+    Moderna COVID dataset and the NY Times COVID dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to create aliases for the DataFrames using `alias`. Then,
+    we call the `join` function on one DataFrame while passing the other DataFrame
+    that defines the column relationship and the type of join:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following is the output of the `df_inner.show(n=3)` operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.4 – The output of using the df_inner.show(n=3) operation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.4 – The output of using the df_inner.show(n=3) operation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s look at the other type of join, left join.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Left join
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: A left join is another popular `join` operation for data analysis. A left join
+    returns all the rows from one DataFrame, regardless of the matches found on the
+    other DataFrame. When the `join` expression does not match, it assigns `null`
+    for the missing entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The left join syntax is like that of equi-join. The only difference is that
+    you need to pass the `left` keyword when specifying the join type instead of `inner`.
+    The left join takes all the values of the mentioned column (`df_m.state`) in the
+    first DataFrame mentioned (`df_m`). Then, it tries to match entries with the DataFrame
+    mentioned second (`df_ny`) on the column mentioned (`df_ny.state`). In this example,
+    if a particular state appears on both DataFrames, the output of the `join` operation
+    will be the state, along with values from both DataFrames. If a particular state
+    is only available in the first DataFrame (`df_m`) but not in the second (`df_ny`),
+    then it will add the state with the values for the first DataFrame only, keeping
+    the other entry as `null`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of `df_left.show(n=3`) is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.5 – The output of the df_inner.show(n=3) operation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.5 – The output of the df_inner.show(n=3) operation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even though Spark provides a wide range of operations that cover vastly different
+    cases, you may find building a custom operation more useful due to the complexity
+    of your logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Processing data using user-defined functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A **user-defined function** (**UDF**) *is a reusable custom function that performs
+    a transformation on an RDD*. A UDF function can be reused on several DataFrames.
+    In this section, we will provide a complete code example for processing the Google
+    Scholar dataset using UDF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First of all, we would like to introduce the `pyspark.sql.function` module,
+    which allows you to define a UDF with the `udf` method and provides various column-wise
+    operations. `pyspark.sql.function` also includes functions for aggregations such
+    as `avg` or `sum` for computing the average and total, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the Google Scholar dataset, `data_science`, `artificial_intelligence`, and
+    `machine_learning` all refer to the same field of `research_interest` data and
+    check if any of the data can be categorized as AI. If matches are found, it puts
+    a value of `1` in a new column. It will assign `0` otherwise. The results of the
+    UDF are stored in a new column called `is_artificial_intelligence` using the `withColumn`
+    method. In the following code snippet, the `@F.udf` annotation informs Spark that
+    the function is a UDF. The `col` method from `pyspark.sql.functions` is often
+    used to pass a column as an argument for UDF. Here, `F.col("research_interest")`
+    has been passed to the UDF `is_ai` method, indicating which column that UDF should
+    operate on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: After processing the raw data, we want to store it in data storage so that we
+    can reuse it for other purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exporting data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to save a DataFrame into an S3 bucket. In
+    the case of RDD, it must be converted into a DataFrame to be saved appropriately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typically, data analysts want to write the aggregated data as a CSV file for
+    the following operations. To export a DataFrame as a CSV file, you must use the
+    `df.write.csv` function. In the case of text values, we recommend that you use
+    `option("quoteAll", True)`, which will encapsulate each value with quotes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following example, we are providing an S3 path to generate a CSV file
+    in an S3 bucket. `coalesce(1)` is used to write a single CSV file instead of multiple
+    CSV files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you want to save the DataFrame as a JSON file, you can use `write.json`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: At this point, you should see that a file is stored in the S3 bucket.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. An RDD is an immutable distributed collection of sets that gets split into
+    multiple partitions and computed in different nodes of a cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. A Spark DataFrame is equivalent to a table in a relational database with
+    named columns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. Spark provides a set of operations that transforms an RDD into an RDD that
+    has a different structure. Implementing a Spark application is the process of
+    chaining a set of Spark operations on an RDD to transform the data into the target
+    format. You can build a custom Spark operation using UDF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we described the basics of Apache Spark, which is the most
+    common tool for ETL. Starting from the next section, we will talk about how to
+    set up a Spark job in the cloud for ETL. First, let's look at how to run ETL on
+    a single EC2 instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a single-node EC2 instance for ETL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'EC2 instances can have various combinations of CPU/GPU, memory, storage, and
+    network capacity. You can find configurable options for EC2 in the official documentation:
+    [https://aws.amazon.com/ec2/instance-types](https://aws.amazon.com/ec2/instance-types).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When creating an EC2 instance, you can choose a Docker image to run which has
+    been predefined for various projects. These are called **Amazon Machine Images**
+    (**AMIs**). For example, there’s an image with TF version 2 installed for DL projects
+    and an image with Anaconda set up for generic ML projects, as shown in the following
+    screenshot. For the complete list of AMIs, please refer to [https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.6 – Selecting an AMI for an EC2 instance'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.6 – Selecting an AMI for an EC2 instance
+  prefs: []
+  type: TYPE_NORMAL
+- en: AWS offers **Deep Learning AMIs** (**DLAMIs**), which are AMIs that are created
+    for DL projects; images utilize different CPU and GPU configurations and different
+    compute architectures ([https://docs.aws.amazon.com/dlami/latest/devguide/options.html](https://docs.aws.amazon.com/dlami/latest/devguide/options.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As mentioned in [*Chapter 1*](B18522_01.xhtml#_idTextAnchor014), *Effective
+    Planning of Deep Learning-Driven Projects*, many data scientists make use of EC2
+    instances to develop their algorithms, exploiting the flexibility in dynamic resource
+    allocation. The steps for creating an EC2 instance and installing Spark are as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a **Virtual Private Network** (**VPN**) to restrict access to the EC2
+    instance for security purposes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a `.pem` key with an EC2 key pair. A `.pem` file is used to perform authentication
+    when a user attempts to log into the EC2 instance from a terminal.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create an EC2 instance from a Docker image with the necessary tools and packages.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add an inbound rule that enables access to the new instances from your local
+    terminal.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use SSH to access the EC2 instance with the `.pem` file that was created in
+    *Step 2*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Initiate the Spark shell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We have included detailed descriptions for each step, along with screenshots,
+    at [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/ec2](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/ec2).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. An EC2 instance can have various combinations of CPU/GPU, memory, storage,
+    and network capacity
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. An EC2 instance can be created from a predefined Docker image (AMI) with
+    a couple of clicks on the AWS web console
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will learn how to set up a cluster that runs a set of Spark workers
+    as a group.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up an EMR cluster for ETL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the case of DL, the computational power of a single EC2 instance may not
+    be sufficient for model training or data processing. Therefore, a group of EC2
+    instances is often put together to increase the throughput. AWS has a dedicated
+    service for this purpose: **Amazon Elastic MapReduce** (**EMR**). It is a fully
+    managed cluster platform that provides distributed systems for big data frameworks
+    such as Apache Spark and Hadoop. In general, an EMR cluster that’s been set up
+    for ETL reads data from AWS storage (Amazon S3), processes the data, and writes
+    it back to AWS storage. Spark jobs are often used to handle the ETL logic that
+    interacts with S3\. EMR provides an interesting feature named **Workspace** that
+    helps organize notebooks by developers and shares them with other EMR users for
+    collaborative work.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A typical EMR setup contains a master node and a few core nodes. In the case
+    of a multi-node cluster, there must be at least one core node. A master node manages
+    a cluster that runs the distributed application (for example, Spark or Hadoop).
+    Core nodes are managed by the master node and run data processing tasks and store
+    data in data storage (for example, S3 or HDFS).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Task nodes are managed by the master node and are optional. They increase the
+    throughput of the distributed application running on the cluster by introducing
+    another parallelism during computation. They run data processing tasks but do
+    not store data in data storage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows the EMR cluster creation page. Throughout the
+    form, we need to provide the cluster’s name, launch mode, EMR release, applications
+    (for example, Apache Spark for data processing and Jupyter for notebooks) to run
+    on the cluster, and specifications of the EC2 instances. Data processing with
+    DL often needs instances of high computational power. In the other cases, you
+    can construct a cluster with increased memory limits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.7 – EMR cluster creation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.7 – EMR cluster creation
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The detailed steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Step 1: Software and Steps**: Here, you must choose the software-related
+    configuration – that is, the EMR release and applications (Spark, JupyterHub,
+    and so on).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Step 2: Hardware**: Here, you must choose the hardware-related configuration
+    – that is, the instance type, number of instances, and the VPN network.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Step 3: General Cluster Setting**: Choose the cluster name and the S3 bucket
+    path for operational logs.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.pem` file:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.pem` file is only needed if you want to log in to the EC2 master node and
+    work on the Spark shell as in the case of a single EC2 instance.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: After following these steps, you will need to wait for a few minutes until the
+    state of the cluster changes to `running`. Then, you can navigate to the endpoint
+    provided by the EMR cluster to open a Jupyter notebook. The username is `jovyan`
+    and the password is `jupyter`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our GitHub repository provides step-by-step instructions for this process, along
+    with screenshots ([https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/emr](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/emr)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. EMR is a fully managed cluster platform that runs big data ETL frameworks
+    such as Apache Spark
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. You can create an EMR cluster with various EC2 instances through the AWS
+    web console
+  prefs: []
+  type: TYPE_NORMAL
+- en: The downside of EMR comes from the fact that it needs to be managed explicitly.
+    An organization often has a group of developers dedicated to handling issues related
+    to EMR clusters. Unfortunately, this can be a difficult thing to do if the organization
+    is small. In the next section, we will introduce Glue, which doesn’t require any
+    explicit cluster management.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a Glue job for ETL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: AWS Glue ([https://aws.amazon.com/glue](https://aws.amazon.com/glue/)) supports
+    data processing in a serverless fashion. The computational resource of Glue is
+    managed by AWS, so less effort is needed for maintenance, unlike in the case of
+    dedicated clusters (for example, EMR). Other than the minimal maintenance effort
+    for the resources, Glue provides additional features such as a built-in scheduler
+    and Glue Data Catalog, which will be discussed later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s learn how to set up data processing jobs using Glue. Before you
+    start defining the logic for data processing, you must create a Glue Data Catalog
+    that contains the schema for the data in S3\. Once a Glue Data Catalog has been
+    defined for the input data, you can use the Glue Python editor to define the details
+    of the data processing logic (*Figure 5.8*). The editor provides a basic setup
+    for your application to reduce the difficulties in setting up a Glue job: [https://docs.aws.amazon.com/glue/latest/dg/edit-script.html](https://docs.aws.amazon.com/glue/latest/dg/edit-script.html).
+    On top of this template code, you will read in the Glue Data Catalog as an input,
+    process it, and store the processed output. Since Glue Data Catalog has a nice
+    integration for Spark, the operations within a Glue job are often achieved using
+    Spark:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.8 – AWS Glue job script editor'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_08.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.8 – AWS Glue job script editor
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, you will learn how to set up a Glue job using the
+    Google Scholar dataset, which is stored in an S3 bucket. The complete implementation
+    can be found at [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/glue](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_5/glue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a Glue Data Catalog
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, we will create a Glue Data Catalog (see *Figure 5.9*). Glue can only
+    read a set of data where the metadata is stored in the Glue Data Catalog. Data
+    Catalog consists of databases, which are collections of metadata in the form of
+    a table. Glue provides a feature called a **crawler**, which *creates metadata
+    for the data files present in data storage* (for example, an S3 bucket):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.9 – The first step of setting up a crawler'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_09.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.9 – The first step of setting up a crawler
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding screenshot shows the first step of creating a crawler. Details
+    of each step can be found at [https://docs.aws.amazon.com/glue/latest/dg/add-crawler.html](https://docs.aws.amazon.com/glue/latest/dg/add-crawler.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a Glue context
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'If you look at the template code provided by AWS for Glue, you will find that
+    some key packages are already imported. `getResolvedOptions` from the `awsglue.utils`
+    module helps utilize the arguments that are passed to the Glue script during runtime:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For a Glue job with Spark, a Spark context must be created and passed to `GlueContext`.
+    A Spark session object can be accessed from a Glue context. A Glue job can be
+    instantiated using the `awsglue.job` module by passing a Glue context object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will learn how to read data from Glue Data Catalog.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reading data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, you will learn how to read data located in an S3 bucket within
+    the Glue context after creating a Glue table catalog.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The data in Glue passes from transform to transform using a specific data
+    structure called a DynamicFrame*, which is an extension of an Apache Spark DataFrame.
+    DynamicFrame, with its self-describing nature, does not require any schema. This
+    additional property of a DynamicFrame helps accommodate the data that does not
+    conform to a fixed schema, unlike in Spark DataFrames. The required library can
+    be imported from `awsglue.dynamicframe`. This package makes converting a DynamicFrame
+    into a Spark DataFrame easy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the following example, we are creating a Glue Data Catalog table named `google_authors`
+    in a database named `google_scholar`. Once the database is available, `glueContext.create_dynamic_frame.from_catalog`
+    can be used to read the `google_authors` table in the `google_scholar` database
+    and load it as a Glue DynamicFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A Glue DynamicFrame can be converted into a Spark DataFrame using the `toDF`
+    method. This conversion is required to apply Spark operations to the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let’s define the data processing logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the data processing logic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Basic transformations that you can perform on a Glue DynamicFrame are provided
+    by the `awsglue.transforms` module. These transformations include `join`, `filter`,
+    `map`, and many others ([https://docs.aws.amazon.com/glue/latest/dg/built-in-transforms.html](https://docs.aws.amazon.com/glue/latest/dg/built-in-transforms.html)).
+    You can use them similarly to what was presented in the *Introduction to Apache
+    Spark* section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Additionally, every Spark operation described in the *Processing data using
+    Spark operations* section can be applied to data in Glue if the Glue DynamicFrame
+    has already been converted into a Spark DataFrame.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writing data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to write data in Glue DynamicFrame to an
+    S3 bucket.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a Glue DynamicFrame, you can store the data in the given S3 path using
+    `write_dynamic_frame.from_options` of a Glue context. You need to call the `commit`
+    method of a job at the end to perform individual operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the case of a Spark DataFrame, you must convert it into a DynamicFrame before
+    you can store the data. The `DynamicFrame.fromDF` function takes in a Spark DataFrame
+    object, a Glue context object, and the name of the new DynamicFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, you can use both Spark operations and Glue transformations to process your
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. AWS Glue is a fully managed service designed for ETL operations
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. AWS Glue is a serverless architecture, which means the underlying servers
+    will be maintained by AWS
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. AWS Glue provides a built-in editor with Python boilerplate code. In this
+    editor, you can define your ETL logic and also leverage Spark
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the last setting for ETL, we will look at SageMaker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Utilizing SageMaker for ETL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will describe how to set up an ETL process using SageMaker
+    (the following screenshot shows the web console for SageMaker). *The main advantage
+    of SageMaker comes from the fact that it is a fully managed infrastructure for
+    building, training, and deploying ML models*. The downside is the fact that it
+    is more expensive than EMR and Glue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'SageMaker Studio is a web-based development environment for SageMaker. SageMaker
+    has been introduced with the philosophy that it’s an all-in-one place for a data
+    analytics pipeline. Every phase of an ML pipeline can be achieved using SageMaker
+    Studio: data processing, algorithm design, scheduling jobs, experiment management,
+    developing and training models, creating inference endpoints, detecting data drift,
+    and visualizing model performance. SageMaker Studio notebooks can also be connected
+    to EMR for computations with some restrictions; only limited Docker images (such
+    as `Data Science` or `SparkMagic`) can be used ([https://docs.aws.amazon.com/sagemaker/latest/dg/studio-notebooks-emr-cluster.html](https://docs.aws.amazon.com/sagemaker/latest/dg/studio-notebooks-emr-cluster.html)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.10 – The SageMaker web console'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_10.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.10 – The SageMaker web console
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'SageMaker provides various predefined development environments as Docker images.
+    Popular environments are those for DL projects that have PyTorch, TF, and Anaconda
+    installed already. A notebook can easily be attached to any of these images from
+    the web-based development environment, as shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.11 – Updating the development environment dynamically for a SageMaker
+    notebook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_11.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.11 – Updating the development environment dynamically for a SageMaker
+    notebook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The process of creating an ETL job can be broken down into four steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a user within SageMaker Studio.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a notebook under the user by selecting the right Docker image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define data processing logic.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Schedule a job.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*Steps 1* and *2* are one click away in the SageMaker web console. *Step 3*
+    can be set up using Spark. To schedule a job (*Step 4*), first, you need to install
+    the `run-notebook` command-line utility via the `pip` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before looking at the `run-notebook` command for scheduling a notebook, we
+    will briefly discuss the `cron` command, which defines the format for a schedule.
+    As shown in the following diagram, six numbers are used to represent a timestamp.
+    For example, `45 22 ** 6*` represents a schedule for 10:45 P.M. every Saturday.
+    The `*` (asterisk) wildcard represents every value of the corresponding unit:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.12 – Cron schedule format'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_12.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.12 – Cron schedule format
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `run-notebook` command takes in a schedule represented with `cron` and
+    a notebook. In the following example, `notebook.ipynb` has been scheduled to run
+    at 8 A.M. every day in 2021:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have provided a set of screenshots for each step in our GitHub repository:
+    [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/blob/main/Chapter_5/sagemaker/sagemaker_studio.md](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/blob/main/Chapter_5/sagemaker/sagemaker_studio.md).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the remaining sections, we will take a deeper look at how to utilize the
+    SageMaker notebook to run a data processing job.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a SageMaker notebook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A notebook instance is an ML compute instance that runs the Jupyter notebook
+    application. SageMaker will create this instance, along with the associated resources.
+    The Jupyter notebook is used to process data, train models, and deploy and validate
+    the model. A notebook instance can be created in a few steps. The complete description
+    can be found at [https://docs.aws.amazon.com/sagemaker/latest/dg/howitworks-create-ws.html](https://docs.aws.amazon.com/sagemaker/latest/dg/howitworks-create-ws.html):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Go to the SageMaker web console: [https://console.aws.amazon.com/sagemaker](https://console.aws.amazon.com/sagemaker).
+    Please note that you will need to log in with AWS credentials.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Under **Notebook instances**, choose **Create notebook instance**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'On the `pip install tensorflow`) on each new notebook. Various examples of
+    this can be found at [https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/tree/master/scripts](https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/tree/master/scripts):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 5.13 – Life cycle configuration script for a SageMaker notebook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_05_13.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.13 – Life cycle configuration script for a SageMaker notebook
+  prefs: []
+  type: TYPE_NORMAL
+- en: While running a set of operations directly from the SageMaker notebook is an
+    option, the SageMaker notebook supports running a data processing job defined
+    explicitly outside of the notebook to increase throughput and reusability. Let’s
+    look at how we can run a Spark job from a notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a Spark job through a SageMaker notebook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Once a notebook is ready, you can configure a Spark job using the `sagemaker.processing`
+    module and execute it using a set of computational resources. SageMaker provides
+    the `PySparkProcessor` class, which provides a handle for the Spark job ([https://sagemaker.readthedocs.io/en/stable/amazon_sagemaker_processing.html#data-processing-with-spark](https://sagemaker.readthedocs.io/en/stable/amazon_sagemaker_processing.html#data-processing-with-spark)).
+    Its constructor takes in basic setup details, such as the job’s name and Python
+    version. It takes in three parameters – `framework_version`, `py_version`, and
+    `container_version` – which are used to pin the pre-built Spark containers to
+    run the processing job. A custom image can be registered and made available on
+    the `image_uri` parameter. `image_uri` will override the `framework_version`,
+    `py_version`, and `container_version` parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, a `PySparkProcessor` class has been used to create a
+    Spark instance. It takes in `base_job_name` (job name: `my-sparkjob`), `framework_version`
+    (the TensorFlow framework version: `2.0`), `py_version` (the Python version: `py37`),
+    `container_version` (the container version: `1`), `role` (the IAM role for SageMaker:
+    `myiamrole`), `instance_count` (the number of EC2 instances: `2`), `instance_type`
+    (the EC2 instance type: `ml.c5.xlarge`), `max_runtime_in_second` (the maximum
+    runtime in seconds before timeout: `1200`), and `image_url` (the URL of the Docker
+    image: `ecr_image_uri`).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will discuss the `run` method of `PySparkProcessor`, which starts
+    the provided script through Spark:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `run` method of `PySparkProcessor` executes the given
+    script, along with the arguments provided. It takes in `submit_app` (a data processing
+    job written in Python) and arguments. In this example, we have defined where the
+    input data is located and where the output should be stored.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running a job from a custom container through a SageMaker notebook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will discuss how to run a data processing job from a custom
+    image. SageMaker provides the `Processor` class as part of the `sagemaker.processing`
+    module for this purpose. In this example, we will use the `ProcessingInput` and
+    `ProcessingOutput` classes to create input and output objects, respectively. These
+    objects will be passed to the `run` method of the `Processor` instance. The `run`
+    method executes the data processing job:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, first, we create a `Processor` instance. It takes in
+    `image_uri` (the ECR image’s URL path: `ecr_image_uri`), `role` (the IAM role
+    that has access to the ECR image: `myiamrole`), `instance_count` (the EC2 instance
+    count: `1`), and `instance_type` (the EC2 instance type: `ml.m5.xlarge`). The
+    `run` method of the `Processor` instance can execute the job. It takes in `inputs`
+    (the input data passed as a `ProcessingInput` object) and `outputs` (the output
+    data passed as a `ProcessingOutput` object). While `Processor` provides a similar
+    set of methods to `PySparkProcessor`, the main difference comes from what the
+    `run` function takes in; `PySparkProcessor` takes in a Python script that runs
+    Spark operations, while `Processor` takes in a Docker image that supports various
+    types of data processing jobs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For those who are willing to dig into the details, we recommend reading [https://docs.aws.amazon.com/sagemaker/latest/dg/build-your-own-processing-container.html](https://docs.aws.amazon.com/sagemaker/latest/dg/build-your-own-processing-container.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. SageMaker is a fully managed infrastructure for building, training, and deploying
+    ML models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. SageMaker provides a set of predefined development environments that users
+    can change dynamically based on their needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. SageMaker notebooks support data processing jobs defined outside of the notebook
+    through the `sagemaker.processing` module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having gone through the four most popular ETL tools in AWS, let’s compare the
+    four options side by side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparing the ETL solutions in AWS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have looked at four different ways of setting up ETL pipelines using
+    AWS. In this section, we will summarize the four setups in a single table (*Table
+    5.1*). Some of the comparison points include support for serverless architecture,
+    the availability of a built-in scheduler, and variety in terms of the supported
+    EC2 instance types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Supports** | **Single-Node****EC2 Instance** | **Glue** | **EMR** | **SageMaker**
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Support for serverless architecture | No | Yes | No | No |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a built-in workspace for collaboration among developers |
+    No | No | Yes | No |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Variety of EC2 instance types | More | Less | More | More |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a built-in scheduler | No | Yes | No | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a built-in job monitoring UI | No | Yes | No | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a built-in model monitoring | No | No | No | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Support for a fully managed service from model development to deployment
+    | No | No | No | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a built-in visualizer for analyzing the processed data |
+    No | No | No | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Availability of a predefined environment for ETL logic development | Yes
+    | No | Yes | Yes |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 5.1 – A comparison of the various data processing setups – a single-node
+    EC2 instance, Glue, EMR, and SageMaker
+  prefs: []
+  type: TYPE_NORMAL
+- en: The right setup depends on both technical and non-technical factors, including
+    the source of the data, the amount of data, the availability of MLOps, and the
+    cost.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. The four ETL setups we described in this chapter have distinct advantages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. When selecting a particular setup, various factors must be considered: the
+    source of the data, the amount of data, the availability of MLOps, and the cost.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One of the difficulties with DL projects arises from the amount of data. Since
+    a large amount of data is necessary to train a DL model, data processing steps
+    can take up a lot of resources. Therefore, in this chapter, we learned how to
+    utilize the most popular cloud service, AWS, to process terabytes and petabytes
+    of data efficiently. The system includes a scheduler, data storage, databases,
+    visualization, as well as a data processing tool for running the ETL logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have spent extra time looking at ETL since it plays a major role in data
+    processing. We introduced Spark, which is the most popular tool for ETL, and described
+    four different ways of setting up ETL jobs using AWS. The four settings include
+    using a single-node EC2 instance, an EMR cluster, Glue, and SageMaker. Each setup
+    has distinct advantages, and the right one may differ based on the situation.
+    This is because you need to consider both technical and non-technical aspects
+    of the project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to how the amount of data becomes an issue for processing data, it also
+    introduces multiple issues when training a model. In the next chapter, you will
+    learn how to train models efficiently using a distributed system.
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,1389 @@
+- en: '9'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Image Segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about detecting objects present in images,
+    along with the classes that correspond to the detected objects. In this chapter,
+    we will go one step further by not only drawing a bounding box around an object
+    but also by identifying the exact pixels that contain the object. In addition
+    to that, by the end of this chapter, we will be able to single out instances/objects
+    that belong to the same class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will also learn about semantic segmentation and instance segmentation by
+    looking at the U-Net and Mask R-CNN architectures. Specifically, we will cover
+    the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the U-Net architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing semantic segmentation using U-Net to segment objects on a road
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the Mask R-CNN architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing instance segmentation using Mask R-CNN to identify multiple instances
+    of a given class
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A succinct illustration of what we are trying to achieve through image segmentation
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated with low confidence](img/B18457_09_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.1: Difference between object localization & segmentation tasks on
+    a sample image (source: [https://arxiv.org/pdf/1405.0312.pdf](https://arxiv.org/pdf/1405.0312.pdf))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The figure above shows: (a) object classes that are identified from an image,
+    (b) object locations that are identified from an image, (c) object class masks
+    that are identified from an image, and (d) object instances that are segregated
+    from an image. Now that you know what to expect, let’s get started!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All the code in this chapter can be found in the `Chapter09` folder in the GitHub
+    repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the U-Net architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you’re given an image and are asked to predict which
+    pixel corresponds to what object. So far, when we have been predicting an object
+    class and bounding box, we passed the image through a network, which then passes
+    the image through a backbone architecture (such as VGG or ResNet), flattens the
+    output at a certain layer, and connects additional dense layers before making
+    predictions for the class and bounding-box offsets. However, in the case of image
+    segmentation, where the output shape is the same as that of the input image’s
+    shape, flattening the convolutions’ outputs and then reconstructing the image
+    might result in a loss of information. Furthermore, the contours and shapes present
+    in the original image will not vary in the output image in the case of image segmentation,
+    so the networks we have dealt with so far (which flatten the last layer and connect
+    additional dense layers) are not optimal when we perform segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will learn how to perform image segmentation. The two aspects
+    that we need to keep in mind while performing segmentation are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The shape and structure of the objects in the original image remain the same
+    in the segmented output.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging a fully convolutional architecture (and not a structure where we
+    flatten a certain layer) can help here, since we are using one image as input
+    and another as output.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The U-Net architecture helps us achieve this. A typical representation of U-Net
+    is as follows (the input image is of the shape 3 x 96 x 128, while the number
+    of classes present in the image is 21; this means that the output contains 21
+    channels):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_09_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.2: A sample U-Net architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding architecture is called a **U-Net architecture** because of its
+    **U**-like shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the left half of the preceding diagram, we can see that the image passes
+    through convolution layers, as we have seen in previous chapters, and that the
+    image size keeps reducing while the number of channels keeps increasing. However,
+    in the right half, we can see that we upscale the downscaled image, back to the
+    original height and width but with as many channels as there are classes (21 in
+    this case).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, while upscaling, we also leverage information from the corresponding
+    layers in the left half using **skip connections** (similar to the ones in ResNet
+    that we learned about in *Chapter 5*, *Transfer Learning for Image Classification*)
+    so that we can preserve the structure/objects in the original image. This way,
+    the U-Net architecture learns to preserve the structure (and shapes of objects)
+    of the original image while leveraging the convolution’s features to predict the
+    classes that correspond to each pixel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, we have as many channels in the output as the number of classes
+    we want to predict.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the high level of a U-Net architecture, let us understand
+    the new concept we introduced, upscaling, in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing upscaling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the U-Net architecture, upscaling is performed using the `nn.ConvTranspose2d`
+    method, which takes the number of input channels, the number of output channels,
+    the kernel size, and stride as input parameters. An example calculation for `ConvTranspose2d`
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of black and white squares  Description automatically generated](img/B18457_09_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.3: Upscaling operation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding example, we took an input array of shape 3 x 3 (**Input array**),
+    applied a stride of 2 where we distributed the input values to accommodate the
+    stride (**Input array adjusted for stride**), padded the array with zeros (**Input
+    array adjusted for stride and padding**), and convolved the padded input with
+    a filter (**Filter/Kernel**) to fetch the output array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By leveraging a combination of padding and stride, we have upscaled an input
+    that is 3 x 3 in shape to an array of 6 x 6 in shape. While the preceding example
+    is only for illustration purposes, the optimal filter values learn (because the
+    filter weights and bias are optimized during the model training process) to reconstruct
+    the original image as much as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The hyperparameters in `nn.ConvTranspose2d` are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text, letter  Description automatically generated](img/B18457_09_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.4: Arguments of ConvTranspose2d'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to understand how `nn.ConvTranspose2d` helps upscale an array, let’s
+    go through the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize a network, `m`, with the `nn.ConvTranspose2d` method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are specifying that the input channel’s value is `1`,
+    the output channel’s value is `1`, the size of the kernel is `(2,2)`, the stride
+    is `2`, and the padding is `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Internally, padding is calculated as dilation * (kernel_size – 1) - padding.
+    Hence, it is 1*(2-1)-0 = 1, where we add zero padding of 1 to both dimensions
+    of the input array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Initialize an input array and pass it through the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code results in a shape of `1x1x6x6`, as shown in the example
+    image provided earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how the U-Net architecture works and how `nn.ConvTranspose2d`
+    helps upscale an image, let’s implement it so that we can predict the different
+    objects present in an image of a road scene.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing semantic segmentation using U-Net
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we’ll leverage the U-Net architecture to predict the class
+    that corresponds to all the pixels in the image. A sample of such an input-output
+    combination is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_09_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.5: (Left) input image; (Right) output image with classes corresponding
+    to the various objects present in the image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that, in the preceding picture, the objects that belong to the same class
+    (in the left image, the input image) have the same pixel value (in the right image,
+    the output image), which is why we **segment** the pixels that are **semantically**
+    similar to each other. This is also known as semantic segmentation. Let’s learn
+    how to code semantic segmentation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Semantic_Segmentation_with_U_Net.ipynb` file
+    in the `Chapter09` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+    The code contains URLs to download data from and is moderately lengthy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s begin by downloading the necessary datasets, installing the necessary
+    packages, and then importing them. Once we’ve done that, we can define the device:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function that will be used to transform images (`tfms`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the dataset class (`SegData`) to fetch input and output images for training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Specify the folder that contains images in the `__init__` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `__len__` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `__getitem__` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `__getitem__` method, we are resizing both the input (`image`) and output
+    (`mask`) images so that they’re the same shape. Note that the mask images contain
+    integers that fall in the range `[0,11]`. This indicates that there are 12 different
+    classes.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Define a function (`choose`) to select a random image index (mainly for debugging
+    purposes):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `collate_fn` method to perform preprocessing on a batch of images:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we preprocess all the input images so that they have
+    a channel (so that each image can be passed through a CNN later) once we’ve transformed
+    the scaled images. Notice that `ce_masks` is a tensor of long integers, similar
+    to the cross-entropy targets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Define the training and validation datasets, as well as the dataloaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the neural network model architecture to train for segmentation. Note
+    that a U-Net contains the traditional convolutions as well as up-convolution:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the convolution block (`conv`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding definition of `conv`, we sequentially perform the `Conv2d`
+    operation, the `BatchNorm2d` operation, and the `ReLU` operation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the `up_conv` block:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`ConvTranspose2d` ensures that we upscale the images. This differs from the
+    `Conv2d` operation, where we reduce the dimensions of the image. It takes an image
+    that has `in_channels` number of channels as input channels and produces an image
+    that has `out_channels` number of output channels.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the network class (`UNet`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding `__init__` method, we define all the layers that we would use
+    in the `forward` method.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the `forward` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we make the U-style connection between the downscaling
+    and upscaling convolution features by using `torch.cat` on the appropriate pairs
+    of tensors.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define a function (`UNetLoss`) that will calculate our loss and accuracy values:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a function that will train on a batch (`train_batch`) and calculate
+    the metrics on the validation dataset (`validate_batch`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model, optimizer, loss function, and the number of epochs for training:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the training, validation loss, and accuracy values over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_09_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.6: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the predicted output on a new image to observe model performance
+    on unseen images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Fetch model predictions on a new image:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the channel that has the highest probability:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Show the original and predicted images:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![](img/B18457_09_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.7: (Left) Original image; (Middle) original mask; (Right) predicted
+    mask'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding picture, we see that we can successfully generate a segmentation
+    mask using the U-Net architecture. However, all instances of the same class will
+    have the same predicted pixel value. What if we want to separate the instances
+    of the `Person` class in the image?
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn about the Mask R-CNN architecture, which
+    helps to generate instance-level masks so that we can differentiate between instances
+    (even instances of the same class).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the Mask R-CNN architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The Mask R-CNN architecture helps identify/highlight the instances of objects
+    of a given class within an image. This becomes especially handy when there are
+    multiple objects of the same type present within the image. Furthermore, the term
+    **Mask** represents the segmentation that’s done at the pixel level by Mask R-CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Mask R-CNN architecture is an extension of the Faster R-CNN network, which
+    we learned about in the previous chapter. However, a few modifications have been
+    made to the Mask R-CNN architecture, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `RoI Pooling` layer has been replaced with the `RoI Align` layer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A mask head has been included to predict a mask of objects in addition to the
+    head, which already predicts the classes of objects and bounding-box correction
+    in the final layer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A **fully convolutional network** (**FCN**) is leveraged for mask prediction.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let’s have a quick look at the events that occur within Mask R-CNN before we
+    understand how each of the components works (image source: [https://arxiv.org/pdf/1703.06870.pdf](https://arxiv.org/pdf/1703.06870.pdf)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_09_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.8: Mask R-CNN workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding diagram, note that we are fetching the class and bounding-box
+    information from one layer and the mask information from another layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The working details of the Mask R-CNN architecture are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_09_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.9: Working details of Mask R-CNN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we implement the Mask R-CNN architecture, we need to understand its components.
+    We’ll start with RoI Align.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RoI Align
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: With Faster R-CNN, we learned about RoI pooling. One of the drawbacks of RoI
+    pooling is that we are likely to lose certain information when we perform the
+    RoI pooling operation. This is because we are likely to have an uneven representation
+    of content across all the areas of an image before pooling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s go through the example we provided in the previous chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B18457_09_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.10: RoI pooling calculation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, the region proposal is 5 x 7 in shape, and we have to
+    convert it into a 2 x 2 shape. While converting it into a 2 x 2 shape, one part
+    of the region has less representation compared to other parts of the region. This
+    results in information loss, since certain parts of the region have more weight
+    than others. RoI Align comes to the rescue to address such a scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s go through a simple example to understand how RoI Align works. Here,
+    we try to convert the following region (which is represented by dashed lines)
+    into a 2 x 2 shape:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing calendar  Description automatically generated](img/B18457_09_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.11: Region represented with dashed lines'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the region (in dashed lines) is not equally spread across all the
+    cells in the feature map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We must perform the following steps to get a reasonable representation of the
+    region in a 2 x 2 shape:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, divide the region into an equal 2 x 2 shape:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A picture containing table  Description automatically generated](img/B18457_09_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.12: Calculating the four corners of the region'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define four points that are equally spaced within each of the 2 x 2 cells:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated with medium confidence](img/B18457_09_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.13: Calculating the four selected points'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, in the preceding diagram, the distance between two consecutive points
+    is 0.75 (either horizontally or vertically).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calculate the weighted average value of each point based on its distance to
+    the nearest known value:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A picture containing diagram  Description automatically generated](img/B18457_09_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.14: Extrapolating the value corresponding to each point'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Repeat the preceding interpolation step for all four points in a cell:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B18457_09_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.15: Values of the four corners'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Perform average pooling across all four points within a cell:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![A picture containing table  Description automatically generated](img/B18457_09_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.16: Output of pooling for all the four cells'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By implementing the preceding steps, we don’t lose out on information when performing
+    RoI Align, that is, when we place all the regions inside the same shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mask head
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Using RoI Align, we can get a more accurate representation of the region proposal
+    that is obtained from the region proposal network. Now, we want to obtain the
+    segmentation (mask) output, given a standard-shaped RoI Align output, for every
+    region proposal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typically, in the case of object detection, we would pass the RoI Align through
+    a flattened layer to predict the object’s class and bounding-box offset. However,
+    in the case of image segmentation, we predict the pixels within a bounding box
+    that contains the object. Hence, we now have a third output (apart from the class
+    and bounding-box offset), which is the predicted mask within the region of interest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we predict the mask, which is an image overlay on top of the original
+    image. Given that we predict an image, instead of flattening the RoI Align’s output,
+    we’ll connect it to another convolution layer to get another image-like structure
+    (width x height in dimensions). Let’s understand this phenomenon by looking at
+    the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_09_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.17: Workflow to obtain masks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram, we have obtained an output of shape 7 x 7 x 2,048
+    using the **feature pyramid network** (**FPN**), which now has two branches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first branch returns the class of the object and the bounding box, after
+    flattening the FPN output.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second branch performs convolution on top of the FPN’s output to get a mask.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The ground truth corresponding to the 14 x 14 output is the resized image of
+    the region proposals. The ground truth of the region proposal is of the shape
+    80 x 14 x 14 if there are 80 unique classes in the dataset. Each of the 80 x 14
+    x 14 pixels is a 1 or a 0, which indicates whether the pixel contains an object
+    or not. Thus, we are performing binary cross-entropy loss minimization while predicting
+    the class of a pixel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Post model training, we can detect regions, get classes, get bounding-box offsets,
+    and get the mask corresponding to each region. When making an inference, we first
+    detect the objects present in the image and make bounding-box corrections. Then,
+    we pass the region offsets to the mask head to predict the mask that corresponds
+    to different pixels in the region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand how the Mask R-CNN architecture works, let’s code it
+    up so that we can detect instances of people in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing instance segmentation using Mask R-CNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To help us understand how to code Mask R-CNN for instance segmentation, we will
+    leverage a dataset that masks people who are present within an image. The dataset
+    we’ll be using has been created from a subset of the ADE20K dataset that contains
+    input images and their corresponding masks, which is available at [https://groups.csail.mit.edu/vision/datasets/ADE20K/](https://groups.csail.mit.edu/vision/datasets/ADE20K/).
+    We will only use those images where we have masks for people.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The strategy we’ll adopt is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetch the dataset and then create datasets and dataloaders from it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a ground truth in a format needed for PyTorch’s official implementation
+    of Mask R-CNN.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Download the pre-trained Faster R-CNN model and attach a Mask R-CNN head to
+    it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the model with a PyTorch code snippet that has been standardized to train
+    Mask R-CNN.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Infer on an image by performing non-max suppression first and then identifying
+    the bounding box and the mask corresponding to the people in the image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let’s code up the preceding strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find the following code in the `Instance_Segmentation.ipynb` file in the `Chapter09`
+    folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant dataset and training utilities from GitHub:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import all the necessary packages and define `device`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch images that contain masks of people, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Loop through the `images` and `annotations_instance` folders to fetch filenames:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inspect the original image and the representation of masks of instances of
+    people:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates the following output. We can see that a separate
+    mask has been generated for each person. Here, there are four instances of the
+    `Person` class:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![A picture containing text  Description automatically generated](img/B18457_09_18.png)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: 'Figure 9.18: Separate mask generation for each individual'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In this particular dataset, the ground-truth instance annotations are provided
+    in such a way that the Red channel in RGB corresponds to the class of object,
+    while the Green channel corresponds to the instance number (if there are multiple
+    objects of the same class in the image, as in our example here). Furthermore,
+    the `Person` class is encoded with a value of 4.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Loop through the annotations and store the files that contain at least one
+    person:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Split the files into training and validation files:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'Define the transformation method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create the dataset class (`MasksDataset`), as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the `__init__` method, which takes the image names (`items`), transformation
+    method (`transforms`), and the number of files to consider (`N`) as input:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a method (`get_mask`) that will fetch the number of masks that’s equivalent
+    to the instances present in the image:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the image and the corresponding target values to be returned. Each person
+    (instance) is treated as a different object class; that is, each instance is a
+    different class. Note that, similar to training the Faster R-CNN model, the targets
+    are returned as a dictionary of tensors. Let’s define the `__getitem__` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Apart from the masks themselves, Mask R-CNN also needs the bounding-box information.
+    However, this is easy to prepare, as shown in the following code:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we adjust for scenarios where there are dubious ground
+    truths (i.e., the height or width of the `Person` class is less than 10 pixels)
+    by adding 10 pixels to the minimums of the `x` and `y` coordinates of the bounding
+    box.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Convert all the target values into tensor objects:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Store the target values in a dictionary:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the transformation method and return the image after scaling it:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the `__len__` method:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the function that will choose a random image:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inspect an input-output combination:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following is some example output that the preceding code produces when
+    it’s run. We can see that the mask’s shape is 2 x 512 x 683, indicating that there
+    are two people in the image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B18457_09_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.19: (Left) Input image; (Middle and right), predicted masks of persons'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, in the `__getitem__` method, we have as many masks and bounding boxes
+    in an image as there are objects (instances) present within the image. Furthermore,
+    because we only have two classes (the `Background` class and the `Person` class),
+    we specify the `Person` class as `1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of this step, we have quite a lot of information in the output dictionary,
+    that is, the object classes, bounding boxes, masks, the area of the masks, and
+    if a mask corresponds to a crowd. All of this information is available in the
+    `target` dictionary. For the training function that we are going to use, it is
+    important for the data to be standardized in the format that the `torchvision.models.detection.maskrcnn_resnet50_fpn`
+    class requires it to be in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we need to define the instance segmentation model (`get_model_instance_segmentation`).
+    We are going to use a pre-trained model with only the heads reinitialized to predict
+    two classes (background and person). First, we need to initialize a pre-trained
+    model and replace the `box_predictor` and `mask_predictor` heads so that they
+    can be learned from scratch:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`FastRCNNPredictor` expects two inputs: `in_features` (the number of input
+    channels) and `num_classes` (the number of classes). Based on the number of classes
+    to predict, the number of bounding box predictions is calculated, which is four
+    times the number of classes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`MaskRCNNPredictor` expects three inputs: `in_features_mask` (the number of
+    input channels), `hidden_layer` (the number of channels in the output), and `num_classes`
+    (the number of classes to predict).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Details of the defined model can be obtained by specifying the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'The bottom half of the model (that is, without the backbone) would look like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B18457_09_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.20: Mask R-CNN model architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that the major difference between the Faster R-CNN (which we trained in
+    the previous chapter) and the Mask R-CNN model is in the `roi_heads` module, which
+    itself contains multiple sub-modules. Let’s take a look at what tasks they perform:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`roi_heads`: Aligns the inputs taken from the FPN network and creates two tensors.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`box_predictor`: Uses the outputs we obtained to predict classes and bounding-box
+    offsets for each RoI.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`mask_roi_pool`: This layer then aligns the outputs coming from the FPN.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`mask_head`: Converts the aligned outputs obtained previously into feature
+    maps that can be used to predict masks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`mask_predictor`: Takes the outputs from `mask_head` and predicts the final
+    masks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Fetch the dataset and dataloaders that correspond to the train and validation
+    images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model, parameters, and optimization criterion:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The defined pre-trained model architecture takes the image and the `targets`
+    dictionary as input to reduce loss. A sample of the output that will be received
+    from the model can be seen by running the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B18457_09_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.21: Sample predictions'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we can see a dictionary with bounding boxes (`BOXES`), classes corresponding
+    to bounding boxes (`LABELS`), confidence scores corresponding to class predictions
+    (`SCORES`), and the location of our mask instances (`MASKS`). As you can see,
+    the model is hardcoded to return 100 predictions, which is reasonable, since we
+    shouldn’t expect more than 100 objects in a typical image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To fetch the number of instances that have been detected, we would use the
+    following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: The preceding code fetches a maximum of 100 mask instances (where the instances
+    correspond to a non-background class) for an image (along with the dimensions
+    corresponding to the image). For these 100 instances, it would also return the
+    corresponding class label, the bounding box, and the 100 corresponding confidence
+    values of the class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'By doing this, we can now overlay our masks over people in an image. We can
+    log our training loss variation over increasing epochs as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_09_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.22: Training loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Predict on a test image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output. We can see that we can
+    successfully identify the four people in the image. Furthermore, the model predicts
+    multiple other segments in the image (which we have not shown in the preceding
+    output), although this is with low confidence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated with medium
+    confidence](img/B18457_09_23.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.23: (Left) Input image; (rest) predicted masks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that the model can detect instances well, let’s run predictions on a custom
+    image that is not present within the provided dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run predictions on a new image of your own:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The input image is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A person holding a child  Description automatically generated with low confidence](img/B18457_09_24.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.24: Sample input image outside of validation data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch predictions on the input image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Graphical user interface  Description automatically generated](img/B18457_09_25.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.25: (Left) Input image; (rest) predicted masks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that, in the preceding image, the trained model did not work as well as
+    it did on the test images. This could be due to the following reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The people might not have been in such close proximity and overlapped during
+    training.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The model might not have been trained on as many images where the classes of
+    interest occupy the majority of the image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The images in the dataset that we have trained our model on have a different
+    data distribution from the image being predicted on.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: However, even though duplicate masks have been detected, having lower class
+    scores in those regions (starting with the third mask) is a good indicator that
+    there might be duplicates in predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about segmenting multiple instances of the `Person`
+    class. In the next section, we will learn about what we need to tweak in the code
+    we built in this section to segment multiple instances of multiple classes of
+    objects in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predicting multiple instances of multiple classes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous section, we learned about segmenting the `Person` class. In
+    this section, we will learn about segmenting for person and table instances in
+    one go by using the same model we built in the previous section. Let’s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given that the majority of the code remains the same as it was in the previous
+    section, we will only explain the additional code within this section. While executing
+    code, we encourage you to go through the `predicting_multiple_instances_of_multiple_classes.ipynb`
+    notebook, which can be found in the `Chapter09` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch images that contain the classes of interest – `Person` (class ID 4) and
+    `Table` (class ID 6):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we fetch the images that contain at least one of the
+    classes of interest (`classes_list`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Modify the `get_mask` method so that it returns both masks, as well as the
+    classes that correspond to each mask in the `MasksDataset` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we fetch the classes of interest that exist within the
+    image and store them in `cls`. Next, we loop through each identified class (`cls`)
+    and store the locations where the red channel values correspond to the class (`cls`)
+    in `nzs`. Then, we fetch the instance IDs (`instances`) in those locations. Furthermore,
+    we append `instances` to `masks` and the classes corresponding to instances in
+    `labels` before returning the NumPy arrays for `masks` and `labels`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Modify the `labels` object in the `__getitem__` method so that it contains
+    labels that have been obtained from the `get_mask` method, instead of filling
+    it with `torch.ones`. The bold part of the following code is where this change
+    was implemented on the `__getitem__` method in the previous section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify that you have three classes instead of two while defining `model`,
+    as we now have person, table, and background classes to predict:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Upon training the model, as we did in the previous section, we’ll see that
+    the variation of training loss over increasing epochs is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_09_26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.26: Training loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, the predicted segments for a sample image that contains a person
+    and a table are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated](img/B18457_09_27.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.27: (Left) Input image; (rest) predicted masks and the corresponding
+    class'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding figure, we can see that we are able to predict both classes
+    using the same model. As an exercise, we encourage you to increase the number
+    of classes and the number of epochs and see what results you get.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to leverage U-Net and Mask R-CNN to perform
+    segmentation on top of images. We understood how the U-Net architecture can perform
+    downscaling and upscaling on images using convolutions to retain the structure
+    of an image, while still being able to predict masks around objects within the
+    image. We then cemented our understanding of this using the road scene detection
+    exercise, where we segmented the image into multiple classes. Then, we learned
+    about RoI Align, which helps ensure that the issues with RoI pooling surrounding
+    image quantization are addressed. After that, we learned how Mask R-CNN works
+    so that we could train models to predict instances of people in images, as well
+    as instances of people and tables in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have a good understanding of various object detection techniques
+    and image segmentation techniques, in the next chapter, we will learn about applications
+    that leverage the techniques we have learned about so far so that we can expand
+    the number of classes that we will predict. In addition, we will also learn about
+    the Detectron2 framework, which reduces code complexity while we build Faster
+    R-CNN and Mask R-CNN models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How does upscaling help in the U-Net architecture?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we need to have a fully convolutional network in U-Net?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does RoI Align improve upon RoI pooling in Mask R-CNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the major difference between U-Net and Mask R-CNN for segmentation?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is instance segmentation?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

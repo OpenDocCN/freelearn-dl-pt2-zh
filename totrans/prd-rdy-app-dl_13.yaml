@@ -1,0 +1,829 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Improving Inference Efficiency
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When a **deep learning** (**DL**) model is deployed on an edge device, inference
+    efficiency is often unsatisfactory. These issues mostly come from the size of
+    the trained network, as it requires a lot of computation. Therefore, many engineers
+    and scientists often sacrifice accuracy for speed when deploying a DL model on
+    an edge device. Furthermore, they focus on reducing the model size as edge devices
+    often have limited storage space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will introduce techniques for improving the inference latency
+    while maintaining the original performance as much as possible. First, we will
+    cover **network quantization**, a technique that decreases the network size by
+    using data formats of lower precision for model parameters. Next, we will talk
+    about **weight sharing**, which is also known as weight clustering. It is a very
+    interesting concept where a few model weight values are shared across the whole
+    network, reducing the necessary disk space to store the trained model. We will
+    also talk about **network pruning**, which involves eliminating unnecessary connections
+    within the network. While these three techniques are the most popular, we will
+    also introduce two other interesting subjects: **knowledge distillation** and
+    **network architecture search**. These two techniques achieve model size reduction
+    and inference latency improvement by modifying the network architecture directly
+    during training.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we are going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network quantization – reducing the number of bits used for model parameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Weight sharing – reducing the number of distinct weight values
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Network pruning – eliminating unnecessary connections within the network
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Knowledge distillation – obtaining a smaller network by mimicking the prediction
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Network Architecture Search – finding the most efficient network architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can download the supplemental material for this chapter from this book’s
+    GitHub repository at [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_10](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_10).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we deep dive into the individual techniques, we would like to introduce
+    two libraries built on top of **TensorFlow** (**TF**). The first is **TensorFlow
+    Lite** (**TF Lite**), which handles the TF model deployment on mobile, microcontrollers,
+    and other edge devices ([https://www.tensorflow.org/lite](https://www.tensorflow.org/lite)).
+    Some of the techniques we will be describing are only available for TF Lite. The
+    other library is called TensorFlow Model Optimization Toolkit. This library is
+    designed to provide various optimization techniques for TF models ([https://www.tensorflow.org/model_optimization](https://www.tensorflow.org/model_optimization)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network quantization – reducing the number of bits used for model parameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: If we look at DL model training in detail, you will notice that the model learns
+    to deal with noisy inputs. In other words, the model tries to construct a generalization
+    for the data it is trained with so that it can generate reasonable predictions
+    even with some noise in the incoming data. Additionally, the DL model ends up
+    using a particular range of numeric values for inference after the training. Following
+    this line of thought, network quantization aims to use simpler representations
+    for these values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 10.1*, network quantization, also called model quantization,
+    is the process of remapping a range of numeric values that the model interacts
+    with to a number system that can be represented with fewer bits – for example,
+    using 8 bits instead of 32 bits to represent a float. Such modifications pose
+    an additional advantage in DL model deployment as edge devices are often missing
+    stable support for arithmetic based on 32-bit floating-point numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.1 – An illustration of the number system remapping from float 32
+    to int 8 in network quantization'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_10_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 10.1 – An illustration of the number system remapping from float 32 to
+    int 8 in network quantization
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, network quantization involves more than converting a number from
+    high precision into lower precision. This is because DL model inference involves
+    arithmetic that produces numbers with higher precision than the precision of the
+    inputs. In this chapter, we will look at various options in network quantization
+    that overcome the challenge in different ways. If you are interested in learning
+    more about network quantization, we recommend *A Survey of Quantization Methods
+    for Efficient Neural Network Inference*, by Gholami et al.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network quantization techniques can be categorized into two areas. The first
+    is post-training quantization, while the other is quantization-aware training.
+    The former is designed to quantize a model that has already been trained, while
+    the latter minimizes the accuracy decrease due to quantization process by training
+    a model with lower precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, these two techniques are both available in standard DL frameworks:
+    TF and PyTorch. In the following sections, we will look at how to perform network
+    quantization in these frameworks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing post-training quantization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: First, we will look at how TF and PyTorch support post-training quantization.
+    The modification is simple as it only requires a few additional lines of code.
+    Let’s start with TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing post-training quantization in TensorFlow
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'By default, a DL model uses floats of 32 bits for the necessary computations
+    and variables. In the following example, we will demonstrate dynamic range quantization
+    where only the fixed parameters (such as weights) are quantized to use 16 bits
+    instead of 32 bits. Please note that you will need to install TF Lite for post-training
+    quantization in TF:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: From the quantization, we get a TF Lite model. In the preceding code snippet,
+    we are using the `tf.lite.TFLiteConverter.from_saved_model` function to load a
+    trained TF model and obtain a quantized TF Lite model. Before we trigger the conversion,
+    we need to configure a few things. First, we must set the optimization strategy
+    for quantizing the model weights (`converter.optimizations = [tf.lite.Optimize.DEFAULT]`).
+    Then, we need to specify that we want 16-bit weights from the quantization (`converter.target_spec.supported_types
+    = [tf.float16]`). Actual quantization happens when the `convert` function is triggered.
+    In the preceding code, if we don’t specify a 16-bit float type for `supported_types`,
+    we would be quantizing the model to use integers of 8 bits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we would like to introduce full integer quantization, where every component
+    for the model inference (inputs, activations, as well as weights) is quantized
+    to lower precision. For this type of quantization, you need to provide a representative
+    dataset to estimate the ranges for the activations. Let’s look at the following
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code is almost self-explanatory. Again, we are using the `TFLiteConverter`
+    class for the quantization. First, we configure the optimization strategy (`converter.optimizations
+    = [tf.lite.Optimize.DEFAULT]`) and provide a representative dataset (`converter.representative_dataset
+    = representative_dataset`). Next, we set TF optimizations to be performed in integer
+    representation. Additionally, we need to specify input and output data types by
+    configuring `target_spec`, `inference_input_type`, and `inference_output_type`.
+    Again, the `convert` function in the last line triggers the quantization process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The two types of post-training quantization in TF are explained thoroughly at
+    [https://www.tensorflow.org/model_optimization/guide/quantization/post_training](https://www.tensorflow.org/model_optimization/guide/quantization/post_training).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at how PyTorch achieves post-training quantization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing post-training quantization in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In the case of PyTorch, there are two different post-training quantization
+    methods: **dynamic quantization** and **static quantization**. They differ by
+    when the quantization occurs, and have different advantages and disadvantages.
+    In this section, we will provide a high-level description of each algorithm, along
+    with code samples.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic quantization – quantizing the model at runtime
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: First, we will look at dynamic quantization, the simplest form of quantization
+    available in PyTorch. This type of algorithm applies the quantization on weights
+    ahead of time while quantization on activations occurs dynamically during inference.
+    Therefore, dynamic quantization is often used in situations where the model execution
+    is mainly throttled by loading weights while computing matrix multiplication is
+    not an issue. This type of quantization is often used for LSTM or Transformer
+    networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a trained model, dynamic quantization can be achieved as follows. The
+    complete example is available at [https://pytorch.org/tutorials/recipes/recipes/dynamic_quantization.html](https://pytorch.org/tutorials/recipes/recipes/dynamic_quantization.html):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: To apply dynamic quantization, you need to pass the trained model to the `torch.quantization.quantize_dynamic`
+    function. The other two parameters refer to a set of modules that the quantization
+    will be applied to (`qconfig_spec={torch.nn.Linear}`) and the target data type
+    of the quantized tensors (`dtype=torch.qint8`). In this example, we will quantize
+    the `Linear` layers to use 8-bit integers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s look at static quantization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Static quantization – determining optimal quantization parameters using a representative
+    dataset
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The other type of quantization is called static quantization. Like full integer
+    quantization of TF, this type of quantization minimizes the model performance
+    degradation by estimating the range of numbers that the model interacts with using
+    a representative dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, static quantization requires a bit more coding than dynamic
+    quantization. First, you need to insert `torch.quantization.QuantStub` and `torch.quantization.DeQuantStub`
+    operations before and after the network for the necessary tensor conversions,
+    respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding network, we have a single `Linear` layer but also have two
+    additional operations initialized in the `__init__` function: `torch.quantization.QuantStub`
+    and `torch.quantization.DeQuantStub`. The former operation is applied to the input
+    tensor to indicate the start of the quantization. The latter operation is applied
+    as the last operation in the `forward` function to indicate the end of the quantization.
+    The following code snippet describes the first step of static quantization – the
+    calibration process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code snippet starts with a trained model, `model_fp32`. To convert
+    the model into an intermediate format for the calibration process, you need to
+    attach a quantization config (`model_fp32.qconfig`) and pass the model to the
+    `torch.quantization.prepare` method. If the model inference runs on a server instance,
+    you must set the `qconfig` property of the model to `torch.quantization.get_default_qconfig('fbgemm')`.
+    If the target environment is a mobile device, you must pass in `'qnnpack'` to
+    the `get_default_qconfig` function. The calibration process can be achieved by
+    passing the representative dataset to the generated model, `model_fp32_prepared`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The last step is to convert the calibrated model into a quantized model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `torch.quantization.convert` operation in the preceding line of code quantizes
+    the calibrated model (`model_fp32_prepared`) and generates a quantized version
+    of the model (`model_int8`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other details on static quantization can be found at [https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html](https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will describe how to perform quantization-aware training
+    in TF and PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing quantization-aware training
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Post-training quantization can reduce the model size significantly. However,
+    it may also reduce the model accuracy significantly. Therefore, the following
+    question arises: can we recover some of the lost accuracy? The answer to this
+    problem might be **quantization-aware training** (**QAT**). In this case, the
+    model is quantized before training so that it can learn the generalization directly
+    using the weights and activations of lower precision.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, let’s see how we can achieve this in TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quantization-aware training in TensorFlow
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'TF provides QAT through TensorFlow Model Optimization Toolkit. The following
+    code snippet describes how you can set up QAT in TF:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we have used the `tfmot.quantization.keras.quantize_model` function
+    to set up a model for QAT. The output model needs to be compiled using the `compile`
+    function and can be trained using the `fit` function, as in the case of a normal
+    TF model. Surprisingly, this is all you need. The trained model will be already
+    quantized and should provide higher accuracy than the one generated from post-training
+    quantization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For more details, please refer to the original documentation: [https://www.tensorflow.org/model_optimization/guide/quantization/training_comprehensive_guide](https://www.tensorflow.org/model_optimization/guide/quantization/training_comprehensive_guide).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at the PyTorch case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quantization-aware training in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: QAT in PyTorch goes through a similar process. Throughout the training process,
+    the necessary calculations are achieved numbers that are clamped and rounded to
+    simulate the effect of quantization. The complete details can be found at [https://pytorch.org/docs/stable/quantization.html#quantization-aware-training-for-static-quantization](https://pytorch.org/docs/stable/quantization.html#quantization-aware-training-for-static-quantization).
+    Let’s look at how to set up a QAT for PyTorch model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The setup for QAT is almost identical to what we went through for static quantization
+    in the *Static quantization – determining optimal quantization parameters using
+    a representative dataset* section. The same modification is necessary for the
+    model for both static quantization and QAT; the `torch.quantization.QuantStub`
+    and `torch.quantization.DeQuantStub` operations have to be inserted into the model
+    definition to indicate the region for the quantization. The main difference comes
+    from the intermediate representation of the network since QAT involves updating
+    the model parameters throughout training. The following code snippet describes
+    the difference better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding example, we are using the same network we defined in the *Static
+    quantization – determining optimal quantization parameters using a representative
+    dataset* section: `OriginalModel`. The model should be in `train` mode for QAT
+    (`model_fp32.train()`). Here, we assume that the model will be deployed on a server
+    instance: `torch.quantization.get_default_qat_qconfig(''fbgemm'')`. In the case
+    of QAT, the intermediate representation of the model is created by passing the
+    original model to the `torch.quantization.prepare_qat` function. You need to train
+    the intermediate representation (`model_fp32_prepared`) instead of the original
+    model (`model_fp32`). Once the training is completed, you can use the `torch.quantization.convert`
+    function to generate the quantized model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall, we have investigated how TF and PyTorch provide QAT to minimize the
+    degradation in model accuracy from the quantization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Network quantization is a simple technique that reduces the inference latency
+    by representing the numbers it deals with in lower precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. There are two types of network quantization: post-training quantization,
+    which applies quantization to a model that is already trained, and QAT, which
+    minimizes the degradation in accuracy by training the model with lower precision.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. TF and PyTorch support both post-training quantization and QAT with minimal
+    modifications in the training code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next section, we will look at another option for improving inference
+    latency: weight sharing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weight sharing – reducing the number of distinct weight values
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Weight sharing** or **weight clustering** is another technique that can significantly
+    reduce the size of the model. The idea behind this technique is rather simple:
+    let’s cluster the weights into groups (or clusters) and use the centroid values
+    instead of individual weight values. In this case, we can store the value of each
+    centroid instead of storing every value for the weights. Therefore, we can compress
+    the model size significantly and possibly speed up the inference process. The
+    key idea behind weight sharing is graphically presented in *Figure 10.2* (adapted
+    from the official TF blog post on weight clustering API: [https://blog.tensorflow.org/2020/08/tensorflow-model-optimization-toolkit-weight-clustering-api.html](https://blog.tensorflow.org/2020/08/tensorflow-model-optimization-toolkit-weight-clustering-api.html)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.2 – An illustration of weight sharing'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_10_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 10.2 – An illustration of weight sharing
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s learn how to perform weight sharing in TF before looking at how to do
+    the same in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing weight sharing in TensorFlow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: TF provides weight sharing for both the `Sequential` and `Functional` TF models
+    through TensorFlow Model Optimization Toolkit ([https://www.tensorflow.org/model_optimization/guide/clustering/clustering_example](https://www.tensorflow.org/model_optimization/guide/clustering/clustering_example)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, you need to define the clustering configuration, as shown in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, weight clustering involves the `tfmot.clustering.keras.cluster_weights`
+    function. We need to provide the trained model (`tf_model`) and a clustering configuration
+    (`clustering_params`). The clustering configuration defines the number of clusters
+    and how each cluster will be initialized. In this example, we are generating 10
+    clusters that have been initialized using linear centroid initialization (cluster
+    centroids will be evenly spaced between the minimum and maximum values). Other
+    cluster initialization options can be found at [https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/clustering/keras/CentroidInitialization](https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/clustering/keras/CentroidInitialization).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After the model with clustered weights is generated, you can remove all the
+    variables that are not needed during inference using the `tfmot.clustering.keras.strip_clustering`
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will look at how to perform weight sharing in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing weight sharing in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Unfortunately, PyTorch does not support weight sharing. Instead, we will provide
+    a high-level description of a possible implementation. In this example, we will
+    try to implement the operation described in *Figure 10.2*. First, we will add
+    a custom function called `cluster_weights` to the model implementation, which
+    you can call after the training for clustering the weights. Then, the `forward`
+    method will need to be modified slightly, as described in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code should be self-explanatory as it is pseudocode with comments
+    explaining the key operations. First, the model is trained as if it’s a normal
+    model. When the `cluster_weights` function is triggered, the weights are clustered,
+    and the necessary information for weight sharing is stored within the class; the
+    cluster index for each weight is stored in `self.weights_cluster`, and the centroid
+    values for each cluster are stored in `self.weights_mapping`. When the model is
+    in `eval` mode, the `forward` operation uses a different set of weights that are
+    constructed from `self.weights_cluster` and `self.weights_mapping`. Additionally,
+    you can add functionality for dropping the existing weights to reduce the model
+    size during deployment. We provide a complete implementation in our repository:
+    [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/blob/main/Chapter_10/weight_sharing_pytorch.ipynb](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/blob/main/Chapter_10/weight_sharing_pytorch.ipynb).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Weight sharing reduces the model size by grouping the distinct weight values
+    and replacing them with the centroid values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. TF provides weight sharing through TensorFlow Model Optimization Toolkit,
+    but PyTorch does not provide any support.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s learn about another popular technique called network pruning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network pruning – eliminating unnecessary connections within the network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Network pruning** is an optimization process that eliminates unnecessary
+    connections. This technique can be applied after training, but it can also be
+    applied during training where the decrease in model accuracy can be further reduced.
+    With fewer connections, fewer weights are necessary. As a result, we can reduce
+    the model size as well as the inference latency. In the following sections, we
+    will present how to apply network pruning in TF and PyTorch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network pruning in TensorFlow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Like model quantization and weight sharing, network pruning for TF is available
+    through TensorFlow Model Optimization Toolkit. Therefore, the first thing you
+    need for network pruning is to import the toolkit with the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To apply network pruning during training, you must modify your model using
+    the `tfmot.sparsity.keras.prune_low_magnitude` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we have configured network pruning by providing a model
+    and a set of parameters, `pruning_params`, to the `prune_low_magnitude` function.
+    As you can see, we have applied `PolynomialDecay` pruning, which initiates the
+    network at a particular sparsity (`initial_sparsity`) and constructs a network
+    of the target sparsity throughout the training process ([https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/PolynomialDecay](https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/PolynomialDecay)).
+    As shown in the last line, the `prune_low_magnitude` function returns another
+    model that performs network pruning during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we take a look at the modifications we need to make for the training
+    loop, we would like to introduce another pruning configuration, `tfmot.sparsity.keras.ConstantSparsity`
+    ([https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/ConstantSparsity](https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/ConstantSparsity)).
+    This pruning configuration applies constant sparsity pruning throughout the training
+    process. To apply this type of network pruning, you can simply modify `pruning_params`
+    as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As shown in the following code snippet, the training loop requires one additional
+    modification for the callback configurations; we need to use a Keras callback
+    that applies pruning for every optimizer step – that is, `tfmot.sparsity.keras.UpdatePruningStep`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code compiles the model that’s been prepared for network pruning
+    and carries out the training. Please keep in mind that the key change comes from
+    the `tfmot.sparsity.keras.UpdatePruningStep` callback specified for the `fit`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, you can update the trained model to only remember the sparse weights
+    by passing the model through the `tfmot.sparsity.keras.strip_pruning` function.
+    All `tf.Variable` instances that is not necessary for model inference will be
+    dropped:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The presented examples can be directly applied to the `Functional` and `Sequential`
+    TF models. To apply pruning to specific layers or a subset of a model, you need
+    to make the following modifications:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we have defined an `apply_pruning_to_dense` wrapper function that applies
+    the `prune_low_magnitude` function to the target layers. Then, all we need to
+    do is to pass the original model and the `apply_pruning_to_dense` function to
+    the `tf.keras.models.clone_model` function, which generates the new model by running
+    the provided function on the given model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is worth mentioning that the `tfmot.sparsity.keras.PrunableLayer` abstract
+    class exists, which is designed for custom network pruning. More details on this
+    can be found at [https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/PrunableLayer](https://www.tensorflow.org/model_optimization/api_docs/python/tfmot/sparsity/keras/PrunableLayer)
+    and [https://www.tensorflow.org/model_optimization/guide/pruning/comprehensive_guide#custom_training_loop](https://www.tensorflow.org/model_optimization/guide/pruning/comprehensive_guide#custom_training_loop).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at how pruning can be performed in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network pruning in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'PyTorch supports post-training network pruning through the `torch.nn.utils.prune`
+    module. Given a trained network, pruning can be achieved by passing the model
+    to the `global_unstructured` function. Once the model has been pruned, a binary
+    mask is attached, which represents the set of parameters that are pruned. The
+    mask is applied to the target parameter before the `forward` operation, eliminating
+    unnecessary computations. Let’s take a look at an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown in the preceding code snippet, the first parameter of the `global_unstructured`
+    function defines the network components that the pruning will be applied to (`parameters_to_prune`).
+    The second parameter defines the pruning algorithm (`pruning_method`). The last
+    parameter, `amount`, indicates the percentage of parameters to prune. In this
+    example, we are pruning the lowest 20% of the connections based on the L1 norm.
+    If you are interested in other algorithms, you can find the complete list at [https://pytorch.org/docs/stable/nn.html#utilities](https://pytorch.org/docs/stable/nn.html#utilities).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch also supports pruning per layer, as well as iterative pruning. You can
+    also define a custom pruning algorithm. The necessary details for the aforementioned
+    functionalities can be found at https://pytorch.org/tutorials/intermediate/pruning_tutorial.html#pruning-tutorial.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Network pruning is an optimization process that reduces the model size by
+    eliminating unnecessary connections in the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. Both TF and PyTorch support model-level and layer-level network pruning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we described how to eliminate unnecessary connections within
+    a network to improve inference latency. In the next section, we will learn about
+    a technique called knowledge distillation, which generates a new model instead
+    of modifying the existing model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Knowledge distillation – obtaining a smaller network by mimicking the prediction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The idea of knowledge distillation was first introduced in 2015 by Hinton et
+    al. in their publication titled *Distilling the Knowledge in a Neural Network*.
+    In classification problems, Softmax activation is often used as the last operation
+    of the network to represent the confidence for each class as a probability. Since
+    the class with the highest probability is used for the final prediction, the probabilities
+    for the other classes have been considered unimportant. However, the authors believe
+    that they still consist of meaningful information representing how the model interprets
+    the input. For example, if two classes constantly report similar probabilities
+    for multiple samples, the two classes likely have many characteristics in common
+    that makes the distinction between the two difficult. Such information becomes
+    more fruitful when the network is deep because it can extract more information
+    from the data it has seen. Building up from this idea, the authors propose a technique
+    for transferring knowledge of a trained model to a model of a smaller size: knowledge
+    distillation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The process of knowledge distillation is often referred to as the teacher sharing
+    the knowledge with a student; the original model is referred to as a teacher model,
+    while the smaller model is referred to as a student. As shown in the following
+    diagram, the student model is trained from two different labels constructed from
+    a single input. One label is the ground-truth label, referred to as the hard label.
+    The other label is called the soft label. The soft label is the output probability
+    of the teacher model. The main contribution of the knowledge distillation comes
+    from soft labels filling the missing information in hard labels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.3 – Overview of the knowledge distillation process'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_10_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 10.3 – Overview of the knowledge distillation process
+  prefs: []
+  type: TYPE_NORMAL
+- en: From many experiments evaluating the benefit of knowledge distillation, it has
+    been proven that achieving comparable performance using a smaller network is possible.
+    Surprisingly, the simpler network architecture leads to regularization in some
+    cases and results in the student model performing better than the teacher model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since the first appearance of this technique, many variations have been introduced.
+    The first set of variations comes from how the knowledge is defined: response-based
+    knowledge (network outputs), feature-based knowledge (intermediate representations),
+    and relation-based knowledge (relationships between layers or data samples). The
+    other set of variations focuses on how to achieve the knowledge transfer: offline
+    distillation (training a student model from a pre-trained teacher model), online
+    distillation (sharing the knowledge as both models get trained), and self-distillation
+    (sharing the knowledge within a single network). We believe that a paper titled
+    *Knowledge distillation: A survey* written by Gou et al. can be a good starting
+    point if you are willing to explore this domain further.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, due to the complexity of the training setup, there isn’t a framework
+    that supports knowledge distillation out of the box. However, it can still be
+    a great option if the model network is complex while the output structure is simple.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Knowledge distillation is a technique for transferring the knowledge of a
+    trained model to a model of a smaller size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. In knowledge distillation, the original model is referred to as a teacher
+    model while the smaller model is referred to as a student. The student model is
+    trained from two labels: ground-truth labels and the output of the teacher model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we introduce a technique that modifies the network architecture to
+    reduce the number of model parameters: network architecture search.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network Architecture Search – finding the most efficient network architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Neural Architecture Search (NAS)** is the process of finding the best organization
+    of the layers for the given problem. As the search space of the possible network
+    architectures is extremely large, it is not feasible to evaluate every possible
+    network architecture. Therefore, there is a need for a clever way to identify
+    a promising network architecture and evaluate the candidates. Therefore, NAS methods
+    are developed along three different aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Search space**: How to construct a search space of a reasonable size'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Search strategy**: How to explore the search space efficiently'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Performance estimation strategy**: How to estimate the performance efficiently
+    without training the model completely'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Even though NAS is a fast-growing field of research, a few tools are available
+    for TF and PyTorch models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optuna ([https://dzlab.github.io/dltips/en/tensorflow/hyperoptim-optuna](https://dzlab.github.io/dltips/en/tensorflow/hyperoptim-optuna/))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Syne-Tune, which can be used with SageMaker ([https://aws.amazon.com/blogs/machine-learning/run-distributed-hyperparameter-and-neural-architecture-tuning-jobs-with-syne-tune](https://aws.amazon.com/blogs/machine-learning/run-distributed-hyperparameter-and-neural-architecture-tuning-jobs-with-syne-tune/))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Katib ([https://www.kubeflow.org/docs/components/katib/hyperparameter](https://www.kubeflow.org/docs/components/katib/hyperparameter)),
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Neural Network Intelligence** (**NNI**) ([https://github.com/Microsoft/nni/blob/b6cf7cee0e72671672b7845ab24fcdc5aed9ed48/docs/en_US/GeneralNasInterfaces.md#example-enas-macro-search-space](https://github.com/Microsoft/nni/blob/b6cf7cee0e72671672b7845ab24fcdc5aed9ed48/docs/en_US/GeneralNasInterfaces.md#example-enas-macro-search-space))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SigOpt ([https://sigopt.com/blog/simple-neural-architecture-search-nas-intel-sigopt](https://sigopt.com/blog/simple-neural-architecture-search-nas-intel-sigopt/))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The simplistic version of NAS implementation involves defining a search space
+    from a random layer of organizations. Then, we simply pick the model with the
+    best performance. To reduce the overall search time, we can apply early stopping
+    based on a particular evaluation metric, which will quickly halt the training
+    when the evaluation metric is no longer changing. Such setup reformulates NAS
+    into a hyperparameter tuning problem where the model architecture has become a
+    parameter. We can further improve the search algorithm by applying one of the
+    following techniques:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bayesian optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Reinforcement learning** (**RL**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Gradient-based methods
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hierarchical-based methods
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If you want to explore this space further, we recommend implementing NAS on
+    your own. First, you can exploit the hyperparameter tuning techniques that were
+    introduced in [*Chapter 7*](B18522_07.xhtml#_idTextAnchor162), *Revealing the
+    Secret of Deep Learning Models*. You can start with a random parameter search
+    or a Bayesian optimization approach combined with early stopping. Then, we suggest
+    looking into the RL-based implementation. We also recommend reading a paper called
+    *A Comprehensive Survey of Neural Architecture Search: Challenges and Solutions*,
+    written by Pengzhen Ren et al.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. NAS is the process of finding the best network architecture for the underlying
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. NAS consists of three components: search space, search strategy, and performance
+    estimation strategy. It involves evaluating networks of different architectures
+    and finding the best one.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'c. A few tools for NAS exist: Optuna, Syne-Tune, Katib, NNI, and SigOpt.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we introduced NAS and how it can generate a network of smaller
+    size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we covered a set of techniques that you can use to improve
+    inference latency by reducing the model size. We introduced the three most popular
+    techniques, along with complete examples in TF and PyTorch: network quantization,
+    weight sharing, and network pruning. We also described techniques that reduce
+    the model size by modifying the network architecture directly: knowledge distillation
+    and NAS.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will explain how to deploy TF and PyTorch models on
+    mobile devices where the techniques described in this section can be useful.
+  prefs: []
+  type: TYPE_NORMAL

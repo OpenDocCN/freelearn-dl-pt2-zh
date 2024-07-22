@@ -1,0 +1,1283 @@
+- en: Temporal Difference and Q-Learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we solved MDPs by means of the Monte Carlo method,
+    which is a model-free approach that requires no prior knowledge of the environment.
+    However, in MC learning, the value function and Q function are usually updated
+    until the end of an episode. This could be problematic, as some processes are
+    very long or even fail to terminate. We will employ the **temporal difference**
+    (**TD**) method in this chapter to solve this issue. In the TD method, we update
+    the action values in every time step in an episode, which increases learning efficiency
+    significantly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The chapter will start with setting up the Cliff Walking and Windy Gridworld
+    environment playgrounds, which will be used in TD control methods as the main
+    talking point in this chapter. Through our step-by-step guides, readers will gain
+    practical experience of Q-learning for off-policy control, and SARSA for on-policy
+    control. We will also work on an interesting project, the Taxi problem, and demonstrate
+    how to solve it using Q-learning and the SARSA algorithm, respectively. Finally,
+    we will cover the double Q-learning algorithm by way of a bonus.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover of the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the Cliff Walking environment playground
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing the Q-learning algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up the Windy Gridworld environment playground
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing the SARSA algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the Taxi problem with Q-learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the Taxi problem with SARSA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing the Double Q-learning algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up the Cliff Walking environment playground
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the first recipe, we will start by getting familiar with the Cliff Walking
+    environment, which we will solve with TD methods in upcoming recipes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cliff Walking is a typical `gym` environment, with long episodes without a guarantee
+    of termination. It is a grid problem with a 4 * 12 board. An agent makes a move
+    up, right, down, and left at a step. The bottom-left tile is the starting point
+    for the agent, and the bottom-right is the winning point where an episode will
+    end if it is reached. The remaining tiles in the last row are cliffs where the
+    agent will be reset to the starting position after stepping on any of them, but
+    the episode continues. Each step the agent takes incurs a -1 reward, with the
+    exception of stepping on the cliffs, where a -100 reward is incurred.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To run the Cliff Walking environment, let's first search for its name in the
+    table of environments at [https://github.com/openai/gym/wiki/Table-of-environments](https://github.com/openai/gym/wiki/Table-of-environments).
+    We get `CliffWalking-v0` and also know that the observation space is represented
+    by an integer ranging from 0 (top-left tile) to 47 (bottom-right goal tile), and
+    that there are four possible actions (up = 0, right = 1, down = 2, and left =
+    3).
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s simulate the Cliff Walking environment by performing the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We import the Gym library and create an instance of the Cliff Walking environment
+    :'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we reset the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The agent starts with state 36 as the bottom-left tile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we render the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s now make a down movement regardless, even though it is not walkable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The agent stays still. Now, print out what we have just obtained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Again, each movement incurs a -1 reward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The episode is not done as the agent has not yet reached their goal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This means that the movement is deterministic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s perform an up movement since it is walkable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Print out what we have just obtained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The agent moves up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This incurs a -1 reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let''s try and make a right and a down movement:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The agent stepped on the cliff, so was reset to the starting point and received
+    a reward of -100:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, let''s try to take the shortest path to reach the goal:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Step 1*, we import the Gym library and create an instance of the Cliff Walking
+    environment. Then, we reset the environment in *Step 2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 3*, we render the environment and you will see a 4 * 12 matrix as
+    follows, representing a grid with the starting tile (x) where the agent is standing,
+    the goal tile (T), 10 cliff tiles (C), and regular tiles (o):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/53ae5a1c-7019-4758-ae5f-be6045b9ffe7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In *Steps 4*, *5*, and *6*, we made various moves and saw the various outcomes
+    of these movements and the rewards received.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you could imagine, a Cliff Walking episode can be very long or even endless,
+    since stepping on a cliff will reset the game. And the earlier the goal is reached
+    the better, because each step will result in a reward of -1 or -100\. In the next
+    recipe, we will solve the Cliff Walking problem with the help of a temporal difference
+    method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing the Q-learning algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Temporal difference (TD) learning is also a model-free learning algorithm, just
+    like MC learning. You will recall that Q-function is updated at the end of the
+    entire episode in MC learning (either in first - visit or every - visit mode).
+    The main advantage of TD learning is that it updates the Q-function for every
+    step in an episode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this recipe, we will look into a popular TD method called **Q-****learning**.
+    Q-learning is an off-policy learning algorithm. It updates the Q-function based
+    on the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ffb84f3a-a0f1-4f6d-a6ca-93c073b15b3e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, s' is the resulting state after taking action, a, in state s; r is the
+    associated reward; α is the learning rate; and γ is the discount factor. Also,
+    [![](img/99eb366b-52d8-48ec-ac69-981d19f676d5.png)] means that the behavior policy
+    is greedy, where the highest Q-value among those in state s' is selected to generate
+    learning data. In Q-learning, actions are taken according to the epsilon-greedy
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We perform Q-learning to solve the Cliff Walking environment as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the PyTorch and Gym libraries and create an instance of the Cliff Walking
+    environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s start by defining the epsilon-greedy policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, define the function that performs Q-learning:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We specify the discount rate as `1`, the learning rate as `0.4`, and epsilon
+    as `0.1`; and we simulate 500 episodes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we create an instance of the epsilon-greedy policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we perform Q-learning with input parameters defined previously and
+    print out the optimal policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Step 2*, the epsilon-greedy policy takes in a parameter, ε, with a value
+    from 0 to 1, and |A|, the number of possible actions. Each action is taken with
+    a probability of ε/|A|, and the action with the highest state-action value is
+    chosen with a probability of 1-ε+ε/|A|.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 3*, we perform Q-learning in the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We initialize the Q-table with all zeros.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In each episode, we let the agent follow the epsilon-greedy policy to choose
+    what action to take. And we update the Q function for each step.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We run `n_episode` episodes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We obtain the optimal policy based on the optimal Q function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In *Step 6*, again, up = 0, right = 1, down = 2, and left = 3; thus, following
+    the optimal policy, the agent starts in state 36, then moves up to state 24, and
+    then all the way right to state 35, and finally reaches the goal by moving down:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1203edde-ed7a-4487-bbad-d57a34717a32.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see in Q-learning , it optimizes the Q function by learning from
+    the experience generated by another policy. This is quite similar to the off-policy
+    MC control method. The difference is that it updates the Q function on the fly,
+    instead of after the entire episode. It is considered advantageous for environments
+    with long episodes where it is inefficient to delay learning until the end of
+    an episode. In every single step in Q-learning (or any other TD method), we gain
+    more information about the environment and use this information to update values
+    right away. In our case, we obtained the optimal policy by running only 500 learning
+    episodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In fact, the optimal policy was obtained after around 50 episodes. We can plot
+    the length of each episode over time to verify this. The total reward obtained
+    in each episode over time is also an option.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define two lists to store the length and total reward for each episode,
+    respectively:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We keep track of the length and total reward for each episode during learning.
+    The following is the updated version of `q_learning`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fbc47255-bf5d-48f9-a38c-d48fc25d7d53.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Display the plot of episode rewards over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9c6ecfbc-6646-495d-8522-36907e5ad4b2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Again, if you reduce the value of epsilon, you will see smaller fluctuations,
+    which are the effects of random exploration in the epsilon-greedy policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the Windy Gridworld environment playground
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous recipe, we solved a relatively simple environment where we can
+    easily obtain the optimal policy. In this recipe, let's simulate a more complex
+    grid environment, Windy Gridworld, where an external force moves the agent from
+    certain tiles. This will prepare us to search for the optimal policy using the
+    TD method in the next recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Windy Gridworld is a grid problem with a 7 * 10 board, which is displayed as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7288ee40-bc04-447a-8be8-a68e272a40bf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An agent makes a move up, right, down, and left at a step. Tile 30 is the starting
+    point for the agent, and tile 37 is the winning point where an episode will end
+    if it is reached. Each step the agent takes incurs a -1 reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complexity in this environment is that there is extra wind force in columns
+    4 to 9\. Moving from tiles on those columns, the agent will experience an extra
+    push upward. The wind force in the seventh and eighth columns is 1, and the wind
+    force in the fourth, fifth, sixth, and ninth columns is 2\. For example, if the
+    agent tries to move right from state 43, they will land in state 34; if the agent
+    tries to move left from state 48, they will land in state 37; if the agent tries
+    to move up from state 67, they will land in state 37 as the agent receives an
+    additional 2-unit force upward; if the agent tries to move down from state 27,
+    they will land in state 17, as the 2 extra force upward offsets 1 downward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Currently, Windy Gridworld is not included in the Gym environment. We will
+    implement it by taking the Cliff Walking environment as a reference: [https://github.com/openai/gym/blob/master/gym/envs/toy_text/cliffwalking.py](https://github.com/openai/gym/blob/master/gym/envs/toy_text/cliffwalking.py).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s develop the Windy Gridworld environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules, NumPy, and the `discrete` class, from Gym:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define four actions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s start by defining the `__init__` method in the `WindyGridworldEnv` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: This defines the observation space, the wind areas and forces, the transition
+    and reward matrices, and the initial state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define the `_calculate_transition_prob` method to determines the outcome
+    for an action, including the probability (which is 1), the new state, the reward
+    (which is always -1), and whether it is complete:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: This computes the state based on the current state, movement, and wind effect,
+    and ensures that the new position is within the grid. Finally, it checks whether
+    the agent has reached the goal state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define the `_limit_coordinates` method, which prevents the agent from
+    falling out of the grid world:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we add the `render` method in order to display the agent and the grid
+    environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`X` represents the agent''s current position, `T` is the goal tile, and the
+    remaining tiles are denoted as `o`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s simulate the Windy Gridworld environment in the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create an instance of the Windy Gridworld environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Reset and render the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: The agent starts with state 30.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Make a right movement:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The agent lands in state 31, with a reward of -1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Make two right moves:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, make another right move:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: With a 1-unit wind upward, the agent lands in state 24.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play around with the environment until the goal is reached.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We just developed a grid environment similar to Cliff Walking. The difference
+    between Windy Gridworld and Cliff Walking is the extra upward push. Each action
+    in a Windy Gridworld episode will result in a reward of -1\. Hence, it is better
+    to reach the goal earlier. In the next recipe, we will solve the Windy Gridworld
+    problem with another TD control method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing the SARSA algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You will recall that Q-learning is an off-policy TD learning algorithm. In this
+    recipe, we will solve an MDP with an on-policy TD learning algorithm, called **State-Action-Reward-State-Action**
+    (**SARSA**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similar to Q-learning, SARSA focuses on state-action values. It updates the
+    Q-function based on the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/81d5cfe8-f773-4d98-91fd-fc31a6e64ef9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, `s'` is the resulting state after taking the action, a, in state s; r
+    is the associated reward; α is the learning rate; and γ is the discount factor.
+    You will recall that in Q-learning, a behavior-greedy policy, [![](img/0d67589d-944b-4f62-bc0c-3ec728e5bbc7.png)],
+    is used to update the Q value. In SARSA, we simply pick up the next action, `a'`,
+    by also following an epsilon-greedy policy to update the Q value. And the action
+    a' is taken in the next step. Hence, SARSA is an on-policy algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We perform SARSA to solve the Windy Gridworld environment as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import PyTorch and `WindyGridworldEnvmodule` (assuming that it is in a file
+    called `windy_gridworld.py`), and create an instance of the Windy Gridworld environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s start by defining the epsilon-greedy behavior policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We specify the number of episodes and initialize two variables used to track
+    the length and total reward for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we define the function that performs SARSA:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We specify the discount rate as 1, the learning rate as 0.4, and epsilon as
+    0.1:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we create an instance of the epsilon-greedy policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we perform SARSA with input parameters defined in the previous steps
+    and print out the optimal policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In *Step 4*, the SARSA function does the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It initializes the Q-table with all zeros.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In each episode, it lets the agent follow the epsilon-greedy policy to choose
+    what action to take. And for each step, it updates the Q function based on the
+    equation [![](img/bb3e7ae0-26fd-4ac9-9ec4-35300e156091.png)], where `a'` is selected
+    on the basis of the epsilon-greedy policy. The new action, a', is then taken in
+    the new state, `s'`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We run `n_episode` episodes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We obtain the optimal policy based on the optimal Q function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As you can see in the SARSA method, it optimizes the Q function by taking the
+    action chosen under the same policy, the epsilon-greedy policy. This is quite
+    similar to the on-policy MC control method. The difference is that it updates
+    the Q function by small derivatives in individual steps, rather than after the
+    entire episode. It is considered advantageous for environments with long episodes
+    where it is inefficient to delay learning until the end of an episode. In every
+    single step in SARSA, we gain more information about the environment and use this
+    information to update values right away. In our case, we obtained the optimal
+    policy by running only 500 learning episodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In fact, the optimal policy was obtained after around 200 episodes. We can
+    plot the length and total reward for each episode over time to verify this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Display a plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/48463089-864f-44cd-b295-53c5d038d2b7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the episode length starts to saturate after 200 episodes. Note
+    that those small fluctuations are due to random exploration in the epsilon-greedy
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Display a plot of episode rewards over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3e027de5-e74f-4446-bac7-88045c5dda85.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Again, if you reduce the value of epsilon, you will see smaller fluctuations,
+    which are the effects of random exploration in the epsilon-greedy policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the upcoming two recipes, we will use the two TD methods we just learned
+    to solve a more complex environment with more possible states and actions. Let's
+    start with Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving the Taxi problem with Q-learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Taxi problem ([https://gym.openai.com/envs/Taxi-v2/](https://gym.openai.com/envs/Taxi-v2/))
+    is another popular grid world problem. In a 5 * 5 grid, the agent acts as a taxi
+    driver to pick up a passenger at one location and then drop the passenger off
+    at their destination. Take a look at the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d021faec-188e-42a1-b5a9-df0d237fcef6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Colored tiles have the following meanings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Yellow**: The starting position of the taxi. The starting location is random
+    in each episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Blue**: The position of the passenger. It is also randomly selected in each
+    episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Purple**: The destination of the passenger. Again, it is randomly selected
+    in each episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Green**: The position of the taxi with the passenger.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The four letters R, Y, B, and G indicate the only tiles that allow picking up
+    and dropping off the passenger. One of them is the destination, and one is where
+    the passenger is located.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The taxi can take the following six deterministic actions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**0**: Moving south'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**1**: Moving north'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**2**: Moving east'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**3**: Moving west'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**4**: Picking up the passenger'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**5**: Dropping of the passenger'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There is a pillar | between two tiles, which prevents the taxi from moving from
+    one tile to another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reward for each step is generally -1, with the following exceptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**+20**: The passenger is delivered to their destination. And an episode will
+    end.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**-10**: Attempted illegal pick-up or drop-off (not on any of R, Y, B, or G).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: One more thing to note is that the observation space is a lot larger than 25
+    (5*5) since we should also consider the location of the passenger and the destination,
+    and whether the taxi is empty or full. Hence, the observation space should be
+    25 * 5 (4 possible locations for the passenger or already in the taxi) * 4 (destinations)
+    = 500 dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To run the Taxi environment, let's first search for its name in the table of
+    environments, [https://github.com/openai/gym/wiki/Table-of-environments](https://github.com/openai/gym/wiki/Table-of-environments).
+    We get Taxi-v2 and also know that the observation space is represented by an integer
+    ranging from 0 to 499, and that there are four possible actions (up = 0, right
+    = 1, down = 2, and left = 3).
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s start by simulating the Taxi environment in the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We import the Gym library and create an instance of the Taxi environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we reset the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we render the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You will see a similar 5 * 5 matrix as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5775055b-af41-40d0-b307-3c76e94ceafd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The passenger is in the R location, and the destination is in Y. You will see
+    something different as the initial state is randomly generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now go and pick up the passenger by heading west for three tiles and
+    north for two tiles (you can adjust this according to your initial state) and
+    then executing the pick-up. Then, we render the environment again:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You will see the latest matrix updated (again, you may get different output
+    depending on your initial state):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/0964a8a6-b6e1-4b20-8659-ff3359e93e8e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The taxi turns green.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we go to the destination by heading south for four tiles (you can adjust
+    this to your initial state) and then executing the drop-off:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: It finally receives a +20 reward and the episode ends.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we render the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You will see the following updated matrix:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1fd1bd64-18eb-4eb0-8604-470dc0f1a587.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We will now perform Q-learning to solve the Taxi environment as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the PyTorch library:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, start defining the epsilon-greedy policy. We will reuse the `gen_epsilon_greedy_policy`
+    function defined in the *Developing the Q-learning algorithm* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, we specify the number of episodes and initialize two variables used to
+    track the length and total reward for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we define the function that performs Q-learning. We will reuse the `q_learning`
+    function defined in the *Developing Q-learning algorithm* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, we specify the rest of the parameters, including the discount rate, learning
+    rate, and epsilon, and create an instance of the epsilon-greedy-policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we perform Q-learning to obtain the optimal policy for the taxi problem:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we solve the Taxi problem via off-policy Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After *Step 6*, you can plot the length and total reward for each episode over
+    time to verify whether the model converges. The plot of episode lengths over time
+    is displayed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/290869c8-ea60-4eb4-b33f-f4879ea04597.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The plot of episode rewards over time is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c337e895-8933-4081-9245-e602be5f8336.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the optimization starts to saturate after 400 episodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Taxi environment is a relatively complex grid problem with 500 discrete
+    states and 6 possible actions. Q-learning optimizes the Q function in every single
+    step in an episode by learning from the experience generated by a greedy policy.
+    We gain information about the environment during the learning process and use
+    this information to update the values right away by following the epsilon-greedy
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving the Taxi problem with SARSA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we will solve the Taxi environment with the SARSA algorithm
+    and fine-tune the hyperparameters with the grid search algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will start with our default set of hyperparameter values under the SARSA
+    model. These are selected based on intuition and a number of trials. Moving on,
+    we will come up with the best set of values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We perform SARSA to solve the Taxi environment as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import PyTorch and the `gym` module, and create an instance of the Taxi environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, start defining the epsilon-greedy behavior policy. We will reuse the `gen_epsilon_greedy_policy`
+    function defined in the *Developing the SARSA algorithm* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We then specify the number of episodes and initialize two variables used to
+    track the length and total reward for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we define the function that performs SARSA. We will reuse the `sarsa` function
+    defined in the *Developing the SARSA algorithm* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We specify the discount rate as `1`, the default learning rate as `0.4`, and
+    the default epsilon as `0.1`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we create an instance of the epsilon-greedy-policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we perform SARSA with input parameters defined in the previous steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'After *Step 7*, you can plot the length and total reward for each episode over
+    time to verify whether the model converges. A plot of episode lengths over time
+    is displayed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a1b128c6-714e-43b5-ba65-2c85592c397c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The plot of episode rewards over time is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/daeaa720-0ccd-4356-8198-a0e2495505ca.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This SARSA model works fine, but is not necessarily the best. We will later
+    use grid search to search for the best set of hyperparameters under the SARSA
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Taxi environment is a relatively complex grid problem with 500 discrete
+    states and 6 possible actions. The SARSA algorithm optimizes the Q function in
+    every single step in an episode by learning and optimizing the target policy.
+    We gain information about the environment during the learning process and use
+    this information to update values right away by following the epsilon-greedy policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Grid search is a programmatic way to find the best set of values for hyperparameters
+    in reinforcement learning. The performance of each set of hyperparameters is measured
+    by the following three metrics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Average total reward over the first few episodes: We want to get the largest
+    reward as early as possible.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Average episode length over the first few episodes: We want the taxi to reach
+    the destination as quickly as possible.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Average reward for each time step over the first few episodes: We want to get
+    the maximum reward as quickly as possible.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s go ahead and implement it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We herein use three alpha candidates [0.4, 0.5, and 0.6] and three epsilon
+    candidates [0.1, 0.03, and 0.01], and only consider the first 500 episodes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We perform a grid search by training the SARSA model with each set of hyperparameters
+    and evaluating the corresponding performance:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Running the preceding code generates the following results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can see that the best hyperparameter set in this case is alpha: 0.6, epsilon:
+    0.01, which achieves the largest reward per step and a large average reward and
+    a short average episode length.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing the Double Q-learning algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this is a bonus recipe, in this chapter where we will develop the double
+    Q-learning algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Q-learning is a powerful and popular TD control reinforcement learning algorithm.
+    However, it may perform poorly in some cases, mainly because of the greedy component,
+    *maxa''Q(s'', a'')*. It can overestimate action values and result in poor performance.
+    Double Q-learning was invented to overcome this by utilizing two Q functions.
+    We denote two Q functions as *Q1* and *Q2*. In each step, one Q function is randomly
+    selected to be updated. If *Q1* is selected, *Q1* is updated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f50e9925-36dc-4705-aef2-714aa1c8141b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If Q2 is selected, it is updated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0256798e-e381-4404-bf79-1849916cd0ec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This means that each Q function is updated from another one following the greedy
+    search, which reduces the overestimation of action values using a single Q function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We now develop double Q-learning to solve the Taxi environment as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the required libraries and create an instance of the Taxi environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, start defining the epsilon-greedy policy. We will reuse the `gen_epsilon_greedy_policy`
+    function defined in the *Developing Q-Learning algorithm* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We then specify the number of episodes and initialize two variables used to
+    track the length and total reward for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we simulate 3,000 episodes as double Q-learning takes more episodes to
+    converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define the function that performs double Q-learning:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then specify the rest of the parameters, including the discount rate, learning
+    rate, and epsilon, and create an instance of the epsilon-greedy-policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we perform double Q-learning to obtain the optimal policy for the
+    Taxi problem:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have solved the Taxi problem using the double Q-learning algorithm in this
+    recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 4*, we conduct double Q-learning with the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize the two Q-tables with all zeros.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In each step of an episode, we randomly choose one Q function to update. Let
+    the agent follow the epsilon-greedy policy to choose what action to take and update
+    the selected Q function using another Q function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Run `n_episode` episodes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Obtain the optimal policy based on the optimal Q function by summing up (or
+    averaging) two Q functions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'After *Step 6*, you can plot the length and total reward for each episode over
+    time to verify whether the model converges. The plot of episode length over time
+    is displayed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3cf31fe2-49e0-4362-bdab-73859546d72b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The plot of episode rewards over time is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b3e60071-6b77-4f61-833f-992801b9e010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Double Q-learning overcomes the potential drawback of single Q-learning in complicated
+    environments. It randomly rotates over two Q functions and updates them, which
+    prevents action values from one Q function from being overestimated. At the same
+    time, it might underestimate the Q function, since it doesn't update the same
+    Q function over time steps. Hence, we can see that optimal action values take
+    more episodes to converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For the theory behind double Q-learning, check out the original paper, [https://papers.nips.cc/paper/3964-double-q-learning](https://papers.nips.cc/paper/3964-double-q-learning),
+    by Hado van Hasselt, published in *Advances in Neural Information Processing Systems
+    23* (NIPS 2010), 2613-2621, 2010.
+  prefs: []
+  type: TYPE_NORMAL

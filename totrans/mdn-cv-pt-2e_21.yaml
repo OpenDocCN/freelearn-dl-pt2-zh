@@ -1,0 +1,811 @@
+- en: '17'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Applications of Stable Diffusion
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned about how diffusion models work, the architecture
+    of Stable Diffusion, and diffusers – the library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While we learned about generating images, unconditional and conditional (from
+    a text prompt), we still did not learn about having the ability to control the
+    images – for example, I might want to replace a cat in an image with a dog, make
+    a person stand in a certain pose, or replace the face of a superhero with a subject
+    of interest. In this chapter, we will learn about the model training process and
+    coding some of the applications of diffusion that help in achieving the above.
+    In particular, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In-painting to replace objects within an image from a text prompt
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using ControlNet to generate images in a specific pose from a text prompt
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using DepthNet to generate images using a depth-of-reference image and text
+    prompt
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using SDXL Turbo to generate images faster from a text prompt
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Text2Video to generate video from a text prompt
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The code used in this chapter is available in the `Chapter17` folder in the
+    GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). You can run the
+    code from the notebooks and leverage them to understand all the steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the field evolves, we will periodically add valuable supplements to the GitHub
+    repository. Do check the `supplementary_sections` folder within each chapter’s
+    directory for new and useful content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In-painting
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In-painting is the task of replacing a certain portion of an image with another
+    image. An example of in-painting is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A black rectangle with white text  Description automatically generated](img/B18457_17_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.1: The first three items—image, mask_image, and prompt—serve as the
+    inputs, while the rightmost image represents the output of the inpainting process.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, we provide the mask corresponding to the subject that
+    we want to replace – a dog. Additionally, we provide the prompt that we want to
+    use to generate an image. Using the mask and prompt, we should generate an output
+    that satisfies the prompt while keeping the rest of the image intact.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An in the following section, we will understand the model training workflow
+    of in-painting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model training workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In-painting model is trained as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input requires an image and a caption associated with the input.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pick a subject (a dog in *Figure 17.1*) that is mentioned in the caption and
+    obtain a mask corresponding to the subject.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the caption as a prompt.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the original image through a variational auto-encoder that downscales the
+    input image (let’s say from a 512x512 image to a 64x64 image) to extract the latents
+    corresponding to the original image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create text latents (that is, embeddings, using OpenAI CLIP or any other embeddings
+    model) corresponding to the prompt. Pass the text embeddings and noise as input
+    to train a U-Net model that outputs the latents.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fetch the original latents (obtained in *step 4*), resized mask (obtained in
+    *step 2*), and latents (obtained in *step 5*) to segregate the background latents
+    and the latents corresponding to the mask region. In essence, the latents in this
+    step are calculated as `original_image_latents * (1-mask) + text_based_latents
+    * mask`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once all the timesteps are finished, we obtain the latents that correspond to
+    the prompt.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: These latents are passed through a **variational autoencoder** (**VAE**) decoder
+    to get the final image. The VAE ensures harmony within the generated image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The overall workflow of in-painting is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_17_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.2: Workflow of in-painting'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the workflow, let us go ahead and learn about using Stable
+    Diffusion to perform in-painting in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In-painting using Stable Diffusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To perform in-painting on an image, we will use the `diffusers` package and
+    the Stable Diffusion pipeline within it. Let us code up in-painting as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `image_inpainting.ipynb` file in the
+    `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the pipeline for in-painting:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we leverage the in-painting model developed by `runwayml`.
+    Further, we specify that all the weights have a precision of float16 and not float32
+    to reduce the memory footprint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Get the image and its corresponding mask from the corresponding URLs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The original image and the corresponding mask are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A dog sitting on a bench  Description automatically generated](img/B18457_17_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.3: The image and the mask of the object you want to replace'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can use standard tools like MS-Paint or GIMP to create the masks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the prompt and pass the image, mask, and the prompt through the pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, we can generate the image that corresponds to the prompt as well as the
+    input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A cat on a bench  Description automatically generated](img/B18457_17_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.4: The in-painted image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about replacing the subject of an image with another
+    subject of our choice. In the next section, we’ll learn about having the generated
+    image in a certain pose of interest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ControlNet
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where we want the subject of an image to have a certain pose
+    that we prescribe it to have – ControlNet helps us to achieve that. In this section,
+    we will learn about how to leverage a diffusion model and modify the architecture
+    of ControlNet and achieve this objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'ControlNet works as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We take human images and pass them through the OpenPose model to get stick figures
+    (keypoints) corresponding to the image. The OpenPose model is a pose detector
+    that is very similar to the human pose detection model that we explored in *Chapter
+    10*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The inputs to the model are a stick figure and a prompt corresponding to the
+    image, and the expected output is the original human image.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We create a replica of the downsampling blocks of the UNet2DConditionModel (the
+    copies of the downsampling blocks are shown in *Figure 17.5*).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The replica blocks are passed through a zero-convolution layer (a layer with
+    the weight initialization set to zero). This is done so that we can train the
+    model faster. If they were not passed through zero-convolution layer, the addition
+    of the replica blocks could modify the inputs (which include the text latents,
+    the latents of the noisy image, and the latents of the input stick figure) to
+    the upsampling blocks, resulting in a distribution that the upsamplers have not
+    seen before (for example, facial attributes in the input image are preserved when
+    the replica blocks do not contribute much initially).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The output of the replica blocks is then added to the output from the original
+    downsampling blocks while performing upsampling.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The original blocks are frozen, and only the replica blocks are set to train.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The model is trained to predict the output (in a given pose, that of the stick
+    figure) when the prompt and stick figure are the inputs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'This workflow is illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_17_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.5: ControlNet workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the exact same pipeline can be extended to not only canny images but
+    also rough lines, scribbles, image segmentation maps, and depth maps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the way in which ControlNet is trained, let us go ahead
+    and code it up in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing ControlNet
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To implement ControlNet, we will leverage the `diffusers` library and a pre-trained
+    model that is trained to predict an image given an image and prompt. Let us code
+    it up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `ControlNet_inference.ipynb` file of
+    the `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required libraries and import them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Extract a canny edge image from a given image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in a canny image, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: '![A person with glasses and a picture of a person  Description automatically
+    generated](img/B18457_17_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.6: The original image (left) and the canny image (right)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the modules that help in implementing ControlNet from the `diffusers`
+    library:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize ControlNet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we load the pretrained `ControlNet` model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the pipeline and noise scheduler to generate an image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The architecture of the pipeline defined above is provided in the GitHub notebook.
+    The architecture contains the different models used to extract encoders from the
+    input image and prompt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pass the canny image through the pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A person with a beard and glasses  Description automatically generated](img/B18457_17_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.7: The output image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the generated image is very different from the person that was originally
+    there in the image. However, while a new image is generated as per the prompt,
+    the pose that is present in the original image is preserved in the generated image.
+    In the next section, we will learn how to generate high-quality images quickly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SDXL Turbo
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Much like Stable Diffusion, a model called **SDXL** (**Stable Diffusion Extra
+    Large**) has been trained that returns HD images that have dimensions of 1,024x1,024
+    . Due to its large size, as well as the number of denoising steps, SDXL takes
+    considerable time to generate images over increasing time steps. How do we reduce
+    the time it takes to generate images while maintaining the consistency of images?
+    SDXL Turbo comes to the rescue here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'SDXL Turbo is trained by performing the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample an image and the corresponding text from a pre-trained dataset (the **Large-scale
+    Artificial Intelligence Open Network** (**LAION**) available at [https://laion.ai/blog/laion-400-open-dataset/](https://laion.ai/blog/laion-400-open-dataset/)).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add noise to the original image (the chosen time step can be a random number
+    between 1 and 1,000)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the student model (the Adversarial diffusion model) to generate images
+    that can fool a discriminator.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further, train the student model in such a way that the output is very similar
+    to the output of the teacher SDXL model (when the noise-added output from the
+    student model is passed as input to the teacher model). This way, we optimize
+    for two losses – discriminator loss (between the image generated from the student
+    model and the original image) and MSE loss between the outputs of the student
+    and teacher models. Note that we are training the student model only.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'This is illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a diagram of a spaceman on a horse  Description automatically
+    generated with medium confidence](img/B18457_17_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.8: SDXL turbo training'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source: [https://stability.ai/research/adversarial-diffusion-distillation](https://stability.ai/research/adversarial-diffusion-distillation)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training for both adversarial loss and distillation loss could help the model
+    to generalize well even for minor modifications to the input image (the output
+    of the teacher model).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing SDXL Turbo
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'SDXL Turbo is implemented in code as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the code in the `sdxl_turbo.ipynb` file in the `Chapter17` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required libraries:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `sdxl-turbo` pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide the prompt and the negative prompt (`n_prompt`) and fetch the output
+    image. Note that the negative prompt (`n_prompt`) ensures that the attributes
+    mentioned in it are not present in the generated image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A baby in a garment  Description automatically generated](img/B18457_17_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.9: The generated image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding code is executed in less than 2 seconds, while a typical SDXL
+    model takes more than 40 seconds to generate one image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DepthNet
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you want to modify the background while keeping the
+    subject of the image consistent. How would you go about solving this problem?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to do this is by leveraging the **Segment Anything Model** (**SAM**),
+    which we learned about in *Chapter 16*, and replacing the background with the
+    background of your choice. However, there are two major problems associated with
+    this method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The background is not generated, and so you will have to manually provide the
+    background image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The subject and background will not be color-consistent with each other because
+    we have done patchwork.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DepthNet solves this problem by leveraging a diffusion approach, where we will
+    use the model to understand which parts of an image are the background and foreground
+    using a depth map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'DepthNet works as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We calculate the depth mask of an image (depth is calculated by leveraging
+    a pipeline similar to the one mentioned in the *Vision Transformers for Dense
+    Prediction* paper: [https://arxiv.org/abs/2103.13413](https://arxiv.org/abs/2103.13413)).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The diffusion UNet2DConditionModel is modified to accept a five-channel input,
+    where the first four channels are the standard noisy latents and the fifth channel
+    is simply the latent depth mask.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, train the model to predict the output image using the modified diffusion
+    model, where, along with a prompt, we also have an additional depth map as input.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'A typical image and its corresponding depth map are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_17_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.10: An image and its depth map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now go ahead and implement DepthNet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing DepthNet
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To implement DepthNet, you can use the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The full code can be found in the `DepthNet.ipynb` file of the `Chapter17` folder
+    in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the prompt and pass the image through the pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output (for the colored images,
+    you can refer to the digital version of the book):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A pair of glasses with lemons and limes  Description automatically generated](img/B18457_17_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.11: (Left) The input image (Right) The output from DepthNet'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that in the above picture, the depth in the original picture (the picture
+    on the left) is maintained while the prompt modified the content/view of the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Text to video
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you provide a text prompt and expect to generate a
+    video from it. How do you implement this?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So far, we have generated images from a text prompt. Generating videos from
+    text requires us to control two aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Temporal consistency** across frames (the subject in one frame should look
+    similar to the subject in a subsequent frame)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Action consistency** across frames (if the text prompt is a rocket shooting
+    into the sky, the rocket should have a consistent upward trajectory over increasing
+    frames)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We should address the above two aspects while training a text-to-video model,
+    and the way we address these aspects again uses diffusion models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand the model building process, we will learn about the text-to-video
+    model built by damo-vilab. It leverages the `Unet3DConditionModel` instead of
+    the `Unet2DConditionModel` that we saw in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The Unet3DConditionModel contains the `CrossAttnDownBlock3D` block instead
+    of the `CrossAttnDownBlock2D` block. In the `CrossAttnDownBlock3D` block, there
+    are two modules in addition to the `resnet` and `attention` modules that we saw
+    in the previous chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**temp_conv**: In the `temp_conv` module, we pass the inputs through a `Conv3D`
+    layer. The inputs in this case take all the frames into account (while in 2D,
+    it was one frame at a time). In essence, by considering all the frames together,
+    our input is a 5D tensor with the shape [bs, frames, channels, height, width].
+    You can consider this as a mechanism to maintain the temporal consistency of a
+    subject across frames.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**temp_attn**: In the `temp_attn` module, we perform self-attention on the
+    frame dimension instead of the channel dimension. This helps to maintain action
+    consistency across frames.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `CrossAttnUpBlock3D` and `CrossAttnMidBlock3D` blocks differ only in their
+    submodules (which we have already discussed above) and have no functional differences
+    compared to their 2D counterparts. We will leave gaining an in-depth understanding
+    of these blocks as an activity for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing text to video
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s now go ahead and implement the code to perform text-to-video generation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available in the `text_image_to_video.ipynb` file of the
+    `Chapter17` folder in the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages and import them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the pipeline for text-to-video generation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide the prompt, video duration, and number of frames per second to generate
+    the video:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass the above parameters to the pipeline:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Display the video using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With the above, we can now generate video from text. You can take a look at
+    the generated video in the associated notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about creative ways to leverage a diffusion model
+    for multiple applications. In the process, we also learned about the working details
+    of various architectures along with the code implementations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This, in conjunction with the strong foundations of understanding how diffusion
+    models work, will ensure that you are able to leverage Stable Diffusion models
+    for multiple creative works, modify and fine-tune architectures for custom image
+    generation, and combine/pipeline multiple models to get the output you’re looking
+    for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about deploying computer vision models and
+    the various aspects that you need to consider when doing so.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What is the key concept behind image in-painting using Stable Diffusion?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the key concepts behind ControlNet?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What makes SDXL Turbo faster than SDXL?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the key concept behind DepthNet?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

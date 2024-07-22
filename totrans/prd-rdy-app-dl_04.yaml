@@ -1,0 +1,1839 @@
+- en: '3'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Developing a Powerful Deep Learning Model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will describe how to design and train a **deep learning**
+    (**DL**) model. Within the notebook context described in the previous chapter,
+    data scientists investigate various network designs and model training settings
+    to generate a working model for the given task. The main topics of this chapter
+    include the theory behind DL and how to train a model using the most popular DL
+    frameworks: **PyTorch** and **TensorFlow** (**TF**). At the end of the chapter,
+    we will decompose the **StyleGAN** implementation, a popular DL model for image
+    generation, to explain how to construct a complex model using the components that
+    we have introduced in this chapter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Going through the basic theory of DL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the components of DL frameworks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing and training a model in PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing and training a model in TF
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Decomposing a complex, state-of-the-art model implementation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can download the supplemental material of this chapter from the following
+    GitHub link: [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_3](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_3).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The samples in this chapter can be executed from any Python environment with
+    the necessary packages installed. You can use the sample environment introduced
+    in the last chapter: [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_2/dockerfiles](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_2/dockerfiles).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Going through the basic theory of DL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As briefly described in [*Chapter 1*](B18522_01.xhtml#_idTextAnchor014), *Effective
+    Planning of Deep-Learning-Driven Projects*, DL is a **machine learning** (**ML**)
+    technique based on **artificial neural networks** (**ANNs**). In this section,
+    our goal is to explain how ANNs work without going too deep into the math.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How does DL work?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: An ANN is basically a set of connected neurons. As shown in *Figure 3.1*, neurons
+    from an ANN and neurons from our brain behave in a similar way. Each connection
+    in an ANN consists of a tunable parameter called the **weight**. When there is
+    a connection from neuron A to neuron B, the output of neuron A gets multiplied
+    by the weight of the connection; the weighted value becomes the input of neuron
+    B. **Bias** is another tunable parameter within a neuron; a neuron sums up all
+    the inputs and adds the bias. The last operation is an activation function that
+    maps the computed value into a different range. The value in the new range is
+    the output of the neuron, which gets passed to other neurons based on the connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Throughout the research, it has been found that groups of neurons captures different
+    patterns based on their organization. Some of the powerful organizations are standardized
+    as **layers** and have become the main building block for an ANN, providing a
+    layer of abstraction on top of the complicated interactions among the neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.1 – A comparison of a biological neuron and a mathematical model
+    of an ANN neuron'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.1 – A comparison of a biological neuron and a mathematical model of
+    an ANN neuron
+  prefs: []
+  type: TYPE_NORMAL
+- en: As described in the preceding diagram, operations in DL are based on numerical
+    values. Therefore, the input data for a network must be converted into a numerical
+    value. For example, a **Red, Green, and Blue** (**RGB**) color code is a standard
+    way of representing an image using numerical values. In the case of text data,
+    word embeddings are often used. Similarly, the output of a network will be a set
+    of numerical values. The interpretation of these values can vary based on the
+    task and the definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DL model training
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Overall, training an ANN is a process of finding a set of weights, biases,
+    and activation functions that enable the network to extract meaningful patterns
+    from the data. Now, the next question would be the following: *how do we find
+    the right set of parameters?* Many researchers have tried to solve this problem
+    using various techniques. Out of all the trials, the most effective algorithm
+    discovered is an optimization algorithm called **gradient descent**, an iterative
+    process that finds the local or global minimum.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When training a DL model, we need to define a function that quantizes the difference
+    between predictions and ground-truth labels as a numeric value called a **loss**.
+    With a loss function clearly defined, we iteratively generate intermediate predictions,
+    compute loss values, and update model parameters in the direction toward the minimum
+    loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given that the goal of optimization is to find the minimum loss, model parameters
+    need to be updated based on the **train set** samples in the opposite direction
+    of the gradient (see *Figure 3.2*). To compute the gradients, the network keeps
+    track of the intermediate values computed during the prediction pass (**forward
+    propagation**). Then, starting from the last layer, it computes the gradients
+    for each parameter exploiting the chain rule (**backward propagation**). Interestingly,
+    model performance and training time can differ a lot based on how the parameters
+    get updated in each iteration. The different parameter updating rules are captured
+    within the concept of optimizers. One of the main tasks in DL is to select the
+    type of optimizer that produces the model with the best performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.2 – With gradient descent, model parameters will be updated in the
+    opposite direction of the gradient at every iteration'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.2 – With gradient descent, model parameters will be updated in the
+    opposite direction of the gradient at every iteration
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there is one caveat to this process. If the model is trained to achieve
+    the best performance for the train set specifically, the performance on unseen
+    data can possibly deteriorate. This is called **overfitting**; the model is trained
+    specifically for the data it has seen before and fails to make correct predictions
+    on new data. On the other hand, a shortage of training can lead to **underfitting**,
+    a situation in which the model fails to capture the underlying pattern of the
+    train set. To prevent these issues, a portion of the train set is put aside for
+    evaluating the trained model throughout the training: the **validation set**.
+    Overall, training for DL involves a process of updating the model parameters based
+    on the train set but selecting the model that performs the best on the validation
+    set. The last type of dataset, the **test set**, represents what the model would
+    interact with once it is deployed. The test set may or may not be available at
+    the time of model training. The purpose of the test set is to understand how the
+    trained model would perform in production. To further understand the overall training
+    logic, we can look at *Figure 3.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.3 – The steps for training a DL model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.3 – The steps for training a DL model
+  prefs: []
+  type: TYPE_NORMAL
+- en: The figure clearly describes what steps there are within the iterative process
+    and what role each type of dataset plays in the scene.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Training an ANN is a process of finding a set of weights, biases, and activation
+    functions that enable the network to extract meaningful patterns from the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. There are three types of datasets in the training flow. The model parameters
+    are updated using the train set, and the one that produces the best performance
+    on the validation set is selected. The test set reflects the data distribution
+    that the trained model would interact with upon deployment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at DL frameworks that are designed to help us with model
+    training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Components of DL frameworks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since the configuration of model training follows the same process regardless
+    of the underlying tasks, many engineers and researchers have put together the
+    common building blocks into frameworks. Most of the frameworks simplify DL model
+    development by keeping data loading logic and model definitions independent from
+    the training logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data loading logic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Data loading** logic includes everything from loading the raw data in memory
+    to preparing each sample for training and evaluation. In many cases, data for
+    the train set, validation set, and test set are stored in separate locations,
+    so that each of them requires a distinct loading and preparation logic. The standard
+    frameworks keep these logics separate from the other building blocks so that the
+    model can be trained using different datasets in a dynamic way with minimal changes
+    on the model side. Furthermore, the frameworks have standardized the way that
+    these logics are defined to improve reusability and readability.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model definition
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Another building block, **model definition**, refers to the ANN architecture
+    itself and corresponding forward and backward propagation logics. Even though
+    building up a model using arithmetic operations is an option, the standard frameworks
+    provide common layer definitions that users can put together to build up a complex
+    model. Therefore, users are responsible for instantiating the necessary network
+    components, connecting the components, and defining how the model should behave
+    for training and inference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following two sections, *Implementing and training a model in PyTorch*
+    and *Implementing and training a model in TF*, we will introduce how to instantiate
+    the popular layers in PyTorch and TF, respectively: dense (linear), pooling, normalization,
+    dropout, convolution, and recurrent layers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model training logic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Lastly, we need to combine the two components and define the details of the
+    training logic. This wrapper component must clearly describe the essential pieces
+    of the model training, such as loss function, learning rate, optimizer, epochs,
+    iterations, and batch size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Loss functions can be classified into two major categories based on the type
+    of learning task: **classification loss** and **regression loss**. The major difference
+    between the two categories comes from the output format; the output of the classification
+    task is categorical, while the output of the regression task is a continuous value.
+    Out of the different losses, we will mainly discuss **Mean Square Error** (**MSE**)
+    **loss** and **Mean Absolute Error** (**MAE**) **loss** for regression loss, and
+    **Cross-Entropy** (**CE**) **loss** and **Binary Cross-Entropy** (**BCE**) **loss**
+    for classification loss.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The **learning rate** (**LR**) defines the size of a step that gradient descent
+    takes in the direction of the local minimum. Selecting the LR rate will help the
+    process to converge faster, but if it’s too high or low, the convergence will
+    not be guaranteed (see *Figure 3.4*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.4 – The impact of the LR within gradient descent'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.4 – The impact of the LR within gradient descent
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Speaking of **optimizers**, we focus on the two main optimizers: **Stochastic
+    Gradient Descent** (**SGD**), a basic optimizer with a fixed LR, and **Adaptive
+    Moment Estimation** (**Adam**), an optimizer based on an adaptive LR that works
+    the best in most scenarios. If you are interested in learning about different
+    optimizers and the mathematics behind them, we recommend reading a survey paper
+    by Choi et al ([https://arxiv.org/pdf/1910.05446.pdf](https://arxiv.org/pdf/1910.05446.pdf)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A single **epoch** indicates that every sample in the train set has been passed
+    forward and backward through the network and that the network parameters have
+    been updated. In many cases, the number of samples in the train set is way too
+    huge to be passed through in one queue, so it gets divided into **mini-batches**.
+    The **batch size** refers to the number of samples in a single mini-batch. Given
+    that a set of mini-batches makes up the whole dataset, the number of iterations
+    refers to the number of gradient update events (more precisely, the number of
+    mini-batches) that model needs to interact with every sample. For example, if
+    a mini-batch has 100 samples and there are 1,000 samples in total, it will require
+    10 iterations to complete one epoch. Selecting the right number of epochs is not
+    an easy task. It changes depending on the other training parameters such as LR
+    and batch size. Therefore, it often requires a trial-and-error process, keeping
+    underfitting and overfitting in mind.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. The components of model training can be broken down into data loading logic,
+    model definition, and model training logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. Data loading logic includes everything from loading raw data in the memory
+    to preparing each sample for training and evaluation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. Model definition refers to the definition of the network architecture and
+    its forward and backward propagation logics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d. Model training logic handles the actual training by putting data loading
+    logic and model definition together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Out of the various frameworks available, we will discuss the two most popular
+    in this book: **TF** and **PyTorch**. **Keras** running on TF has gained popularity
+    in today, while PyTorch is heavily used for research with its exceptional flexibility
+    and simplicity.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing and training a model in PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: PyTorch is a Python library for Torch, a ML package for Lua. The main features
+    of PyTorch include **graphics processing unit**- (**GPU**-) accelerated matrix
+    calculation and automatic differentiation for building and training neural networks.
+    Creating the computation graph dynamically as the code gets executed, PyTorch
+    is gaining popularity for its flexibility and ease of use, as well as its efficiency
+    in model training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Built on top of PyTorch, **PyTorch Lightning** (**PL**) provides another layer
+    of abstraction, hiding many boilerplate codes. The new framework pays more attention
+    to researchers by decoupling research-related components of PyTorch from the engineering-related
+    components. PL codes are typically more scalable and easier to read than PyTorch
+    codes. Even though the code snippets in this book put more emphasis on PL, PyTorch
+    and PL share a lot of functionalities, so most components are interchangeable.
+    If you are willing to dig into the details, we recommend the official site, [https://pytorch.org](https://pytorch.org).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are other extensions of PyTorch available on the market:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Skorch ([https://github.com/skorch-dev/skorch](https://github.com/skorch-dev/skorch))
+    – A scikit-learn compatible neural network library that wraps PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Catalyst ([https://github.com/catalyst-team/catalyst](https://github.com/catalyst-team/catalyst))
+    – A PyTorch framework specialized for reproducibility, rapid experimentation,
+    and codebase reuse
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fastai ([https://github.com/fastai/fastai](https://github.com/fastai/fastai))
+    – A library that standardizes not only high-level components for practitioners
+    but also delivers low-level components for researchers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: PyTorch Ignite ([https://pytorch.org/ignite/](https://pytorch.org/ignite/))
+    – A library designed to help with training and evaluation for practitioners
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will not cover these libraries in this book, but you may find them helpful
+    if you are new to this field.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s dive into PyTorch and PL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch data loading logic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For readability and modularity, PyTorch and PL exploit a class called `Dataset`
+    for data management and another class, `DataLoader`, for accessing samples iteratively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the `Dataset` class handles fetching individual samples, model training
+    takes in the input data in batches and requires reshuffling to reduce model overfitting.
+    `DataLoader` abstracts this complexity for users by providing a simple API. Furthermore,
+    it exploits Python’s multiprocessing features behind the scenes to speed up data
+    retrieval.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The two core functions that must be implemented by the child class of `Dataset`
+    are `__len__` and `__getitem__`. As described in the following class outline,
+    `__len__` should return the total number of samples and `__getitem__` should return
+    a sample for the given index:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'PL’s `LightningDataModule` encapsulates all the steps needed to process data.
+    The key components include downloading and cleaning data, preprocessing each sample,
+    and wrapping each type of dataset inside `DataLoader`. The following code snippet
+    describes how to create a `LightningDataModule` class. The class has the `prepare_data`
+    function for downloading and preprocessing the data, as well as three functions
+    for instantiating `DataLoader` for each type of dataset, `train_dataloader`, `val_dataloader`,
+    and `test_dataloader`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The official documentation for `LightningDataModule` can be found at [https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch model definition
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The key benefit of PL comes from `LightningModule`, which simplifies the organization
+    of complex PyTorch codes into six sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computation (`__init__`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The train loop (`training_step`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The validation loop (`validation_step`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The test loop (`test_step`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The prediction loop (`predict_step`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimizers and LR scheduler (`configure_optimizers`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The model architecture is part of the computation section. Necessary layers
+    are instantiated inside the `__init__` method, and computational logics are defined
+    in the `forward` method. In the following code snippet, three linear layers are
+    registered to the `LightningModule` module inside the `__init__` method, and the
+    relationships between them are defined inside the `forward` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another way of defining a network is to use `torch.nn.Sequential`, as shown
+    in the following code. With this module, a set of layers can be grouped together,
+    and output chaining is automatically achieved:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the three linear layers are grouped together and stored
+    as a single instance variable, `self.multiple_layers`. In the `forward` method,
+    we simply trigger `self.multiple_layers` with the input tensor to pass the tensor
+    through each layer one by one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following section is designed to introduce popular layer implementations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch DL layers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One of the major benefits of DL frameworks comes from various layer definitions:
+    gradient calculation logics are already part of the layer definitions, so you
+    can focus on finding the best model architecture for your task. In this section,
+    we will learn about layers that are commonly used across projects. Please refer
+    to the official documentation ([https://pytorch.org/docs/stable/nn.html](https://pytorch.org/docs/stable/nn.html))
+    if the layer that you are interested in is not covered in this section.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch dense (linear) layer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The first type of layer is `torch.nn.Linear`. As the name suggests, it applies
+    a linear transformation to the input tensor. The two main parameters of the function
+    are `in_features` and `out_features`, which define the input and output tensor
+    dimensions, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The layer implementation from the `torch.nn` module already has the `forward`
+    function defined, so that you can use the layer variable as if it were a function
+    to trigger forward propagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch pooling layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Pooling layers are commonly used for downsampling a tensor. The two most popular
+    types are maximum pooling and average pooling. The key parameters for these layers
+    are `kernel_size` and `stride`, which define the size of the window and how it
+    moves for each pooling operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The maximum pooling layer downsamples the input tensor by selecting the largest
+    value for each window:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'On the other hand, the average pooling layer downsamples the input tensor by
+    computing an average value for each window:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can find the other types of pooling layers at [https://pytorch.org/docs/stable/nn.html#pooling-layers](https://pytorch.org/docs/stable/nn.html#pooling-layers).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch normalization layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Commonly used in data processing, the purpose of normalization is to scale numerical
+    data to a common scale without distorting the distribution. In the case of DL,
+    normalization layers are used to train the network with greater numerical stability
+    ([https://pytorch.org/docs/stable/nn.html#normalization-layers](https://pytorch.org/docs/stable/nn.html#normalization-layers)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The most popular normalization layer is the batch normalization layer, which
+    scales a set of values in a mini-batch. In the following code snippet, we introduce
+    `torch.nn.BatchNorm2d`, a batch normalization layer designed for a mini-batch
+    of 2D tensors with an additional channel dimension:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Out of the various parameters, the main one that you should be aware of is `num_features`,
+    which indicates the number of channels. The input to the layer is a 4D tensor,
+    where each index indicates the batch size (`N`), number of channels (`C`), the
+    height of the image (`H`), and the width of the image (`W`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch dropout layer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The dropout layer helps the model to extract generic features by randomly setting
+    a set of values to zero. This operation prevents the model from overfitting to
+    the train set. Having said that, the dropout layer implementation of PyTorch mainly
+    operates over a single parameter, `p`, which controls the probability of an element
+    being zeroed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we are dropping 50% of the elements (`p=0.5`). Similar to the
+    batch normalization layer, the input tensor for `torch.nn.Dropout2d` has a size
+    of `N, C, H, W`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch convolution layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Specialized for image processing, the convolutional layer is designed to apply
+    convolution operations over the input tensor using a sliding window technique.
+    In the case of image processing, where intermediate data is represented as 4D
+    tensors of size `N, C, H, W`, `torch.nn.Conv2d` is the standard choice:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first parameter of the `torch.nn.Conv2d` class, `in_channels`, indicates
+    the number of channels in the input tensor. The second parameter, `out_channels`,
+    indicates the number of channels in the output tensor, which is equal to the number
+    of filters. The other parameters, `kernel_size`, `stride`, and `padding`, determine
+    how the convolution operations are carried out for the layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch recurrent layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Recurrent layers are designed for sequential data. Among the various types
+    of recurrent layers, we will cover `torch.nn.RNN` in this section, which applies
+    a multi-layer Elman **recurrent neural network** (**RNN**) to the given sequence
+    ([https://onlinelibrary.wiley.com/doi/abs/10.1207/s15516709cog1402_1](https://onlinelibrary.wiley.com/doi/abs/10.1207/s15516709cog1402_1)).
+    If you would like to try different recurrent layers, you can refer to the official
+    documentation: [https://pytorch.org/docs/stable/nn.html#recurrent-layers](https://pytorch.org/docs/stable/nn.html#recurrent-layers):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The three key parameters of `torch.nn.RNN` are `input_size`, `hidden_size`,
+    and `num_layers`. They refer to the number of expected features in the input tensor,
+    the number of features in the hidden state, and the number of recurrent layers
+    to use, respectively. To trigger forward propagation, you need to pass two things,
+    an input tensor and a tensor containing the initial hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch model training
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we describe the model training component of PL. As shown in
+    the following code block, `LightningModule` is the base class that you must inherit
+    for this component. Its `configure_optimizers` function is used to define the
+    optimizer for training. Then, the actual training logic is defined within the
+    `training_step` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Validation, prediction, and the test loop have similar function definitions;
+    a batch gets fed into the network to compute the necessary predictions and loss
+    values. The collected data can also be stored and displayed using PL’s built-in
+    logging system. For details, please refer to the official documentation ([https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html](https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Under the hood, `LightningModule` executes the following set of simplified
+    PyTorch codes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Putting `LightningDataModule` and `LightningModule` together, the training
+    and inference on the test set can be simply achieved as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: By now, you should’ve learned what you need to implement to set up a model training
+    using PyTorch. The following two sections are dedicated to loss functions and
+    optimizers, the two major components of model training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch loss functions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: First, we will look at the different loss functions available in PL. The loss
+    functions in this sections can be found from the `torch.nn` module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch MSE / L2 loss function
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'MSE loss function can be created using `torch.nn.MSELoss`. However, this calculates
+    the square error component only and exploits the `reduction` parameter to provide
+    variations. When `reduction` is `None`, the calculated value is returned as is.
+    On the other hand, when it is set to `sum`, the outputs will be summed up. To
+    obtain the exact MSE loss, the reduction must be set to `mean`, as shown in the
+    following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let’s have a look at MAE loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch MAE / L1 loss function
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'MAE loss function can be instantiated using `torch.nn.L1Loss`. Similar to MSE
+    loss function, this function calculates different values based on the `reduction`
+    parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can now move on to CE loss, which is used in multi-class classification tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch CE loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '`torch.nn.CrossEntropyLoss` is useful when training a model for a classification
+    problem with multiple classes. As shown in the following code snippet, this class
+    also has a `reduction` parameter for calculating different variations. You can
+    further change the behavior of the loss using `weight` and `ignore_index` parameters,
+    which weight each class and ignore specific indices, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: In a similar fashion, we can define BCE loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch BCE loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Similar to CE loss, PyTorch defines the BCE loss as `torch.nn.BCELoss` with
+    the same set of parameters. However, exploiting the close relationship between
+    `torch.nn.BCELoss` and the sigmoid operation, PyTorch provides `torch.nn.BCEWithLogitsLoss`,
+    which achieves higher numerical stability by combining the `softmax` operation
+    and the BCE loss calculation in a single class. The usage is shown in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, let’s have a look at construction of a custom loss in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch custom loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Defining a custom loss function is straightforward. Any function defined with
+    PyTorch operations can be used as a loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a sample implementation of `torch.nn.MSELoss` using the `mean`
+    operator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we will move to the overview of optimizers in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch optimizers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As described in the *PyTorch model training* section, the `configure_optimizers`
+    function of `LightningModule` specifies the optimizer for the training. In PyTorch,
+    predefined optimizers can be found from the `torch.optim` module. The optimizer
+    instantiation requires model parameters, which can be obtained by calling the
+    `parameters` function on the model, as shown in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch SGD optimizer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The following code snippet instantiates an SGD optimizer with an LR of `0.1`
+    and demonstrates how a single step of a model parameter update can be achieved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`torch.optim.SGD` has built-in support for momentum and acceleration, which
+    further improves training performance. It can be configured using `momentum` and
+    `nesterov` parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: PyTorch Adam optimizer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Similarly, an Adam optimizer can be instantiated using `torch.optim.Adam`,
+    as shown in the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you are curious about how optimizers work in PyTorch, we recommend reading
+    over the official documentation: [https://pytorch.org/docs/stable/optim.html](https://pytorch.org/docs/stable/optim.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. PyTorch is a popular DL framework that provides GPU-accelerated matrix calculation
+    and automatic differentiation. PyTorch is gaining popularity for its flexibility,
+    ease of use, as well as efficiency in model training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b. For readability and modularity, PyTorch exploits a class called `Dataset`
+    for data management and another class, `DataLoader`, for accessing samples iteratively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'c. The key benefit of PL comes from `LightningModule`, which simplifies the
+    organization of the complex PyTorch code structure into six sections: computation,
+    a train loop, validation loop, test loop, prediction loop, as well as optimizers
+    and LR scheduler'
+  prefs: []
+  type: TYPE_NORMAL
+- en: d. PyTorch and PL share the `torch.nn` module for various layers and loss functions.
+    Predefined optimizers can be found from the `torch.optim` module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following section, we will look at another DL framework, TF. Training
+    set up with TF is remarkably similar to the set up with PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing and training a model in TF
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While PyTorch is oriented towards research projects, TF puts more emphasis on
+    industry use cases. While the deployment features of PyTorch, Torch Serve, and
+    Torch Mobile are still in the experimental phase, the deployment features of TF,
+    TF Serve, and TF Lite are stable and actively in use. The first version of TF
+    was introduced by the Google Brain team in 2011 and they have been continuously
+    updating TF to make it more flexible, user-friendly, and efficient. The key difference
+    between TF and PyTorch was initially much larger, as the first version of TF used
+    static graphs. However, this situation has changed with version 2, as it introduces
+    eager execution, mimicking dynamic graphs known from PyTorch. TF version 2 is
+    often used with **Keras**, an interface for ANN ([https://keras.io](https://keras.io/getting_started/)).
+    Keras allows users to quickly develop DL models and run experiments. In the following
+    sections, we will walk you through the key components of TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF data loading logic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Data can be loaded for TF models in various ways. One of the key data manipulation
+    modules that you should be aware of is `tf.data`, which helps you to build efficient
+    input pipelines. `tf.data` provides `tf.data.Dataset` and `tf.data.TFRecordDataset`
+    classes that are designed for loading datasets of different data formats. In addition,
+    there are `tensorflow_datasets` (`tfds`) modules ([https://www.tensorflow.org/datasets/api_docs/python/tfds](https://www.tensorflow.org/datasets/api_docs/python/tfds))
+    and `tensorflow_addons` modules ([https://www.tensorflow.org/addons](https://www.tensorflow.org/addons))
+    that further simplify the data loading process in many cases. It is also worth
+    mentioning the TF I/O package ([https://www.tensorflow.org/io/overview](https://www.tensorflow.org/io/overview)),
+    which expands the capabilities of the standard TF file system interaction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Regardless of the package that you are going to use, you should consider creating
+    a `DataLoader` class. In this class, you will clearly define how the target data
+    will be loaded and how it will be preprocessed before the training. The following
+    code snippet is a sample implementation with loading logic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding example, we use `tfds` to load data from the external URL
+    (`config.data_url`). More information about `tfds.load` can be found online: [https://www.tensorflow.org/datasets/api_docs/python/tfds/load](https://www.tensorflow.org/datasets/api_docs/python/tfds/load).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Data is available in various formats. Therefore, it is important that it is
+    preprocessed into the format that TF models can consume using the functionalities
+    provided by the `tf.data` module. So, let’s have a look at how to use this package
+    for reading data of common formats:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, data in `tfrecord`, a format designed for storing a sequence of binary
+    data, can be read as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can create a dataset object from a NumPy array using the `tf.data.Dataset.from_tensor_slices`
+    function as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pandas DataFrames can also be loaded as a dataset using the same `tf.data.Dataset.from_tensor_slices`
+    function:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Another option is to use a Python generator. Here is a simple example that
+    highlights how to use a generator to feed a paired image and label:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As shown in the last code snippet, `tf.data.Dataset` provides us with built-in
+    data loading functionalities such as batching, repeating, and shuffling. These
+    options are self-explanatory: batching creates mini-batches of a specific size,
+    repeating allows us to iterate over dataset multiple times, and shuffling mixes
+    up the data entries for every epoch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we wrap up this section, we would like to mention that models implemented
+    with Keras can directly consume NumPy arrays and Pandas DataFrames.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF model definition
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Similar to how PyTorch and PL handles model definition, TF provides various
+    ways of defining network architecture. First, we will look at `Keras.Sequential`,
+    which chains a set of layers to construct a network. This class handles the linkage
+    for you so that you don’t need to define the linkage between the layers explicitly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, we are creating a model that consists of an input
+    layer, two dense layers, and an output layer that generates a single neuron as
+    an output. This is a simple model that can be used for binary classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the model definition is more complex and cannot be constructed in a sequential
+    manner, another option is to use the `keras.Model` class, as shown in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we have two inputs with a distinct set of computations. The
+    two paths are merged in the last concatenation layer, which transports the concatenated
+    tensor into the final dense layer with five neurons. Given that the last layer
+    uses `softmax` activation, this model can be used for multi-class classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The third option, as follows, is to create a class that inherits `keras.Model`.
+    This option gives you the most flexibility, as it allows you to customize every
+    part of the model and the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`SimpleANN`, from the preceding code, inherits `Keras.Model`. Within the `__init__`
+    function, we need to define the network architecture using a `tf.keras.layers`
+    module or basic TF operations. The forward propagation logic is defined inside
+    a `call` method, just as PyTorch has the `forward` method.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When the model is defined as a distinct class, you can link additional functionalities
+    to the class. In the following example, the `build_graph` method is added to return
+    a `keras.Model` instance, so you can, for example, use the `summary` function
+    to visualize the network architecture as a simpler representation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let’s look at how TF provides a set of layer implementations through Keras.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF DL layers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As mentioned in the previous section, the `tf.keras.layers` module provides
+    a set of layer implementations that you can use for building a TF model. In this
+    section, we will cover the same set of layers that we described in the *Implementing
+    and training a model in PyTorch* section. The complete list of layers available
+    in this module can be found at [https://www.tensorflow.org/api_docs/python/tf/keras/layers](https://www.tensorflow.org/api_docs/python/tf/keras/layers).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF dense (linear) layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The first one is `tf.keras.layers.Dense`, which performs a linear transformation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `units` parameter defines the number of neurons in the dense layer (the
+    dimensionality of the output). If the `activation` parameter is not defined, the
+    output of the layer will be returned as is. As presented in the following code,
+    we can apply an `Activation` operation outside of the layer definition as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In some cases, you will need to build a custom layer. The following example
+    demonstrates how to create a dense layer using basic TF operations by inheriting
+    the `tensorflow.keras.layers.Layer` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Within the `__init__` function of the `CustomDenseLayer` class, we define the
+    dimensionality of the output (`units`). Then, the state of the layer is instantiated
+    within the `build` method; we create and initialize the weights and biases for
+    the layer. The last method, `call`, defines the computation itself. For a dense
+    layer, it consists of multiplying the inputs with the weights and adding biases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF pooling layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '`tf.keras.layers` provides different kinds of pooling layers: average, max,
+    global average, and global max pooling layers for one-dimensional temporal data,
+    two-dimensional, or three-dimensional spatial data. In this section, we will show
+    you two-dimensional max pooling and average pooling layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The two layers both take in `pool_size`, which defines the size of the window.
+    The `strides` parameter is used to define how the windows move throughout the
+    pooling operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF normalization layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'In the following example, we demonstrate a layer for batch normalization, `tf.keras.layers.BatchNormalization`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output of this layer will have mean close to `0` and standard deviation
+    close to `1`. Details about each parameter can be found at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization](https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF dropout layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The `Tf.keras.layers.Dropout` layer applies dropout, a regularization method
+    that sets randomly selected values to zero:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding layer instantiation, the `rate` argument, a float value between
+    `0` and `1`, determines the fraction of the input units that will be dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF convolution layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '`tf.keras.layers` provides various implementations of convolutional layers,
+    `tf.keras.layers.Conv1D`, `tf.keras.layers.Conv2D`, `tf.keras.layers.Conv3D`,
+    and the corresponding transposed convolutional layers (deconvolution layers),
+    `tf.keras.layers.Conv1DTranspose`, `tf.keras.layers.Conv2DTranspose`, and `tf.keras.layers.Conv3DTranspose`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code snippet describes the instantiation of a two-dimensional
+    convolution layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: The main parameters in the preceding layer definition are `filters` and `kernel_size`.
+    The `filters` parameter defines the dimensionality of the output and the `kernel_size`
+    parameter defines the size of the two-dimensional convolution window. For the
+    other parameters, please look at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF recurrent layers
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The following list of recurrent layers is implemented in Keras: the `LSTM`
+    layer, `GRU` layer, `SimpleRNN` layer, `TimeDistributed` layer, `Bidirectional`
+    layer, `ConvLSTM2D` layer, and `Base RNN` layer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code snippet, we demonstrate how to instantiate the `Bidirectional`
+    and `LSTM` layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, the `LSTM` layer is modified by a `Bidirectional`
+    wrapper to provide both an initial sequence and a reversed sequence to two copies
+    of the hidden layers. The outputs from the two layers get merged for the final
+    output. By default, the outputs are concatenated but the `merge_mode` parameter
+    allows us to select a different merging option. The dimensionality of the output
+    space is defined by the first parameter. To access the hidden state for each input
+    at every time step, you can enable `return_sequences`. For more details, please
+    look at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF model training
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For Keras models, model training can be achieved by simply calling a `fit` function
+    on the model after calling a `compile` function with an optimizer and a loss function.
+    The `fit` function trains the model using the provided dataset for the given number
+    of epochs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code snippet describes the parameters of the `fit` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`x` and `y` represent the input tensor and the labels. They can be provided
+    in various formats: NumPy arrays, TF tensors, TF datasets, generators, or `tf.keras.utils.experimental.DatasetCreator`.
+    In addition to `fit`, Keras models also have a `train_on_batch` function that
+    only executes a gradient update on a single batch of data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While TF version 1 requires computation graph compilation for the training
+    loop, TF version 2 allows us to define the training logic without any compilation,
+    as in the case of PyTorch. A typical training loop will look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code snippet, the outer loop iterates over epochs and the inner
+    loop iterates over the train set. The forward propagation and loss calculation
+    is within the scope of `GradientTape`, which records operations for automatic
+    differentiation for each batch. Outside of the scope, the optimizer uses the computed
+    gradients to update the weights. In the preceding example, TF functions execute
+    operations immediately, instead of adding the operation to the computation graph,
+    as in eager execution. We would like to mention that you will need to use the
+    `@tf.function` decorator if you are using TF version 1, where explicit construction
+    of the computation graph is necessary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will have a look at loss functions in TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF loss functions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In TF, the loss function needs to be specified when a model is compiled. While
+    you can build a custom loss function from scratch, you can use predefined loss
+    functions provided by Keras through the `tf.keras.losses` module ([https://www.tensorflow.org/api_docs/python/tf/keras/losses](https://www.tensorflow.org/api_docs/python/tf/keras/losses)).
+    The following example demonstrates how you can use a loss function from Keras
+    to compile a model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Additionally, you can pass a string alias to a loss parameter, as shown in
+    the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this section, we will explain how the loss functions described in the *PyTorch
+    loss functions* section can be instantiated in TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF MSE / L2 loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The MSE / L2 loss function can be defined as follows ([https://www.tensorflow.org/api_docs/python/tf/keras/losses/MeanSquaredError](https://www.tensorflow.org/api_docs/python/tf/keras/losses/MeanSquaredError)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the most frequently used loss function for regression – it calculates
+    the `mean` value of the squared differences between labels and predictions. The
+    default settings will calculate the MSE. However, similar to PyTorch implementation,
+    we can provide a `reduction` parameter to change that behavior. For example, if
+    you would like to apply a `sum` operation instead of a mean operation, you can
+    add `reduction=tf.keras.losses.Reduction.SUM` in the loss function. Given that
+    `torch.nn.MSELoss` in PyTorch returns the squared difference as is, you can obtain
+    the same loss in TF by passing in `reduction=tf.keras.losses.Reduction.NONE` to
+    the constructor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at MAE loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF MAE / L1 loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '`tf.keras.losses.MeanAbsoluteError` is the function for MAE loss in Keras ([https://www.tensorflow.org/api_docs/python/tf/keras/losses/MeanAbsoluteError](https://www.tensorflow.org/api_docs/python/tf/keras/losses/MeanAbsoluteError)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: As the name suggests, this loss computes the mean of absolute differences between
+    the true and predicted values. It also has a `reduction` parameter that can be
+    used in the same way as described for `tf.keras.losses.MeanSquaredError`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s have a look at losses for classification, CE loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF CE loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'CE loss calculates the difference between two probability distributions. Keras
+    provides the `tf.keras.losses.CategoricalCrossentropy` class, which is designed
+    for classifying multiple classes ([https://www.tensorflow.org/api_docs/python/tf/keras/losses/CategoricalCrossentropy](https://www.tensorflow.org/api_docs/python/tf/keras/losses/CategoricalCrossentropy)).
+    The following code snippet shows the instantiation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the case of Keras, labels need to be formatted as one hot vectors. For example,
+    when the target class is the first one out of five classes, it’d be `[1, 0, 0,
+    0, 0]`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A CE loss designed for binary classification, BCE loss, also exists.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF BCE loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'In the case of a binary classification, the labels are either `0` or `1`. The
+    loss function designed specifically for binary classification, BCE loss, can be
+    defined as follows ([https://www.tensorflow.org/api_docs/python/tf/keras/losses/BinaryFocalCrossentropy](https://www.tensorflow.org/api_docs/python/tf/keras/losses/BinaryFocalCrossentropy)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: The key parameter for this loss is `from_logits`. When this flag is set to `False`,
+    we have to provide probabilities, continuous values between `0` and `1`. When
+    it is set to `True`, we need to provide logits, values between `-infinity` and
+    `+infinity`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly, let’s look at how we can define a custom loss in TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF custom loss functions
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'To build a custom loss function, we need to create a function that takes predictions
+    and labels as parameters and performs desirable calculations. While TF syntax
+    only expects these two arguments, we can also add some additional arguments by
+    wrapping the function into another function that returns the loss. The following
+    example demonstrates how to create Huber Loss as a custom loss function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another option is to create a class that inherits the `tf.keras.losses.Loss`
+    class. We need to implement `__init__` and `call` methods in this case, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to use this loss class, you must instantiate it and pass it to the
+    `compile` function through a `loss` parameter, as described at the beginning of
+    this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF optimizers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this section, we will describe how to set up different optimizers for model
+    training in TF. Similar to loss functions in the preceding section, Keras provides
+    a set of optimizers for TF through `tf.keras.optimizers`. Out of the various optimizers,
+    we will look at the two main optimizers, SGD and Adam optimizers, in the following
+    section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF SGD optimizer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Designed with a fixed LR, an SGD optimizer is the most typical optimizer that
+    you can use for many models. The following code snippet describes how to instantiate
+    an SGD optimizer in TF:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similar to PyTorch implementation, `tf.keras.optimizers.SGD` also supports an
+    augmented SGD optimizer using the `momentum` and `nesterov` parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF Adam optimizer
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'As described in the *Model training logic* section, an Adam optimizer is designed
+    with an adaptive LR. In TF, it can be instantiated as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For both optimizers, while `learning_rate` plays the most important role of
+    defining the initial LR, we recommend that you review the official documentation
+    to familiarize yourself with the other parameters too: [https://www.tensorflow.org/api_docs/python/tf/keras/optimizers](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF callbacks
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this section, we would like to briefly describe callbacks. These are the
+    objects that are used at various stages of training to perform specific actions.
+    The most used callbacks are `EarlyStopping`, `ModelCheckpoint`, and `TensorBoard`,
+    which stop the training when a specific condition is met, save the model after
+    each epoch, and visualize the training status, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is an example of the `EarlyStopping` callback that monitors validation
+    loss and stops the training if the monitored loss has stopped decreasing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `min_delta` parameter defines the minimum change in the monitored quantity
+    for the change to be considered an improvement and the `patience` parameter defines
+    the number of epochs without any improvements after which the training will be
+    stopped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Building a custom callback can be achieved by inheriting `keras.callbacks.Callback`.
+    Defining logic for a specific event can be achieved by overwriting its methods,
+    which clearly describe which event it binds to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`on_train_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_train_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_epoch_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_epoch_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_test_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_test_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_predict_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_predict_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_train_batch_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_train_batch_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_predict_batch_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_predict_batch_end`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_test_batch_begin`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: or `on_test_batch_end`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the complete details, we recommend that you take a look at [https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. `tf.data` allows you to build efficient data loading logic. Packages such
+    as `tfds`, `tensorflow addons`, or TF I/O are useful for reading data of different
+    formats.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'b. TF, with support from Keras, allows users to construct models using three
+    different approaches: sequential, functional, and subclassing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: c. To simplify model development using TF, the `tf.keras.layers` module provides
+    various layer implementations, the `tf.keras.losses` module includes different
+    loss functions, and the `tf.keras.optimizers` module provides a set of standard
+    optimizers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d. `Callbacks` can be used to perform specific actions at the various stages
+    of training. The commonly used callbacks are `EarlyStopping` and `ModelCheckpoint`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned how to set up a DL model training using the most popular
+    DL frameworks, PyTorch and TF. In the following section, we will look at how the
+    components that we have described in this section are used in reality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decomposing a complex, state-of-the-art model implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Even though you have picked up the basics of TF and PyTorch, setting up a model
+    training from scratch can be overwhelming. Luckily, the two frameworks have thorough
+    documentations and tutorials that are easy to follow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Image classification with convolution layers: [https://www.tensorflow.org/tutorials/images/classification](https://www.tensorflow.org/tutorials/images/classification).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Text classification with recurrent layers: [https://www.tensorflow.org/text/tutorials/text_classification_rnn](https://www.tensorflow.org/text/tutorials/text_classification_rnn).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Object detection with convolutional layers: [https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html](https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Machine translation with recurrent layers: [https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html](https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html).'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this section, we would like to look at a model that is much more sophisticated,
+    StyleGAN. Our main goal is to explain how the components described in the previous
+    sections can be put together for a complex DL project. For the complete description
+    of the model architecture and performance, we recommend the publication released
+    by NVIDIA, available at [https://ieeexplore.ieee.org/document/8953766](https://ieeexplore.ieee.org/document/8953766).
+  prefs: []
+  type: TYPE_NORMAL
+- en: StyleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'StyleGAN, as a variation of a **generative adversarial network** (**GAN**),
+    aims to generate new images from latent codes (random noise vectors). Its architecture
+    can be broken down into three elements: a mapping network, a generator, and a
+    discriminator. At a high level, the mapping network and generator work together
+    to generate an image from a set of random values. The discriminator plays a critical
+    role of guiding the generator to generate realistic images during training. Let’s
+    take a closer look at each component.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The mapping network and generator
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'While generators are designed to process latent codes directly in a traditional
+    GAN, latent codes are fed to the mapping network first in StyleGAN, as shown in
+    *Figure 3.5*. The output of the mapping network is then fed to each step of the
+    generator, changing the style and details of the generated image. The generator
+    starts at a lower resolution, constructing outlines for the image at a tensor
+    size of 4 x 4 or 8 x 8\. The details of the images are filled as the generator
+    handles the bigger tensors. At the last couple of layers, the generator interacts
+    with tensors of sizes 64 x 64 and 1024 x 1024 to construct the high-resolution
+    features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.5 – A mapping network (left) and generator (right) of StyleGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.5 – A mapping network (left) and generator (right) of StyleGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding figure, the network that takes in a latent vector, **z**,
+    and generates **w** is the mapping network. The network on the right is the generator,
+    **g**, which takes in a set of noise vectors, as well as **w**. The discriminator
+    is fairly simple compared to the generator. The layers are depicted in *Figure
+    3.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.6 – A StyleGAN discriminator architecture for the FFHQ dataset at
+    1024 × 1024 resolution'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.6 – A StyleGAN discriminator architecture for the FFHQ dataset at 1024
+    × 1024 resolution
+  prefs: []
+  type: TYPE_NORMAL
+- en: As depicted in the preceding image, the discriminator consists of multiple blocks
+    of convolution layers and downsampling operations. It takes in an image of size
+    1024 x 1024 and generates a numeric value between `0` and `1`, describing how
+    realistic the image is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training StyleGAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Training StyleGAN requires a lot of computations, so multiple GPUs are necessary
+    to achieve a reasonable training time. The estimations are summarized in *Figure
+    3.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 3.7 – The training time for StyleGAN with an FFHQ dataset on Tesla
+    V100 GPUs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B18522_03_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 3.7 – The training time for StyleGAN with an FFHQ dataset on Tesla V100
+    GPUs
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, if you want to play around with StyleGAN, we recommend following
+    the instructions in the official GitHub repositories, where they provide pre-trained
+    models: [https://github.com/NVlabs/stylegan](https://github.com/NVlabs/stylegan).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementation in PyTorch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Unfortunately, NVIDIA has not shared the public implementation of StyleGAN
+    in PyTorch. Instead, they have released StyleGAN2, which shares most of the same
+    components. Therefore, we will use the StyleGAN2 implementation for our PyTorch
+    example: [https://github.com/NVlabs/stylegan2-ada-pytorch](https://github.com/NVlabs/stylegan2-ada-pytorch).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All the network components are found under `training/network.py`. The three
+    components are named as described in the previous section: `MappingNetwork`, `Generator`,
+    and `Discriminator`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The mapping network in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The implementation of `MappingNetwork` is self-explanatory. The following code
+    snippet includes the core logic for the mapping network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this network definition, `MappingNetwork` inherits `torch.nn.Module`. Within
+    the `__init__` function, the necessary `FullyConnectedLayer` instances are initialized.
+    The `forward` method feeds the latent vector, `z`, to each layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The following code snippet describes how the generator is implemented. It consists
+    of `MappingNetwork` and `SynthesisNetwork`, as depicted in *Figure 3.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The generator network, `Generator`, also inherits `torch.nn.Module`. `SynthesisNetwork`
+    and `MappingNetwork` are instantiated within the `__init__` function and get triggered
+    sequentially in the `forward` function. The implementation of `SynthesisNetwork`
+    is summarized in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`SynthesisNetwork` has multiple blocks of `SynthesisBlock`. `SynthesisBlock`
+    receives noise vectors and the output of `MappingNetwork` to generate a tensor
+    that eventually becomes the output image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The discriminator in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The following code snippet summarizes the PyTorch implementation of `Discriminator`.
+    The network architecture follows the structure depicted in *Figure 3.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similar to `SynthesisNetwork`, `Discriminator` makes use of the `DiscriminatorBlock`
+    class to dynamically create a set of convolutional layers of different sizes.
+    They are defined in the `__init__` function, and the tensors are fed to each block
+    sequentially in the `forward` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model training logic in PyTorch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Training logic is defined in the `training_loop` function in `training/train_loop.py`.
+    The original implementation contains a lot of details. In the following code snippet,
+    we will look at the main components that align with what we have learned in the
+    *PyTorch model training* section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function receives configurations for various training components and trains
+    both `Generator` and `Discriminator`. The outer loop iterates over training samples,
+    and the inner loop handles gradient calculation and model parameter updates. The
+    training settings are configured by a separate script, `main/train.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This summarizes the structure of PyTorch implementation. Even though the repository
+    looks overwhelming due to the large number of files, we have walked you through
+    how to break the implementation down into the components that we have described
+    in the *Implementing and training a model in PyTorch* section. In the following
+    section, we will look at implementation in TF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementation in TF
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Even though the official implementation is in TF ([https://github.com/NVlabs/stylegan](https://github.com/NVlabs/stylegan)),
+    we will look at a different implementation presented in *Hands-On Image Generation
+    with TensorFlow:* *A Practical Guide to Generating Images and Videos Using Deep
+    Learning* by Soon Yau Cheong. This version is based on TF version 2 and aligns
+    better with what we have described in this book. The implementation can be found
+    at [https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/blob/master/Chapter07/ch7_faster_stylegan.ipynb](https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/blob/master/Chapter07/ch7_faster_stylegan.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to the PyTorch implementation described in the previous section, the
+    original TF implementation consists of `G_mapping` for the mapping network, `G_style`
+    for the generator, and `D_basic` for the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The mapping network in TF
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s look at the mapping network defined at [https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L384](https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L384)
+    and its TF version 2 implementation shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The implementation of `MappingNetwork` is almost self-explanatory. We can see
+    that the mapping network starts with vector w constructed from a latent vector,
+    z, using a PixelNorm custom layer. The custom layer is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: As described in the *TF dense (linear) layers* section, `PixelNorm` inherits
+    the `tensorflow.keras.layers.Layer` class and defines the computation within the
+    `call` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The remaining components of `Mapping` are a set of dense layers with `LeakyReLU`
+    activations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will have a look at the generator network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator in TF
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The generator in the original code, `G_style`, is composed of two networks:
+    `G_mapping` and `G_synthesis`. See the following: [https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L299](https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L299).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete implementation from the repository might look extremely complex
+    at first. However, you will soon find out that `G_style` simply calls `G_mapping`
+    and `G_synthesis` sequentially.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The implementation of `SynthesisNetwork` is summarized in the following code
+    snippet: [https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L440](https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L440).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In TF version 2, the generator is implemented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: This network follows the architecture depicted in *Figure 3.5*; `SynthesisNetwork`
+    is constructed with a set of `AdaIn` and `ConvBlock` custom layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s move on to the discriminator network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The discriminator in TF
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The `D_basic` function implements the discriminator depicted in *Figure 3.6*.
+    ([https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L562](https://github.com/NVlabs/stylegan/blob/1e0d5c781384ef12b50ef20a62fee5d78b38e88f/training/networks_stylegan.py#L562)).
+    Since the discriminator consists of a set of convolution layer blocks, `D_basic`
+    has a dedicated function, `block`, that builds a block based on the input tensor
+    size. The core components of the function look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `block` function deals with creating each block in
+    the discriminator by combining convolution and downsampling layers. The remaining
+    logic of `D_basic` is straightforward, as it simply chains a set of convolution
+    layer blocks by passing the output of one block as an input to the next block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model training logic in TF
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The training logic for TF implementation can be found in the `train_step` function.
+    Understanding the implementation details should not be challenging as they have
+    followed the description we had in the *TF model training* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall, we have learned how StyleGAN can be implemented in TF version 2 using
+    the TF building blocks that we described in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things to remember
+  prefs: []
+  type: TYPE_NORMAL
+- en: a. Any DL model training implementation can be broken into three components
+    (data loading logic, model definition, and model training logic), regardless of
+    the complexity of the implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this stage, you should understand how the StyleGAN repository is structured
+    in each framework. We strongly recommend that you play around with the pre-trained
+    models to generate interesting images. If you master StyleGAN, it should be easy
+    to follow the implementation of StyleGAN2 ([https://arxiv.org/abs/1912.04958](https://arxiv.org/abs/1912.04958)),
+    StyleGAN3 ([https://arxiv.org/abs/2106.12423](https://arxiv.org/abs/2106.12423)),
+    and HyperStyle ([https://arxiv.org/abs/2111.15666](https://arxiv.org/abs/2111.15666)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have explored where the flexibility of DL comes from. DL
+    uses a network of mathematical neurons to learn the hidden patterns within a set
+    of data. Training a network involves the iterative process of updating model parameters
+    based on a train set and selecting the model that performs the best on a validation
+    set, with the goal of producing the best performance on a test set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Realizing the repeated processes within model training, many engineers and
+    researchers have put together common building blocks into frameworks. We have
+    described two of the most popular frameworks: PyTorch and TF. The two frameworks
+    are structured in a similar way, allowing users to set up the model training using
+    three building blocks: data loading logic, model definition, and model training
+    logic. As the final topic of the chapter, we decomposed StyleGAN, one of the most
+    popular GAN implementations, to understand how the building blocks are used in
+    reality.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As DL requires a large amount of data for successful training, efficient management
+    of the data, model implementations, and various training results are critical
+    to the success of any project. In the following chapter, we will introduce useful
+    tools for DL experiment monitoring.
+  prefs: []
+  type: TYPE_NORMAL

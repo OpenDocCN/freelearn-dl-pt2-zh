@@ -1,0 +1,824 @@
+- en: '6'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Practical Aspects of Image Classification
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In previous chapters, we learned about leveraging **convolutional neural networks**
+    (**CNNs**) along with pre-trained models to perform image classification. This
+    chapter will further solidify our understanding of CNNs and the various practical
+    aspects to be considered when leveraging them in real-world applications. We will
+    start by understanding the reasons why CNNs predict the classes that they do by
+    using **class activation maps** (**CAMs**). Following this, we will learn about
+    the various data augmentations that can be done to improve the accuracy of a model.
+    Finally, we will learn about the various instances where models could go wrong
+    in the real world and highlight the aspects that should be taken care of in such
+    scenarios to avoid pitfalls.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating CAMs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the impact of batch normalization and data augmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Practical aspects to take care of during model implementation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Further, you will learn about the preceding topics by implementing models to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predict whether a cell image indicates malaria
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Classify road signals
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating CAMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you have built a model that is able to make good predictions.
+    However, the stakeholder that you are presenting the model to wants to understand
+    the reason why the model predictions are as they are. A CAM comes in handy in
+    this scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An example CAM is as follows, where we have the input image on the left and
+    the pixels that were used to come up with the class prediction highlighted on
+    the right:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.1: Image (left) and corresponding CAM (right)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This way, if one wants to debug or understand model predictions, one can leverage
+    CAMs to learn about the pixels that are influencing the output predictions the
+    most.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s understand how CAMs can be generated once a model is trained. Feature
+    maps are intermediate activations that come after a convolution operation. Typically,
+    the shape of these activation maps is `n-channels x height x width`. If we take
+    the mean of all these activations, they show the hotspots of all the classes in
+    the image. But if we are interested in locations that are *only* important for
+    a particular class (say, `cat`), we need to figure out only those feature maps
+    among `n-channels` that are responsible for that class. For the convolution layer
+    that generated these feature maps, we can compute its gradients with respect to
+    the `cat` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that only those channels that are responsible for predicting `cat` will
+    have a high gradient. This means that we can use the gradient information to give
+    weightage to each of `n-channels` and obtain an activation map exclusively for
+    `cat`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we understand the high-level strategy of how to generate CAMs, let’s
+    put it into practice step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decide for which class you want to calculate the CAM and for which convolutional
+    layer in the neural network you want to compute the CAM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Calculate the activations arising from any convolutional layer: let’s say the
+    feature shape at a random convolution layer is 512 x 7 x 7.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.2: Calculating activations at a layer'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fetch the gradient values arising from this layer with respect to the class
+    of interest. The output gradient shape is 256 x 512 x 3 x 3 (which is the shape
+    of the convolutional tensor: that is, `in-channels x out-channels x kernel-size
+    x kernel-size`).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.3: Fetching the gradient values'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute the mean of the gradients within each output channel. The output shape
+    is 512\. In the following picture, we are calculating the mean in such a way that
+    we have an output shape of 512 from an input shape of 256 x 512 x 3 x 3.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.4: Computing the mean of gradients'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculate the weighted activation map, which is the multiplication of the 512
+    gradient means by the 512 activation channels. The output shape is 512 x 7 x 7.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.5: Calculating the weighted activation map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute the mean (across 512 channels) of the weighted activation map to fetch
+    an output of the shape 7 x 7.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.6: Computing the mean of weighted activation map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Resize (upscale) the weighted activation map outputs to fetch an image of a
+    size that is of the same size as the input. This is done so that we have an activation
+    map that resembles the original image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.7: Upscaling the weighted activation map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overlay the weighted activation map onto the input image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following diagram from the paper *Grad-CAM: Visual Explanations from Deep
+    Networks via Gradient-based Localization* ([https://arxiv.org/abs/1610.02391](https://arxiv.org/abs/1610.02391))
+    pictorially describes the preceding steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.8: Overview of calculating CAMs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The key to the entire process lies in *Step 5*. We consider two aspects of
+    the step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If a certain pixel is important, then the CNN will have a large activation at
+    those pixels.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If a certain convolutional channel is important with respect to the required
+    class, the gradients at that channel will be very large.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: On multiplying these two, we indeed end up with a map of importance across all
+    the pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding strategy is implemented in code to understand the reason why
+    the CNN model predicts that an image indicates the likelihood of an incident of
+    malaria, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code is available as `Class_activation_maps.ipynb` in the `Chapter06`
+    folder of this book’s GitHub repository ([https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)).
+    The code contains URLs to download data from and is moderately lengthy. We strongly
+    recommend you execute the notebook in GitHub to reproduce the results while you
+    understand the steps to perform and the explanation of various code components
+    in the text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download the dataset and import the relevant packages (make sure to provide
+    your respective Kaggle username and key):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'A sample of input images is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a baby  Description automatically generated](img/B18457_06_09.png)Figure
+    6.9: Parasitized image (left) and uninfected image (right)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Specify the indices corresponding to the output classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Perform the transformations to be done on top of the images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we have a pipeline of transformations on top of the input
+    image, which is a pipeline of resizing the image (which ensures that the minimum
+    size of one of the dimensions is `128`, in this case) and then cropping it from
+    the center. Furthermore, we are performing random color jittering and affine transformation.
+    Next, we are scaling an image using the `.ToTensor` method to have a value between
+    `0` and `1`, and finally, we are normalizing the image. As discussed in *Chapter
+    4*, we can also use the `imgaug` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specify the transformations to be done on the validation images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `MalariaImages` dataset class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the training and validation datasets and data loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `MalariaClassifier` model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to train and validate a batch of data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the convolution layer in the fifth `convBlock` in the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding line of code, we are fetching the fourth layer of the model
+    and also the first two layers within `convBlock`, which happens to be the `Conv2D`
+    layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the `im2gradCAM` function, which takes an input image and fetches the
+    heatmap corresponding to activations of the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `upsampleHeatmap` function to upsample the heatmap to a shape that
+    corresponds to the shape of the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding lines of code, we are de-normalizing the image and overlaying
+    the heatmap on top of the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run the preceding functions on a set of images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output of the preceding code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing colorfulness  Description automatically generated](img/B18457_06_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.10: Original parasitized images and the corresponding CAMs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this, we can see that the prediction is as it is because of the content
+    that is highlighted in red (which has the highest CAM value).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about generating class activation heatmaps for images
+    using a trained model, we are able to explain what makes a certain classification
+    so. In the next section, let’s learn about additional tricks around data augmentation
+    that can help when building models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the impact of data augmentation and batch normalization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'One clever way of improving the accuracy of models is by leveraging data augmentation.
+    As already mentioned in *Chapter 4,* we have provided a great deal of extra detail
+    about data augmentation in the GitHub repository. In the real world, you would
+    encounter images that have different properties: for example, some images might
+    be much brighter, some might contain objects of interest near the edges, and some
+    images might be more jittery than others. In this section, we will learn about
+    how the usage of data augmentation can help in improving the accuracy of a model.
+    Furthermore, we will learn about how data augmentation can practically be a pseudo-regularizer
+    for our models.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand the impact of data augmentation and batch normalization, we will
+    go through a dataset of recognizing traffic signs. We will evaluate three scenarios:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: No batch normalization/data augmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Only batch normalization, but no data augmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Both batch normalization and data augmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that given that the dataset and processing remain the same across the three
+    scenarios, and only the data augmentation and model (the addition of the batch
+    normalization layer) differ, we will only provide the following code for the first
+    scenario, but the other two scenarios are available in the notebook on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding up road sign detection
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s code up for road sign detection without data augmentation and batch normalization,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we are not explaining the code here, as it is very much in line with
+    the code that we have gone through in previous chapters; only the lines with bold
+    font are different across the three scenarios. The following code is available
+    in the `road_sign_detection.ipynb` file in the `Chapter06` folder of this book’s
+    GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Download the dataset and import the relevant packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Assign the class IDs to possible output classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the transformation pipeline on top of the images without any augmentation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we are specifying that we convert each image into a PIL
+    image and resize and crop the image from the center. Furthermore, we are scaling
+    the image to have pixel values that are between `0` and `1` using the `.ToTensor`
+    method; as we learned in *Chapter 3*, it is better for training models on scaled
+    datasets. Finally, we are normalizing the input image so that a pre-trained model
+    can be leveraged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The commented part of the preceding code is what you should uncomment and re-run
+    to understand the scenario of performing data augmentation. Furthermore, we are
+    not performing augmentations on `val_tfms` as those images are not used during
+    the training of the model. However, the `val_tfms` images should go through the
+    remaining transformation pipeline as `trn_tfms`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the `GTSRB` dataset class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create the training and validation datasets and data loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Make sure to uncomment the line with the `convBlock` definition in the preceding
+    code when you are testing the model with the `BatchNormalization` scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the functions to train and validate on a batch of data, respectively:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model and train it over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The lines of code that are commented in *step 3* (for data augmentation) and
+    *step 5* (for batch normalization) are the ones that you would change in the three
+    scenarios. The results of the three scenarios in terms of training and validation
+    accuracy are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Table 6.1: Ablation study of the model with/without image augmentation and
+    batch normalization'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that, in the preceding three scenarios, we see the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model did not have as high accuracy when there was no batch normalization.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The accuracy of the model increased considerably but also the model overfitted
+    on training data when we had batch normalization only but no data augmentation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The model with both batch normalization and data augmentation had high accuracy
+    and minimal overfitting (as the training and validation loss values are very similar).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the importance of batch normalization and data augmentation in place, in
+    the next section, we will learn about some key aspects to take care of when training/implementing
+    our image classification models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Practical aspects to take care of during model implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, we have seen the various ways of building an image classification model.
+    In this section, we will learn about some of the practical considerations that
+    need to be taken care of when building models in real-world applications. The
+    ones we will discuss in this section are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imbalanced data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The size of an object within an image when performing classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The difference between training and validation images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of convolutional and pooling layers in a network
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Image sizes to train on GPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: OpenCV utilities
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Imbalanced data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where you are trying to predict an object that occurs very
+    rarely within our dataset: let’s say in 1% of the total images. For example, this
+    can be the task of predicting whether an X-ray image suggests a rare lung infection.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we measure the accuracy of the model that is trained to predict the rare
+    lung infection? If we simply predict a class of no infection for all images, the
+    accuracy of classification is 99%, while still being useless. A confusion matrix
+    that depicts the number of times the rare object class has occurred and the number
+    of times the model predicted the rare object class correctly comes in handy in
+    this scenario. Thus, the right set of metrics to look at in this scenario is the
+    metrics related to the confusion matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A typical confusion matrix looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_06_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.11: Typical confusion matrix'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding confusion matrix, `0` stands for no infection and `1` stands
+    for infection. Typically, we would fill up the matrix to understand how accurate
+    our model is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next comes the question of ensuring that the model gets trained. Typically,
+    the loss function (binary or categorical cross-entropy) takes care of ensuring
+    that the loss values are high when the amount of misclassification is high. However,
+    in addition to the loss function, we can also assign a higher weight to the rarely
+    occurring class, thereby ensuring that we explicitly mention to the model that
+    we want to correctly classify the rare class images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to assigning class weights, we have already seen that image augmentation
+    and/or transfer learning help considerably in improving the accuracy of the model.
+    Furthermore, when augmenting an image, we can over-sample the rare class images
+    to increase their mix in the overall population.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The size of the object within an image
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where the presence of a small patch within a large image
+    dictates the class of the image: for example, lung infection identification where
+    the presence of certain tiny nodules indicates an incident of the disease. In
+    such a scenario, image classification is likely to result in inaccurate results,
+    as the object occupies a smaller portion of the entire image. Object detection
+    comes in handy in this scenario (which we will study in the next chapter).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A high-level intuition to solve these problems would be to first divide the
+    input images into smaller grid cells (let’s say a 10 x 10 grid) and then identify
+    whether a grid cell contains the object of interest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to this, you might also want to consider a scenario where the model
+    is trained (and also inferred) on images with high resolution. This ensures that
+    the tiny nodules in the previous example are represented by a sufficient number
+    of pixels so that the model can be trained.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The difference between training and validation data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where you have built a model to predict whether the image
+    of an eye indicates that the person is likely to be suffering from diabetic retinopathy.
+    To build the model, you have collected data, curated it, cropped it, normalized
+    it, and then finally built a model that has very high accuracy on validation images.
+    However, hypothetically, when the model is used in a real setting (let’s say by
+    a doctor/nurse), the model is not able to predict well. Let’s understand a few
+    possible reasons why:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Are the images taken at the doctor’s office similar to the images used to train
+    the model?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Images used when training and images used during prediction (real-world images)
+    could be very different if you built a model on a curated set of data that has
+    all the preprocessing done, while the images taken at the doctor’s end are non-curated.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Images could be different if the device used to capture images at the doctor’s
+    office has a different resolution of capturing images when compared to the device
+    used to collect images that are used for training.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Images can be different if there are different lighting conditions at which
+    the images are captured in both places.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Are the subjects (images) representative enough of the overall population?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Images are representative if they are trained on images of the male population
+    but are tested on the female population, or if, in general, the training and real-world
+    images correspond to different demographics.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Is the training and validation split done methodically?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Imagine a scenario where there are 10,000 images and the first 5,000 images
+    belong to one class and the last 5,000 images belong to another class. When building
+    a model, if we do not randomize but split the dataset into training and validation
+    with consecutive indices (without random indices), we are likely to see a higher
+    representation of one class while training and of the other class during validation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In general, we need to ensure that the training, validation, and real-world
+    images all have similar data distribution before an end user leverages the system.
+    We will learn about the concept of data drift in *Chapter 18*, which is a technique
+    to identify whether the validation/test data is different from the training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of nodes in the flatten layer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Consider a scenario where you are working on images that are 300 x 300 in dimensions.
+    Technically, we can perform more than five convolutional pooling operations to
+    get the final layer that has as many features as possible. Furthermore, we can
+    have as many channels as we want in this scenario within a CNN. Practically, though,
+    in general, we would design a network so that it has 500–5,000 nodes in the flatten
+    layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we saw in *Chapter 4*, if we have a greater number of nodes in the flatten
+    layer, we would have a very high number of parameters when the flatten layer is
+    connected to the subsequent dense layer before connecting to the final classification
+    layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, it is good practice to have a pre-trained model that obtains the
+    flatten layer so that relevant filters are activated as appropriate. Furthermore,
+    when leveraging pre-trained models, make sure to freeze the parameters of the
+    pre-trained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generally, the number of trainable parameters in a CNN can be anywhere between
+    1 million and 10 million in a less complex classification exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image size
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s say we are working on images that are of very high dimensions: for example,
+    2,000 x 1,000 in shape. When working on such large images, we need to consider
+    the following possibilities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Can the images be resized to lower dimensions? Images of objects might not lose
+    information if resized; however, images of text documents might lose considerable
+    information if resized to a smaller size.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can we have a lower batch size so that the batch fits into GPU memory? Typically,
+    if we are working with large images, there is a good chance that, for the given
+    batch size, the GPU memory will not be sufficient to perform computations on the
+    batch of images.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do certain portions of the image contain the majority of the information, and
+    hence can the rest of the image be cropped?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: OpenCV utilities
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: OpenCV is an open-source package that has extensive modules that help in fetching
+    information from images (more details on OpenCV utilities can be found in the
+    GitHub repository). It was one of the most prominent libraries used prior to the
+    deep learning revolution in computer vision. Traditionally, it has been built
+    on top of multiple hand-engineered features, and at the time of writing this book,
+    OpenCV has a few packages that integrate deep learning models’ outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Imagine a scenario where you have to move a model to production; less complexity
+    is generally preferable in such a scenario: sometimes even at the cost of accuracy.
+    If any OpenCV module solves the problem that you are already trying to solve,
+    in general, it should be preferred over building a model (unless building a model
+    from scratch gives a considerable boost in accuracy than leveraging off-the-shelf
+    modules).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we learned about multiple practical aspects that we need to
+    take into consideration when building CNN models: batch normalization, data augmentation,
+    explaining the outcomes using CAMs, and some scenarios that you need to be aware
+    of when moving a model to production.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next chapter, we will switch gears and learn about the fundamentals
+    of object detection: where we will not only identify the classes corresponding
+    to objects in an image but also draw a bounding box around the location of the
+    object.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How are class activation maps obtained?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do batch normalization and data augmentation help when training a model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the common reasons why a CNN model overfits?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the various scenarios where the CNN model works with training and validation
+    data at the data scientists’ end but not in the real world?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the various scenarios where we leverage OpenCV packages and when it
+    is advantageous to use OpenCV over deep learning?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG

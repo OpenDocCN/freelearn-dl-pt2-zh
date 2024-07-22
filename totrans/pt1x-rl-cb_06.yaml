@@ -1,0 +1,1080 @@
+- en: Scaling Up Learning with Function Approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have represented the value function in the form of a lookup table
+    in the MC and TD methods. The TD method is able to update the Q-function on the
+    fly during an episode, which is considered an advancement on the MC method. However,
+    the TD method is still not sufficiently scalable for problems with many states
+    and/or actions. It will be extremely slow at learning too many values for individual
+    pairs of states and actions using the TD method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will focus on function approximation, which can overcome the scaling
+    issues in the TD method. We will begin by setting up the Mountain Car environment
+    playground. After developing the linear function estimator, we will incorporate
+    it into the Q-learning and SARSA algorithms. We will then improve the Q-learning
+    algorithm using experience replay, and experiment with using neural works as a
+    function estimator. Finally, we will cover how to solve the CartPole problem using
+    what we have learned in the chapter as a whole.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following recipes will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the Mountain Car environment playground
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Estimating Q-functions with gradient descent approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing Q-learning with linear function approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing SARSA with linear function approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Incorporating batching using experience replay
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing Q-learning with neural net function approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the CartPole problem with function approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up the Mountain Car environment playground
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The TD method can learn the Q-function during an episode but is not scalable.
+    For example, the number of states in a chess game is around 1,040, and 1,070 in
+    a Go game. Moreover, it seems infeasible to learn the values for continuous state
+    using the TD method. Hence, we need to solve such problems using **function approximation
+    (FA)**, which approximates the state space using a set of features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this first recipe, we will begin by getting familiar with the Mountain Car
+    environment, which we will solve with the help of FA methods in upcoming recipes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Mountain Car ([https://gym.openai.com/envs/MountainCar-v0/](https://gym.openai.com/envs/MountainCar-v0/))
+    is a typical Gym environment with continuous states. As shown in the following
+    diagram, its goal is to get the car to the top of the hill:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/571d4afc-1d3c-4804-af21-2e400df8171e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'On a one-dimensional track, the car is positioned between -1.2 (leftmost) and
+    0.6 (rightmost), and the goal (yellow flag) is located at 0.5\. The engine of
+    the car is not strong enough to drive it to the top in a single pass, so it has
+    to drive back and forth to build up momentum. Hence, there are three discrete
+    actions for each step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Push left (0)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: No push (1)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Push right (2)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'And there are two states of the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Position of the car: this is a continuous variable from -1.2 to 0.6.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Velocity of the car: this is a continuous variable from -0.07 to 0.07.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The reward associated with each step is -1, until the car reaches the goal (a
+    position of 0.5).
+  prefs: []
+  type: TYPE_NORMAL
+- en: An episode ends when the car reaches the goal position (obviously), or after
+    200 steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To run the Mountain Car environment, let's first search for its name in the
+    table of environments – [https://github.com/openai/gym/wiki/Table-of-environments](https://github.com/openai/gym/wiki/Table-of-environments).
+    We get `MountainCar-v0` and also know that the observation space is represented
+    by two floats and that there are three possible actions (left = 0, no push = 1,
+    right = 2).
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s simulate the Mountain Car environment in the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We import the Gym library and create an instance of the Mountain Car environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Reset the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The car starts with a state `[-0.52354759, 0.]`, which means that the initial
+    position is around -0.5 and the velocity is 0\. You may see a different initial
+    position as it is randomly generated from -0.6 to -0.4.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a naive approach now: we just keep pushing the car to the right
+    and hope it will reach the top:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Close the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Step 3*, the state (position and velocity) keeps changing accordingly and
+    the reward is -1 for each step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You will also see in the video that the car is repeatedly moving to the right
+    and back to the left, but doesn''t reach the top in the end:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fa2a8266-fd65-43eb-9f72-f50f88559d2f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can imagine, the Mountain Car problem is not as easy as you thought.
+    We need to drive the car back and forth to build up momentum. And the state variables
+    are continuous, which means that a table `lookup`/`update` method (such as the
+    TD method) will not work. In the next recipe, we will solve the Mountain Car problem
+    with FA methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Estimating Q-functions with gradient descent approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Starting from this recipe, we will develop FA algorithms to solve environments
+    with continuous state variables. We will begin by approximating Q-functions using
+    linear functions and gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main idea of **FA** is to use a set of **features** to estimate Q values.
+    This is extremely useful for processes with a large state space where the Q table
+    becomes huge. There are several ways to map the features to the Q values; for
+    example, linear approximations that are linear combinations of features and neural
+    networks. With linear approximation, the state-value function for an action is
+    expressed by a weighted sum of the features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1e5af9c1-6035-4cd7-ab96-4861b09144d0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, F1(s), F2(s), ……, Fn(s) is a set of features given the input state, s;
+    θ1, θ2,......, θn are the weights applied to corresponding features. Or we can
+    put it as V(s)=θF(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have seen this in the TD method, we have the following formula to compute
+    the future states:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7aeab8ea-2c14-4ba2-b52f-5433c0cbee50.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, r is the associated reward obtained by transforming from state st to
+    st+1, α is the learning rate, and γ is the discount factor. Let''s denote δ as
+    the TD error term, and now we have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d457d7de-6de9-4bfe-aca0-562ce9214894.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is in the exact form of gradient descent. Hence, the goal of learning is
+    to find the optimal weights, θ, to best approximate the state-value function V(s)
+    for each possible action. The loss function we are trying to minimize in this
+    case is similar to that in a regression problem, which is the mean squared error
+    between the actual value and the estimated value. After each step in an episode,
+    we have a new estimation of the true state value, and we move the weights, θ,
+    a step toward their optimal value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One more thing to note is the feature set, F(s), given the input state, s. A
+    good feature set is one that can capture the dynamics of different inputs. Typically,
+    we can generate a set of features with a set of Gaussian functions under various
+    parameters, including mean and standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We develop the Q-function approximator based on the linear function as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import all the necessary packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The variable wraps a tensor and supports backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, start the `__init__method` of the linear function''s `Estimator` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It takes in three parameters: the number of features, `n_feat`; the number
+    of states; and the number of actions. It first generates a set of coefficients,
+    `w` and `b`, for the feature function F(s) from Gaussian distributions, which
+    we will define later. It then initializes `n_action` linear models, where each
+    model corresponds to an action, and `n_action` optimizers, accordingly. For the
+    linear model, we herein use the Linear module from PyTorch. It takes in `n_feat`
+    units and generates one output, which is the predicted state-value for an action.
+    The stochastic gradient descent optimizer is also initialized along with each
+    linear model. The learning rate for each optimizer is 0.05\. The loss function
+    is the mean squared error.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now continue defining the `get_gaussian_wb` method, which generates a set
+    of coefficients, w and b, for the feature function, F(s):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The coefficient, `w`, is an `n_feat` by `n_state` matrix, with values generated
+    from a Gaussian distribution of variance defined by the parameter sigma; the bias,
+    b, is a list of `n_feat` values generated from a uniform distribution of [0, 2π].
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that it is very important to set a specific random seed (`torch.manual_seed(0)`)
+    so that a state can always be mapped to the same feature in different runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we develop the function to map the state space to the feature space based
+    on `w` and `b`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The feature of a state, s, is generated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/13daf112-7fdb-41e1-b0b6-86b1eddd9735.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Use cosine transformation to ensure that the feature is in the range of [-1,
+    1] despite the value of an input state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we''ve defined model and feature generation, we now develop the training
+    method, which updates the linear models with a data point:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Given a training data point, it first converts the state to feature space with
+    the `get_feature` method. The resulting features are then fed into the current
+    linear model of the given action, `a`. The predictive result, along with the target
+    value, is used to compute the loss and gradients. The weights, θ, are then updated
+    via backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next operation involves predicting the state-value for each action given
+    a state using the current models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's all for the `Estimator` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s play around with some dummy data. First, create an `Estimator`
+    object that maps a 2-dimensional state to a 10-dimensional feature and works with
+    1 possible action:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, generate the feature out of a state [0.5, 0.1]:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the resulting feature is a 10-dimensional vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Train the estimator on a list of states and target state-values (and we only
+    have one action in this example):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And finally, we use the trained linear model to predict the value for new states:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The predicted value for state [0.5, 0.1] with the action is 0.5847, while for
+    [2, 3], it is 0.7969.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The FA method approximates the state values with a more compact model than computing
+    the exact values with a Q table in the TD method. FA first maps the state space
+    to the feature space and then estimates the Q values using a regression model.
+    In this way, the learning process becomes supervised. Type regression models include
+    linear models and neural networks. In this recipe, we developed an estimator based
+    on linear regression. It generates features according to coefficients sampled
+    from a Gaussian distribution. It updates the weights for the linear model given
+    training data via gradient descent and predicts Q values given a state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: FA dramatically reduces the number of states to learn, where learning millions
+    of states is not feasible in the TD method. More importantly, it is able to generalize
+    to unseen states, as the state-values are parameterized by the estimation functions
+    given input states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'If you are not familiar with linear regression or gradient descent, please
+    check out the following material:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843](https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/](https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Developing Q-learning with linear function approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous recipe, we developed a value estimator based on linear regression.
+    We will employ the estimator in Q-learning, as part of our FA journey.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have seen, Q-learning is an off-policy learning algorithm and it updates
+    the Q-function based on the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/58103c4f-e34f-48a9-a4f1-c4a48579497e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *s''* is the resulting state after taking action, *a*, in state, *s*;
+    *r* is the associated reward; α is the learning rate; and γ is the discount factor.
+    Also, [![](img/8ab6292e-d9d6-4c1f-87e1-1dde55b4a436.png)] means that the behavior
+    policy is greedy, where the highest Q-value among those in state `s''` is selected
+    to generate learning data. In Q-learning, actions are taken on the basis of the
+    epsilon-greedy policy. Similarly, Q-learning with FA has the following error term:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/267d740e-a951-43f6-8079-6a69484fc3b0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Our learning goal is to minimize the error term to zero, which means the estimated
+    V(st) should satisfy the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/be4988c6-4f6c-41e6-8e52-4bcfa14d12c5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, the goal becomes finding the optimal weights, θ, as in V(s)=θF(s), to best
+    approximate the state-value function V(s) for each possible action. The loss function
+    we are trying to minimize in this case is similar to that in a regression problem,
+    which is the mean squared error between the actual value and the estimated value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s develop Q-learning with FA using the linear estimator, `Estimator`,
+    from `linear_estimator.py`, which we developed in the previous recipe, *Estimating
+    Q-functions with gradient descent approximation*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules and create a Mountain Car environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, start defining the epsilon-greedy policy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: This takes in a parameter, ε, with a value from 0 to 1, |A|, the number of possible
+    actions, and the estimator used to predict state-action values. Each action is
+    taken with a probability of ε/ |A|, and the action with the highest predicted
+    state-action value is chosen with a probability of 1- ε + ε/ |A|.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, define the function that performs Q-learning with FA:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `q_learning()` function does the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
+    to 99% (for example, if epsilon in the first episode is 0.1, it will be 0.099
+    in the second episode).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
+    policy; computes the *Q* values of the new state using the current estimator;
+    then, computes the target value, [![](img/66653f49-f896-43ff-8f55-51a087693f99.png)],
+    and uses it to train the estimator.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Runs `n_episode` episodes and records the total reward for each episode.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We specify the number of features as `200` and the learning rate as `0.03`,
+    and create an estimator accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We perform Q-learning with FA for 300 episodes and also keep track of the total
+    rewards for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you can see, in Q-learning with FA, it tries to learn the optimal weights
+    for the approximation models so that the Q values are best estimated. It is similar
+    to TD Q-learning in the sense that they both generate learning data from another
+    policy. It is more suitable for environments with large state space as the Q values
+    are approximated by a set of regression models and latent features, while TD Q-learning
+    requires exact table lookup to update the Q values. The fact that Q-learning with
+    FA updates the regression models after every single step also makes it similar
+    to the TD Q-learning method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After the Q-learning model is trained, we just need to use the regression models
+    to predict the state-action values for all possible actions and pick the action
+    with the largest value given a state. In *Step 6*, we import `pyplot` to plot
+    all the rewards, which will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f88a6fcd-3f33-491e-b7e6-b16cc3c53b58.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that, in most episodes, after the first 25 iterations, the car reaches
+    the mountain top in around 130 to 160 steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing SARSA with linear function approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We've just solved the Mountain Car problem using the off-policy Q-learning algorithm
+    in the previous recipe. Now, we will do so with the on-policy **State-Action-Reward-State-Action**
+    (**SARSA**) algorithm (the FA version of course).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, the SARSA algorithm updates the Q-function based on the following
+    equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/424b8c6a-6aca-499c-87f0-c768dc6c1c76.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *s''* is the resulting state after taking action, *a*, in state *s*;
+    *r* is the associated reward; α is the learning rate; and γ is the discount factor.
+    We simply pick up the next action, a'', by also following an epsilon-greedy policy
+    to update the *Q* value. And the action, *a''*, is taken in the next step. Accordingly,
+    SARSA with FA has the following error term:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/20d1d5b3-d702-4ed1-a200-9452361398c3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Our learning goal is to minimize the error term to zero, which means that the
+    estimated V(st) should satisfy the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bcb89757-ed43-40b1-81fa-83d878dc7627.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, the goal becomes finding the optimal weights, θ, as in V(s)=θF(s), to best
+    approximate the state-value function V(s) for each possible action. The loss function
+    we are trying to minimize in this case is similar to that in a regression problem,
+    which is the mean squared error between the actual value and the estimated value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s develop SARSA with FA using the linear estimator, `Estimator`, from
+    `linear_estimator.py`, which we developed in the recipe, *Estimating Q-functions
+    with gradient descent approximation*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules and create a Mountain Car environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will reuse the epsilon-greedy policy function developed in the previous recipe,
+    *Developing Q-learning with linear function approximation*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, define the function that performs the SARSA algorithm with FA:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `sarsa()` function does the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
+    to 99%.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
+    policy; in the new state, chooses a new action according to the epsilon-greedy
+    policy; then, compute the Q values of the new state using the current estimator;
+    computes the target value, [![](img/e4ca0b59-d123-49c4-8152-3a4950ae6c7a.png)],
+    and uses it to update the estimator.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Runs `n_episode` episodes and records the total reward for each episode.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We specify the number of features as 200, the learning rate as 0.03, and create
+    an estimator accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then perform SARSA with FA for 300 episodes and also keep track of the total
+    rewards for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: SARSA with FA tries to learn the optimal weights for the approximation models
+    so that the Q values are best estimated. It optimizes the estimation by taking
+    actions chosen under the same policy, as opposed to learning the experience from
+    another policy in Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, after the SARSA model is trained, we just need to use the regression
+    models to predict the state-action values for all possible actions and pick the
+    action with the largest value given a state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 6*, we plot the rewards with `pyplot`, which will result in the following
+    plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9ec15b15-d664-426d-8331-4591069de13b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that, in most episodes, after the first 100 episodes, the car reaches
+    the mountain top in around 130 to 160 steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Incorporating batching using experience replay
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous two recipes, we developed two FA learning algorithms: off-policy
+    and on-policy, respectively. In this recipe, we will improve the performance of
+    off-policy Q-learning by incorporating experience replay.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Experience replay** means we store the agent''s experiences during an episode
+    instead of running Q-learning. The learning phase with experience replay becomes
+    two phases: gaining experience and updating models based on the experience obtained
+    after an episode finishes.Specifically, the experience (also called the buffer,
+    or memory) includes the past state, the action taken, the reward received, and
+    the next state for individual steps in an episode.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the learning phase, a certain number of data points are randomly sampled
+    from the experience and are used to train the learning models. Experience replay
+    can stabilize training by providing a set of samples with low correlation, which,
+    as a result, increases learning efficiency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let’s apply experience replay to FA Q-learning using the linear estimator,
+    `Estimator`, from `linear_estimator.py`, which we developed in the previous recipe,
+    *Estimating Q-functions with gradient descent approximation*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules and create a Mountain Car environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will reuse the epsilon-greedy policy function developed in the previous,
+    *Developing Q-learning with linear function approximation* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Then, specify the number of features as `200`, the learning rate as `0.03`,
+    and create an estimator accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, define the buffer holding the experience:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: New samples will be appended to the queue, and the old ones will be removed
+    as long as there are more than 400 samples in the queue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, define the function that performs FA Q-learning with experience replay:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The function does the following tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
+    to 99% (for example, if epsilon in the first episode is 0.1, it will be 0.099
+    in the second episode).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
+    policy; compute the *Q* values of the new state using the current estimator; then,
+    computes the target value, [![](img/239b6d7a-30aa-4996-9aa2-1aa1c44e1726.png)],
+    and stores the state, action, and target value tuple in the buffer memory.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: After each episode, randomly selects `replay_size` samples from the buffer memory
+    and uses them to train the estimator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Runs `n_episode` episodes and records the total reward for each episode.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We perform Q-learning with experience replay for 1,000 episodes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We need more episodes simply because the models are not sufficiently trained,
+    so the agent takes random steps in early episodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We set 190 as the replay sample size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also keep track of the total rewards for each episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will result in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a1ad35c2-f547-4a45-bd2a-78cdb4c37532.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the performance of Q-learning with experience replay becomes
+    much more stable. The rewards in most episodes after the first 500 episodes stay
+    in the range of -160 to -120.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we solved the Mountain Car problem with the help of FA Q-learning,
+    along with experience replay. It outperforms pure FA Q-learning because we collect
+    less corrected training data with experience replay. Instead of rushing in and
+    training the estimator, we first store the data points we observe during episodes
+    in a buffer, and then we randomly select a batch of samples from the buffer and
+    train the estimator. This forms an input dataset where samples are more independent
+    of one another, thereby making training more stable and efficient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing Q-learning with neural network function approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we mentioned before, we can also use neural networks as the approximating
+    function. In this recipe, we will solve theMountain Car environment using Q-learning
+    with neural networks for approximation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The goal of FA is to use a set of features to estimate the Q values via a regression
+    model. Using neural networks as the estimation model, we increase the regression
+    power by adding flexibility (multiple layers in neural networks) and non-linearity
+    introduced by non-linear activation in hidden layers. The remaining part of the
+    Q-learning model is very similar to the one with linear approximation. We also
+    use gradient descent to train the network. The ultimate goal of learning is to
+    find the optimal weights of the network to best approximate the state-value function,
+    V(s), for each possible action. The loss function we are trying to minimize is
+    also the mean squared error between the actual value and the estimated value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s start by implementing the neural network-based estimator. We will reuse
+    most parts of the linear estimator we developed in the *Estimating Q-functions
+    with gradient descent approximation* recipe. The difference is that we connect
+    the input layer and output layer with a hidden layer, followed by an activation
+    function, which is a ReLU (rectified linear unit) function in this case. So, we
+    only need to modify the `__init__` method as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the hidden layer has `n_hidden` nodes, and a ReLU activation,
+    `torch.nn.ReLU()`, comes after the hidden layer, followed by the output layer
+    producing the estimated value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other parts of the neural network `Estimator` are the same as the linear
+    `Estimator`. You can copy them into the `nn_estimator.py` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we continue with Q-learning using neural networks with experience replay
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules, including the neural network estimator, `Estimator`,
+    from `nn_estimator.py`, which we just developed, and create a Mountain Car environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will reuse the epsilon-greedy policy function developed in the *Developing
+    Q-learning with linear function approximation* recipe.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We then specify the number of features as 200, the learning rate as 0.001,
+    the size of the hidden layer as 50, and create an estimator accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, define the buffer holding the experience:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: New samples will be appended to the queue, and the old ones will be removed
+    as long as there are more than 300 samples in the queue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will reuse the `q_learning` function we developed in the previous recipe,
+    *Incorporating batching using experience replay.* It performs FA Q-learning with
+    experience replay.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We perform Q-learning with experience replay for 1,000 episodes, and set 200
+    as the replay sample size.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also keep track of the total rewards for each episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: FA using neural networks is very similar to linear function approximation. Instead
+    of using a simple linear function, it uses neural networks to map the features
+    to target values. The remaining parts of the algorithm are essentially the same,
+    but it has higher flexibility because of the more complex architecture of neural
+    networks and non-linear activation, and, hence, more predictive power.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 7*, we plot the episode lengths over time, which will result in the
+    following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/138d1e8c-8d3e-44d9-a69e-ec3349a5facd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the performance of Q-learning with neural networks is better
+    than using linear functions. The rewards in most episodes after the first 500
+    episodes stay in the range of -140 to -85.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'If you want to brush up on your knowledge of neural networks, please check
+    out the following material:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html](https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf](https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the CartPole problem with function approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This is a bonus recipe in this chapter, where we will solve the CartPole problem
+    using FA.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we saw in [Chapter 1](61027c1b-6d3a-4406-b069-7320c1818093.xhtml), *Getting
+    started with reinforcement learning and PyTorch*, we simulated the CartPole environment
+    in the , *Simulating the CartPole environment* recipe, and solved the environment
+    using random search, and the hill climbing and policy gradient algorithms, respectively,
+    in recipes including *Implementing and evaluating the random search policy*, *Developing
+    the hill climbing algorithm*, and *Developing the policy gradient algorithm*.
+    Now, let's try to solve CartPole using what we've talked about in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We demonstrate the solution for neural network-based FAs without experience
+    replay as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the necessary modules, including the neural network, `Estimator`, from
+    `nn_estimator.py` which we developed in the previous recipe, *Developing Q-learning
+    with neural net function approximation*, and create a CartPole environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will reuse the epsilon-greedy policy function developed in the previous recipe,
+    *Developing Q-learning with linear function approximation*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We then specify the number of features as 400 (note that the state space of
+    the CartPole environment is 4-dimensional), the learning rate as 0.01, the size
+    of the hidden layer as 100, and create a neural network estimator accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will reuse the `q_learning` function we developed in the previous recipe,
+    *Developing Q-learning with linear function approximation*. This performs FA Q-learning.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We perform Q-learning with FA for 1,000 episodes and also keep track of the
+    total rewards for each episode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we display the plot of episode lengths over time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: How it works...
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have solved the CartPole problem using the FA algorithm with neural networks
+    in this recipe. Note that the environment has a four dimensional observation space,
+    which is double that of the Mountain Car, so we intuitively double up the number
+    of features we use, and the size of the hidden layer accordingly. Feel free to
+    experiment with SARSA with neural networks, or Q-learning with experience replay,
+    and see whether either of them perform better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Step 6*, we plot the episode lengths over time, which will result in the
+    following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e793c8eb-e2da-463d-9c98-a1792189a1e5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the total rewards in most episodes after the first 300 episodes
+    are the maximum value of +200.
+  prefs: []
+  type: TYPE_NORMAL

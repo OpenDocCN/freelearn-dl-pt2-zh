@@ -1,0 +1,1773 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Applications of Object Detection and Segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In previous chapters, we learned about various object detection techniques,
+    such as the R-CNN family of algorithms, YOLO, SSD, and the U-Net and Mask R-CNN
+    image segmentation algorithms. In this chapter, we will take our learning a step
+    further – we will work on more realistic scenarios and learn about frameworks/architectures
+    that are more optimized to solve detection and segmentation problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will start by leveraging the Detectron2 framework to train and detect custom
+    objects present in an image. We will also predict the pose of humans present in
+    an image using a pre-trained model. Furthermore, we will learn how to count the
+    number of people in a crowd in an image and then learn about leveraging segmentation
+    techniques to perform image colorization. Next, we will learn about a modified
+    version of YOLO to predict 3D bounding boxes around objects by using point clouds
+    obtained from a LIDAR sensor. Finally, we will learn about recognizing actions
+    from a video.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you will have learned about the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-object instance segmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Human pose detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Crowd counting
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Image colorization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 3D object detection with point clouds
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Action recognition from video
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All code snippets within this chapter are available in the `Chapter10` folder
+    of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As the field evolves, we will periodically add valuable supplements to the GitHub
+    repository. Do check the `supplementary_sections` folder within each chapter’s
+    directory for new and useful content.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Multi-object instance segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In previous chapters, we learned about various object detection algorithms.
+    In this section, we will learn about the Detectron2 platform ([https://ai.facebook.com/blog/-detectron2-a-pytorch-based-modular-object-detection-library-/](https://ai.facebook.com/blog/-detectron2-a-pytorch-based-modular-object-detection-library-/))
+    before we implement multi-object instance segmentation using the Google Open Images
+    dataset. Detectron2 is a platform built by the Facebook team. Detectron2 includes
+    high-quality implementations of state-of-the-art object detection algorithms,
+    including DensePose of the Mask R-CNN model family. The original Detectron framework
+    was written in Caffe2, while the Detectron2 framework is written using PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Detectron2 supports a range of tasks related to object detection. Like the original
+    Detectron, it supports object detection with boxes and instance segmentation masks,
+    as well as human pose prediction. Beyond that, Detectron2 adds support for semantic
+    segmentation and panoptic segmentation (a task that combines both semantic and
+    instance segmentation). By leveraging Detectron2, we are able to build object
+    detection, segmentation, and pose estimation in a few lines of code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetch the open-images dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Convert the dataset to COCO format
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Train a model using Detectron2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Infer new images on the trained model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s go through each of these.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching and preparing data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will be working on the images that are available in the Open Images dataset
+    (which contains millions of images along with their annotations) provided by Google
+    at [https://storage.googleapis.com/openimages/web/index.html](https://storage.googleapis.com/openimages/web/index.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this part of the code, we will learn about fetching only the required images
+    and not the entire dataset. Note that this step is required, as the dataset size
+    prohibits a typical user who might not have extensive resources from building
+    a model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `Multi_object_segmentation.ipynb` file
+    located in the `Chapter10` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the required annotations files:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the classes that we want our model to predict (you can visit the Open
+    Images website to see the list of all classes):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the image IDs and masks corresponding to `required_classes`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Given the vast amount of data, we are only fetching 500 images per class in
+    `subset_data`. It is up to you whether you fetch a smaller or larger set of files
+    per class and the list of unique classes (`required_classes`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we only have the `ImageId` and `MaskPath` values corresponding to an
+    image. In the next steps, we will go ahead and download the actual images and
+    masks from `open-images`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have the subset of masks data to download, let’s start the download.
+    Open Images has 16 ZIP files for training masks. Each ZIP file will have only
+    a few masks from `subset_masks`, so we will delete the rest after moving the required
+    masks into a separate folder. This *download* -> *move* -> *delete* action will
+    keep the memory footprint relatively small. We will have to run this step once
+    for each of the 16 files:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the images corresponding to `ImageId`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Zip all the images, masks, and ground truths and save them – just in case your
+    session crashes, it is helpful to save and retrieve the file for later training.
+    Once the ZIP file is created, ensure you save the file in your drive or download
+    it. The file size ends up being around 2.5 GB:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, move the data into a single directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: Given that there are so many moving components in object detection code, as
+    a standardization method, Detectron accepts a rigid data format for training.
+    While it is possible to write a dataset definition and feed it to Detectron, it
+    is easier (and more profitable) to save the entire training data in COCO format.
+    This way, you can leverage other training algorithms, such as **detectron transformers**
+    (**DETR**), with no change to the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will start by defining the categories of classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the required categories in COCO format:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the preceding code, in the definition of `CATEGORIES`, we are creating a
+    new key called `supercategory`. To understand `supercategory`, let’s go through
+    an example: the `Man` and `Woman` classes are categories belonging to the `Person`
+    supercategory. In our case, given that we are not interested in supercategories,
+    we will specify it as `none`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Import the relevant packages and create an empty dictionary with the keys needed
+    to save the COCO JSON file:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Set a few variables in place that contain the information on the image locations
+    and annotation file locations:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Loop through each image filename and populate the `images` key in the `coco_output`
+    dictionary:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Loop through each segmentation annotation and populate the `annotations` key
+    in the `coco_output` dictionary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Save `coco_output` in a JSON file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With this, we have our files in COCO format. Now, we are ready to train our
+    model using the Detectron2 framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model for instance segmentation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To train our model, we need to download the required packages, modify the configuration
+    file to reflect the dataset paths, and then train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s go through the steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required Detectron2 packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Note: You’ll need to restart Colab before proceeding to the next step.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the relevant `detectron2` packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Given that we have restarted Colab, let’s re-fetch the required classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Register the created datasets using `register_coco_instances`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define all the parameters in the `cfg` configuration file. Configuration (`cfg`)
+    is a special Detectron object that holds all the relevant information for training
+    a model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see in the preceding code, you can set up all the major hyperparameters
+    needed for training the model. `merge_from_file` imports all the core parameters
+    from a pre-existing configuration file that was used for pre-training `mask_rccnn`
+    with `FPN` as the backbone. This will also contain additional information on the
+    pre-training experiment, such as the optimizer and loss functions. The hyperparameters
+    that have been set, for our purpose, in `cfg` are self-explanatory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With the preceding lines of code, we can train a model to predict classes, bounding
+    boxes, and also the segmentation of objects belonging to the defined classes within
+    our custom dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Save the model in a folder:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: By this point, we have trained our model. In the next section, we will make
+    inferences on a new image so that we are able to identify objects in a given image
+    using our pre-trained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making inferences on a new image
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To perform inference on a new image, we load the path, set the probability
+    threshold, and pass it through the `DefaultPredictor` method, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Load the weights with the trained model. Use the same `cfg` and load the model
+    weights as shown in the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Set the threshold for the probability of the object belonging to a certain
+    class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the `predictor` method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Perform segmentation on the image of interest and visualize it. In the following
+    code, we are randomly plotting 30 training images (note that we haven’t created
+    validation data; we have left this as an exercise for you), but you can also load
+    your own image path in place of `choose(files)`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`Visualizer` is Detectron2’s way of plotting object instances. Given that the
+    predictions (present in the `outputs` variable) are a mere dictionary of tensors,
+    `Visualizer` converts them into pixel information and draws them on an image.
+    Let’s see what each input means:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`im`: The image we want to visualize.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`scale`: The size of the image when plotted. Here, we are asking it to shrink
+    the image down to 50%.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`metadata`: We need class-level information for the dataset, mainly the index-to-class
+    mapping so that when we send the raw tensors as input to be plotted, the class
+    will decode them into actual human-readable classes.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`instance_mode`: We are asking the model to only highlight the segmented pixels.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, once the class is created (in our example, it is `v`), we can ask it
+    to draw instance predictions coming from the model and show the image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The preceding code gives the following output. Notice that we are able to identify
+    the pixels corresponding to the elephants fairly accurately:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing diagram  Description automatically generated](img/B18457_10_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.1: Instance segmentation prediction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about leveraging Detectron2 to identify the pixels
+    corresponding to classes within an image, in the next section, we will learn about
+    leveraging Detectron2 to perform the detection of human poses present in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Human pose detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous section, we learned about detecting multiple objects and segmenting
+    them. Now we will learn about detecting multiple people in an image, as well as
+    detecting the keypoints of various body parts of the people present in the image
+    using Detectron2\. Detecting keypoints comes in handy in multiple use cases, such
+    as in sports analytics and security. For this exercise, we will be leveraging
+    the pre-trained keypoint model that is available in the configuration file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `Human_pose_detection.ipynb` file located
+    in the `Chapter10` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install all the requirements as shown in the previous section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Fetch the configuration file and load the pre-trained keypoint detection model
+    present in Detectron2:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Specify the configuration parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Load the image that we want to predict:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Predict on the image and plot the keypoints:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code gives output as follows. We can see that the model is able
+    to identify the various body pose keypoints corresponding to the people in the
+    image accurately:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of people sitting in a bus  Description automatically generated with
+    low confidence](img/B18457_10_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.2: (Left) Input image (Right) Predicted keypoints overlaid on original
+    image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we have learned how to perform keypoint detection using the
+    Detectron2 platform. In the next section, we will learn about implementing a modified
+    VGG architecture from scratch to estimate the number of people present in an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Crowd counting
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you are given a picture of a crowd and are asked to
+    estimate the number of people present in the image. A crowd counting model comes
+    in handy in such a scenario. Before we go ahead and build a model to perform crowd
+    counting, let’s understand the data available and the model architecture first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to train a model that predicts the number of people in an image, we
+    will have to load the images first. The images should constitute the location
+    of the center of the heads of all the people present in the image. A sample of
+    the input image and the location of the center of the heads of the respective
+    people in the image is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of people running  Description automatically generated with medium
+    confidence](img/B18457_10_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.3: (Left) Original image (Right) Plot of the center of the heads
+    of people in the image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source: ShanghaiTech dataset licensed under BSD 2-Clause “Simplified” License
+    (https://github.com/desenzhou/ShanghaiTechDataset)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding example, the image representing ground truth (on the right
+    – the center of the heads of the people present in the image) is extremely sparse.
+    There are exactly *N* white pixels, where *N* is the number of people in the image.
+    Let’s zoom in to the top-left corner of the image and see the same map again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of people holding guns  Description automatically generated with
+    low confidence](img/B18457_10_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.4: Zoomed in version of Figure 10.3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next step, we transform the ground truth sparse image into a density
+    map that represents the number of people in that region of the image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.5: (Left) Plot of centers of heads in image (Right) Density map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final input-output pair of the same crop would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of people  Description automatically generated with low confidence](img/B18457_10_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.6: (Left) Input (Right) Output of the zoomed in image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final input-output pair for the entire image would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A group of people running in a race  Description automatically generated
+    with low confidence](img/B18457_10_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.7: (Left) Original input image (Right) Density map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, in the preceding image, when two people are close to each other,
+    the pixel intensity is high. However, when a person is far away from the rest,
+    the pixel density corresponding to the person is more evenly spread out, resulting
+    in a lower pixel intensity corresponding to the person who is far away from the
+    rest. Essentially, the heatmap is generated in a way that the sum of the pixel
+    values is equal to the number of people present in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we are in a position to accept an input image and the location of
+    the center of the heads of the people in the image (which is processed to fetch
+    the ground truth output heatmap), we will leverage the architecture detailed in
+    the paper titled *CSRNet: Dilated Convolutional Neural Networks for Understanding
+    the Highly Congested Scenes* ([https://arxiv.org/pdf/1802.10062.pdf](https://arxiv.org/pdf/1802.10062.pdf))
+    to predict the number of people present in an image. The model architecture is
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B18457_10_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.8: CSRNet architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice in the preceding structure of the model architecture that we are passing
+    the image through four additional layers of convolutions after first passing it
+    through the standard VGG-16 backbone. This output is passed through one of the
+    four configurations and finally through a 1 x 1 x 1 convolution layer. We will
+    be using the *A* configuration as it is the smallest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we perform **Mean Squared Error** (**MSE**) loss minimization on the
+    output image to arrive at the optimal weight values while keeping track of the
+    actual crowd count using MAE. One additional detail of the architecture is that
+    the authors used **dilated convolution** instead of normal convolution. A typical
+    dilated convolution looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing table  Description automatically generated](img/B18457_10_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.9: Examples of dilated kernels'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source: arXiv:1802.10062 [cs.CV]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding diagram on the left represents a typical kernel that we have been
+    working on so far. The diagrams in the middle and on the right represent the dilated
+    kernels, which have a gap between individual pixels. This way, the kernel has
+    a larger receptive field, which can come in handy as we need to understand the
+    number of people near a given person in order to estimate the pixel density corresponding
+    to the person. We are using a dilated kernel (of nine parameters) instead of a
+    normal kernel (which will have 49 parameters to be equivalent to a dilation rate
+    of three kernels) to capture more information with fewer parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With an understanding of how the model is to be architected in place, let’s
+    go ahead and code the model to perform crowd counting next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For those of you looking to understand the working details, we suggest you
+    go through the paper here: [https://arxiv.org/pdf/1802.10062.pdf](https://arxiv.org/pdf/1802.10062.pdf).
+    The model we will be training in the following section is inspired by this paper.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing crowd counting
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The strategy that we’ll adopt to perform crowd counting is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Import the relevant packages and dataset.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The dataset that we will be working on – the ShanghaiTech dataset – already
+    has the center of faces converted into a distribution based on Gaussian filter
+    density, so we need not perform it again. Map the input image and the output Gaussian
+    density map using a network.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define a function to perform dilated convolution.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the network model and train on batches of data to minimize the MSE.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let’s go ahead and code up our strategy as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `crowd_counting.ipynb` file located in
+    the `Chapter10` folder on GitHub at `https://bit.ly/mcvp-2e`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the packages and download the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Provide the location of the images (`image_folder`), the ground truth (`gt_folder`),
+    and the heatmap folders (`heatmap_folder`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the training and validation datasets and dataloaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the only addition to the typical dataset `class` that we have written
+    so far is the lines of code in bold in the preceding code. We are resizing the
+    ground truth as the output of our network would be shrunk to 1/8th of the original
+    size, and hence we are multiplying the `map` by `64` so that the `sum` of the
+    image pixels will be scaled back to the original crowd count.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the network architecture by implementing the following steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Define the function that enables dilated convolutions (`make_layers`):'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the network architecture – `CSRNet`:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to train and validate a batch of data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in a variation in the training and validation loss
+    (here, the loss is the MAE of the crowd count), as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18457_10_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.10: Training and validation loss over increasing epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From the preceding plot, we can see that we are off in our predictions by around
+    150 people. We can improve the model in the following two ways:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By using data augmentation and training on crops of the original image
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: By using a larger network (we used the *A* configuration, while *B*, *C*, and
+    *D* are larger)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Make inferences on a new image by fetching a test image and normalizing it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then pass the image through the trained model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: 'The preceding code results in a heatmap (right image) of the input image (left
+    image). We can see that the model predicted the heatmap reasonably accurately
+    and the prediction count of people is close to the actual value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated with low
+    confidence](img/B18457_10_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.11: (Left) Input image (Right) Predicted density map and the count
+    of people'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will continue to work on additional applications and
+    will leverage a U-Net architecture to colorize an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image colorization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine a scenario where you are given a bunch of black-and-white images and
+    are asked to turn them into color images. How would you solve this problem? One
+    way to solve this is by using a pseudo-supervised pipeline where we take a raw
+    image, convert it into black and white images, and treat them as input-output
+    pairs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will demonstrate this by leveraging the CIFAR-10 dataset to perform colorization
+    on images. The strategy that we will adopt as we code up the image colorization
+    network is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take the original color image in the training dataset and convert it into grayscale
+    to fetch the input (grayscale) and output (original colored image) combination.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Normalize the input and output.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Build a U-Net architecture.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the model over increasing epochs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'With the preceding strategy in place, let’s go ahead and code up the model
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `Image colorization.ipynb` file located
+    in the `Chapter10` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the required packages and import them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the dataset and define the training and validation datasets and dataloaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Download the dataset:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the training and validation datasets and dataloaders:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'A sample of the input and output images is as follows:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![A picture containing text, blurry, cat, brick  Description automatically
+    generated](img/B18457_10_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.12: (Left) Input image (Right) Colorized image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that CIFAR-10 has images that are 32 x 32 in shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the network architecture:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the model, optimizer, and loss function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define the functions to train and validate a batch of data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Train the model over increasing epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code generates an output, as follows. We can see that the model
+    is able to color the grayscale image reasonably well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing text  Description automatically generated](img/B18457_10_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.13: (Left) Input image (Middle) Original image (Right) Predicted
+    image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learned about leveraging Detectron2 for segmentation and keypoint
+    detection, dilated convolutions in crowd counting, and U-Net in image colorization.
+    In the next section, we will learn about leveraging YOLO for 3D object detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3D object detection with point clouds
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We now know how to predict a bounding rectangle on 2D images using algorithms
+    that have the core underlying concept of anchor boxes. Let’s learn how the same
+    concept can be extended to predict 3D bounding boxes around objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a self-driving car, tasks such as pedestrian/obstacle detection and route
+    planning cannot happen without knowing the environment. Predicting 3D object locations
+    along with their orientations is an important task. Not only is the 2D bounding
+    box around obstacles important but knowing the distance from the object, height,
+    width, and orientation of the obstacle are also critical to navigating safely
+    in the 3D world.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will learn how YOLO is used to predict the 3D orientation
+    and position of cars and pedestrians on a real-world dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The instructions for downloading the data, training, and testing sets are all
+    given in this GitHub repo: [https://github.com/sizhky/Complex-YOLOv4-Pytorch/blob/master/README.md#training-instructions](https://github.com/sizhky/Complex-YOLOv4-Pytorch/blob/master/README.md#training-instructions).
+    Given that there are very few openly available 3D datasets, we have chosen the
+    most-used dataset for this exercise, which you still need to register for to download.
+    We have provided the instructions for registration at the preceding link as well.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Theory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One of the well-known sensors for collecting real-time 3D data is **Light Detection
+    and Ranging** (**LIDAR**). It is a laser mounted on a rotating apparatus that
+    fires beams of lasers hundreds of times every second. Another sensor receives
+    the reflection of the laser from surrounding objects and calculates how far the
+    laser has traveled before encountering an obstruction. Doing this in all directions
+    of a car will result in a 3D point cloud of distances that is reflective of the
+    environment itself. In the dataset that we will learn about, we have obtained
+    the 3D point clouds from specific hardware developed by Velodyne. Let’s understand
+    how the input and output are encoded for 3D object detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Input encoding
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Our raw inputs are going to be 3D point clouds presented to us in the form
+    of `.bin` files. Each can be loaded as a NumPy array using `np.fromfile(<filepath>)`
+    and here’s how the data looks for a sample file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: These files are found in the `dataset/.../training/velodyne` directory after
+    downloading and moving the raw files as per the GitHub repo instructions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding code gives the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B18457_10_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.14: Input array'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This can be visualized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A map of a city  Description automatically generated with low confidence](img/B18457_10_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.15: Visualization of input array'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can convert this information into an image of a bird’s-eye view by performing
+    the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Project the 3D point cloud onto the *XY* plane (ground) and split it into a
+    grid with a resolution of 8 cm² per grid cell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For each cell, compute the following and associate them with the specified
+    channel:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Red channel: The height of the highest point in the grid'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Green channel: The intensity of the highest point in the grid'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Blue channel: The number of points in the grid divided by 64 (which is a normalizing
+    factor)'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For example, the reconstructed top view of the cloud may look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.16: Bird’s eye view of input image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can clearly see the “shadows” in the image, indicating that there is an
+    obstacle. This is how we create an image from the LIDAR point cloud data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have taken 3D point clouds as the raw input and obtained the bird’s-eye image
+    as the output. This is the preprocessing step necessary to create the image that
+    is going to be the input for the YOLO model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Output encoding
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we have the bird’s-eye image (of the 3D point cloud) as input to the
+    model, the model needs to predict the following real-world features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What the object (**class**) present in the image is
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How far the object is (in meters) from the car on the east-west axis (**x**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How far the object is (in meters) from the car on the north-south axis (**y**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What the orientation of the object (**yaw**)is
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How big the object is (the **length** and **width** of the object in meters)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is possible to predict the bounding box in the pixel coordinate system (of
+    the bird’s-eye image), but it does not have any real-world significance as the
+    predictions would still be in pixel space (in a bird’s-eye view). In this case,
+    we need to convert these pixel coordinate (of the bird’s-eye view) bounding box
+    predictions into real-world coordinates in meters. To avoid additional steps during
+    postprocessing, we are directly predicting the real-world values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, in a realistic scenario, the object could be oriented in any direction.
+    If we only calculate the length and width, it will not be sufficient to describe
+    the tight bounding box. An example of such a scenario is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram, engineering drawing  Description automatically generated](img/B18457_10_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.17: Bounding box representation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To get a tight bounding box for the object, we also need the information on
+    which direction the obstacle is facing, and hence we also need the additional
+    yaw parameter. Formally, it is the orientation of the object with the north-south
+    axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, the YOLO model uses an anchor grid of 32 x 64 cells (more width than
+    height), taking into consideration that the car’s dashcam (and hence LIDAR) views
+    are wider than they are tall. The model uses two losses for the task. The first
+    one is the normal YOLO loss (which is responsible for predicting the *x*, *y*,
+    *l*, *w* and class) we learned about in *Chapter 8*, *Advanced Object Detection*,
+    and another loss called the Euler loss, which exclusively predicts the yaw. Formally,
+    the set of equations to predict the final bounding boxes from the model’s outputs
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_10_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_10_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_10_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_10_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *b*[x], *b*[y], *b*[w], *b*[l], and *b*[φ] are the *x* and *y* coordinate
+    values, the width, the length, and the yaw of the obstacle, respectively. *t*[x],
+    *t*[y], *t*[w], *t*[l], *t*[Im], and *t*[Re] are the six regression values that
+    are being predicted from Note that even though there are only 5 values to be predicted,
+    the angle φ is being predicted using two auxilliary values *t*[Im] and *t*[Re],
+    which represent imaginary and real targets, respectively. These are just names
+    used by the official implementation and are essentially trying to calculate *b*[φ]
+    using the preceding arctan formula. *c*[x] and *c*[y] are the positions of the
+    center of the grid cell within the 32 x 64 matrix and *p**w* and *p**l* are pre-defined
+    priors chosen by taking the average widths and lengths of cars and pedestrians.
+    Furthermore, there are five priors (anchor boxes) in the implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The height of each object of the same class is assumed to be a fixed number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Refer to the illustration given here, which shows this pictorially:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18457_10_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.18: Bounding box regression Source: arXiv:1803.06199v2 [cs.CV]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The total loss is calculated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_006.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'You already know *Loss*[YOLO] from the previous chapter (using *t*[x], *t*[y],
+    *t*[w], and *t*[l] as the targets). Also, note the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18457_10_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now that we have understood that the fundamentals of 3D object detection are
+    the same as those of 2D object detection (but with more parameters to predict)
+    and the input-output pairs of this task, let’s leverage an existing GitHub repo
+    to train our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more details on 3D object detection, refer to the paper *Complex-YOLO* at
+    [https://arxiv.org/pdf/1803.06199.pdf](https://arxiv.org/pdf/1803.06199.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the YOLO model for 3D object detection
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The coding effort is largely taken away from the user due to the standardized
+    code. Much like Detectron2, we can train and test the algorithm by ensuring that
+    the data is in the right format in the right location. Once that is ensured, we
+    can train and test the code with a minimal number of lines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need to clone the `Complex-YOLOv4-Pytorch` repository first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Follow the instructions in the `README.md` file to download and move the datasets
+    to the right locations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The instructions for downloading the data, training, and testing sets are all
+    given in this GitHub repo: [https://github.com/sizhky/Complex-YOLOv4-Pytorch/blob/master/README.md#training-instructions](https://github.com/sizhky/Complex-YOLOv4-Pytorch/blob/master/README.md#training-instructions).
+    Given that there are very few openly available 3D datasets, we have chosen the
+    most-used dataset for this exercise, which you still need to register in order
+    to download. We also give the instructions for registration at the preceding link.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data format
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We can use any 3D point cloud data with ground truths for this exercise. Refer
+    to the `README` file in the GitHub repository for more instructions on how to
+    download and move the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The data needs to be stored in the following format in the root directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text  Description automatically generated](img/B18457_10_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.19: Data storage format'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The three folders that are new to us are `velodyne`, `calib`, and `label_2`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`velodyne` contains a list of `.bin` files that encode 3D point cloud information
+    for corresponding images present in the `image_2` folder.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`calib` contains calibration files corresponding to each point cloud. The 3D
+    coordinates from the LIDAR point cloud coordinate system can be projected onto
+    the camera coordinate system – that is, the image – by using the 3 x 4 projection
+    matrix present in each file in the `calib` folder. Essentially, the LIDAR sensor
+    captures the points that are slightly offset from what the camera is capturing.
+    This offset is due to the fact that the sensors are mounted a few inches apart
+    from each other. Knowing the right offsets will help us to correctly project bounding
+    boxes and 3D points onto the image from the camera.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`label_2` contains the ground truths (one ground truth per line) for each image
+    in the form of 15 values that are explained in the following table:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![Table  Description automatically generated](img/B18457_10_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.20: Sample ground truth values'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that our target columns are type (class), *w*, *l*, *x*, *z*, and *ry*
+    (yaw) among the ones seen here. We will ignore the rest of the values for this
+    task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data inspection
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We can verify that the data is downloaded properly by running the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code shows multiple images, one image at a time. The following
+    is one such example (image source: [https://arxiv.org/pdf/1803.06199.pdf](https://arxiv.org/pdf/1803.06199.pdf)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.21: Input image with the corresponding ground truth'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source: arXiv:1803.06199v2 [cs.CV]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we are able to download and view a few images, in the next section,
+    we will learn about training the model to predict 3D bounding boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The training code is wrapped in a single Python file and can be called as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default number of epochs is 300, but the results are fairly reasonable starting
+    at the fifth epoch itself. Each epoch takes 30 to 45 minutes on a GTX 1070 GPU.
+    You can use `--resume_path` to resume training if training cannot be done in a
+    single stretch. The code saves a new checkpoint every five epochs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Just like in the preceding *Data inspection* section, the trained model can
+    be tested with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The main inputs to the code are the checkpoint path and the model configuration
+    path. After giving them and running the code, the following output pops up (image
+    source: [https://arxiv.org/pdf/1803.06199.pdf](https://arxiv.org/pdf/1803.06199.pdf)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18457_10_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.22: Input image with the corresponding predicted labels and bounding
+    boxes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source: arXiv:1803.06199v2 [cs.CV]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of the simplicity of the model, we can use it in real-time scenarios
+    with a normal GPU, getting about 15–20 predictions per second.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have learnt about scenarios where we take an image/frame as input
+    and predict the class/ object/bounding box. What if we want to recognize an event
+    from a video (or a sequence of frames)? Let’s focus on this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Action recognition from video
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let’s now learn how to use the MMAction toolbox ([https://github.com/open-mmlab/mmaction](https://github.com/open-mmlab/mmaction))
+    from the open-mmlab project to perform action recognition. The major features
+    of MMAction are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Action recognition on trimmed videos (portion of the video that has an action)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Temporal action detection (action localization) in untrimmed videos
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Spatial (parts of a frame that indicate an action) and temporal (variation of
+    action across frames) action detection in untrimmed videos
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Support for various action datasets
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Support for multiple action understanding frameworks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: First, let us understand how action recognition works. A video is a collection
+    of images that are spaced over time (frames). We have two options of model input
+    – 2D and 3D. 2D model input has a dimension of FxCHW where F is the number of
+    frames and C, H, W are channels, height, and width respectively. 3D model input
+    has an input dimension of CFHW.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of 2D model input, we pass the video (set of frames) through the
+    backbones that we learned about in *Chapter 5* (VGG16, ResNet50) to obtain the
+    intermediate layers. We next pass the intermediate outputs through temporal convolution
+    to aggregate the information of what is happening in each frame. In the case of
+    3D model input, we pass it through a 3D model backbone like ResNet3D that can
+    inherently process the temporal dimension along with spatial dimensions to fetch
+    the intermediate layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we pass the output (across all frames) through a pooling layer (so that
+    the model processes on a reduced dimension that captures the key features) to
+    obtain the penultimate layer, which is then used to predict the different classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing text, screenshot, font, diagram  Description automatically
+    generated](img/B18457_10_23.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.23: Action recognition workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A survey of the different methods of performing action recognition is provided
+    here: [https://arxiv.org/pdf/2010.11757.pdf](https://arxiv.org/pdf/2010.11757.pdf)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have an understanding of how action classification is done on a
+    video, let’s perform the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leverage MMAction out of the box to identify an action in a given video
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train MMAction to recognize an action in a custom dataset
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s get started using MMAction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identifying an action in a given video
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To identify an action in a given video using MMAction, perform the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following code can be found in the `action_recognition.ipynb` file located
+    in the `Chapter10` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the dependencies. We’ll install `pytorch` (version 2.2.1+u121) and
+    install MIM 0.3.9\. MIM provides a unified interface for launching and installing
+    OpenMMLab projects and their extensions and managing the OpenMMLab model zoo.
+    First, install `openmim`, `mmengine`, and `mmcv`. We will then install `mmaction`
+    and its dependencies:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Download the pre-trained checkpoints:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Initialize the recognizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Much like `detectron2` and `huggingface`, `mmaction` is a library that uses
+    config files to create models, dataloaders, and pipelines, as well as trainers.
+    We will continue to leverage it in this and the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_OL
+  type: TYPE_PRE
+- en: The model essentially has two components – a ResNet backbone that takes in a
+    tensor of shape [F x 3 x H x W] and returns a feature vector of shape [F x 2048
+    x 7 x 7]. The head converts this tensor by first averaging each of the 7x7 feature
+    maps. This returns [F x 2048 x 1 x 1]. In the next step, the frames are averaged
+    out and the computed tensor will be of shape [1 x 2048 x 1 x 1]. This is flattened
+    into [1 x 2048], which is sent through a linear layer that finally returns the
+    [1 x 400] tensor where 400 is the number of classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Use the recognizer to perform inference:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `inference_recognizer` function is a wrapper around video preprocessing
+    and model.forward where the video is loaded as a NumPy array, the frames are resized
+    and reshaped, and the dimensions are set appropriately for the model to accept
+    a [F x 3 x H x W] tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Print the predictions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A picture containing text, font, white, receipt  Description automatically
+    generated](img/B18457_10_24.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.24: Predicted actions'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We used the simple trick of treating the frames as batch dimensions. This way,
+    the functionality of ResNet does not change. A new head is used to average out
+    the frames into a single value and the tensor can be simply used to perform classification
+    with cross-entropy loss. As you can see, we used a relatively straightforward
+    path to extend our knowledge of image processing to also perform video classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a recognizer on a custom dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that we have learned how to leverage existing architecture for video classification,
+    let’s take this a step further and train the same model on a binary classification
+    video dataset of our own. Note that this can be extended to video classification
+    of any number of classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To train a new recognizer, we need to perform the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s download a small subset of the dataset present at [https://research.google/pubs/the-kinetics-human-action-video-dataset/](https://research.google/pubs/the-kinetics-human-action-video-dataset/):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code downloads 40 videos – 30 into the training dataset and 10
+    into the validation dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The task is binary video classification where there are two classes – “Climbing
+    Rope” (0) and “Blowing Glass” (1)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Check the annotation format:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A picture containing text, font, white, typography  Description automatically
+    generated](img/B18457_10_25.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.25: Input video path and the corresponding class'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each line above indicates the file path and the label corresponding to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Modify the config file for training by implementing the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Initialize the configuration file:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As mentioned in the previous section, we will use the config file to create
+    the trainer class (also called the runner).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will modify the configuration values by changing the defaults to fit our
+    use case. The names of the variables should be self-explanatory:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we’ll create a runner class and use it to train the recognizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code results in a training accuracy of 100%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classes like `Runner` in `mmaction`; `Trainer` in `huggingface`, `pytorch lightning`,
+    `pytorch-ignite`, `tensorflow`, and `detectron2`; and `Learner` in `fastai` are
+    all wrappers for the core training components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`optimizer.zero_grad()`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`model.train()`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pred = model(inputs)`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`loss = loss_fn(pred, target)`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`loss.backward()`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`optimizer.step()`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The differences in each of the libraries’ functionalities are merely in the
+    way they were implemented. Their functionalities are almost identical and exploring
+    them is a good exercise for you to understand how to write good deep learning
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we test the recognizer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding results in an accuracy of 90% in Top1-accuracy and 100% in Top5-accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about the various practical aspects of dealing with
+    object localization and segmentation. Specifically, we learned about how the Detectron2
+    platform is leveraged to perform image segmentation and detection, and keypoint
+    detection. In addition, we also learned about some of the intricacies involved
+    in working with large datasets when we were working on fetching images from the
+    Open Images dataset. Next, we worked on leveraging the VGG and U-Net architectures
+    for crowd counting and image colorization, respectively. Then, we understood the
+    theory and implementation steps behind 3D object detection using point cloud images.
+    Finally, we understood ways of performing classification exercises on a sequence
+    of frames (video). As you can see from all these examples, the underlying basics
+    are the same as those described in the previous chapters, with modifications only
+    in the input/output of the networks to accommodate the task at hand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will switch gears and learn about image encoding, which
+    helps in identifying similar images as well as generating new images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Why is it important to convert datasets into a specific format for Detectron2?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It is hard to directly perform a regression of the number of people in an image.
+    What is the key insight that allowed the VGG architecture to perform crowd counting?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Explain self-supervision in the case of image-colorization.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How did we convert a 3D point cloud into an image that is compatible with YOLO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is a simple way to handle videos using architectures that work only with
+    images?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn more on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code237402495622324343.png)'
+  prefs: []
+  type: TYPE_IMG
