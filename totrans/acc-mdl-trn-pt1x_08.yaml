@@ -1,0 +1,915 @@
+- en: '6'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Simplifying the Model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Have you heard about parsimony? **Parsimony**, in the context of model estimation,
+    concerns keeping a model as simple as possible. Such a principle comes from the
+    assumption that complex models (models with a higher number of parameters) overfit
+    the training data, thus reducing the capacity to generalize and make good predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition, simplifying neural networks has two main benefits: reducing the
+    model training time and making the model feasible to run in resource-constrained
+    environments. One of the approaches to simplifying a model relies on reducing
+    the number of parameters of the neural network by employing pruning and compression
+    techniques.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we show how to simplify a model by reducing the number of parameters
+    of the neural network without sacrificing its quality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key benefits of simplifying a model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The concept and techniques of model pruning and compression
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to use the Microsoft NNI toolkit to simplify a model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code of examples mentioned in this chapter in the
+    book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environments to execute this notebook, such as
+    Google Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Knowing the model simplifying process
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In simpler words, simplifying a model concerns removing connections, neurons,
+    or entire layers of the neural network to get a lighter model, i.e., a model with
+    a reduced number of parameters. Naturally, the efficiency of the simplified version
+    must be very close to the one achieved by the original model. Otherwise, simplifying
+    the model does not make any sense.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand this topic, we must answer the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why simplify a model? (reason)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How do we simplify a model? (process)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When do we simplify a model? (moment)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will go through each of these questions in the following sections to get
+    an overall understanding of model simplification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before moving on in this chapter, it is essential to say that model simplification
+    is still an open research area. Consequently, some concepts and terms cited in
+    this book may differ a little bit from other materials or how they are employed
+    on frameworks and toolkits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why simplify a model? (reason)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To get an insight into the reasons why a model should be simplified let’s make
+    use of a simple yet nice analogy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the hypothetical situation where we must build a bridge to connect
+    two sides of a river. For safety purposes, we decided to put a column in every
+    two meters of the bridge, as shown in *Figure 6**.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.1 – Bridge analogy](img/B20959_06_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.1 – Bridge analogy
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bridge seems pretty safe, being sustained by its 16 columns. However, someone
+    could look at the project and say we do not need all 16 columns to maintain the
+    bridge. As the bridge’s designers, we could argue that safety comes first; thus,
+    there is no problem with having additional columns to undoubtedly guarantee the
+    bridge’s integrity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Even so, what if we could spare the columns a little bit without affecting
+    the bridge’s structure? To put it differently, perhaps using 16 columns to support
+    the bridge is too much in terms of safety. As we can see in *Figure 6**.2*, maybe
+    nine columns could work fine for this scenario:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.2 – The bridge remains up after removing some columns](img/B20959_06_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.2 – The bridge remains up after removing some columns
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we could put fewer columns in the bridge and keep it as safe as before, we
+    would reduce the budget and building time, as well as simplify the maintenance
+    process in the future. There will not be a reasonable argument to refute this
+    approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This naïve analogy is helpful to heat our discussion about the reasons to simplify
+    a model. As for the columns in the bridge, does a neural network model need all
+    of its parameters to achieve good accuracy? The answer is not straightforward
+    and depends on issues such as the problem type and model itself. However, considering
+    that a simplified version of the model performs precisely as the original, why
+    not try the former?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After all, it is undeniable that simplifying a model has clear benefits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Accelerating the training process**: A neural network composed of a lower
+    number of parameters is usually faster to train. As discussed in [*Chapter 1*](B20959_01.xhtml#_idTextAnchor016)*,
+    Deconstructing the Training Process,* the number of parameters directly impacts
+    the computational burden of neural networks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Running inference on resource-constrained environments**: Some models are
+    too large to store and so complex to execute that they do not fit in environments
+    comprised of reduced memory and computing capacity. In this case, the only way
+    to run the model in these environments relies on simplifying it as much as possible.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that the benefits of simplifying the model are crystal clear let’s jump
+    to the next section to learn how to execute this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to simplify a model? (process)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We simplify a model by applying a workflow comprised of two steps: **pruning**
+    and **compression**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.3 – Simplifying the workflow](img/B20959_06_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.3 – Simplifying the workflow
+  prefs: []
+  type: TYPE_NORMAL
+- en: As pictorially described in *Figure 6**.3*, the simplifying workflow receives
+    a dense neural network as input, where all neurons are fully connected to themselves,
+    and this outputs a simplified version of the original model. In other words, the
+    workflow transforms a dense neural network into a sparse neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The terms **dense** and **sparse** come from math and are used to describe matrices.
+    A dense matrix is filled with useful numbers, whereas a sparse matrix possesses
+    a relevant quantity of null values (zeros). As the parameters of neural networks
+    can be expressed in *n*-dimensional matrices, a non-fully connected neural network
+    is also known as a sparse neural network because of the high number of null connections
+    between neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s zoom in on the workflow to understand the role played by each step, starting
+    with the pruning phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The pruning phase
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The **pruning phase** is responsible for receiving the original model and cutting
+    off the parameters present in the connections (weights), neurons (bias), and filters
+    (kernel values), resulting in a pruned model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.4 – Pruning phase](img/B20959_06_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.4 – Pruning phase
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Figure 6**.4*, many connections from the original model have been
+    disabled (represented as opaque lines in the pruned model). The pruning phase
+    decides which parameters should be removed depending on the **technique** applied
+    during the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A pruning technique has three dimensions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Criterion**: Defines which parameters to cut off'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Scope**: Determines whether to drop an entire structure (neuron, layer, or
+    filter) or isolated parameters'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Method**: Defines whether to prune the network at once or iteratively prune
+    the model until it reaches some stop criteria'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Model pruning is a brave new world. Therefore, you can easily find many scientific
+    papers proposing new methods and solutions to this area. One exciting paper is
+    entitled *A Survey on Deep Neural Network Pruning: Taxonomy, Comparison, Analysis,
+    and Recommendations*, which summarizes the recent advances in this field and briefly
+    presents other simplifying techniques such as quantization and knowledge distillation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, the pruned model occupies the same amount of memory and requires
+    the same computational capacity as the original model. This happens because the
+    null parameters, although not having a practical effect on the forward and backward
+    computations and results, were *not definitively removed from* *the network*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, suppose two fully connected layers comprised of three neurons
+    each. The weights of the connections can be represented as a matrix, as shown
+    in *Figure 6**.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.5 – Weights represented as a matrix](img/B20959_06_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.5 – Weights represented as a matrix
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After applying the pruning process, the neural network had three connections
+    disabled, as we can see in *Figure 6**.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.6 – Pruned weights changed to null](img/B20959_06_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.6 – Pruned weights changed to null
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remark that the weights were changed to null (0.00), leaving the connections
+    (represented by those weights) out of the calculations carried out by the network.
+    Therefore, these connections merely do not exist in terms of the meaning of neural
+    network results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the data structure is exactly the same as the original model. We still
+    have nine float numbers, and all of them are still being multiplied (although
+    with no practical effect) by the output of their respective neurons. From the
+    point of view of memory consumption and computational burden, nothing has changed
+    so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Well, if the purpose of simplifying a model is to reduce the number of parameters,
+    why do we continue having the same structure as before? Keep calm, and let’s execute
+    the second phase of the simplifying workflow: the compression phase.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compression phase
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'As illustrated in *Figure 6**.7*, the **compression phase** receives a pruned
+    model as input and generates a new brain model comprised only of the non-pruned
+    parameters, i.e., the parameters that the pruning process left untouched:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.7 – Compression phase](img/B20959_06_7.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.7 – Compression phase
+  prefs: []
+  type: TYPE_NORMAL
+- en: The new network can have a shape utterly different from the original model,
+    with a distinct disposal of neurons and layers. Beyond everything, the compression
+    process is free to generate a new model since it respects the parameters preserved
+    by the pruning step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, the compression phase effectively removes the parameters of the
+    pruned model, resulting in a truly simplified model. Let’s take the example presented
+    in *Figure 6**.8* to understand what happens after model compression:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.8 – Model compression applied to a pruned network](img/B20959_06_8.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.8 – Model compression applied to a pruned network
+  prefs: []
+  type: TYPE_NORMAL
+- en: The set of disabled parameters—connections, in this example—were removed from
+    the model, reducing the weights’ matrix by one-third. Consequently, the weights’
+    matrix now occupies less memory and requires fewer operations to complete the
+    forward and backward phases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can think about the relationship between pruning and compression phases as
+    the process of deleting a file from a disk. When we ask the operating system to
+    delete a file, it just marks the block as free where the file is allocated. In
+    other words, the file content is still there and will be erased only when overwritten
+    by a new file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When do we simplify a model? (moment)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can simplify a model before or after training the neural network. In other
+    words, the model simplification process can be applied to non-trained, pre-trained,
+    or trained models, as explained in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Non-trained model**: Our goal here is to speed up the training process. As
+    the model has not been trained yet, the neural network is filled with random parameters,
+    preventing most pruning techniques from doing a useful job. To work around this
+    issue, we usually run a **warmup phase**, which consists of training the network
+    over a single epoch before simplifying the model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Pre-trained model**: We use pre-trained networks, which have a general efficiency
+    on a general domain, to tackle a particular problem of that domain. In this case,
+    we do not need to execute the warmup phase because the model has already been
+    trained.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Trained model**: Simplifying a trained model is usually done to deploy the
+    trained network in a resource-constrained environment.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that we have the answers to the questions about model simplification, shall
+    we use PyTorch, alongside a toolkit, to simplify a model? Follow me to the next
+    section to learn how to do it!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Microsoft NNI to simplify a model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Neural Network Intelligence** (**NNI**) is an open-source project created
+    by Microsoft to help deep learning practitioners automate tasks such as hyperparameter
+    automatization and neural architecture searches.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: NNI also has a set of tools to deal with model simplification in a simpler and
+    straightforward manner. So, we can easily simplify a model by adding a couple
+    of lines to our original code. NNI supports PyTorch and other well-known deep
+    learning frameworks such as TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch has its own API to prune models, namely `torch.prune`. Unfortunately,
+    at the time of writing this book, this API does not provide a mechanism to compress
+    a model. Therefore, we have decided to introduce NNI as the solution to accomplish
+    this task. More information about NNI can be found at [https://github.com/microsoft/nni](https://github.com/microsoft/nni).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start by getting an overview of NNI in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview of NNI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Because NNI is not a native component of PyTorch, we need to install it via
+    pip by executing the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'NNI has many modules, but for the purpose of model simplification, we are going
+    to use only two of them, namely `pruning` and `speedup`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Pruning module
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The `pruning` module provides a set of pruning techniques, also known as **pruners**.
+    Each pruner applies a specific method to prune the model and requires a particular
+    set of parameters. Among the parameters needed by the pruner, two of them are
+    mandatory: the model and a **configuration list**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The configuration list is a dictionary-based structure used to control pruner
+    behavior. From the configuration list, we can indicate which structures (layers,
+    operations, or filters) the pruner must work on and which ones it should leave
+    untouched.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the following configuration list tells the pruner to work on all
+    layers implementing the `Linear` operator (layers created with the class `torch.nn.Linear`),
+    except the one named `layer4`. In addition, the pruner will try to nullify 30%
+    of the parameters, as indicated on the `sparse_ratio` key:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the complete list of key-value pairs accepted by the config list
+    at [https://nni.readthedocs.io/en/stable/compression/config_list.html](https://nni.readthedocs.io/en/stable/compression/config_list.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After setting the configuration list, we have everything to instantiate the
+    pruner, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The most crucial method provided by the pruner is called `compress`. Despite
+    what the name suggests, it executes the pruning process by applying the corresponding
+    pruning algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `compress` method returns a data structure called **masks**, which denotes
+    what parameters were dropped by the pruning algorithm. This information is used
+    further to remove the pruned parameters from the network effectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: As stated before, the simplifying process is still ongoing. Therefore, we can
+    face some tricks, such as the incoherent usage of terms. This is the reason why
+    NNI calls the pruning phase `compress`, though the compressing step is accomplished
+    by another method called `speedup`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, until this point, nothing has indeed changed to the original model;
+    not yet. To remove the pruned parameters effectively, we must rely on the `speedup`
+    module.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The speedup module
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The `speedup` module provides a class named `ModelSpeedup`, which is used to
+    create a **speeder**. A speeder executes the compression phase on the pruned model,
+    i.e., it effectively removes the parameters dropped by the pruner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Along the lines of pruners, we also must instantiate an object from the `ModelSpeedup`
+    class. This class requires three obligatory parameters: the pruned model, an input
+    sample, and the masks generated by the pruner:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After that, we just need to call the `speedup_model` method so the speeder
+    can compress the model and return a simplified version of the original model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that you have an overview of the fundamental steps to simplify a model through
+    NNI let’s jump to the next section to learn how to use this toolkit in a practical
+    example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NNI in action!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To see NNI working in practice let’s simplify our well-known CNN model. In this
+    example, we are going to simplify this model by training it over the CIFAR-10
+    dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter06/nni-cnn_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter06/nni-cnn_cifar10.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s start by counting the original number of parameters of the CNN model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The CNN model has `2,122,186` parameters distributed among the biases, weights,
+    and filters of the neural network. We trained this model using the CIFAR-10 dataset
+    only during 10 epochs since we are interested in comparing the training time and
+    corresponding accuracy between distinct pruning configurations. So, the original
+    model took 122 seconds to train in a CPU-based machine, reaching an accuracy of
+    47.10%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Okay, so let’s remove some pillars of the bridge to see whether it still stands
+    up. We are going to simplify the CNN model by considering the following strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Operation types: Conv2d'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Sparsity per layer: 0.50'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Pruner algorithm: L1 Norm'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This strategy tells the simplification process to look at only the convolutional
+    layers of the neural network, and, for each layer, the pruning algorithm must
+    throw away 50% of the parameters. As we are simplifying a fresh model, we need
+    to execute a warmup phase to populate the network with some valuable parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this experiment, we have chosen the L1 Norm pruner, which removes parameters
+    according to the magnitude measured by L1 normalization. In simpler words, the
+    pruner will drop off the parameters, which will have a minor influence on neural
+    network results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find more information about the L1 Norm pruner at [https://nni.readthedocs.io/en/stable/reference/compression/pruner.html#l1-norm-pruner](https://nni.readthedocs.io/en/stable/reference/compression/pruner.html#l1-norm-pruner).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following excerpt of code shows a couple of lines needed to simplify the
+    CNN model by applying the aforementioned strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'During the simplification process, NNI will output a bunch of lines, such as
+    these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After the process has been carried out, we can verify that the number of parameters
+    of the original neural network has decreased by around 50%, as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Well, the model is smaller and simpler. But how about the training time and
+    efficiency? Let’s find out!
+  prefs: []
+  type: TYPE_NORMAL
+- en: We trained the simplified model against CIFAR-10 by using the same hyperparameters
+    through the same number of epochs. The training process of the simplified model
+    took 89 seconds to complete, representing a performance improvement of 37%! Although
+    the model’s efficiency decreased a little bit (from 47.10% to 42.71%), it remains
+    very close to the original version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is interesting to note the trade-off between training time, accuracy, and
+    sparsity ratio. As shown in *Table 6.1*, the model’s efficiency falls to 38.87%
+    when 80% of parameters are removed from the network. On the other hand, the training
+    process took only 76 seconds to finish, which is 61% faster than training the
+    original network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Sparsity** **per layer** | **Training time** | **Accuracy** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 10% | 118 | 47.26% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 20% | 113 | 45.84% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 30% | 107 | 44.66% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 40% | 100 | 45.18% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 50% | 89 | 42.71% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 60% | 84 | 41.90% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 70% | 81 | 40.84% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 80% | 76 | 38.87% |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 6.1 – Relation between model accuracy, training time, and sparsity level
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the saying goes, there is no free lunch So, accuracy is expected to deteriorate
+    slightly when simplifying the model. The goal here is to find a balance between
+    a tolerable decrease in the model’s quality in the face of a reasonable performance
+    improvement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we have learned how to use NNI to simplify our model. By changing
+    a couple of lines on our original code, we can simplify the model by cutting off
+    a certain number of connections, thus contributing to reducing the training time,
+    yet retaining the model’s quality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section brings a couple of questions to help you retain what you have
+    learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    At first, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter06-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter06-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that it is not a test at all! This section
+    aims to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choose the correct option for the following questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are the two steps to take when simplifying a workflow?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Reduction and compression.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pruning and reduction.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pruning and compression.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Reduction and zipping.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'A pruning technique usually has the following dimensions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Criterion, scope, and method.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Algorithm, scope, and magnitude.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Criterion, constraints, and targets.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Algorithm, constraints, and targets.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Concerning the compression phase, we can assert which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It receives a compressed model as input and verifies the model’s integrity.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It receives a compressed model as input and generates a model partially comprised
+    only of the non-pruned parameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It receives a pruned model as input and generates a new brain model comprised
+    only of the non-pruned parameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It receives a pruned model as input and evaluates the pruning degree applied
+    to that model.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We can execute the model simplifying process on which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pre-trained models only.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pre-trained and non-trained models only.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Non-trained models only.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Non-trained, pre-trained, and trained models.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is one of the main goals of simplifying a trained model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Accelerate the training process.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Deploy it on resource-constrained environments.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Improve the model’s accuracy.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is no reason to simplify a trained model.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Consider the following configuration list passed to the pruner:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Which of the following actions would the pruner take?
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The pruner will try to nullify 75% of all network parameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The pruner will try to nullify 25% of the parameters of all fully connected
+    layers.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The pruner will try to nullify 25% of the parameters of convolutional layers,
+    except the one labeled as “layer2”.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The pruner will try to nullify 75% of the parameters of the convolutional layers,
+    except the one labeled as “layer2.”
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is more likely to happen to the model’s accuracy after executing the simplified
+    workflow?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The model’s accuracy tends to increase.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The model’s accuracy surely increases.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The model’s accuracy tends to reduce.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The model’s accuracy stays the same.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It is necessary to execute a warmup phase before simplifying which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Non-trained models.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Trained models.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pre-trained models.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: None of the above.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned that simplifying a model by reducing the number
+    of parameters can accelerate the network training process, besides making the
+    model feasible to run on resource-constrained platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we saw that the simplification process consists of two phases: pruning
+    and compression. The former is responsible for determining which parameters must
+    be dropped off from the network, whereas the latter effectively removes the parameters
+    from the model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although PyTorch provides an API to prune the model, it is not fully useful
+    to simplify a model. Thus, you were introduced to Microsoft NNI, a powerful toolkit
+    to automate tasks related to deep learning modes. Among the features provided
+    by NNI, this tool offers a complete workflow to simplify a model. All of this
+    is achieved with a couple of new lines added to the original code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn how to reduce the numeric precision adopted
+    by the neural network to accelerate the training process and decrease the amount
+    of memory needed to store the model.
+  prefs: []
+  type: TYPE_NORMAL

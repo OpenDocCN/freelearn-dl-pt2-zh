@@ -1,0 +1,1114 @@
+- en: '11'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training with Multiple Machines
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ve finally arrived at the last mile of our performance improvement journey.
+    In this last stage, we will broaden our horizons and learn how to distribute the
+    training process across multiple machines or servers. So, instead of using four
+    or eight devices, we can use dozens or hundreds of computing resources to train
+    our models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An environment comprised of multiple connected servers is usually called a computing
+    cluster or simply a cluster. Such environments are shared among multiple users
+    and have technical particularities such as a high bandwidth and low latency network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we’ll describe the characteristics of computing clusters that
+    are more relevant to the distributed training process. After that, we will learn
+    how to distribute the training process among multiple machines using Open MPI
+    as the launcher and NCCL as the communication backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most relevant aspects of computing clusters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to distribute the training process among multiple servers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to use Open MPI as a launcher and NCCL as the communication backend
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code of examples mentioned in this chapter in the
+    book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environments to execute this notebook, such as
+    Google Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a computing cluster?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A computing cluster is a system of powerful servers interconnected by a high-performance
+    network, as shown in *Figure 11**.1*. This environment can be provisioned on-premises
+    or in the cloud:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.1 – A computing cluster](img/B20959_11_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.1 – A computing cluster
+  prefs: []
+  type: TYPE_NORMAL
+- en: The computing power provided by these machines is combined to solve complex
+    problems or to execute highly intensive computing tasks. A computing cluster is
+    also known as a **high-performance computing** (**HPC**) system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each server has powerful computing resources such as multiple CPUs and GPUs,
+    fast memory devices, ultra-fast disks, and special network adapters. Moreover,
+    a computing cluster often has a parallel filesystem, which provides high transfer
+    I/O rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although not formally defined, we conventionally use the term “cluster” to reference
+    environments comprised of four machines at least. Some computing clusters have
+    a half-dozen machines, while others have more than two or three hundred servers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each task submitted to the cluster is called a **job**. When submitting a job,
+    the user asks for a given number and type of resource and indicates which program
+    should be executed in the environment. Therefore, any computing task running in
+    the cluster is considered a job.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Jobs and operating system processes have many things in common. Like a process,
+    a job is also identified by a unique number in the system, has a life cycle comprised
+    of a finite set of states, and belongs to a system user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As pictorially described in *Figure 11**.2*, the bigger part of the servers
+    is used as **computing nodes** – in other words, machines are used exclusively
+    to run jobs. A couple of machines, called **management nodes**, are used to perform
+    administrative tasks, such as monitoring and installation, or to provide auxiliary
+    and complimentary services, such as a user access entering point, commonly called
+    a **login node**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.2 – Management and computing nodes](img/B20959_11_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.2 – Management and computing nodes
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another vital service hosted on management nodes is the cluster management system
+    or **workload manager**. As the cluster is shared among multiple users, it is
+    mandatory to have a workload manager to guarantee the fair and efficient usage
+    of resources. Let’s learn about it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Workload manager
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A workload manager is responsible for keeping the cluster environment running
+    smoothly by providing fair and efficient usage of the resources. As illustrated
+    in *Figure 11**.3*, the workload manager is placed between users and resources
+    to receive requests from the users, process these requests, and grant or deny
+    access to the required resources:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.3 – Workload manager](img/B20959_11_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.3 – Workload manager
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Among the tasks this system executes, two of them stand out from the others:
+    resource management and job scheduling. The following sections briefly describe
+    each of them.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Resource management
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Roughly speaking, a cluster can be seen as a pool of shared resources where
+    these resources are consumed by a set of users. The main goal of **resource management**
+    concerns guaranteeing the fair usage of these resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By fair usage, we mean avoiding imbalance situations such as a greedy user consuming
+    all the available resources, preventing less frequent users from getting access
+    to the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Resource management relies on a **resource allocation policy** to decide when
+    and how to attend to users’ requests. This policy can be used to define priority
+    levels, maximum usage time, maximum number of running jobs, type of resources,
+    and many other conditions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From these policies, cluster administrators can assign distinct strategies to
+    the users by following a criterion defined by the organization or department responsible
+    for the cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, a cluster administrator could define two resource allocation policies
+    to limit issues such as the maximum number of running jobs, types of resources,
+    and the maximum allowed time to run a job. As illustrated in *Figure 11**.4*,
+    the more restrictive policy, named **A**, could be applied to the group of users
+    **X**, while the more permissive policy, named **B**, could be assigned to users
+    **Y**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.4 – Example of resource allocation policies](img/B20959_11_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.4 – Example of resource allocation policies
+  prefs: []
+  type: TYPE_NORMAL
+- en: By doing this, the cluster administrator can determine distinct usage profiles
+    for the cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Jobs scheduling
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: A workload manager is also responsible for the efficient use of resources. To
+    reach this goal, the workload manager must perform an optimal (or suboptimal)
+    allocation of jobs on the computing nodes. This process is called **job scheduling**
+    and is defined as the task of deciding where to put the new job to run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As illustrated in *Figure 11**.5*, the workload manager must select the computing
+    node in which the new job will be executed. To make this decision, the workload
+    manager evaluates the amount and type of requested resources and the number and
+    type of available resources in all computing nodes. By doing this, the job scheduling
+    gets a list of potential nodes suitable to execute the job – in other words, nodes
+    with enough resources to satisfy the job requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.5 – Job scheduling](img/B20959_11_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.5 – Job scheduling
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the list of potential nodes, the job scheduling needs to decide which one
+    will be chosen to execute the job. This decision is made according to a scheduling
+    strategy that may prioritize fulfilling all nodes before using another one or
+    spreading jobs to the computing nodes as much as possible to avoid interference
+    caused by access contention to shared resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These sections have provided a general explanation of how a workload manager
+    works. In practice, a real workload manager has particularities and ways to implement
+    the resource management and job scheduling processes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a couple of workload managers out there. Some are proprietary and
+    vendor-specific, whereas others are free and open source, such as SLURM, the most
+    widely used workload manager nowadays. Let’s meet this system in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Meeting the SLURM Workload Manager
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: SLURM’s website describes it as an “*open source, fault-tolerant, and highly
+    scalable cluster management and job scheduling system for large and small Linux
+    clusters*” – it is right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more information about SLURM at this link: [https://slurm.schedmd.com/](https://slurm.schedmd.com/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: SLURM is powerful, robust, flexible, and simple to use and administrate. In
+    addition to the basic functionalities found in any workload manager, SLURM offers
+    special capabilities such as **QOS** (**quality of service**), accounting, database
+    storage, and an **API** (**application programming interface**) that allows you
+    to get information about the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This workload manager uses the concept of **partition** to group computing
+    nodes and to define resource allocation policies on the available resources, as
+    shown in *Figure 11**.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.6 – Example of SLURM partitions](img/B20959_11_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.6 – Example of SLURM partitions
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the example depicted in *Figure 11**.6*, we have three partitions, each with
+    eight computing nodes but with distinct resource allocation policies. The `short_jobs_cpu`
+    partition, for example, allows you to run a job for a maximum time of four hours,
+    while the `long_jobs_cpu` partition has a maximum execution time of eight hours.
+    Moreover, only the `long_jobs_gpu` partition has computing nodes that can run
+    GPU jobs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: SLURM uses the term **partition** to denote what other workload managers call
+    a **queue**. Nevertheless, a partition works essentially as a queue, receiving
+    job requests and organizing their execution concerning resource allocation and
+    job scheduling policies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, the partition is a central aspect of the SLURM architecture. With
+    partitions, cluster administrators can employ distinct resource allocation policies,
+    besides separating nodes to run specific applications or leaving them separated
+    to be used exclusively by a department or group of users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When users submit jobs, they must indicate the partition where the job will
+    run. Otherwise, SLURM will submit the job to the default partition, which is defined
+    by the cluster administrator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When using a computing cluster, we can come across other workload managers such
+    as OpenPBS, Torque, LSF, and HT Condor. However, due to its increased adoption
+    in the HPC industry, it is more feasible to encounter SLURM as a workload manager
+    on clusters you will have access to. So, we encourage you to invest some time
+    to deepen your knowledge of SLURM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides workload management, computing clusters have another component particularly
+    important to these environments: the high-performance network. The next section
+    provides a very brief explanation of this component.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the high-performance network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: An essential difference between running distributed training on a single machine
+    and using a computing cluster is the network used to interconnect the servers.
+    The network imposes an additional bottleneck to the communication among the processes
+    participating in distributed training. Fortunately, computing clusters usually
+    have a high-performance network to connect all the servers in the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This high-performance network differs from the regular ones because of its high
+    bandwidth and very low latency. For example, the maximum theoretical bandwidth
+    of Ethernet 10 Gbps is around 1.25 GB/s, whereas **NVIDIA InfiniBand** 100 Gbps
+    EDR, which is one of the most adopted high-performance networks, provides a bandwidth
+    near to 12.08 GB/s. In other words, a high-performance network can deliver 10
+    times more bandwidth than a regular network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more information about NVIDIA InfiniBand at this link: [https://www.nvidia.com/en-us/networking/products/infiniband/](https://www.nvidia.com/en-us/networking/products/infiniband/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although the high bandwidth provided by InfiniBand is stunning, what makes a
+    high-performance network so special is its very low latency. Compared with Ethernet
+    10 Gbps, the latency of InfiniBand 100 Gbps EDR can be almost four times lower.
+    A low latency is crucial for the execution of distributed applications. As these
+    applications exchange many messages during the computation, a single delay in
+    the messages can throttle the entire application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides the high bandwidth and low latency, high-performance networks (including
+    InfiniBand) possess another special functionality named **remote direct memory
+    access** or **RDMA**. Let’s learn about it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RDMA
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: RDMA is a functionality provided by high-performance networks to reduce communication
+    latency among devices. Before understanding the advantages of using RDMA, we should
+    first remember how regular communications work under the hood.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A **regular data transmission** involving two GPUs follows the procedure illustrated
+    in *Figure 11**.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.7 – Regular data transmission between two GPUs](img/B20959_11_7.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.7 – Regular data transmission between two GPUs
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, **GPU A** asks the CPU to send data to **GPU B**, which is located in
+    **Machine B**. The CPU receives the request and creates a buffer on the main memory
+    of **Machine A** to store the data to be transmitted. Next, **GPU A** sends the
+    data to the main memory and notifies the CPU that the data is already available
+    on the main memory. So, the CPU on **Machine A** copies the data from the main
+    memory to the network adapter’s buffer. Then, the network adapter on **Machine
+    A** establishes the communication channel with **Machine B** and sends the data.
+    Finally, the network adapter on **Machine B** receives the data, and **Machine
+    B** executes the same steps previously performed by **Machine A** to deliver the
+    received data to **GPU B**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that this procedure involves many intermediary copies of the data on
+    the main memory; in other words, the data is copied from the GPU’s memory to the
+    main memory and from the main memory to the network adapter’s buffer, in both
+    directions. So, it is easy to see that this procedure imposes a high overhead
+    on the communication between GPUs located on remote machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To overcome this problem, applications can transfer data between devices by
+    using RDMA. As shown in *Figure 11**.8*, RDMA can transfer data directly from
+    one GPU to another by using a high-performance network. After completing an initial
+    setup, network adapters and GPUs become able to *transfer data without involving
+    the CPU and main memory*. As a consequence, RDMA eliminates a bunch of intermediary
+    copies of the transmission data, thus lowering the communication latency vastly.
+    This is the reason why RDMA is also known as **zero-copy** transmission.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.8 – RDMA between two GPUs](img/B20959_11_8.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.8 – RDMA between two GPUs
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use RDMA, the high-performance network, devices, and operating system must
+    support this capability. So, if we intend to use this resource, we should first
+    verify with the cluster administrator whether this resource is available and how
+    to use it in the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After learning the main characteristics of the computing cluster environment,
+    we can move on and learn how to implement distributed training on multiple machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing distributed training on multiple machines
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This section shows how to implement and run the distributed training on multiple
+    machines by using Open MPI as the launch provider and NCCL as the communication
+    backend. Let’s start by introducing Open MPI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting introduced to Open MPI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**MPI** stands for **message passing interface** and is a standard that specifies
+    a set of communication routines, data types, events, and operations used to implement
+    distributed memory-based applications. MPI is so relevant to the HPC industry
+    that it is ruled and maintained by a forum comprised of distinguished scientists,
+    researchers, and professionals around the globe.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more information about MPI at this link: [https://www.mpi-forum.org/](https://www.mpi-forum.org/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, MPI, strictly speaking, is not software; it is a standard specification
+    that can be used to implement a software, tool, or library. Like non-proprietary
+    programming languages such as C and Python, MPI also has many implementations.
+    Some of them are vendor-specific, such as Intel MPI, while others are free and
+    open source, such as MPICH.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Among all implementations, **Open MPI** sticks out as one of the most known
+    and adopted implementations of MPI. Open MPI is free, open source, and maintained
+    by a consortium composed of many major tech players such as AMD, AWS, IBM, Intel,
+    and NVIDIA. The consortium also counts on renowned universities and research institutes
+    such as the Los Alamos National Laboratory and Inria, the French National Institute
+    for Research in Computer Science and Control.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more information about Open MPI at this link: [https://www.open-mpi.org/](https://www.open-mpi.org/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open MPI is more than just a library to implement the MPI routines on applications.
+    It is a toolset that provides other components such as compilers, debuggers, and
+    a complete runtime mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following section presents how to execute an Open MPI program. This knowledge
+    is relevant to learning how to launch the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Executing an Open MPI program
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To execute an Open MPI program, we should call the `mpirun` command and pass
+    the MPI program and number of processes as parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `--np` parameter tells Open MPI the number of processes it must create.
+    If nothing else is informed to Open MPI, it will create these processes locally
+    – in other words, in the machine in which the `mpirun` command was called. To
+    instantiate processes in remote machines, we must use the `--host` argument followed
+    by the list of remote machines separated by commas:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the previous example, `mpirun` will execute two processes, one on the `r1`
+    remote machine and the other one on the `r2` remote machine. The value put after
+    the name of the remote machines indicates the number of slots (or processes) the
+    machine is willing to take. For example, if we want to execute six processes,
+    four in the `r1` remote machine and two on the `r2` remote machine, we should
+    call the following `mpirun` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Open MPI sets some environment variables to the scope of each process created
+    by the `mpirun` command. These environment variables give essential information
+    about the distributed environment, such as the process’s rank. Three of them are
+    particularly interesting to our case:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`OMPI_COMM_WORLD_SIZE`: the total number of processes participating in the
+    distributed execution'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`OMPI_COMM_WORLD_RANK`: the **global rank** of the process'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`OMPI_COMM_WORLD_LOCAL_RANK`: the **local rank** of the process'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To understand the difference between the global and local ranks, let’s take
+    the previous example of running six processes and put down the values of global
+    and local ranks for each process in *Table 11.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Process** | **Remote Machine** | **Global Rank** | **Local Rank** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | r1 | 0 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | r1 | 1 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | r1 | 2 | 2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | r1 | 3 | 3 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | r2 | 4 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | r2 | 5 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 11.1 – Global rank versus local rank
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Table 11.1*, the **global rank** is the global identification of
+    the process – in other words, the rank of the process regardless of the machine
+    it is running on. We can see it as a global identification of the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `r2` machine, then the local rank of processes 5 and 6 are equal to 0 and
+    1, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The concept of local rank may seem counterintuitive and useless, but it is not.
+    Local rank is very useful in distributed programs and especially convenient for
+    our distributed training process. Wait and see!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why use Open MPI and NCCL?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You may wonder why we use Open MPI as the launcher and NCCL as the communication
+    backend. Indeed, maybe you are asking yourself the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Is it possible to use Open MPI as both the launcher and communication backend?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Is it possible to use NCCL as the communication backend and `torchrun` as the
+    launcher?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The short answer to these questions is “*Yes, it is possible.*” However, there
+    are some disadvantages to adopting these approaches. Let’s discuss each of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we are running the distributed training with multiple GPUs, the best communication
+    backend for this case is surely the NCCL. Although it is possible to use Open
+    MPI as the communication backend for this scenario, the collective operations
+    provided by NCCL are the most optimized ones for NVIDIA GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, now we know why we should choose NCCL rather than Open MPI as the communication
+    backend. But why not use `torchrun` as the launch provider, as we have done so
+    far?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well, `torchrun` is an excellent choice to run the distributed training locally.
+    However, to run the distributed training on multiple machines, we will need to
+    execute a `torchrun` instance manually on each remote machine participating in
+    the distributed environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike `torchrun`, Open MPI natively supports the execution on remote machines
+    more easily and elegantly. By using its runtime mechanism, Open MPI can smoothly
+    create processes on remote machines, making our lives easier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, we decided to use NCCL and Open MPI to get the best of the two worlds
+    together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding and launching the distributed training on multiple machines
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The code to distribute the training process among multiple machines is almost
+    the same as the one presented in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
+    *Training with Multiple GPUs*. After all, we are going to execute multi-GPU training,
+    but using multiple machines instead. Therefore, we are going to adapt the multi-GPU
+    implementation to execute on multiple machines by using Open MPI as the launch
+    provider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because we will use Open MPI as the launcher, the script used to launch the
+    distributed training will not execute the `torchrun` command as we have done in
+    the last two chapters. Thus, we will need to create a script from scratch to adopt
+    Open MPI as the launching method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s move to the following sections to learn how to adapt the multi-GPU implementation
+    and create a launch script for the distributed training in a computing cluster
+    environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding the distributed training for multiple machines
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Compared to the muti-GPU implementation presented in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
+    *Training with Multiple GPUs,* the code to run a distributed training in a computing
+    cluster has the following three modifications:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter11/nccl_mpi_distributed-efficientnet_cifar10.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first two modifications concern setting the environment variables, `RANK`
+    and `WORLD_SIZE`, which are expected by the `init_process_group` method to create
+    the communication group. As Open MPI uses other variable names to store this information,
+    we need to explicitly define those variables in the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The third modification is related to defining the device (GPU, in this case)
+    to be allocated to each process. As we have learned in the previous section, the
+    local rank is an index that identifies processes running in each machine. Thus,
+    we can use this information as an index to select the GPU used by each process.
+    Therefore, the code must assign the content of the `OMPI_COMM_WORLD_LOCAL_RANK`
+    environment variable to the `device` variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, consider the case of executing a distributed training comprised
+    of eight processes by using two machines equipped with four GPUs each. The first
+    four processes will have global and local ranks equal to 0, 1, 2, and 3\. So,
+    the process with a global rank of 0, which has a local rank of 0, will use the
+    `#0` GPU in the **first machine**, and so forth for the other processes in the
+    first machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Concerning the four processes on the second machine, the process with a global
+    rank of 4, which is the first process in the second machine, will have a local
+    rank equal to 0\. Thus, the process with a global rank of 4 will access the `#0`
+    GPU in the **second machine**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Only these three modifications are enough to adjust the multi-GPU code to run
+    on multiple machines. In the next section, let’s find out how to launch the distributed
+    training by using Open MPI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launching the distributed training on multiple machines
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: To use Open MPI as the launcher, we need to have it installed in the computing
+    cluster environment. This installation should be provided by the cluster administrator
+    since we are using Open MPI as an external component and not inside PyTorch. The
+    cluster administrator should follow the installation instructions described on
+    the Open MPI website.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have Open MPI installed on the environment, we have two ways to launch
+    the distributed training on multiple machines. We can execute it *manually* or
+    *submit a job* to the workload manager. Let’s first learn how to do it manually.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Manual execution
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'To execute the distributed training manually, we can use a launching script
+    like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines.sh).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we said before, this script differs from the one based on `torchrun`. Instead
+    of calling the `torchrun` command, the script executes `mpirun`, as we have learned
+    in previous sections. The `mpirun` command in this script is executed with five
+    parameters. Let’s take them one by one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first two parameters export the `MASTER_ADDR` and `MASTER_PORT` environment
+    variables to the training program. This is done by using the `-x` parameter of
+    `mpirun`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By doing this, the `init_process_group` method can properly create the communication
+    group. The `MASTER_ADDR` environment variable indicates the machine in which the
+    launching script will be executed. In our case, it is executed in `machine1`.
+    The `MASTER_PORT` environment variable defines the TCP port number used by the
+    communication group to establish communication with all processes participating
+    in the distributed environment. We can choose a higher number to avoid conflict
+    with any bound TCP port.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `--np` parameter determines the number of processes, and the `--host` parameter
+    is used to indicate the list of machines in which `mpirun` will create processes.
+    In this example, we are considering two machines named `machine1` and `machine2`.
+    Since each machine has eight GPUs, its name is followed by the number eight to
+    indicate the maximum number of processes each server can execute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The last parameter is the MPI-based program. In our case, we will pass the name
+    of the Python interpreter followed by the name of the training script.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To execute this script for a program called `distributed-training.py`, we just
+    need to run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter11/launch_multiple_machines_container.sh)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, this script can be customized to accept other parameters such as
+    the number of processes, the list of hosts, and so on. However, our intention
+    here is to show the basic – though essential – way to manually execute the distributed
+    training with Open MPI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Job submission
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Considering that the workload manager is SLURM, we must execute the following
+    steps to submit a job to the computing cluster:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a batch script to submit the job to SLURM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Submit the job with the `sbatch` command.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'A batch script to submit a distributed training on SLURM will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This batch script will submit a job requesting two nodes and eight GPUs per
+    node to be executed on the `long_job_gpu` partition. Like in the launching script,
+    we also need to export the `MASTER_ADDR` and `MASTER_PORT` variables so the `init_process_group`
+    method can create the communication group.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After creating the script, we just need to submit the job by executing the
+    following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The batch script presented before is just an illustrative example of how to
+    submit a distributed training job on SLURM. As each computing cluster environment
+    can have particularities, the best approach is always to take the guidelines from
+    the cluster administrator concerning the usage of Open MPI. Anyway, you can consult
+    the official SLURM documentation about running Open MPI jobs at [https://slurm.schedmd.com/mpi_guide.html](https://slurm.schedmd.com/mpi_guide.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will look at the results of running the distributed
+    training on two machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Experimental evaluation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To evaluate the distributed training on multiple machines, we have trained the
+    EfficientNet model against the CIFAR-10 dataset over 25 epochs by using two machines,
+    each one equipped with 8 GPUs NVIDIA A100\. As a baseline, we will use the execution
+    time of training this model with 8 GPUs in a single machine, which was equal to
+    109 seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The execution time of training the model with 16 GPUs was equal to 64 seconds,
+    representing a performance improvement of 70% compared to the execution time spent
+    to train the model with eight GPUs in a single machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At first sight, this result can seem a little bit disappointing because we have
+    used double the computing resources and got only a 70% performance improvement.
+    As we used twice the number of resources, we should achieve 100% improvement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, we should remember that there is an additional component of this system:
+    the interconnection between machines. Despite being a high-performance network,
+    it is expected that an extra element has some impact on the performance. Even
+    so, this result is quite good since we got closer to the maximum performance improvement
+    we could achieve – in other words, 100%.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As expected, the model’s accuracy decreased from 68.82% to 63.73%, corroborating
+    the assertion about the relation between accuracy and the number of model replicas
+    in the distributed training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To summarize these results, we can highlight two interesting insights, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We must always keep an eye on the model’s quality when seeking performance improvement.
+    As we have seen here and in the last two chapters, there is a potential depreciation
+    of model accuracy in the face of an increased number of model replicas.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We should ponder the possible impact caused by the interconnection network when
+    deciding to distribute the training among multiple machines. Depending on the
+    scenario, it could be more advantageous to keep the training inside a single machine
+    with multiple GPUs rather than using multiple servers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In short, a blind pursuit of performance improvement is often a bad idea because
+    we can fall on resource wastage caused by a tiny performance improvement or a
+    silent degradation of the model’s quality. Therefore, we should always pay attention
+    to the tradeoff between performance improvement, accuracy, and resource usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    First, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter11-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that it is not a test at all! This section
+    aims to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Choose the correct option for the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a task submitted to a computing cluster called?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Thread.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Process.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Job.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Work.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the main tasks executed by a workload manager?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resource management and job scheduling.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Memory allocation and thread scheduling.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: GPU management and node scheduling.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resource management and node scheduling.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which of the following is an open source, fault-tolerant, and highly scalable
+    workload manager for large and small Linux clusters?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: MPI.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: SLURM.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCL.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloo.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A computing cluster is usually equipped with a high-performance network such
+    as NVIDIA InfiniBand. Besides providing a high bandwidth, a high-performance interconnection
+    provides which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A high latency.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A high number of connections.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A low number of connections.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A very low latency.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: RDMA reduces drastically the communication latency between two remote GPUs because
+    it enables which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Allocation of higher memory space on GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Special hardware capabilities on GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Data transfer without involving the CPU and main memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Data transfer without involving network adapters and switches.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which of the following is the best definition of Open MPI?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open MPI is a compiler to create distributed applications.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open MPI is a toolset comprised of compilers, debuggers, and a complete runtime
+    mechanism to create, debug, and run distributed applications.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open MPI is a standard that specifies a set of communication routines, data
+    types, events, and operations used to implement distributed applications.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open MPI is a communication backend exclusively created to run the distributed
+    training under PyTorch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Consider the scenario in which a distributed training is running four processes
+    under two machines (each machine is executing two processes). In this case, what
+    are the ranks assigned by Open MPI for the two processes executing on the second
+    machine?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 0 and 1.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 0 and 2.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 2 and 3.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 0 and 3.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Concerning the decision to distribute the training process among multiple machines
+    or keep it in a single host, it is reasonable to ponder which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The power consumption of using network adapters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The leak of memory space available on the network adapters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Nothing; it is always recommended to use multiple machines to run the distributed
+    training.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The impact the interconnection network may have on the communication between
+    the processes participating in the distributed training.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to distribute the training process across multiple
+    GPUs located on multiple machines. We used Open MPI as the launch provider and
+    NCCL as the communication backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We decided to use Open MPI as the launcher because it provides an easy and elegant
+    way to create distributed processes on remote machines. Although Open MPI can
+    also be employed like the communication backend, it is preferable to adopt NCCL
+    since it has the most optimized implementation of collective operations for NVIDIA
+    GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results showed that the distributed training with 16 GPUs on two machines was
+    70% faster than running with 8 GPUs on a single machine. The model accuracy decreased
+    from 68.82% to 63.73%, which is expected since we have doubled the number of model
+    replicas in the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter ends our journey about learning how to accelerate the training
+    process with PyTorch. More than knowing how to apply techniques and methods to
+    speed up the model training, we expect that you have caught the foremost message
+    of this book: performance improvement is not always related to new computing resources
+    or novel hardware; it is possible to accelerate the training process with what
+    we have on our hands by using the resources more efficiently.'
+  prefs: []
+  type: TYPE_NORMAL

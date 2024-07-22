@@ -1,0 +1,1099 @@
+- en: '7'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Adopting Mixed Precision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Scientific computing is a tool that’s used by scientists to push the limits
+    of the known. Biology, physics, chemistry, and cosmology are examples of areas
+    that rely on scientific computing to simulate and model the real world. In these
+    fields of knowledge, numeric precision is paramount to yield coherent results.
+    Since each decimal place matters in this case, scientific computing usually adopts
+    double-precision data types to represent numbers with the highest possible precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, that need for extra information comes with a price. The higher the
+    numeric precision, the higher the computing power required to process those numbers.
+    Besides that, higher precision also demands a higher memory space, increasing
+    memory consumption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the face of those drawbacks, we must ask ourselves: do we need so much precision
+    to build our models? Usually, we do not! In this sense, we can reduce the numeric
+    precision for a few operations, thus bursting the training process and saving
+    some memory space. Naturally, this process should not affect the model’s capacity
+    to make good predictions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we’ll show you how to adopt a mixed precision strategy to burst
+    the model training process without penalizing the model’s accuracy. Besides reducing
+    training time in general, this strategy also enables the usage of special hardware
+    resources such as Tensor Cores on NVIDIA’s GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The concept of numeric representation in computer systems
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Why lower precision reduces the computational burden of the training process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to enable automatic mixed precision on PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code for the examples mentioned in this chapter in
+    this book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute this code, such as Google
+    Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remembering numeric precision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before diving into the benefits of adopting a mixed precision strategy, it is
+    essential to ground you on numeric representation and common data types. Let’s
+    start by remembering how computers represent numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do computers represent numbers?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A computer is a machine – endowed with finite resources – that’s designed to
+    work on bits, the smallest unit of information it can manage. As numbers are infinite,
+    computer designers had to put a lot of effort into finding a solution to represent
+    this theoretical concept in a real machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To get the work done, computer designers needed to deal with three key factors
+    regarding numeric representation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sign**: Whether the number is positive or negative'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Range**: The interval of the represented numbers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Precision**: The number of decimal places.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Considering these elements, computer architects successfully defined numeric
+    data types to represent not only integer and floating-point numbers but also characters,
+    special symbols, and even complex numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider an example to make things more tangible. Computer architectures
+    and programming languages generally use 32 bits to represent integers via the
+    so-called INT32 format, as shown in *Figure 7**.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – 32-bit numeric representation for integers](img/B20959_07_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.1 – 32-bit numeric representation for integers
+  prefs: []
+  type: TYPE_NORMAL
+- en: Among these 32 bits, 1 bit is reserved to represent the sign of the number,
+    where 0 means positive and 1 means otherwise. The remaining 31 bits are used to
+    represent the number itself. With 31 bits, we can get 2,147,483,648 distinct combinations
+    of zeros and ones. So, the numeric range of this representation falls into -2,147,483,648
+    and +2,147,483,647\. Note that the positive portion has one number fewer because
+    we must represent zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is an example of **signed** integer representation, where 1 bit was used
+    to determine whether the number is positive or negative. However, if only positive
+    numbers are relevant for some cases, it is possible to use an **unsigned** representation
+    instead. The unsigned representation uses all 32 bits to represent the number,
+    resulting in a numeric interval between 0 and 4,294,967,295.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In situations that do not require a larger interval, it is possible to adopt
+    a cheaper format – with only 8 bits – to represent integers: the INT8 representation,
+    as illustrated in *Figure 7**.2*. The unsigned version of this representation
+    provides an interval between 0 and 255:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – Example of a number represented in the INT8 format](img/B20959_07_02.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.2 – Example of a number represented in the INT8 format
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assuming that 1 byte is equivalent to 8 bits (this relationship can be different
+    on some computer architectures), the INT32 format demands 4 bytes to represent
+    one integer, whereas INT8 requires only 1 byte to do the same. Therefore, the
+    INT32 format, which is four times more expensive than INT8, demands more memory
+    space and computing power to manipulate those numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The integer representation is quite simple. However, to represent floating-point
+    (decimal) numbers, computer architects had to design a more sophisticated solution,
+    as we will learn in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Floating-point representation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Modern computers adopt the IEEE 754 standard to represent floating-point numbers.
+    This format defines two types of floating-point representation, namely single
+    and double-precision. **Single-precision**, also known as FP32 or float32, uses
+    32 bits, while **double-precision**, also known as FP64 or float64, uses 64 bits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Both single and double-precision are structurally similar and comprise three
+    elements: sign, exponent, and fraction (significand), as shown in *Figure 7**.3*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – Structure of floating-point representation](img/B20959_07_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.3 – Structure of floating-point representation
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sign has the same meaning as the integer representation – that is, it defines
+    whether the number is positive or negative. The **exponent** defines the numerical
+    range, and the **fraction** determines the numeric precision – that is, the number
+    of decimal places.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both formats use 1 bit for the sign. Regarding other portions, FP32 and FP64
+    use 8 and 11 bits to represent the exponent and 23 and 52 to represent the fraction
+    part, respectively. Roughly speaking, the range of FP64 is slightly higher than
+    FP32 because the former uses 3 bits more than the latter for the exponent part.
+    On the other hand, FP64 provides more than the double precision of FP32 due to
+    52 bits reserved for the fraction part.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The high numeric precision provided by FP64 makes it suitable for scientific
+    computing, where each additional decimal place is vital to solving the problems
+    tackled in this area. As double precision requires 8 bytes to represent a number,
+    it is commonly used only on tasks that require so much precision. When there is
+    no such requirement, using the single-precision data type is preferable. This
+    is the reason why the training process usually adopts FP32.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Novel data types
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Single precision, as defined by the IEEE 754 standard, is the default format
+    for representing floating-point numbers. However, as time passes, the rise of
+    new problems demands new approaches, methods, and data types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Among the novel data types, we can highlight three that are particularly interesting
+    to machine learning models: FP16, BFP16, and TF32.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: FP16
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**FP16** or float16, as you may have guessed, uses 16 bits to represent floating-point
+    numbers, as depicted in *Figure 7**.4*. As it uses half of the 32 bits used on
+    single-precision, this new data type is referred to as **half-precision**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The structure of FP16 is the same as its siblings FP32 and FP64\. The difference
+    lies in the number of bits used to represent the exponent and the fraction parts.
+    FP16 uses 5 and 10 bits to represent the exponent and fraction portions, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.4 – Structure of the FP16 format](img/B20959_07_04.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.4 – Structure of the FP16 format
+  prefs: []
+  type: TYPE_NORMAL
+- en: FP16 is an alternative to FP32 in cases where the precision provided by float32
+    is beyond the necessary. In these cases, it is much better to use a simpler data
+    type to save memory space and reduce the computing power needed to manipulate
+    the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BFP16
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**BFP16** or bfloat16 is a novel data type created by Google Brain, an artificial
+    intelligence research group at Google. BFP16, like FP16, uses 16 bits to represent
+    floating-point numbers. However, unlike FP16, the focus of BFP16 is preserving
+    the same range as FP32 while reducing drastically the precision. Thus, BFP16 uses
+    8 bits to represent the exponent – the same amount used on FP32 – but only 7 bits
+    to represent the fraction part, as shown in *Figure 7**.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.5 – Structure of the BFP16 format](img/B20959_07_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.5 – Structure of the BFP16 format
+  prefs: []
+  type: TYPE_NORMAL
+- en: Google created BFP16 to attend machine learning and artificial intelligence
+    workloads, where precision is not a big deal. At the time of writing, bfloat16
+    is supported by Intel Xeon processors (through the AVX-512 BF16 instruction set),
+    Google TPUs v2 and v3, NVIDIA GPU A100, and other hardware platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that being supported in these hardware platforms, there is no guarantee
+    that bfloat16 is supported and implemented by any software. PyTorch, for example,
+    just supports the usage of bfloat16 on CPUs, even though this data type is also
+    supported by NVIDIA GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TF32
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**TF32** stands for TensorFloat 32 and, despite the name, is a 19-bit format
+    created by NVIDIA. The TF32 is a mix of the FP32 and FP16 formats since it uses
+    8 bits for the exponent and 10 bits for the fraction, just like FP32 and FP16,
+    respectively. Therefore, TF32 allies the precision provided by FP16 with the numeric
+    range of FP32\. *Figure 7**.6* describes the TF32 format pictorially:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.6 – Structure of the TF32 format](img/B20959_07_06.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.6 – Structure of the TF32 format
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly to bfloat16, TF32 was also specifically created to tackle artificial
+    intelligence workloads and is currently supported by newer GPU generations, starting
+    with the Ampere architecture (NVIDIA A100). Besides the benefits of providing
+    a balance between range and precision, TF32 is also supported by Tensor Cores,
+    a special hardware component available on NVIDIA GPUs. We will talk more about
+    Tensor Cores later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A summary, please!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Yes, for sure! That was a lot of information to take in. For this reason, *Table
+    7.1* summarizes this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Format** | **Bits** **for Exponent** | **Bits** **for Fraction** | **Bytes**
+    | **Alias** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| FP32 | 8 | 23 | 4 | Float32, single precision |'
+  prefs: []
+  type: TYPE_TB
+- en: '| FP64 | 11 | 52 | 8 | Float64, double precision |'
+  prefs: []
+  type: TYPE_TB
+- en: '| FP16 | 5 | 10 | 2 | Float16, half precision |'
+  prefs: []
+  type: TYPE_TB
+- en: '| BFP16 | 8 | 7 | 2 | Bfloat16 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| TF32 | 8 | 10 | 4 | TensorFloat32 |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 7.1 – Summary of numeric formats
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Grigory Sapunov wrote a nice summary about data types. You can find it at [https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407](https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, the higher the numeric range and precision, the higher
+    the amount of bytes required to represent the numbers. Thus, the numeric format
+    incurs the amount of resources needed to store and process such numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we do not need so much precision (and range) to train our models, why not
+    adopt a cheaper format than the usual FP32? If we do that, we will save memory
+    and accelerate the training process as a whole.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of changing the numeric precision of the entire building process, we
+    have the option to adopt a mixed precision approach, as explained next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the mixed precision strategy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The benefits of using lower-precision formats are crystal clear. Besides saving
+    memory, the computing power required to handle data with lower precision is less
+    than that needed to process numbers with higher precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One approach to accelerate the training process of machine learning models concerns
+    employing a **mixed precision** strategy. Along the lines of [*Chapter 6*](B20959_06.xhtml#_idTextAnchor085),
+    *Simplifying the Model*, we will understand this strategy by asking (and answering,
+    of course) a couple of simple NH questions about this approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: When searching for information about reducing the precision of deep learning
+    models, you may come across a term known as **model quantization**. Despite being
+    related terms, the goal of mixed precision is quite different from model quantization.
+    The former intends to accelerate the training process by employing reduced numeric
+    precision formats. The latter focuses on reducing the complexity of trained models
+    to use in the inference phase. Thus, be careful to not mistake both terms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s start by answering the most elementary question: what is this strategy
+    about?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is mixed precision?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As you may have guessed, the mixed precision approach mixes up numeric formats
+    with distinct degrees of precision. This approach aims to try to use a cheaper
+    format **wherever possible** – in other words, it only keeps the default precision
+    where it is mandatory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the context of the training process, we seek to mix FP32 – the default numeric
+    format adopted in this task – with a lower-precision representation such as FP16
+    or BFP16\. More specifically, we execute some operations under FP32 and others
+    with a lower-precision format. By doing this, we keep the needed precision on
+    operations where a higher precision is imperative and benefit from the advantages
+    of half-precision representations at the same time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As illustrated in *Figure 7**.7*, the mixed approach is the opposite of the
+    traditional strategy, where we use the same numeric precision for all operations
+    executed in the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.7 – The difference between the traditional and mixed precision approaches](img/B20959_07_07.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.7 – The difference between the traditional and mixed precision approaches
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given the advantages of using a lower-precision format, you might be wondering
+    why not use it on all operations involved in the training process – something
+    like a pure lower-precision approach rather than a mixed-precision strategy, so
+    to speak. It is a fair question, and we will answer it in the following section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why use mixed precision?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The question posed here is not about the advantages of using mixed precision,
+    but why we shouldn’t use an absolute lower-precision approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Well, we cannot use a pure lower-precision approach because of two main reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss of information on the gradient
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lack of lower-precision operations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s take a closer look at each.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss of information on the gradient
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Reduced precision can lead to **gradient problems**, thus affecting the model’s
+    accuracy. As the optimization process is carried, the loss of information on the
+    gradient, derived from reduced precision, can hamper the optimization process
+    as a whole, preventing the model from converging. As a consequence, the trained
+    model can exhibit a lower accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shall we clarify this issue? Let’s assume we’re in a hypothetical situation
+    where we train a model using two distinct precision formats, A and B. Format A
+    supports five decimal places of precision, while format B gives only three decimal
+    places.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Suppose we have trained our model for five training steps. On each training
+    step, the optimizer has calculated the gradient to guide the overall optimization
+    process. However, as shown in *Figure 7**.8*, after the third training step, the
+    gradient becomes zero on format B. Thereafter, the optimization process will be
+    blind since the gradient information was lost:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.8 – Loss of information on the gradient](img/B20959_07_08.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.8 – Loss of information on the gradient
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a naive and pictorial example to show what we meant regarding the loss
+    of information on the gradient. Nevertheless, in general terms, this is the problem
+    we can face when opting to use lower-precision formats.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, we must keep some operations running on the default FP32 format to
+    avoid such problems. Nevertheless, we still need to take care of the gradient
+    when using a lower-precision representation, as we will understand later in this
+    chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lack of lower-precision operations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Concerning the second reason, we can state that many operations do not have
+    a lower-precision implementation. Besides technical constraints, the cost-benefit
+    ratio of implementing a lower-precision version of some operations can be so low
+    that it is not worth doing it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, PyTorch maintains a list of *eligible operations* to run under
+    lower precision to see which operations are currently supported for a given precision
+    and device. For example, the `conv2d` operation is eligible to run under FP16
+    on CUDA devices and BFP16 on CPU. On the other hand, the `softmax` operation is
+    not eligible to run in low-precision, neither on GPU or CPU. Generally speaking,
+    at the time of writing, PyTorch only supports FP16 on CUDA devices and only BFP16
+    on CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the complete list of eligible operations to run in lower precision
+    in PyTorch at [https://pytorch.org/docs/stable/amp.html](https://pytorch.org/docs/stable/amp.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: That said, we must always evaluate whether our model executes at least one of
+    the eligible operations to run with lower precision before jumping headlong into
+    the mixed-precision approach. Otherwise, we will make an unfruitful effort to
+    try to benefit from this strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if it is possible to reduce the numeric precision of the training process,
+    we should *not expect a tremendous performance gain* for any scenario. After all,
+    only a subset of operations executed on the training process currently support
+    lower-precision data types. On the other hand, any performance improvement obtained
+    from an effortless process is always welcome.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to use mixed precision
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Usually, we rely on an automatic solution to apply the mixed precision strategy
+    to the training process. This solution is called **automatic mixed precision**,
+    or **AMP** for short.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As illustrated in *Figure 7**.9*, AMP automatically evaluates operations that
+    were executed during the training process to decide which ones are eligible to
+    run at lower-precision formats:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.9 – The AMP process](img/B20959_07_09.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.9 – The AMP process
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once AMP finds an operation that matches the requirements to execute at lower
+    precision, it takes the wheel and replaces the operation running at default precision
+    with a lower-precision version. It is an elegant and seamless process that’s designed
+    to avoid the occurrence of errors that are difficult to detect, investigate, and
+    fix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although it is *strongly recommended to use an automatic solution* to apply
+    the mixed-precision approach, it is possible to do it by hand. However, we must
+    be aware of a few things. Generally speaking, we seek to implement a process manually
+    when the automatic solution does not provide a good or reasonable result, or simply
+    when it does not exist. As the automatic solution is available and there is no
+    guarantee of getting a substantial performance improvement in doing it by hand,
+    we should only consider the manual approach as the last option to adopt mixed
+    precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can always experiment and implement mixed precision manually. It can be
+    a good idea to deepen your knowledge about this topic. You can start by viewing
+    the material presented on NVIDIA GTC 2018, which is available at [https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf](https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: How about Tensor Cores?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A Tensor Core is a processing unit that’s capable of bursting the execution
+    of matrix-to-matrix multiplication, which is an elementary operation that’s often
+    executed on AI and HPC workloads. To use this hardware resource, the software
+    (library or framework) must be able to work with the numeric format supported
+    by the Tensor Core. As shown in *Table 7.2*, the numeric format supported by Tensor
+    Core varies according to the GPU architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Table 7.2 – Supported data types on Tensor Cores (obtained from NVIDIA’s
+    official website)](img/B20959_07_10.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Table 7.2 – Supported data types on Tensor Cores (obtained from NVIDIA’s official
+    website)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tensor Core of newer GPU models, such as Hopper and Ampere (series H and A,
+    respectively), supports lower-precision formats such as TF32, FP16, and bfloat16,
+    and the double-precision format (FP64), which is particularly important to attend
+    traditional HPC workloads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Hopper architecture started to support FP8, a fresh new numeric representation
+    that uses only 1 byte to represent floating-point numbers. NVIDIA has created
+    this format to accelerate the training process of Transformer neural networks.
+    The usage of Tensor Cores to run FP8 operations relies on the Transformer Engine
+    library and is outside the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, none of the available architectures are equipped with Tensor
+    Cores that support FP32, the default precision format. So, to harness the computing
+    power of this hardware capability, we must adapt our code so that it can use lower-precision
+    formats.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, the activation of Tensor Cores is conditioned to other factors beyond
+    the adoption of lower-precision representations. Among other things, we must pay
+    attention to the required memory alignment of matrix dimensions for a given combination
+    of architecture, library version, and numeric representation. For example, in
+    the case of A100 (the Ampere architecture), the matrices’ dimensions must be multiple
+    of 8 bytes when using FP16 and CuDNN versions before 7.6.3.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, the adoption of lower precision is the first condition to use Tensor
+    Cores, but it is *not a unique* requirement to properly enable this resource.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find more details about the requirements for using Tensor Cores at [https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc](https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know about the fundamentals of mixed precision, we can learn how
+    to use this approach in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enabling AMP
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Fortunately, PyTorch provides methods and tools to perform AMP by changing just
+    a few things in our original code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In PyTorch, AMP relies on enabling a couple of flags, wrapping the training
+    process with the `torch.autocast` object, and using a gradient scaler. The more
+    complex case, which is related to implementing AMP on GPU, takes all these three
+    parts, while the most simple scenario (CPU-based training) requires only the usage
+    of `torch.autocast`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s start by covering the more complex scenario. So, follow me to the next
+    section to learn how to activate this approach in our GPU-based code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Activating AMP on GPU
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To activate AMP on GPU, we need to make three modifications to our code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enable the CUDA and CuDNN backend flags.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wrap the training loop with `torch.autocast`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use a gradient scaler.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s take a closer look.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enabling backend flags
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As we learned in [*Chapter 4*](B20959_04.xhtml#_idTextAnchor060), *Using Specialized
+    Libraries*, PyTorch relies on third-party libraries (also known as backends in
+    PyTorch’s terminology) to help it execute specialized tasks. In the context of
+    AMP, we must enable *four flags* related to CUDA and CuDNN backends. All those
+    flags come disabled by default and should be turned on at the beginning of the
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: CuDNN is an NVIDIA library that provides optimized operations commonly executed
+    on deep learning neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first flag is `torch.backend.cudnn.benchmark`, which activates the benchmark
+    mode of CuDNN. In this mode, CuDNN executes a set of brief tests to determine
+    which operations are the best ones to be executed on a given platform. Although
+    this flag is not directly related to mixed precision, it plays an important role
+    in the process, enhancing the positive effect of AMP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CuDNN performs this evaluation the first time it is called by PyTorch. In general,
+    this moment occurs at the first training epoch. So, do not be surprised if the
+    first epoch takes more time to execute than the remaining epochs of the training
+    process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other two flags are called `cuda.matmul.allow_fp16_reduced_precision_reduction`
+    and `cuda.matmul.allow_bf16_reduced_precision_reduction`. They tell CUDA to use
+    reduced precision on `matmul` operations when executing at FP16 and BFP16 representations,
+    respectively. The `matmul` operation is related to matrix-to-matrix multiplication,
+    which is one of the most essential computing tasks that can be executed on neural
+    networks in general.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The last flag is `torch.backends.cudnn.allow_tf32`, which allows CuDNN to use
+    the TF32 format, thus enabling one of the formats supported by NVIDIA Tensor Cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After enabling these flags, we can proceed to change the training loop part.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Wrapping the training loop with torch.autocast
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The `torch.autocast` class is responsible for implementing AMP on PyTorch. We
+    can use `torch.autocast` as a context manager or a decorator. Its usage depends
+    on how we have implemented our code. Regardless of the method, AMP works in the
+    same way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Specifically, in the case of a context manager, we must wrap the forward and
+    loss calculation phases that are executed on the training loop. All other tasks
+    that are performed on the training loop must be left out of the context of `torch.autocast`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`torch.autocast` accepts four arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`device_type`: This defines which kind of device the autocast will execute
+    AMP. Accepted values are `cuda`, `cpu`, `xpu`, and `hpu` – that is, the same values
+    we can assign to a `torch.device` object. Naturally, the most common values for
+    this parameter are `cuda` and `cpu`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`dtype`: The data type that’s used on the AMP strategy. This parameter accepts
+    the corresponding data type object – instantiated from the `torch.dtype` class
+    – related to the data type we want to use on the automatic casting.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`enabled`: A flag to enable or disable the AMP process. It comes enabled by
+    default, but we can switch it to `false` to debug our code.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`cache_enabled`: Whether `torch.autocast` should enable the weight cache during
+    the AMP process. This parameter is enabled by default.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `device_type` and `dtype` parameters are mandatory to use `torch.autocast`.
+    The others are optional and used only for fine-tuning and debugging.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following excerpt shows the usage of `torch.autocast` as a context manager
+    inside the training loop (for the sake of simplicity, this example shows only
+    the core part of the training loop):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The other tasks that are executed on the training loop are not encapsulated
+    by `torch.autocast` since we are only interested in applying AMP to the forward
+    and loss calculation phases. Besides that, the remaining tasks of the training
+    process are wrapped by the gradient scaler, as explained next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradient scaler
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'As we learned at the beginning of this chapter, the usage of lower-precision
+    representations can lead to loss of information on the gradient. To work around
+    this problem, we need to wrap the optimization and backward phases with a `torch.cuda.amp.GradScaler`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we instantiate an object from `torch.cuda.amp.GradScaler`. Next, we wrap
+    the `optimizer.step()` and `loss.backward()` calls with the gradient scaler so
+    that it assumes control of these tasks. Finally, the training loop asks the scaler
+    to definitively update the parameters of the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll join these Lego pieces into a unique building block and see what AMP is
+    capable of in the next section!
+  prefs: []
+  type: TYPE_NORMAL
+- en: AMP, show us what you are capable of!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To assess the benefits of using AMP, we will train an EfficientNet neural network
+    architecture, which is available in the `torch.vision.models` package, with the
+    CIFAR-10 dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this experiment, we will evaluate the usage of AMP with FP16 and BFP16 running
+    under a GPU NVIDIA A100 for 50 epochs. Our baseline execution concerns training
+    EfficientNet under its default precision (FP32), but with the CuDNN benchmark
+    flag enabled. By doing this, we’ll make things fair since, despite being important
+    to the AMP process, this flag is not directly related to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The baseline execution took 811 seconds to complete, achieving an accuracy equal
+    to 51%. The accuracy itself is not what we care about here; we are interested
+    in evaluating whether AMP will affect the model’s quality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By adopting the BFP16 precision format, the training process took 754 seconds
+    to complete, which represents a shy and disappointing performance improvement
+    of 8%. This happens because eligible operations to run under bfloat16 are implemented
+    only to execute on the CPU, as mentioned previously. Although we are training
+    our model using GPU, some operations still execute under CPU. So, this tiny performance
+    improvement comes from the small pieces of code that continue executing on the
+    CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’re running this experiment with BFP16 on GPU to show the nuances of dealing
+    with AMP. Although PyTorch does not provide BFP16-eligible operations to execute
+    on GPUs, we did not get any warning about doing it. This is an example of how
+    important it is to know the details of the process we are using on our code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Okay, but how about FP16? Well, the training process running with AMP under
+    Float16 took 486 seconds to complete 50 epochs, representing a *performance gain
+    of 67%*. Due to the work done by the gradient scaler, the accuracy of the model
+    was not affected by the usage of lower-precision formats. Indeed, the model that
+    was trained on this scenario achieved the same 51% accuracy as the baseline code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We must keep in mind that such performance improvement is just an example of
+    how AMP can accelerate the training process. We can achieve even more impressive
+    results depending on the model, libraries, and devices used in the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    Initially, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that this is not a test! This section aims
+    to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Choose the correct option for the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which of the following numeric formats represents integers by using only 8 bits?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP8.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: INT32.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: INT8.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: INTFB8.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP16 is a numeric representation that uses 16 bits to represent floating-point
+    numbers. What is this numeric format also known as?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Half-precision floating-point representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Single-precision floating-point representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Double-precision floating-point representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: One quarter-precision floating-point representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which of the following is a numeric representation for floating-point numbers
+    created by Google to attend to machine learning and artificial intelligence workloads?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: GP16.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: GFP16.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP16.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: BFP16.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NVIDIA created the TF32 data representation. Which of the following number of
+    bits does it use to represent floating-point numbers?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 32 bits.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 19 bits.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 16 bits.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 20 bits.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the default numeric representation that’s used by PyTorch to execute
+    the operations for the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP32.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP8.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: FP64.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: INT32.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the goal of the mixed precision approach?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Mixed precision tries to adopt lower-precision formats during the training process’
+    execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Mixed precision tries to adopt higher-precision formats during the training
+    process’ execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Mixed precision avoids the usage of lower-precision formats during the training
+    process’ execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Mixed precision avoids the usage of higher-precision formats during the training
+    process’ execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the main advantages of using an AMP approach rather than a manual implementation?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Simple usage and reduction of performance improvement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Simple usage and reduction of power consumption.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Complex usage and avoidance of errors involving numeric representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Simple usage and avoidance of errors involving numeric representation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Besides the lack of lower-precision operations, which of the following options
+    is another reason to not use a pure lower-precision approach in the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Low performance improvement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: High energy consumption.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loss of information on the gradient.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: High usage of main memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned that adopting a mixed-precision approach can accelerate
+    the training process of our models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although it is possible to implement the mixed precision strategy by hand, it
+    is preferable to rely on the AMP solution provided by PyTorch since it is an elegant
+    and seamless process that’s designed to avoid the occurrence of errors involving
+    numeric representation. When this kind of error occurs, they are very hard to
+    identify and solve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing AMP on PyTorch requires adding a few extra lines to the original
+    code. Essentially, we must wrap the training loop with the AMP engine, enable
+    four flags related to backend libraries, and instantiate a gradient scaler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on the GPU architecture, library version, and the model itself, we
+    can significantly improve the performance of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter closes the second part of this book. Next, in the third and last
+    part, we will learn how to spread the training process among multiple GPUs and
+    machines.
+  prefs: []
+  type: TYPE_NORMAL

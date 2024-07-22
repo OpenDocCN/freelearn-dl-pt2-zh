@@ -1,0 +1,994 @@
+- en: '9'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training with Multiple CPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When accelerating the model-building process, we immediately think of machines
+    endowed with GPU devices. What if I told you that running distributed training
+    on machines equipped only with multicore processors is possible and advantageous?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although the performance improvement obtained from GPUs is incomparable, we
+    should not disdain the computing power provided by modern CPUs. Processor vendors
+    have continuously increased the number of computing cores on CPUs, besides creating
+    sophisticated mechanisms to treat access contention to shared resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using CPUs to run distributed training is especially interesting for cases where
+    we do not have easy access to GPU devices. Thus, learning this topic is vital
+    to enrich our knowledge about distributed training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we show how to execute the distributed training process on
+    multiple CPUs in a single machine by adopting a general approach and using the
+    Intel oneCCL backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The advantages of distributing training on multiple CPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to distribute the training process among multiple CPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to burst the distributed training by using Intel oneCCL
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code of examples mentioned in this chapter in the
+    book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environments to execute this notebook, such as
+    Google Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why distribute the training on multiple CPUs?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At first sight, thinking about distributing the training process among multiple
+    CPUs in a single machine sounds slightly confusing. After all, we could increase
+    the number of threads used in the training process to allocate all available CPUs
+    (computing cores).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as said by Carlos Drummond de Andrade, a famous Brazilian poet, “*In
+    the middle of the road there was a stone. There was a stone in the middle of the
+    road*.” Let’s see what happens to the training process when we just increase the
+    number of threads in a machine with multiple cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why not increase the number of threads?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In [*Chapter 4*](B20959_04.xhtml#_idTextAnchor060), *Using Specialized Libraries*,
+    we learned that PyTorch relies on OpenMP to accelerate the training process by
+    employing the multithreading technique. OpenMP assigns threads to physical cores
+    intending to improve the performance of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, if we have a certain number of available computing cores, why not increase
+    the number of threads used in the training process rather than thinking about
+    going distributed? The answer is quite simple, actually.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch has a *limit on the level of parallelism* it can achieve in running
+    the training processes when using multithreads. This limit means there will not
+    be a performance improvement after crossing a certain number of threads. In simpler
+    terms, after a certain threshold, the training time will be the same, no matter
+    how many extra cores we use to train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This behavior is not exclusive to the training process executed by PyTorch.
+    It is very common in many kinds of parallel applications. Depending on the problem
+    and the design of the parallel strategy, increasing the number of threads can
+    turn the parallel task into being so small and simple to execute that the benefits
+    of parallelizing the problem will be suppressed by the overhead of controlling
+    the execution of each parallel task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s see a practical example of this behavior. *Table 9.1* presents the execution
+    time of training a CNN model against the CIFAR-10 dataset over five epochs using
+    a machine equipped with 16 physical cores:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Threads** | **Execution Time** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 311 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 189 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 119 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 8 | 93 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 12 | 73 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 16 | 73 |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 9.1 – Execution time of training process
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Table 9.1*, there is no difference in the execution time whether
+    using 12 or 16 cores to train the model. Due to the limit imposed by the parallelism
+    level, PyTorch is stuck on the same execution time despite increasing the number
+    of cores by more than 30%. Moreover, even when the training process used 50% more
+    threads (8 to 12), the performance improvement was less than 27%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These results pinpoint that using more than eight threads to execute the training
+    process will not significantly reduce the execution time in this case. Consequently,
+    we will incur resource wastage because PyTorch allocates a given number of cores
+    that do not contribute to accelerating the training process. Actually, a higher
+    number of threads can slow down the training process since it can increase the
+    overhead imposed by communication and control tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To work around this opposite effect, we should consider distributing the training
+    process by running distinct training instances on the same machine. Instead of
+    looking at the code, let’s jump directly to the results so you can see the benefits
+    of this strategy!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Distributed training on rescue
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We conducted the following tests by using the same model, parameters, and dataset
+    as the previous experiment. Naturally, we used the same machine as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the first test, we created two instances of the distributed training process,
+    each using eight cores, as shown in *Figure 9**.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.1 – Allocation of distributed training instances](img/B20959_09_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.1 – Allocation of distributed training instances
+  prefs: []
+  type: TYPE_NORMAL
+- en: The distributed training process took 58 seconds to complete, representing an
+    *improvement of 26%* in the time needed to execute the model-building process.
+    We have reduced the execution time by more than 25% by adopting the parallel data
+    strategy technique. Nothing else had changed, neither in the hardware capacity
+    nor in the software stack. Furthermore, the performance improvement can be even
+    higher for machines with more computing cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as we have been saying throughout the book, everything usually has
+    a cost. In this case, the cost is related to the model accuracy. The traditional
+    training process built a model with an accuracy equal to 45.34%, whereas the model
+    created by the distributed training achieved an accuracy of 44.01%. Although the
+    difference is tiny (around 1.33%), we should not ignore it because there is a
+    relation between model accuracy and the number of distributed training instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Table 9.2* shows the results of tests involving different combinations of
+    training instances (processes of the distributed training) and the number of threads
+    used by each training instance. As the tests were executed in a machine with 16
+    physical cores, and when considering numbers to the power of 2, we have three
+    possible combinations of training instances and threads:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Training instances** | **Number** **of threads** | **Execution time** |
+    **Accuracy** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 8 | 58 | 44.01% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 4 | 45 | 40.11% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 8 | 2 | 37 | 38.63% |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 9.2 – Execution time of distributed training process
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can verify from *Table 9.2*, the higher the number of training instances,
+    the lower the model accuracy. This behavior is expected because model replicas
+    update their parameters accordingly to an *average* gradient, which results in
+    a loss of information concerning the optimization process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conversely, the execution time decreases as the number of training instances
+    increases. When running eight training instances with two threads each, the distributed
+    training process took only 37 seconds to complete, which is almost *two times
+    faster* than running the traditional training with 16 threads. As a counterpart,
+    the accuracy decreased from 45% to 39%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Undeniably, distributing the training process among multiple processing cores
+    is advantageous in terms of accelerating the training process. We should only
+    take care of model accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to code and run the distributed training
+    on multiple CPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing distributed training on multiple CPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This section shows how to implement and run the distributed training on multiple
+    CPUs using **Gloo**, a simple yet powerful communication backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Gloo communication backend
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed Training at
+    a Glance*, we learned PyTorch relies on backends to control the communication
+    among devices and machines involved in distributed training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most basic communication backend supported by PyTorch is called Gloo. This
+    backend comes with PyTorch by default and does not require any particular configuration.
+    The Gloo backend is a collective communication library created by Facebook, and
+    it is now an open-source project governed by the BSD license.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the source code of Gloo at [http://github.com/facebookincubator/gloo](http://github.com/facebookincubator/gloo).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As Gloo is very simple to use and is available by default on PyTorch, it appears
+    to be the first option to run the distributed training in an environment comprising
+    only CPUs and machines interconnected by a regular network. Let’s see this backend
+    in practice in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding distributed training to run on multiple CPUs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section presents the code to run the distributed training process on a
+    *single machine with multiple computing cores*. The code is pretty much the same
+    as the one presented in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed
+    Training at a Glance*, except for a few particularities related to the context
+    of this scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/gloo_distributed-cnn_cifar10.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, this section describes the main changes required to adjust
+    the basic workflow described in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117),
+    *Distributed Training at a Glance*, to make it feasible to run the distributed
+    training on multiple cores. Essentially, we need to perform two modifications,
+    as explained in the following two sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialization of the communication group
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The *first modification* is related to the initialization of the communication
+    group. Instead of calling `dist.init_process_group` without parameters, this implementation
+    will pass two arguments, as we have mentioned in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117),
+    *Distributed Training at* *a Glance*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `backend` argument tells PyTorch which communication backend it must use
+    to control the communication among multiple training instances. In this primary
+    example, we will use Gloo as the communication backend. So, we just need to pass
+    a lowercase string of the backend’s name to the parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: To check whether a backend is available, we can execute the `torch.distributed.is_<backend>_available()`
+    command. For example, to verify if Gloo is available on the current PyTorch environment,
+    we just need to call `torch.distributed.is_gloo_available()`. This method returns
+    `True` when it is available and `False` if not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second parameter, named `init_method`, defines the initialization method
+    used by PyTorch to create the communication group. The method tells PyTorch how
+    to get the information it needs to initialize the distributed environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Nowadays, there are three possible methods to inform the configuration required
+    to initialize the communication group:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TCP**: Use a specified IP address and TCP port'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Shared file system**: Use a file system that is accessible to all processes
+    participating in the communication group'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Environment variables**: Use the environment variables defined on the scope
+    of the operating system'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As you might guess, the `env://` value, which is used in this example, refers
+    to the third method to initialize the communication group, i.e., the environment
+    variables option. In the next section, we will learn which environment variables
+    we use to set up the communication group. For now, it is essential to remember
+    how PyTorch gets the information it needs to establish the communication group.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU allocation map
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The *second modification* refers to defining the allocation of threads belonging
+    to each training instance to different cores. By doing this, we guarantee that
+    all threads use exclusive computing resources and do not compete for a given processing
+    core.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To explain what this means, let’s use a practical example. Suppose we want to
+    run the distributed training in a machine with 16 physical cores. We decided to
+    run two training instances, each one using eight threads. If we do not take care
+    of the allocation of these threads, both training instances may compete for a
+    given computing core, leading to a performance bottleneck. This is precisely the
+    opposite of what we want.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To avoid this problem, we must define the allocation map for all threads at
+    the beginning of the code. The following snippet of code shows how to do it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is essential to remember that all communication group processes execute the
+    same code. If we need to define a different execution flow for the processes,
+    we must use the rank.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s take this line by line to understand what this code is doing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by defining the number of threads used by each training instance,
+    i.e., by each process participating in the distributed training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we calculate the `index` of the process considering its rank and the
+    number of threads. The rank is obtained from an environment variable called `RANK`,
+    which is properly defined by the program launcher:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This index is used to identify the first processing core allocated to that process.
+    For example, when considering the case of 8 threads and two processes, the processes
+    identified by ranks 0 and 1 will have indexes equal to 0 and 8, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Starting from that index, each process will allocate the subsequent cores to
+    its threads. So, by taking the previous scenario as an example, the process with
+    rank 0 will assign its threads to computing cores 0, 1, 2, 3, 4, 5, 6, and 7\.
+    Likewise, the process with rank 1 will use the computing cores 8, 9, 10, 11, 12,
+    13, 14, and 15.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As OpenMP accepts an interval list format as input for setting the CPU affinity,
+    we can define the allocation map by indicating the first and last cores. The first
+    core is the index, and the last core is obtained by summing up the index with
+    the number of threads and then subtracting from 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: When considering our example, the process with rank 0 and 1 will set the variable
+    `cpu_affinity` with values “0-7” and “8-15”, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The last two lines of our piece of code define the `OMP_NUM_THREADS` and `KMP_AFFINITY`
+    environment variables according to the values we obtained before:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you should remember, those variables are used to control the behavior of
+    OpenMP. The `OMP_NUM_THREADS` variable tells OpenMP the number of threads to use
+    in multithreading, and `KMP_AFFINITY` defines the CPU affinity for these threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These two modifications are enough to adjust the basic workflow presented in
+    [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed Training at a Glance*,
+    to execute the distributed training on multiple CPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the code ready to execute, the subsequent step concerns defining the program
+    launcher and configuring the parameters to launch the distributed training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launching distributed training on multiple CPUs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we have learned in [*Chapter 8*](B20959_08.xhtml#_idTextAnchor117), *Distributed
+    Training at a Glance*, PyTorch relies on a program launcher to set up the distributed
+    environment and create the processes needed to run the distributed training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this scenario, we will use `torchrun`, which is a native PyTorch launcher.
+    Besides being simple to use, `torchrun` is already available on the default PyTorch
+    installation. Let’s look at more details about this tool.
+  prefs: []
+  type: TYPE_NORMAL
+- en: torchrun
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Roughly speaking, `torchrun` performs two main tasks: it *defines the environment
+    variables related to the distributed environment* and *instantiates the processes
+    on the* *operating system*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`torchrun` defines a set of environment variables to inform PyTorch about the
+    parameters it needs to initialize the communication group. After setting the appropriate
+    environment variables, `torchrun` creates the processes that will participate
+    in the distributed training.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides these two main tasks, torchrun provides more advanced functionalities
+    such as resuming a failed training process or dynamically adjusting the resources
+    used in the training phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run the distributed training in a single machine, torchrun requires a few
+    parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`nnodes`: number of nodes used in the distributed training'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`nproc-per-node`: number of processes to run in each machine'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`master-addr`: IP address of the machine used to run the distributed training'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The command to execute `torchrun` for our example is the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: As the distributed training will run in a single machine, we set the `nnodes`
+    parameter to `1` and the `master-addr` argument to localhost, which is the alias
+    name for the local machine. In this example, we desire to run two training instances;
+    hence, the parameter `nproc-per-node` is set to `2`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From these parameters, `torchrun` will set the appropriate environment variables
+    and instantiate two processes on the local operating system to run the program
+    `pytorch_ddp.py`, as shown in *Figure 9**.2*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.2 – Scheme of torchrun execution](img/B20959_09_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9.2 – Scheme of torchrun execution
+  prefs: []
+  type: TYPE_NORMAL
+- en: As illustrated in *Figure 9**.2*, each process has its rank and communicates
+    to each other through Gloo. Moreover, each process will create eight threads,
+    and each thread will run on a distinct physical core, as defined in the CPU allocation
+    map. These processes will act as different instances of the distributed training
+    process despite being executed in the same machine and running upon the same CPU
+    die.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To make things easier, we can create a bash script to facilitate the usage of
+    `torchrun` in different situations. Let’s learn how to do it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launching script
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Instead of typing the `torchrun` command several times for different scenarios,
+    we can create a bash script to simplify the launch of the distributed training
+    process and run it on a single machine with multiple computing cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An example of this launching script is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter09/launch_multiple_cpu.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter09/launch_multiple_cpu.sh).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This script sets immutable parameters, such as `nnodes` and `master-addr`,
+    with default values and leaves the customizable arguments, such as the name of
+    the program and `nproc-per-node`, open to be defined in the execution line. So,
+    to run our previous example, we just need to execute the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `launch_multiple_cpu.sh` script will call `torchrun` with the appropriate
+    set of parameters. As you might imagine, it is effortless to change the arguments
+    of this script to use it with another training program, as well as to run a different
+    number of training instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, we can adapt this script to use it along with container images
+    provided by solutions such as Apptainer and Docker. So, instead of calling `torchrun`
+    directly on the command line, the script could be modified to execute `torchrun`
+    inside a container image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'By considering a container image named `pytorch.sif`, the command line of this
+    new version of `local_launch` will be the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we will learn how to run this same distributed training
+    process but using Intel oneCCL as the communication backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting faster with Intel oneCCL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The results shown in *Table 9.2* attest that Gloo fulfills the role of the communication
+    backend for the distributed training process in PyTorch very well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Even so, there is another option for the communication backend to go even faster
+    on Intel platforms: the Intel oneCCL collective communication library. In this
+    section, we will learn what this library is and how to use it as a communication
+    backend for PyTorch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Intel oneCCL?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Intel oneCCL is a collective communication library created and maintained by
+    Intel. Along the lines of Gloo, oneCCL also provides collective communication
+    primitives such as the so-called “All-reduce.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, Intel oneCCL is optimized to run on Intel platform environments,
+    though this does not necessarily mean it will not work on other platforms. We
+    can use this library to provide collective communication among the processes executing
+    in the same machine (intraprocess communication) or the processes running in multiple-node
+    (interprocess communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although its primary usage lies in providing collective communication for deep
+    learning frameworks and applications, oneCCL can also be used by any distributed
+    program written in C++ or Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Like Intel OpenMP, the Intel oneCCL does not come by default with the regular
+    PyTorch installation; we need to install it on our own. When considering a pip-based
+    environment, we can easily install oneCCL by executing the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: After installing oneCCL, we are ready to incorporate it into our code and launch
+    the distributed training. Let’s see how to do this in the subsequent sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find more information about Intel oneCCL at [https://oneapi-src.github.io/oneCCL/](https://oneapi-src.github.io/oneCCL/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Code implementation and launching
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To use Intel oneCCL as a communication backend, we must change a few parts of
+    the code presented in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter09/oneccl_distributed-cnn_cifar10.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first modification concerns importing an artifact and setting three environment
+    variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: These environment variables configure the behavior of oneCCL. The `CCL_PROCESS_LAUNCHER`
+    parameter talks to oneCCL, which launches it. In our case, we must set this environment
+    variable to `torch` since PyTorch is calling oneCCL. Environment variables `CCL_ATL_SHM`
+    and `CCL_ATL_TRANSPORT`, when set to `1` and `ofi`, respectively, configure oneCCL
+    to use the shared memory as the means to provide communication among processes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory is an interprocess communication technique.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can dive into the environment variables of Intel oneCCL by consulting this
+    website: [https://oneapi-src.github.io/oneCCL/env-variables.html](https://oneapi-src.github.io/oneCCL/env-variables.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second modification is related to changing the backend set in the initialization
+    of the communication group:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The rest of the code and the launching method are equal to Gloo’s code. We can
+    set the `CCL_LOG_LEVEL` to `debug` or `trace` environment variable to verify whether
+    oneCCL is being used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After making those modifications, you may wonder if oneCCL is worth it. Let’s
+    find out in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Is oneCCL really better?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As shown in *Table 9.3*, oneCCL has accelerated our training process by approximately
+    10% when compared to Gloo’s implementation. If compared to the traditional execution
+    with 16 threads, the performance improvement with oneCCL achieved almost 40%:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  |  | **oneCCL** | **Gloo** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Training** **instances** | **Number** **of threads** | **Execution time**
+    | **Accuracy** | **Execution time** | **Accuracy** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 8 | 53 | 43.12% | 58 | 44.01% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 4 | 42 | 41.03% | 45 | 40.11% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 8 | 2 | 35 | 37.99% | 37 | 38.63% |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 9.3 – Execution time of distributed training process running under Intel
+    oneCCL and Gloo
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding the model’s accuracy, the distributed training with oneCCL and Gloo
+    practically achieved the same results for all scenarios.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, the question that comes to our mind is, When do we use one backend or another?
+    If we are using an Intel-based environment, then oneCCL is preferable. After all,
+    the training process with Intel oneCCL was 10 % faster than using Gloo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, Gloo comes by default with PyTorch, is very simple to use,
+    and achieves a reasonable performance improvement. So, if we are not training
+    in an Intel platform nor seeking the maximum possible performance, Gloo is a good
+    choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    At first, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter09-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that it is not a test at all! This section
+    aims to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choose the correct option for the following questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In multicore systems, we can improve the performance of the training process
+    by increasing the number of threads used by PyTorch. Concerning this topic, we
+    can affirm which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After crossing a certain number of threads, the performance improvement can
+    deteriorate or stay the same.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The performance improvement always keeps rising, no matter the number of threads.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is no performance improvement when increasing the number of threads.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Performance improvement is only achieved when using 16 threads.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which is the most basic communication backend supported by PyTorch?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NNI.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloo.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: MPI.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: TorchInductor.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which is the default program launcher provided by PyTorch?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorchrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloorun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: MPIRun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Torchrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the context of PyTorch, what is Intel oneCCL?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Communication backend.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Program launcher.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Checkpointing automation tool.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Profiling tool.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When considering a non-Intel environment, what would be the most reasonable
+    choice for the communication backend?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloorun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Torchrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: oneCCL.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloo.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Concerning the performance of the training process when using Gloo or oneCCL
+    as a communication backend, we can say which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is no difference at all.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gloo is always better than oneCCL.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: oneCCL can overcome Gloo in Intel platforms.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: oneCCL is always better than Gloo.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When distributing the training process among multiple CPUs and cores, we need
+    to define the allocation of threads in order to do which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Guarantee all threads have exclusive usage of computing resources.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Guarantee secure execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Guarantee protected execution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Guarantee that data are shared among all threads.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the two main tasks of torchrun?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a pool of shared memory and instantiate the processes in the operating
+    system.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the environment variables related to the distributed environment and
+    instantiate the processes on the operating system.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the environment variables related to the distributed environment and
+    create a pool of shared memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Identify the best number of threads to run with PyTorch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned that distributing the training process on multiple
+    computing cores can be more advantageous than increasing the number of threads
+    used in traditional training. This happens because PyTorch can face a limit on
+    the parallelism level employed in the regular training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To distribute the training among multiple computing cores located in a single
+    machine, we can use Gloo, a simple communication backend that comes by default
+    with PyTorch. The results showed that the distributed training with Gloo achieved
+    a performance improvement of 25% while retaining the same model accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also learned that oneCCL, an Intel collective communication library, can
+    accelerate the training process even more when executed on Intel platforms. With
+    Intel oneCCL as the communication backend, we reduced the training time by more
+    than 40%. If we are willing to reduce the model accuracy a little bit, it is possible
+    to train the model two times faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn how to spread out the distributed training
+    process to run on multiple GPUs located in a single machine.
+  prefs: []
+  type: TYPE_NORMAL

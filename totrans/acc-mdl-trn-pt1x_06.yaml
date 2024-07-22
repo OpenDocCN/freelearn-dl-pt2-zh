@@ -1,0 +1,915 @@
+- en: '4'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Using Specialized Libraries
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Nobody needs to do all things by themselves. Neither does PyTorch! We already
+    know PyTorch is one of the most powerful frameworks for building deep learning
+    models. However, as many other tasks are involved in the model-building process,
+    PyTorch relies on specialized libraries and tools to get the job done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn how to install, use, and configure libraries
+    to optimize CPU-based training and multithreading.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'More important than learning the technical nuances presented in this chapter
+    is catching the message it brings: we can improve performance by using and configuring
+    third-party libraries specialized in tasks that PyTorch relies on. In this sense,
+    we can search for many other options than the ones described in this book.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the concept of multithreading with OpenMP
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning how to use and configure OpenMP
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding IPEX – an API for optimizing the usage of PyTorch on Intel processors
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding how to install and use IPEX
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code of the examples mentioned in this chapter in
+    the book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute this notebook, such as Google
+    Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multithreading with OpenMP
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**OpenMP** is a library used for parallelizing tasks by harnessing all the
+    power of multicore processors by using the multithreading technique. In the context
+    of PyTorch, OpenMP is employed to parallelize operations executed in the training
+    phase and to accelerate preprocessing tasks related to data augmentation, normalization,
+    and so forth.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As multithreading is a key concept here, to see how OpenMP works, follow me
+    to the next section to understand this technique.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is multithreading?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Multithreading is a technique to **parallelize tasks** in a multicore system,
+    which, in turn, is a computer system endowed with **multicore processors**. Nowadays,
+    any computing system has multicore processors; smartphones, notebooks, and even
+    TVs have CPUs with more than one processing core.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As an example, let’s look at the notebook that I’m using right now to write
+    this book. My notebook possesses one Intel i5-8265U processor, which has eight
+    cores, as illustrated in *Figure 4**.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.1 – Physical and logical cores](img/B20959_04_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.1 – Physical and logical cores
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modern processors have physical and logical cores. A **physical core** is a
+    complete and individual processing unit able to perform any computation. A **logical
+    core** is a processing entity instantiated from the idle resources of physical
+    cores. Therefore, physical cores deliver better performance than logical cores.
+    Thus, we should always prefer to use physical units rather than logical ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nevertheless, from the operating system’s point of view, there is no difference
+    between physical and logical cores (i.e., the operating system sees the total
+    number of cores, regardless of whether they are physical or logical).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The technology responsible for providing logical cores is called **simultaneous
+    multithreading**. Each vendor has a commercial name for this technology. Intel
+    calls it **hyperthreading**, for example. Details about this topic are out of
+    the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can inspect details about the processor by using the `lscpu` command for
+    Linux:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows a bunch of information about the processor, such as the number
+    of cores and sockets, frequency, architecture, vendor name, and so on. Let’s examine
+    the most relevant fields to our case:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CPU(s)**: The total number of physical and logical cores available on the
+    system. “CPU” is used here as a synonym for “core.”'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**On-line CPU(s) list**: The identification of cores available on the system.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`1`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`1`, there are only physical cores on the system. Otherwise, the system has
+    both physical and logical cores.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Core(s) per socket**: The number of physical cores available on each multicore
+    processor.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use `lscpu` to get the number of physical and logical cores available
+    on the hardware that we are running on. As you will see in the next sections,
+    this information is essential to optimize the usage of OpenMP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modern servers have hundreds of cores. With such computing power on the table,
+    we must find a way to use it properly. Here is where multithreading comes in!
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **multithreading** technique concerns creating and controlling a set of
+    threads to co-operate and accomplish a given task. These threads are spread out
+    on processor cores so that the running program can use different cores to treat
+    distinct pieces of the computing task. As a result, multiple cores work simultaneously
+    on the same task to accelerate its completion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A **thread** is an operating system entity created by processes. A set of threads
+    created by a given process share the same memory address space. Consequently,
+    threads can communicate with themselves much more easily than processes; they
+    just need to read or write the content of some memory address. On the other hand,
+    processes must resort to more complicated methods such as message exchanging,
+    signals, queues, and so on. This is the reason why we prefer to use threads to
+    parallelize a task instead of processes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B20959_04_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.2 – Threads and processes
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the benefits of using threads come at a price: we must take care of
+    our threads. As threads communicate with themselves through shared memory, they
+    can fall under race conditions when multiple threads intend to write on the same
+    memory region. In addition, the programmer must keep threads synchronized to prevent
+    a thread from waiting indefinitely for some result or action of another thread.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the concept of threads and processes is new to you, take a break and watch
+    the following video on YouTube before moving on to the next section: [https://youtu.be/Dhf-DYO1K78](https://youtu.be/Dhf-DYO1K78).
+    If you require more profound material, you can read the article written by Roderick
+    Bauer, available at [https://medium.com/@rodbauer/understanding-programs-processes-and-threads-fd9fdede4d88](https://medium.com/@rodbauer/understanding-programs-processes-and-threads-fd9fdede4d88).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, it is hard work to program threads manually (i.e., on our own). However,
+    luckily, OpenMP is here to help. So, let’s learn how to use it, along with PyTorch,
+    to accelerate the training phase of our machine learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using and configuring OpenMP
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: OpenMP is a framework that is able to encapsulate and abstract many drawbacks
+    related to programming multiple threads. With this framework, we can parallelize
+    our sequential code by employing a set of functions and primitives. When talking
+    about multithreading, OpenMP is the de facto standard. This explains why PyTorch
+    relies on OpenMP as the default backend to parallelize tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Strictly speaking, we do not need to change anything in PyTorch’s code to use
+    OpenMP. Nevertheless, there are some configuration tricks that can increase the
+    performance of the training process. Let’s see it in practice!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/baseline-cnn_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/baseline-cnn_cifar10.ipynb)
+    and [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/gomp-cnn_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/gomp-cnn_cifar10.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: At first, we will run the same code presented in [*Chapter 2*](B20959_02.xhtml#_idTextAnchor028),
+    *Training Models Faster,* to train the CNN model with the CIFAR-10 dataset. The
+    environment is configured with GNU OpenMP 4.5 and possesses an Intel processor
+    with 32 cores in total, half physical and half logical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To check the OpenMP version and number of threads used in the current environment,
+    we can execute the `torch.__config__.parallel_info()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The last line of the output confirms that OpenMP is the parallel backend configured
+    in the environment. We can also see it is OpenMP version 4.5, as well as the number
+    of threads set and values configured for two environment variables. The `hardware_concurrency()`
+    field shows a value of `32`, indicating that the environment is able to run up
+    to 32 threads since the system has 32 cores at maximum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, the output provides information on the `get_num_threads()` field,
+    which is the number of threads used by OpenMP. The default behavior of OpenMP
+    is to use a number of threads equivalent to the number of physical cores. So,
+    in this case, the default number of threads is 16.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training phase took 178 seconds to run 10 epochs. During the training process,
+    we can use the `htop` command to verify how OpenMP binds threads to cores. In
+    our experiment, PyTorch/OpenMP has made a configuration that is pictorially described
+    in *Figure 4**.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.3 – Default OpenMP threads allocation](img/B20959_04_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.3 – Default OpenMP threads allocation
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenMP has allocated the set of 16 threads to 8 physical cores and 8 logical
+    cores. As stated in the previous section, physical cores provide better performance
+    than logical ones. Even with physical cores available, OpenMP has used logical
+    cores to execute half of PyTorch’s threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At first sight, the decision to use logical cores, even when having physical
+    ones available, may sound silly. However, we should remember that processors are
+    used by the entire computing system – that is, they are used for other tasks besides
+    our training process. Therefore, the operating system, together with OpenMP, should
+    try to be fair enough with all demanding tasks – that is, they should also offer
+    the chance to use physical cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Despite the default behavior of OpenMP, we can set up a couple of environment
+    variables to change the way OpenMP allocates, controls, and governs threads. The
+    following piece of code, appended to the beginning of our CNN/CIFAR-10 code, modifies
+    OpenMP operations to improve performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: These lines set up four environment variables directly from Python code. Before
+    explaining what these variables mean, let’s first see the performance improvement
+    they have provided.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training time of the CNN model using the CIFAR-10 dataset was reduced from
+    178 seconds to 114 seconds, revealing a performance improvement of 56%! Nothing
+    else was changed in the code! In this execution, OpenMP has created the threads
+    assignment pictorially described in *Figure 4**.4*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.4 – Optimized OpenMP thread allocation](img/B20959_04_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.4 – Optimized OpenMP thread allocation
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in *Figure 4**.4*, OpenMP has used all 16 physical cores, leaving
+    out the logical cores. We can say that binding threads to physical cores is the
+    primary reason for such an increase in performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s break down the set of environment variables configured in this experiment
+    to understand how they contribute to improving the performance of our training
+    process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`OMP_NUM_THREADS`: This defines the number of threads used by OpenMP. We have
+    set the number of threads to `16`, which is exactly the same value set as the
+    default by OpenMP. Although this configuration did not bring any changes to our
+    scenario, it is essential to know this option to control the number of threads
+    used by OpenMP. This is especially important when running more than one training
+    process simultaneously on the same server.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`OMP_PROC_BIND`: This determines the thread affinity policy. When set to `TRUE`,
+    this configuration tells OpenMP to keep threads running on the same core during
+    the entire execution. This configuration prevents threads from being moved from
+    cores, thus minimizing performance issues, such as cache missing.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`OMP_SCHEDULE`: This defines the scheduling policy. As we want to statically
+    bind threads to cores, we should set this variable to a static policy.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`GOMP_CPU_AFFINITY`: This indicates the cores or processors to be used by OpenMP
+    to execute threads. In order to only use physical cores, we should indicate processor
+    identifications corresponding to the physical cores in the system.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The combination of those variables has greatly accelerated the training process
+    of our CNN model. In short, we forced OpenMP to use only physical cores and keep
+    threads running on the same core they were initially assigned. As a result, we
+    have harnessed all the computing power of the physical cores while minimizing
+    the performance pitfalls from the overhead caused by frequent context switching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, context switching occurs when the operating system decides to interrupt
+    the execution of a process to give the opportunity of using a CPU to another process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'OpenMP has a couple more variables to control its behavior besides the ones
+    presented in this chapter. To check the current OpenMP configuration, we can set
+    the `OMP_DISPLAY_ENV` environment variable to `TRUE` when running our PyTorch
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is interesting to learn how each of those environment variable changes OpenMP
+    operation; thus, we can fine-tune for particular scenarios. This output is also
+    useful to verify whether changes to the environment variables did indeed take
+    place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The experiments described in this section used GNU OpenMP since it is the default
+    parallel backend adopted by PyTorch. However, as OpenMP is actually a framework,
+    we have other implementations of OpenMP besides the one provided by GNU. One of
+    those implementations is Intel OpenMP, which is suitable for Intel processor environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, does Intel OpenMP bring relevant improvements? Is it worth using it
+    in place of GNU implementation? See for yourself in the next section!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using and configuring Intel OpenMP
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Intel has its own OpenMP implementation, which promises to deliver better performance
+    in Intel-based environments. As PyTorch comes with GNU implementation by default,
+    we need to take three steps in order to use Intel OpenMP in place of the GNU version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Install Intel OpenMP.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Load the Intel OpenMP libraries.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set up specific environment variables for Intel OpenMP.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/iomp-cnn_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/iomp-cnn_cifar10.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is the easiest one. When considering a Python environment based
+    on Anaconda or supporting PIP, we just need to execute one of these commands to
+    install Intel OpenMP:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: After installation, we should prioritize loading Intel OpenMP libraries instead
+    of implementing GNU. Otherwise, PyTorch will keep using the libraries of the default
+    OpenMP installation, even with Intel OpenMP installed on the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we do not use a PIP or Anaconda-based environment, we can install it on our
+    own. This process requires compiling Intel OpenMP to further install it in the
+    environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We enact this configuration by setting the `LD_PRELOAD` environment variable
+    before running our code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the environment used for these experiments, the Intel OpenMP library is located
+    at `/opt/conda/lib/libiomp5.so`. The `LD_PRELOAD` environment variable allows
+    for forcing the operating system to load libraries before loading the ones configured
+    by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At last, we need to set up some environment variables related to Intel OpenMP:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`OMP_NUM_THREADS` has the same meaning as the GNU version, whereas `KMP_AFFINITY`
+    and `KMP_BLOCKTIME` are exclusive to Intel OpenMP:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`KMP_AFFINITY`: This defines the threads allocation policy. When set to `granularity=fine,compact,1,0`,
+    Intel OpenMP binds threads to physical cores, besides trying to keep it that way
+    for the entire execution. Thus, in the case of Intel OpenMP, we do not need to
+    pass a list of physical cores to force the usage of physical processors, as we
+    do in GNU implementation.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`KMP_BLOCKTIME`: This determines the time that a thread should wait to sleep
+    after completing a task. When set to zero, threads go to sleep immediately after
+    doing their job, thus minimizing the wastage of processor cycles just to wait
+    for another task.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Similar to the GNU version, Intel OpenMP also outputs the current configuration
+    when the `OMP_DISPLAY_ENV` variable is set to `TRUE` (shortened output example):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: To compare the performance brought by Intel OpenMP, we take the result provided
+    by the GNU implementation as a baseline. The training time of the CNN model using
+    the CIFAR-10 dataset was reduced from 114 seconds to 102 seconds, resulting in
+    a performance improvement of around 11%. Even though this is not as impressive
+    as the first experiment, the performance gain is still interesting. In addition,
+    note that we can get better results by using other models, datasets, and computing
+    environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To summarize, we executed the training process almost 1.7 times faster with
+    the configurations shown in this section. No code modification was necessary to
+    achieve such improvement; only direct configurations were applied at the environment
+    level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to install and use an API provided by
+    Intel to accelerate PyTorch’s execution on its processors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing Intel CPU with IPEX
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**IPEX** stands for **Intel extension for PyTorch** and is a set of libraries
+    and tools provided by Intel to accelerate the training and inference of machine
+    learning models.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: IPEX is a clear sign by Intel of highlighting the relevance of PyTorch among
+    machine learning frameworks. After all, Intel has invested a lot of energy and
+    resources in designing and maintaining an API specially created for PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is interesting to say that IPEX strongly relies on libraries provided by
+    the Intel oneAPI toolset. oneAPI contains libraries and tools specific for machine
+    learning applications, such as oneDNN, and other ones to accelerate applications,
+    such as oneTBB, in general.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/baseline-densenet121_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/baseline-densenet121_cifar10.ipynb)
+    and [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/ipex-densenet121_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter04/ipex-densenet121_cifar10.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s learn how to install and use IPEX on our PyTorch code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using IPEX
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'IPEX does not come with PyTorch by default; we need to install it. The easiest
+    way to install IPEX is by using PIP along the same lines we followed for OpenMP
+    in the last section. So, to install IPEX on a PIP environment, we just need to
+    execute the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After installing IPEX, we can proceed to the default installation of PyTorch.
+    Once IPEX is available, we are ready to incorporate it into our PyTorch code.
+    The first step concerns importing the IPEX module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using IPEX is very simple. We just need to wrap our model and optimizer with
+    the `ipex.optimize` function and let IPEX do the rest. The `ipex.optimize` function
+    returns an optimized version of the model and optimizer (SGD, Adam, and so on)
+    used to train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To see the performance improvement provided by IPEX, let’s test it with the
+    DenseNet121 model and the CIFAR-10 dataset (we introduced both of these in previous
+    chapters).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our baseline execution concerns training DenseNet121 with the CIFAR-10 dataset
+    over 10 epochs. For the sake of fairness, we have used Intel OpenMP since we are
+    using an Intel-based environment. However, in this case, we do not change the
+    `KMP_BLOCKTIME` parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The baseline execution took 1,318 seconds to complete 10 epochs, and the resultant
+    model obtained an accuracy of approximately 70%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As stated before, using IPEX is very simple; we just need to add one single
+    line to the baseline code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although `ipex.optimize` accepts other parameters, calling it in this way is
+    usually enough to get what we need.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our IPEX code took 946 seconds to execute the training process of the DenseNet121
+    model, representing a performance improvement of nearly 40%. Except for the environment
+    variables configured at the beginning of the code and the usage of that single
+    line, nothing else was changed in the original code. Thus, IPEX accelerated the
+    training process with just one simple modification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At first sight, IPEX seems similar to the Compile API that we learned about
+    in [*Chapter 3*](B20959_03.xhtml#_idTextAnchor044), *Compiling the Model*. Both
+    of them require adding a single line of code and using the concept of code wrapping.
+    However, the similarities stop there! Unlike the Compile API, IPEX does not compile
+    the model; it replaces some default PyTorch operations with its own implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Follow me to the next section to understand how IPEX works under the hood.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How does IPEX work under the hood?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To understand how IPEX works under the hood, let’s profile the baseline code
+    to check which operations the training process has used. The following output
+    shows the 10 most consuming operations executed by the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our baseline code for DenseNet121 and CIFAR-10 executed those operations commonly
+    employed on convolutional neural networks, such as `convolution_backward`. No
+    surprise here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s see the profiling output of the IPEX code to verify what changes IPEX
+    has made to our baseline code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing to notice is the new prefix used on some operations. Besides
+    `aten`, which denotes the default PyTorch operations library, we also have the
+    `torch_ipex` prefix. The `torch_ipex` prefix indicates the operations provided
+    by IPEX. For example, the baseline code used the `convolution_backward` operation
+    provided by `aten`, whereas the optimized code used the operation provided by
+    IPEX.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can observe, IPEX did not replace every single operation since it does
+    not have an optimized version of all `aten` operations. This behavior is expected
+    because some operations are already in their most optimized form. In this case,
+    it does not make any sense to try to optimize what is already optimized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 4**.5* summarizes the difference between the default PyTorch code and
+    the optimized versions by IPEX and the Compile API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "![Figure 4.5 – Differences between the default and optimized code generated\
+    \ by IPEX and \uFEFFthe Compile API](img/B20959_04_5.jpg)"
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.5 – Differences between the default and optimized code generated by
+    IPEX and the Compile API
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike the Compile API, IPEX does not create a monolithic piece of compiled
+    code. As a result, the optimization process via `ipex.optimize` execution is much
+    faster. On the other hand, the compiled code tends to deliver better performance,
+    as we discussed in detail in [*Chapter 3*](B20959_03.xhtml#_idTextAnchor044),
+    *Compiling* *the Model*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is interesting to say that we can use IPEX as a compiler backend for the
+    Compile API. In doing this, the `torch.compile` function will rely on IPEX to
+    compile the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As IPEX shows the great gamble made by Intel on PyTorch, it is constantly evolving
+    and receiving frequent updates. Therefore, it is important to use the latest version
+    of this tool to get the newest improvements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides some questions to help you retain what you have learned
+    in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    At first, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter04-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter04-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that it is not a test at all! This section
+    aims to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choose the correct option for the following questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A multicore system can have the following two types of computing cores:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Physical and active.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Physical and digital.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Physical and logical.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Physical and vectorial.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A set of threads created by the same process...
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: May share the same memory address space.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Do not share the same memory address space.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Is impossible in modern systems.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Do share the same memory address space.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which of the following environment variables can be used to set the number of
+    threads used by OpenMP?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`OMP_NUM_PROCS`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`OMP_NUM_THREADS`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`OMP_NUMBER_OF_THREADS`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`OMP_N_THREADS`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In a multicore system, the usage of OpenMP is able to improve the performance
+    of the training process because it can...
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Allocate the process to the main memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Bind threads to logical cores.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Bind threads to physical cores.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Avoid the usage of cache memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Concerning the implementation of OpenMP through Intel and GNU, we can assert
+    that...
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is no difference between the performance obtained by both versions.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The Intel version can outperform GNU’s implementation when running on Intel
+    platforms.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The Intel version never outperforms GNU’s implementation when running on Intel
+    platforms.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The GNU version is always faster than Intel OpenMP, regardless of the hardware
+    platform.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: IPEX stands for Intel extension for PyTorch and is defined as...
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A set of low-level hardware instructions.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A set of code examples.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A set of libraries and tools.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A set of documents.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the strategy adopted by IPEX to accelerate the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: IPEX enables the usage of special hardware instructions.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: IPEX replaces all the training process operations with an optimized version.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: IPEX fuses all operations of the training process into a monolithic piece of
+    code.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: IPEX replaces some of the default PyTorch operations of the training process
+    with its own optimized implementations.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is necessary to change in our original PyTorch code to use IPEX?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Nothing at all.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We just need to import the IPEX module.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We need to import the IPEX module and wrap the model with the `ipex.optimize()`
+    method.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We just need to use the newest PyTorch version.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s summarize what we’ve covered so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You learned that PyTorch relies on third-party libraries to accelerate the training
+    process. Besides understanding the concept of multithreading, you have learned
+    how to install, configure, and use OpenMP. In addition, you have learned how to
+    install and use IPEX, which is a set of libraries developed by Intel to optimize
+    the training process of PyTorch code executed on Intel-based platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenMP can accelerate the training process by employing multiple threads to
+    parallelize the execution of PyTorch code, whereas IPEX is useful for replacing
+    the operations provided by the default PyTorch library by optimizing the operations
+    written specifically for Intel hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn how to create an efficient data pipeline
+    to keep the GPU working at peak performance during the entire training process.
+  prefs: []
+  type: TYPE_NORMAL

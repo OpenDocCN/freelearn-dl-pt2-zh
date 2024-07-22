@@ -1,0 +1,666 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building an Efficient Data Pipeline
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Machine learning is grounded on data. Simply put, the training process feeds
+    the neural network with a bunch of data, such as images, videos, sound, and text.
+    Thus, apart from the training algorithm itself, data loading is an essential part
+    of the entire model-building process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that deep learning models deal with huge amounts of data, such
+    as thousands of images and terabytes of text sequences. As a consequence, tasks
+    related to data loading, preparation, and augmentation can severely delay the
+    training process as a whole. So, to overcome a potential bottleneck in the model-building
+    process, we must guarantee an uninterrupted flow of dataset samples to the training
+    process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we’ll explain how to build an efficient data pipeline to keep
+    the training process running smoothly. The main idea is to prevent the training
+    process from being stalled by data-related tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding why it is mandatory to have an efficient data pipeline
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning how to increase the number of workers in the data pipeline
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding how to accelerate data transfer through memory pining
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code examples mentioned in this chapter in this book’s
+    GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute this notebook, such as Google
+    Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why do we need an efficient data pipeline?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ll start this chapter by making you aware of the relevance of having an efficient
+    data pipeline. In the next few subsections, you will understand what a data pipeline
+    is and how it can impact the performance of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a data pipeline?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As you learned in [*Chapter 1*](B20959_01.xhtml#_idTextAnchor016), *Deconstructing
+    the Training Process*, the training process is composed of four phases: forward,
+    loss calculation, optimization, and backward. The training algorithm iterates
+    on dataset samples until there’s a complete epoch. Nevertheless, there is an additional
+    phase we excluded from that explanation: **data loading**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The forward phase invokes data loading to get dataset samples to execute the
+    training process. More specifically, the forward phase calls the data loading
+    process on each iteration to get the data required to execute the current training
+    step, as shown in *Figure 5**.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – Data loading process](img/B20959_05_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1 – Data loading process
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In short, the data loading executes three main tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Loading**: This step involves reading data from a disk and loading it in
+    memory. We can load data into main memory (DRAM) or directly into GPU memory (GRAM).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Preparation**: Usually, we need to prepare data before using it in the training
+    process, such as by performing normalization and resizing.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Augmentation**: When the dataset is small, we must augment it by creating
+    new samples derived from the original ones. Otherwise, the neural network won’t
+    be able to catch the intrinsic knowledge presented in the data. Augmentation tasks
+    include rotation, mirroring, and flipping images.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In general, data loading executes those tasks *on demand*. So, when invoked
+    by the forward phase, it starts to execute all tasks to deliver a dataset sample
+    to the training process. Then, we can see this whole process as a **data pipeline**,
+    in which the data is processed before being used to train the neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A data pipeline (pictorially described in *Figure 5**.2*) is similar to an
+    industrial production line. The original dataset sample is processed sequentially
+    and transformed until it is ready to feed the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – Data pipeline](img/B20959_05_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2 – Data pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: In many cases, model quality is dependent on transformations that are made to
+    the dataset. This is particularly true for small datasets – for which augmentation
+    is almost mandatory – and datasets comprised of poor-quality images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other situations, we do not need to make any modifications to the sample
+    to reach a highly accurate model, perhaps only changing the data format or something
+    like that. In such cases, the data pipeline is limited to loading dataset samples
+    from memory or disk and delivering them to the forward phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regardless of tasks related to transforming, preparing, and converting data,
+    we need to build a data pipeline to feed the forward phase. In PyTorch, we can
+    use components provided by the `torch.utils.data` API to create a data pipeline,
+    as we will see in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to build a data pipeline
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The `torch.utils.data` API provides two components to build a data pipeline:
+    `Dataset` and `DataLoader` (as shown in *Figure 5**.3*). The former is used to
+    indicate the source of the dataset (local files, downloads from the internet,
+    and so on) and to define the set of transformations to be applied to the dataset,
+    whereas the latter is used as an interface to obtain samples from the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – The DataLoader and Dataset components](img/B20959_05_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 – The DataLoader and Dataset components
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practical terms, the training process talks directly to `DataLoader` to consume
+    dataset samples. Thus, the forward phase asks `DataLoader` for a dataset sample
+    on each training step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following piece of code shows an example of the basic usage of `DataLoader`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This piece of code creates a `DataLoader` instance, namely `dataloader`, to
+    provide samples with batch sizes equal to 128.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `Dataset` was not used directly in this case since CIFAR-10 encapsulates
+    dataset creation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are other strategies to build a data pipeline in PyTorch, but `Dataset`
+    and `DataLoader` commonly attend to most cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we’ll learn how an inefficient data pipeline can slow down the entire
+    training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data pipeline bottleneck
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Depending on the complexity of tasks incorporated into the data pipeline, as
+    well as the size of the dataset sample, data loading can take a reasonable time
+    to finish. As a consequence, we can throttle the entire building process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, data loading is executed on the CPU, whereas training takes place
+    on the GPU. As the CPU is much slower than the GPU, the GPU can stay idle, waiting
+    for the next sample to proceed with the training process. The higher the complexity
+    of tasks executed on data feeding, the worse the impact on the training phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 5**.4*, data loading uses the CPU to process dataset samples.
+    When samples become ready, the training phase uses them to train the network.
+    This procedure is continuously executed until all the training steps are completed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.4 – Bottleneck caused by the inefficient data pipeline](img/B20959_05_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4 – Bottleneck caused by the inefficient data pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Although this procedure seems fine at first sight, we are wasting GPU computing
+    power because it stays idle between training steps. The desired behavior is more
+    like what’s shown in *Figure 5**.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.5 – Efficient data pipeline](img/B20959_05_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.5 – Efficient data pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike the previous scenario, the interleaving time between training steps is
+    hardly reduced since samples are loaded earlier, ready to feed the training process
+    that’s executed on the GPU. As a consequence, we experience an overall speedup
+    in the model-building process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we’ll learn how to accelerate the data-loading process
+    by making a couple of simple changes to the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accelerating data loading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Accelerating data loading is crucial to get an efficient data pipeline. In
+    general, the following two changes are enough to get the work done:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing a data transfer between the CPU and GPU
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Increasing the number of workers in the data pipeline
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Putting it that way, these changes may sound tougher to implement than they
+    are. Making these changes is quite simple – we just need to add a couple of parameters
+    when creating the `DataLoader` instance for the data pipeline. We will cover this
+    in the following subsections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing a data transfer to the GPU
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To transfer data from main memory to the GPU, and vice versa, the device driver
+    must ask the operating system to pin or lock a portion of memory. After receiving
+    access to that pinned memory, the device driver starts to copy data from the original
+    memory location to the GPU, but using the pinned memory as a **staging area**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.6 – Data transfer between main memory and GPU](img/B20959_05_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6 – Data transfer between main memory and GPU
+  prefs: []
+  type: TYPE_NORMAL
+- en: The usage of pinned memory in the middle of this process is obligatory because
+    the device driver cannot copy data directly from pageable memory to the GPU. There
+    are architectural issues involved in that procedure, which explains this behavior.
+    Anyway, we can assert that this **double-copy procedure** can negatively affect
+    the performance of the data pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find more information about pinned memory transfer here: [https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc)/.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To overcome this problem, we can tell the device driver to allocate a portion
+    of pinned memory right away instead of requesting a pageable memory area, as usual.
+    By doing so, we can eliminate the unnecessary copy between pageable and pinned
+    memory, thus greatly reducing the overhead involved in GPU data transfer, as shown
+    in *Figure 5**.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.7 – Data transfer using pinned memory](img/B20959_05_7.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7 – Data transfer using pinned memory
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To enable this option on the data pipeline, we need to turn on the `pin_memory`
+    flag while creating `DataLoader`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Nothing else is necessary. But if it is so simple to implement and highly beneficial,
+    why does PyTorch not enable this feature by default? There are two reasons for
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Request for pinned memory can fail*: As stated on the Nvidia developer blog,
+    “*It is possible for pinned memory allocation to fail, so you should always check
+    for errors.*” Thus, there is no guarantee of success in allocating pinned memory.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Increase in memory usage*: Modern operating systems commonly adopt a paging
+    mechanism to manage memory resources. By using this strategy, the operating system
+    can move unused memory pages to disk to free space on main memory. However, pinned
+    memory allocation makes the operating system unable to move pages of that area,
+    disrupting the memory management process and increasing the effective amount of
+    memory usage.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Besides optimizing GPU data transfer, we can configure workers to accelerate
+    data pipeline tasks, as discussed in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring data pipeline workers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The default operation mode of `DataLoader` uses a `DataLoader` stays idle waiting
+    for samples, wasting valuable computing resources. Such harmful behavior becomes
+    worse in a heavy data pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.8 – Single worker data pipeline](img/B20959_05_8.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8 – Single worker data pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, we can increase the number of processes operating on the data
+    pipeline – that is, we can increase the number of data pipeline *workers*. When
+    set to more than one worker, PyTorch will create additional processes to work
+    simultaneously in more than one dataset sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.9 – Multiworker data pipeline](img/B20959_05_9.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9 – Multi-worker data pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: As illustrated in *Figure 5**.9*, DataLoader receives **Sample 2** as soon as
+    it asks for a new sample. This happens because **Worker 2** has started to work
+    asynchronously and simultaneously on that sample, even without receiving a request
+    to do it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To increase the number of workers, we just need to set the `num_workers` parameter
+    on `DataLoader` creation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: We’ll look at a practical performance improvement case in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reaping the rewards
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To see a relevant performance improvement provided by those changes, we need
+    to apply them to a complex data pipeline – that is, a worthy data pipeline! Otherwise,
+    there is no room for performance gain. Therefore, we will adopt a data pipeline
+    composed of seven tasks as our baseline, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: For each sample, the data loading process applies five transformations, namely
+    resizing, cropping, flipping, rotation, and Gaussian blur. After applying these
+    transformations, data loading converts the resultant image into a tensor data
+    type. Finally, the data is normalized according to a set of parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To assess performance improvement, we used this pipeline to train the **ResNet121**
+    model over the **CIFAR-10** dataset. The training process, which is comprised
+    of 10 epochs, took 1,892 seconds to complete, even running on an environment endowed
+    with an NVIDIA A100 GPU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that this data pipeline is significantly heavier than the ones we’ve adopted
+    so far in this book, which is exactly what we want!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use pinned memory and enable multi-worker capability, we must set those
+    two parameters on the original code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After applying these changes to our code, we’ll get the following result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have reduced the training time from 1,892 to 846 seconds, representing an
+    impressive performance improvement of 123%!
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    Initially, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting this quiz, remember that this is not a test! This section aims
+    to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Choose the correct options for the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What three main tasks are executed during the data loading process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loading, scaling, and resizing.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Scaling, resizing, and loading.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resizing, loading, and filtering.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loading, preparation, and augmentation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Data loading feeds which phase of the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Forward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Backward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optimization.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loss calculation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which components provided by the `torch.utils.data` API can be used to implement
+    a data pipeline?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`Datapipe` and `DataLoader`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`Dataset` and `DataLoading`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`Dataset` and `DataLoader`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`Datapipe` and `DataLoading`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Besides increasing the number of workers in the data pipeline, what can we do
+    to improve the performance of the data loading process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Reduce the size of the dataset.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Do not use a GPU.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Avoid the usage of high-dimensional images.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optimize data transfer between the CPU and GPU.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How can we accelerate the data transfer between the CPU and GPU?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use smaller datasets.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the fastest GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Allocate and use pinned memory instead of pageable memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Increase the amount of main memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What should we do to enable the usage of pinned memory on `DataLoader`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Nothing. It is already enabled by default.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set the `pin_memory` parameter to `True`.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set the `experimental_copy` parameter to `True`.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update PyTorch to version 2.0.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why can using more than one worker on the pipeline accelerate data loading on
+    PyTorch?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorch reduces the amount of allocated memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorch enables the usage of special hardware capabilities.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorch uses the fastest links to communicate with GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorch processes simultaneously more than one dataset sample.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which of the following is true when making a request to allocate pinned memory?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It is always satisfied.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It can fail.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It always fails.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It cannot be done through PyTorch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, let’s summarize what we’ve covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned that the data pipeline is an important piece of
+    the model-building process. Thus, an efficient data pipeline is essential to keep
+    the training process running without interruptions. Besides optimizing data transfer
+    to the GPU through memory pining, you have learned how to enable and configure
+    a multi-worker data pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn how to reduce model complexity to speed
+    up the training process without penalizing model quality.
+  prefs: []
+  type: TYPE_NORMAL

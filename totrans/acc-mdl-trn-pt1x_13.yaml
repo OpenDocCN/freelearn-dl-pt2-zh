@@ -1,0 +1,1032 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training with Multiple GPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Undoubtedly, the computing power provided by GPUs is one of the factors that’s
+    responsible for boosting the deep learning area. If a single GPU device can accelerate
+    the training process exceedingly, imagine what we can do with a multi-GPU environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will show you how to use multiple GPUs to accelerate the
+    training process. Before describing the code and launching procedure, we will
+    dive into the characteristics and nuances of the multi-GPU environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The fundamentals of a multi-GPU environment
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to distribute the training process among multiple GPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NCCL, the default backend for distributed training on NVIDIA GPUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code mentioned in this chapter in this book’s GitHub
+    repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute this code, such as Google
+    Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Demystifying the multi-GPU environment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A multi-GPU environment is a computing system with more than one GPU device.
+    Although multiple interconnected machines with just one GPU can be considered
+    a multi-GPU environment, we usually employ this term to describe environments
+    with two or more GPUs per machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand how this environment works under the hood, we need to learn about
+    the connectivity of the devices and technologies that are adopted to provide efficient
+    communication across multiple GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, before we dive into these topics, we will answer a disquieting question
+    that has probably come to your mind: will we have access to an expensive environment
+    like that? Yes, we will. But first, let’s briefly discuss the increasing popularity
+    of multi-GPU environments.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The popularity of multi-GPU environments
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Going back 10 years ago, it was inconceivable to think of a machine with more
+    than one GPU. Besides the high cost of this device, the applicability of a GPU
+    was restricted to solving scientific computing problems, which is a niche that’s
+    exploited only by universities and research institutes. However, with the boom
+    of **artificial intelligence** (**AI**) workloads, the usage of GPU was tremendously
+    democratized across all sorts of companies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, with the massive adoption of cloud computing in the last few years,
+    we started to have cloud providers offering multi-GPU instances at a competitive
+    price. In **Amazon Web Services** (**AWS**), for example, there are a variety
+    of instances endowed with multiple GPUs such as **p5.48xlarge**, **p4d.24xlarge**,
+    and **p3dn.24xlarge**, which provides 8 NVIDIA GPUs for the H100, A100, and V100
+    models, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Microsoft Azure and **Google Cloud Platform** (**GCP**) also have multi-GPU
+    instances. The former offers the **NC96ads** with 4 NVIDIA A100s, while the latter
+    offers the **a3-highgpu-8g** instance equipped with 8 NVIDIA H100s. Even second-tier
+    cloud providers such as IBM, Alibaba, and **Oracle Cloud Infrastructure** (**OCI**)
+    have multi-GPU instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Looking at the on-premises side, we have important vendors such as Supermicro,
+    HP, and Dell offering multi-GPU platforms in their portfolio. NVIDIA, for example,
+    provides a fully integrated server specially designed to run AI workloads known
+    as the DGX system. DGX version 1, for example, is equipped with 8 GPUs of Volta
+    or Pascal architecture, while DGX version 2 has twice the number of GPUs of its
+    predecessor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considering the increasing popularity of these environments, it is more than
+    reasonable to say that data scientists and machine learning engineers will have
+    access to these platforms sooner or later. Note that many professionals already
+    have these environments in their hands, though they do not know how to exploit
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although a multi-GPU environment can provide an outstanding performance improvement
+    for the training process, it has some drawbacks, such as the high cost to acquire
+    and maintain such environments, and the huge amount of energy needed to control
+    the temperature of these devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use this resource efficiently, we must learn the fundamental characteristics
+    of this environment. So, let’s take our first step in that direction and understand
+    how GPUs are connected to this platform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding multi-GPU interconnection
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A multi-GPU environment can be seen as a pool of resources where different users
+    can allocate devices individually to execute their training process. However,
+    in the context of distributed training, we are interested in using more than one
+    device simultaneously – that is, we will use each GPU to run a model replica of
+    the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As the gradient that’s obtained by each model replica must be shared among
+    all other replicas, the GPUs in a multi-GPU environment must be connected so that
+    the data can flow across the multiple devices available on the system. There are
+    three types of GPU connection technologies: PCI Express, NVLink, and NVSwitch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find a comparison between these technologies in the paper entitled
+    *Evaluating Modern GPU Interconnect: PCIe, NVLink, NV-SLI, NVSwitch and GPUDirect*,
+    by Ang Li and others. You can access this paper at [https://ieeexplore.ieee.org/document/8763922](https://ieeexplore.ieee.org/document/8763922).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following sections describe each of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCI Express
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**PCI Express**, also known as PCIe, is the default bus to connect all sorts
+    of devices, such as network cards, disks, and GPUs, to the computer system, as
+    shown in *Figure 10**.1*. Therefore, PCIe is not a particular technology to interconnect
+    GPUs. Au contraire, PCIe is a general and vendor-agnostic expansion bus that connects
+    peripherals to the system, including GPUs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.1 – PCIe interconnection technology](img/B20959_10_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.1 – PCIe interconnection technology
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PCIe interconnects peripherals through two main components: the **PCIe root
+    complex** and the **PCIe switch**. The former connects the entire PCIe subsystem
+    to the CPU, while the latter is used to connect endpoint devices (peripherals)
+    to the subsystem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The PCIe root complex is also known as the PCIe host bridge or PHB. In modern
+    processors, the PCIe host bridge is placed inside the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 10**.2*, PCIe uses switches to organize the subsystem on
+    a hierarchical basis, where devices connected to a common switch belong to the
+    same hierarchical level. Peripherals at the same hierarchical level communicate
+    with each other at a lower cost than those in distinct levels of the hierarchical
+    structure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.2 – PCIe subsystem](img/B20959_10_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.2 – PCIe subsystem
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the communication between `GPU #0` and `NIC #0` is faster than
+    it is between `GPU #1` and `NIC #0`. This happens because the first tuple is connected
+    to the same switch (`switch #2`), while the devices of the last tuple are connected
+    to different switches.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, the communication between `GPU #3` and `Disk #1` is cheaper than
+    between `GPU #3` and `Disk #0`. In the latter case, `GPU #3` should traverse three
+    switches and the root complex to reach `Disk #0`, whereas `Disk #1` is far from
+    `GPU #3` by only two switches.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCI Express does not provide a way to connect one GPU to another directly or
+    to connect all GPUs. To overcome this issue, NVIDIA has invented a new interconnection
+    technology called NVLink, as described in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NVLink
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**NVLink** is an NVIDIA proprietary interconnection technology that allows
+    us to connect pairs of GPUs directly to each other. NVLink provides superior data
+    transfer rates compared to PCIe. A single NVLink can provide a data transfer of
+    25 GB per second, while PCIe allows a maximum data transfer rate of 1 GB per second.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Modern GPU architectures support more than one NVLink connection. Each link
+    can be used to connect the GPU to different GPUs (as shown in *Figure 10**.3 (a)*)
+    or to bond the links to increase the bandwidth between two or more GPUs (as shown
+    in *Figure 10**.3 (b)*). The P100 and V100 GPUs, for example, support four and
+    six NVLink connections, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.3 – NVLink connections](img/B20959_10_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.3 – NVLink connections
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nowadays, NVLink is the best option to interconnect NVIDIA GPUs. The benefits
+    of using NVLink rather than PCIe are quite obvious. With NVLink, we can connect
+    GPUs directly, reducing latency and improving bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notwithstanding, PCIe overcomes NVLink in one aspect: *scalability*. Due to
+    the finite number of connections present in GPU, NVLink will not be able to connect
+    a certain number of devices altogether. For example, it is impossible to connect
+    eight GPUs altogether if each GPU supports only four NVLink connections. On the
+    other hand, PCIe can connect any number of devices through PCIe switches.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To surpass this scalability problem, NVIDIA has created a complementary technology
+    for NVLink known as **NVSwitch**. We’ll learn about it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NVSwitch
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'NVSwitch extends the degree of connectivity of GPUs by using NVLink switches.
+    Roughly speaking, the idea behind NVSwitch is similar to the usage of switches
+    on PCIe technology – that is, both interconnections rely on components acting
+    like a concentrator or a hub. This component is used to link and aggregate devices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.4 – NVSwitch interconnection topology](img/B20959_10_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.4 – NVSwitch interconnection topology
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 10**.4*, we can use NVSwitch to connect eight GPUs, regardless
+    of the number of NVLinks supported by each GPU. Other arrangements involve NVLink
+    and NVSwitch, such as the one presented in *Figure 10**.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.5 – Example of a topology using NVLink and NVSwitch](img/B20959_10_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.5 – Example of a topology using NVLink and NVSwitch
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the example illustrated in *Figure 10**.5*, all GPUs are connected to themselves
+    through NVSwitch. However, some pairs of GPUs are connected with two NVLinks,
+    thus doubling the data transfer rate between these pairs. It is also possible
+    to use more than one NVSwitch to provide total connectivity of GPUs, besides improving
+    the connection among pairs or tuples of devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, GPUs can be connected through distinct communication technologies
+    that provide different data transfer rates and distinct ways to connect devices.
+    As a result, we can have more than one path to connect two or more devices in
+    a multi-GPU environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The way devices are connected in a system is called **interconnection topology**
+    and is something that plays a vital role in the performance optimization of the
+    training process. Let’s jump to the next section to understand why the topology
+    is worthy of our attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How does interconnection topology affect performance?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To understand the impact of interconnection topology on training performance,
+    let’s consider an analogy. Consider a city with multiple roads, such as freeways,
+    highways, and streets, where each type of road has characteristics related to
+    speed limit, congestion, and so forth. As the city has many roads, we have distinct
+    ways to reach the same destination. Therefore, we need to decide which path is
+    the best one to make our route as fast as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can think of the interconnection topology as the city described in our analogy.
+    In the city, communication between devices can take distinct paths, where some
+    paths are fast, such as the highways, and other ones are slow, such as a regular
+    street. As stated in the city analogy, we should always choose the fastest connection
+    between devices being used in the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To have an idea of the potential impact of an unaware topology selection of
+    devices, consider the block diagram illustrated in *Figure 10**.6*, which represents
+    an environment that’s used to run highly intensive computing workloads as the
+    training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.6 – Example of a system interconnection diagram](img/B20959_10_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.6 – Example of a system interconnection diagram
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The diagram shown in *Figure 10**.6* is a simplified version of a real interconnection
+    topology. Hence, we should consider it a didactic representation of a real topology
+    scheme.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The environment illustrated in *Figure 10**.6* can be classified as a multi-device
+    platform because it has multiple GPUs, CPUs, and other important components, such
+    as ultra-fast disks and network cards. Alongside multiple devices, such platforms
+    also employ multiple interconnection technologies, such as the ones we learned
+    about in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Supposing we intend to use two GPUs to execute the distributed training process
+    on the system described in *Figure 10**.6*, which ones should we pick up?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we choose `GPU #0` and `GPU #1`, the communication will be fast since these
+    devices are connected through NVLink connections. On the other hand, if we select
+    `GPU #0` and `GPU#3`, the communication will traverse the entire PCIe subsystem.
+    Besides having a lower bandwidth than NVLink, communication through PCIe in this
+    scenario will cross various PCIe switches, two PCIe root complexes, and both CPUs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, we must choose the option that delivers the best communication performance,
+    which can be achieved by using links with higher data transfer rates and using
+    the nearest devices. In other words, *we need to use GPUs with the* *highest affinity*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might be wondering how to discover the interconnection topology of your
+    environment. We’ll learn how to do this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discovering the interconnection topology
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To discover the interconnection topology of NVIDIA GPUs, we just need to execute
+    the `nvidia-smi` command with two parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `topo` parameter stands for topology and provides options to get more information
+    about the interconnection topology adopted in the system. The `–m` option tells
+    `nvidia-smi` to print the GPU affinity in a matrix format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The matrix that’s printed by `nvidia-smi` reveals the affinity between each
+    possible pair of GPUs available in the system. As the affinity between the same
+    device is illogical, the matrix diagonal is marked with X. In the remaining coordinates,
+    the matrix exhibits a label to denote the best connection type available for that
+    pair of devices. The possible labels for the matrix are as follows (adapted from
+    the `nvidia-smi` manual):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**SYS**: The connection traversing PCIe as well as the interconnection between
+    NUMA nodes (for example, QPI/UPI interconnections)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**NODE**: The connection traversing PCIe as well as the interconnection between
+    the PCIe root complex within a NUMA node'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PHB**: The connection traversing PCIe as well as a PCIe root complex (PCIe
+    host bridge)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PXB**: The connection traversing multiple PCIe bridges (without traversing
+    any PCIe root complex)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PIX**: The connection traversing, at most, a single PCIe bridge'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**NV#**: The connection traversing a bonded set of # NVLinks'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let’s evaluate an example of an affinity matrix generated by `nvidia-smi`.
+    The matrix illustrated in *Table 10.1* was generated from an environment comprised
+    of 8 GPUs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | **GPU0** | **GPU1** | **GPU2** | **GPU3** | **GPU4** | **GPU5** | **GPU6**
+    | **GPU7** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU0** | X | NV1 | NV1 | NV2 | NV2 | SYS | SYS | SYS |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU1** | NV1 | X | NV2 | NV1 | SYS | NV2 | SYS | SYS |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU2** | NV1 | NV2 | X | NV2 | SYS | SYS | NV1 | SYS |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU3** | NV2 | NV1 | NV2 | X | SYS | SYS | SYS | NV1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU4** | NV2 | SYS | SYS | SYS | X | NV1 | NV1 | NV2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU5** | SYS | NV2 | SYS | SYS | NV1 | X | NV2 | NV1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU6** | SYS | SYS | NV1 | SYS | NV1 | NV2 | X | NV2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **GPU7** | SYS | SYS | SYS | NV1 | NV2 | NV1 | NV2 | X |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 10.1 – Example of an affinity matrix generated by nvidia-smi
+  prefs: []
+  type: TYPE_NORMAL
+- en: The affinity matrix described in *Table 10.1* tells us that some GPUs are connected
+    through two NVLinks (labeled `NV2`), while other ones are connected with just
+    one NVLink (labeled `NV1`). In addition, many other GPUs do not share an NVLink
+    connection, being connected only by the largest path in the system (labeled `SYS`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, if we needed to select two GPUs to work together in the distributed training
+    process, it would be recommended to use, for example, GPUs `#0` and `#3`, `#0`
+    and `#4`, and `#1` and `#2` because these pairs of devices are connected by two
+    bonded NVLinks. Conversely, the worse option would be using GPUs `#0` and `#5`
+    or `#2` and `#4` since the connection between these devices crosses the entire
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we are interested in knowing the affinity of two specific devices, we can
+    execute `nvidia-smi` with the `–i` parameter, followed by the GPU’s ID:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, GPUs `#0` and `#1` are connected through multiple PCIe switches,
+    though they do not traverse any PCIe root complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another way to map the topology of NVIDIA GPUs is using **NVIDIA Topology-Aware
+    GPU Selection** (**NVTAGS**). NVTAGS is a toolset created by NVIDIA to automatically
+    determine the fastest communication channel between GPUs. For more information
+    about NVTAGS, you can access this link: [https://developer.nvidia.com/nvidia-nvtags](https://developer.nvidia.com/nvidia-nvtags)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting GPU affinity
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The easiest way to set GPU affinity is by using the `CUDA_VISIBLE_DEVICES` environment
+    variable. This variable allows us to indicate which GPUs will be visible to CUDA-based
+    programs. To do this, we just need to specify the number IDs of the GPUs, separated
+    by commas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, considering an environment endowed with 8 GPUs, we must set `CUDA_VISIBLE_DEVICES`
+    to a value of `2,3` so that it can use GPUs `#2` and `#3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `CUDA_VISIBLE_DEVICES` defines which GPUs will be used by the CUDA
+    program and not the number of devices. So, if the variable is set to `5`, for
+    example, the CUDA program will see only GPU device `#5` and not five of the eight
+    devices available in the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three ways to set `CUDA_VISIBLE_DEVICES` to select the GPUs we want
+    to use in our training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Exporting** the variable before starting the training program:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '**Setting** up the variable inside the training program:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '**Defining** the variable in the same command line of the training program:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the next section, we will learn how to code and launch distributed training
+    on multiple GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing distributed training on multiple GPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we’ll show you how to implement and run distributed training
+    on multiple GPUs using NCCL, the *de facto* communication backend for NVIDIA GPUs.
+    We’ll start by providing a brief overview of NCCL, after which we will learn how
+    to code and launch distributed training in a multi-GPU environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The NCCL communication backend
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: NCCL stands for NVIDIA Collective Communications Library. As its name suggests,
+    NCCL is a library that provides optimized collective operations for NVIDIA GPUs.
+    Therefore, we can use NCCL to execute collective routines such as broadcast, reduce,
+    and the so-called all-reduce operation. Roughly speaking, NCCL plays the same
+    role as oneCCL does for Intel CPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch supports NCCL natively, which means that the default installation of
+    PyTorch for NVIDIA GPUs already comes with a built-in NCCL version. NCCL works
+    on single or multiple machines and supports the usage of high-performance networks
+    such as InfiniBand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Along the lines of oneCCL and OpenMP, the behavior of NCCL can also be controlled
+    through environment variables. For example, we can control the logging level of
+    NCCL through the `NCCL_DEBUG` environment variable, which accepts the `trace`,
+    `info`, and `warn` values. In addition, it is possible to filter the logs according
+    to the subsystem by setting the `NCCL_DEBUG_SUBSYS` variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete set of NCCL environment variables can be found at [https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to use NCCL as the communication backend
+    in the distributed training process with multiple GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding and launching distributed training with multiple GPUs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The code and launching script to distribute the training process among multiple
+    GPUs is almost the same as what was presented in [*Chapter 9*](B20959_09.xhtml#_idTextAnchor132),
+    *Training with Multiple CPUs*. Here, we will learn how to adapt them for distributed
+    training in a multi-GPU environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding the distributed training for multi-GPU
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We only need to make two modifications to the multi-CPU code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter10/nccl_distributed-efficientnet_cifar10.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first modification concerns passing `nccl` as input for the `backend` parameter
+    of the `init_process_group` method (line 77):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The second modification is the most important one, though. As we are running
+    the training process in a multi-GPU environment, we need to guarantee that each
+    process exclusively allocates one of the GPUs available on the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By doing this, we can utilize the process rank to define which device will be
+    allocated to the process. For example, considering a muti-GPU environment comprised
+    of four GPUs, process rank 0 will use GPU `#0`, process rank 1 will use GPU `#1`,
+    and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Although this change is essential to execute distributed training correctly,
+    it is pretty simple to implement. We just need to attribute the process rank –
+    stored in the `my_rank` variable – to the `device` variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Concerning the GPU’s affinity, you might be wondering, **how could we select
+    GPUs we intend to use if each process allocates the GPU that corresponds to its
+    rank?** This question is fair and usually leads to a lot of confusion. Fortunately,
+    the answer is simple.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that the `CUDA_VISIBLE_DEVICES` variable abstracts the real GPU
+    identification from the training program. So, if we set the variable to `6,7`,
+    the training program will see only two devices – that is, devices identified with
+    numbers 0 and 1\. Thus, the processes with ranks 0 and 1 will allocate the GPU
+    numbers 0 and 1, which are the real IDs of 6 and 7, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To summarize, only these two modifications are enough to get a piece of code
+    ready to be executed in a multi-GPU environment. So, let’s move on to the next
+    step: launching the distributed training process.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Launching the distributed training process on a multi-GPU
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The script to execute distributed training on multiple GPUs follows the same
+    logic as the one we used to run distributed training on multiple CPUs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the GPU version, we pass the number of GPUs as an input parameter instead
+    of the number of processes. Because we usually assign an entire GPU to a single
+    process, the number of processes in distributed training is equal to the number
+    of GPUs we intend to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Concerning the command line to execute the script, there is no difference between
+    the CPU and GPU versions. We just need to call the script’s name and inform the
+    training script, followed by the number of GPUs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also adapt the script so that it uses containers, as we did with the
+    CPU implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The unique difference in the GPU implementation concerns the Apptainer command
+    line. When using NVIDIA GPUs, we need to call Apptainer with the `--nv` parameter
+    to enable support for these devices within the container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/scripts/chapter10/launch_multiple_gpu.sh).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s see how fast distributed training with multiple GPUs can be.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Experimental evaluation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To evaluate distributed training on multiple GPUs, we have trained the EfficientNet
+    model against the CIFAR-10 dataset over 25 epochs by using a single machine equipped
+    with 8 NVIDIA A100 GPUs. As a baseline, we will use the execution time of training
+    this model with only 1 GPU, which was equal to 707 seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The execution time of training the model with 8 GPUs was equal to 109 seconds,
+    representing an impressive performance improvement of 548% compared to the execution
+    time spent to train the model with just 1 GPU. In other words, the distributed
+    training with 8 GPUs was almost 6.5 times faster than the singular training approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nevertheless, as happened in the distributed training process with multiple
+    CPUs, the model accuracy was also penalized by the distributed training process
+    running multiple GPUs. With only 1 GPU, the trained model achieved an accuracy
+    of 78.76%, but with 8 GPUs, the accuracy decreased to 68.82%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This difference in model accuracy is relevant; therefore, we should not put
+    it aside. Au contraire, we should take it into account when distributing the training
+    process among multiple GPUs. For example, if we cannot tolerate a 10% difference
+    in model accuracy, we should try reducing the number of GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To give you an idea of the relationship between performance gain and the corresponding
+    model accuracy, we conducted additional tests. The results are shown in *Table
+    10.2*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Number** **of GPUs** | **Execution Time** | **Accuracy** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 707 | 78.76% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 393 | 74.82% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 276 | 72.70% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 208 | 70.72% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | 172 | 68.34% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 6 | 142 | 69.44% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 7 | 122 | 69.00% |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 8 | 109 | 68.82% |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 10.2 – Results of distributed training with multiple GPUs
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Table 10.2*, the accuracy tends to decrease as the number of GPUs
+    increases. However, if we take a closer look, we’ll realize that 4 GPUs achieve
+    a very good performance improvement (240%) while keeping the accuracy above 70%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is also interesting to note that model accuracy decreased by 4% when we used
+    2 GPUs in the training process. This result shows that the distributed training
+    impacts accuracy, even using the smallest possible number of GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, the model accuracy remained almost stable at around 68% from
+    5 devices onward, though performance improvement kept rising.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, it is essential to pay attention to model accuracy when increasing
+    the number of GPUs in the distributed training process. Otherwise, a blind pursuit
+    of performance improvement can lead to an undesirable result in the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    Initially, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter10-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter10-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that this is not a test! This section aims
+    to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choose the correct option for the following questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which are the three main types of GPU interconnection technologies?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCI Express, NCCL, and GPU-Link.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCI Express, NVLink, and NVSwitch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCI Express, NCCL, and GPU-Switch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCI Express, NVML, and NVLink.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NVLink is a proprietary interconnection technology that allows you to do which
+    of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Connect the GPU to the CPU.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Connect the GPU to the main memory.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Connect pairs of GPUs directly to each other.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Connect the GPU to the network adapter.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which environment variable is used to define GPU affinity?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`CUDA_VISIBLE_DEVICES`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`GPU_VISIBLE_DEVICES`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`GPU_ACTIVE_DEVICES`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`CUDA_AFFINITY_DEVICES`.'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is NCCL?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCL is an interconnection technology that’s used to link NVIDIA GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCL is a library that’s used to profile programs running on NVIDIA GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCL is a compiler toolkit that’s used to generate optimized code for NVIDIA
+    GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCL is a library that provides optimized collective operations for NVIDIA GPUs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which program launcher can be used to run distributed training on multiple GPUs?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: GPUrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Torchrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NCCLrun.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: oneCCL.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If we set the `CUDA_VISIBLE_DEVICES` environment variable to a value of “`2,3`”,
+    which device numbers will be passed to the training script?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 2 and 3.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 3 and 2.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 0 and 1.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 0 and 7.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How can we obtain more information about the interconnection topology that’s
+    adopted in a given multi-GPU environment?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Running the `nvidia-topo-ls` command with the `-``interconnection` option.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Running the `nvidia-topo-ls` command with the `-``gpus` option.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Running the `nvidia-smi` command with the `-``interconnect` option.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Running the `nvidia-smi` command with the `-``topo` option.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which component is used by the PCI Express technology to interconnect PCI Express
+    devices in a computing system?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCIe switch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCIe nvswitch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCIe link.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PCIe network.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to distribute the training process across multiple
+    GPUs by using NCCL, the optimized NVIDIA library for collective communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We started this chapter by understanding how a multi-GPU environment employs
+    distinct technologies to interconnect devices. Depending on the technology and
+    interconnection topology, the communication between devices can slow down the
+    entire distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After being introduced to the multi-GPU environment, we learned how to code
+    and launch distributed training on multiple GPUs by using NCCL as the communication
+    backend and `torchrun` as the launch provider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The experimental evaluation of our multi-GPU implementation showed that distributed
+    training with 8 GPUs was 6.5 times faster than running with a single GPU; this
+    is an expressive performance improvement. We also learned that model accuracy
+    can be affected by performing distributed training on multiple GPUs, so we must
+    take it into account when increasing the number of devices that are used in the
+    distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To end our journey of accelerating the training process with PyTorch, in the
+    next chapter, we will learn how to distribute the training process among multiple
+    machines.
+  prefs: []
+  type: TYPE_NORMAL

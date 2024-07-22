@@ -1,0 +1,1090 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Distributed Training at a Glance
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When we face a complex problem in real life, we usually try to solve it by dividing
+    the big problem into small parts that are easier to treat. So, by combining the
+    partial solutions obtained from the small pieces of the original problem, we reach
+    the final solution. This strategy, called **divide and conquer**, is frequently
+    used to solve computational tasks. We can say that this approach is the basis
+    of the parallel and distributed computing areas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that this idea of dividing a big problem into small pieces comes
+    in handy to accelerate the training process of complex models. In cases where
+    using a single resource is not enough to train the model in a reasonable time,
+    the unique way out relies on breaking down the training process and spreading
+    it across multiple resources. In other words, we need to *distribute the* *training
+    process*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The basic concepts of distributed training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The parallel strategies that are used to spread the training process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The basic workflow to implement distributed training in PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code examples mentioned in this chapter in the book’s
+    GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute the code provided, such
+    as Google Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A first look at distributed training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ll start this chapter by discussing the reasons for distributing the training
+    process among multiple resources. Then, we’ll learn what resources are commonly
+    used to execute this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When do we need to distribute the training process?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The most common reason to distribute the training process concerns *accelerating
+    the building process*. Suppose the training process is taking a long time to complete,
+    and we have multiple resources at hand. In that case, we should consider distributing
+    the training process among these various resources to reduce the training time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second motivation for going distributed is related to **memory leaks** to
+    load a large model in a single resource. In this situation, we rely on distributed
+    training to allocate different parts of the large model into distinct devices
+    or resources so that the model can be loaded into the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, distributed training is not a *silver bullet* that solves both problems.
+    In many situations, distributed training can achieve the same performance as the
+    traditional execution or, depending on the case, can even be worse. This happens
+    because the overhead that’s imposed by preparing the initial setup and performing
+    communication between the multiple resources can overcome the benefits of running
+    the training process in parallel. In addition, we can first try to reduce the
+    model’s complexity, as described in [*Chapter 6*](B20959_06.xhtml#_idTextAnchor085),
+    *Simplifying the Model*, instead of moving to the distributed approach. If it
+    succeeds, the resultant model of the simplifying process may now fit on the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, distributed training is not always the correct answer to reduce
+    the training time or to fit the model on a given resource. Thus, it is recommended
+    to take a breath and carefully analyze whether distributed training sounds promising
+    to solve the problem. In short, we can use the flowchart depicted in *Figure 8**.1*
+    to decide when to adopt either the traditional or distributed approach:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – A flowchart for deciding when to use the traditional or distributed
+    approach](img/B20959_08_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – A flowchart for deciding when to use the traditional or distributed
+    approach
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the face of a memory leak or a long time to train, we should apply all possible
+    performance improvement techniques before considering moving to a distributed
+    approach. By doing this, we can avoid problems such as wasting allocated resources
+    that are not being used effectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides deciding when to distribute the training process, we should evaluate
+    the amount of resources to use in the distributed approach. It is a common mistake
+    to get all available resources to execute the distributed training, supposing
+    that the higher the amount of resources, the shorter the time to train the model.
+    However, there’s no guarantee that increasing the amount of resources will result
+    in better performance. The result can be even worse, as we discussed earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, distributed training is useful in cases where the training process
+    takes a long time to finish, or the model does not fit on a given resource. As
+    both cases can be solved by applying performance improvement techniques, we should
+    first try these methods before moving to a distributed strategy. Otherwise, we
+    can face side effects such as resource wastage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we’ll provide a higher-level explanation of the computing
+    resources that are used to execute this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Where do we execute distributed training?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In a more general way, we can say that distributed training concerns dividing
+    the training process into multiple parts, where each part manages a piece of the
+    entire training process. Each of these parts is allocated to run on a separate
+    computing **resource**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the context of distributed training, we can run a part of the training process
+    in the CPU or an accelerator device. Although the accelerator device that’s commonly
+    used for this purpose is the GPU, other less popular options, such as FPGA, XPU,
+    and TPU, exist.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These computing resources can be available on a single machine or be located
+    on multiple servers. Moreover, a single machine can possess one or more of these
+    resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In other words, we can distribute the training process among *one machine with
+    multiple computing resources* or spread it across *multiple machines with single
+    or multiple resources*. To make this easier to understand, *Figure 8**.2* depicts
+    the possible computing resource arrangements you can use in the distributed training
+    process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – Possible arrangements of computing resources](img/B20959_08_02.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – Possible arrangements of computing resources
+  prefs: []
+  type: TYPE_NORMAL
+- en: Arrangement **A**, which has multiple devices located in a single server, is
+    the easiest and fastest configuration to run the distributed training process.
+    As we will learn in [*Chapter 11*](B20959_11.xhtml#_idTextAnchor167), *Training
+    with Multiple Machines*, running the training process on multiple machines depends
+    on the performance delivered by the network used to interconnect the nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Despite the network’s performance, the usage of this additional component can
+    downgrade the performance on its own. Therefore, it is preferable to adopt arrangement
+    **A** whenever possible to avoid the use of network interconnection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Concerning arrangements **B** and **C**, it is better to use the latter because
+    it has a higher ratio of devices per machine. Thus, we can concentrate the distributed
+    training process on a smaller number of machines, hence avoiding network usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in the absence of arrangements **A** and **C**, it is still a good
+    idea to use arrangement **B**. Even with the bottleneck imposed by the network,
+    it is likely that the distributed training process overcomes the traditional way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Usually, the GPU is not shared among training instances – that is, the distributed
+    training process allocates one training instance per GPU. In the case of a CPU,
+    things work differently: one CPU can execute more than one training instance.
+    This happens because the CPU is a multicore device, so allocating distinct computing
+    cores to run different training instances is possible.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, we can run two training instances in a CPU with 32 computing cores,
+    where each training instance uses half of the available cores, as shown in *Figure
+    8**.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – Usage of distinct computing cores to run different training
+    instances](img/B20959_08_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – Usage of distinct computing cores to run different training instances
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although it is possible to run distributed training in that way, it is most
+    common to run on multiple GPUs located on a single machine (or more) or in multiple
+    CPUs found on multiple machines. This configuration can be the unique option that’s
+    available in many situations, so it is interesting to know how to do it. We will
+    learn more about this in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149), *Training
+    with* *Multiple CPUs*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After being introduced to the distributed training world, it is time to jump
+    to the next section, where you will learn the basic concepts of this approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the fundamentals of parallelism strategies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we learned that the distributed training approach divides
+    the whole training process into small parts. As a result, the entire training
+    process can be solved in parallel because each of these small parts is executed
+    simultaneously in distinct computing resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The parallelism strategy defines how to divide the training process into small
+    parts. There are two main parallelism strategies: model and data parallelism.
+    The following sections explain both.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model parallelism
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Model parallelism** divides the set of operations that are executed during
+    the training process into smaller subsets of computing tasks. By doing this, the
+    distributed process can run these smaller subsets of operations in distinct computing
+    resources, thus accelerating the entire training process.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that operations executed in the forward and backward phases are
+    not independent of each other. In other words, the execution of one operation
+    usually depends on the output generated by another. Due to this constraint, model
+    parallelism is not straightforward to implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Nevertheless, the brilliant human mind has invented three techniques to solve
+    this problem: the **inter-layer**, **intra-operation**, and **inter-operation**
+    paradigms. Let’s learn more.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inter-layer paradigm
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In the **inter-layer** paradigm, each model layer is executed in parallel in
+    a distinct computing resource, as shown in *Figure 8**.4*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4 – The inter-layer model parallelism paradigm](img/B20959_08_04.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.4 – The inter-layer model parallelism paradigm
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as the computation of a given layer usually depends on the results
+    of another one, the inter-layer paradigm needs to rely on a particular strategy
+    to enable distributed training in these conditions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When adopting this paradigm, the distributed training process establishes a
+    continuous training flow so that the neural network processes more than one training
+    step at the same time – that is, it processes more than one sample concomitantly.
+    As things go by, the input that’s required by one layer at a given training step
+    is already processed in the training flow and is now available to serve as input
+    for that layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, at a given moment, the distributed training process can execute distinct
+    layers in parallel. This process is performed on both the forward and backward
+    phases, which increases the level of parallelism of tasks that can be computed
+    simultaneously even more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Somehow, this paradigm is very similar to the instruction pipeline technique
+    that’s implemented in modern processors, where multiple hardware instructions
+    are executed in parallel. Due to this similarity, the intra-layer paradigm is
+    also called **pipeline parallelism**, where the stages are analogous to the training
+    steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inter-operation paradigm
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The **inter-operation** paradigm relies on dividing the set of operations that
+    are executed on each layer into smaller **chunks** of parallelizable computing
+    tasks, as shown in *Figure 8**.5*. Each of these chunks of computing tasks is
+    executed on distinct computing resources, hence parallelizing the execution of
+    the layer. After computing all the chunks, the distributed training process combines
+    the partial results obtained from each chunk to yield the layer output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.5 – The inter-operation model parallelism paradigm](img/B20959_08_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.5 – The inter-operation model parallelism paradigm
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of the dependence between the operations that are executed within the
+    layer, the inter-operation paradigm cannot put dependent operations in distinct
+    chunks. This constraint imposes an additional strain on partitioning the operations
+    into chunks of parallel computing tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, consider the graph illustrated in *Figure 8**.6*, which represents
+    the computation that’s executed in a layer. This graph is comprised of two pieces
+    of input data (rectangles) and four operations (circles), and the arrows indicate
+    the data flow between operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.6 – Example of operation partitioning in the inter-operation paradigm](img/B20959_08_06.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.6 – Example of operation partitioning in the inter-operation paradigm
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is easy to see that operations 1 and 2 depend only on the input data, whereas
+    operation 3 needs the output of operation 1 to execute its computation. Operation
+    4 is the most dependent in the graph since it relies on the results of operations
+    2 and 3 to be executed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, as shown in *Figure 8**.6*, the unique partitioning for this graph
+    creates two chunks of parallel operations to run operations 1 and 2 simultaneously.
+    As operations 3 and 4 depend on prior results, they cannot be executed before
+    the completion of other tasks. So, depending on the degree of dependence between
+    operations within the layer, the inter-operation paradigm cannot achieve a higher
+    level of parallelism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intra-operation paradigm
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The **intra-operation** paradigm splits the execution of an operation into smaller
+    computing tasks, where each computing task applies the operation in a different
+    chunk of input data. In general, the inter-operation approach needs to combine
+    partial results to get the operation done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While inter-operation runs distinct operations in different computing resources,
+    intra-operation spreads *parts of the same operation* on distinct computing resources,
+    as shown in *Figure 8**.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.7 – The intra-operation model parallelism paradigm](img/B20959_08_07.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.7 – The intra-operation model parallelism paradigm
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, consider the case in which a layer executes a matrix-to-matrix
+    multiplication, as illustrated in *Figure 8**.8*. By adopting the intra-operation
+    paradigm, this multiplication could be divided into two parts, where each part
+    will execute the multiplication on distinct data chunks of matrices A and B. As
+    these partial multiplications are independent of each other, it is feasible to
+    run both tasks concomitantly on different devices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.8 – Example of data partitioning in the intra-operation paradigm](img/B20959_08_08.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.8 – Example of data partitioning in the intra-operation paradigm
+  prefs: []
+  type: TYPE_NORMAL
+- en: After executing these two computing tasks, the intra-operation approach would
+    need to join the partial results to produce the resultant matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on the kind of operation and size of the input data, the intra-operation
+    can achieve a reasonable level of parallelism because more data chunks can be
+    created and submitted to additional computing resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if the data is too small or the operation is too simple to compute,
+    the overhead of spreading the computation to distinct devices can overcome the
+    potential performance improvement of executing the operation in parallel. This
+    statement is true for both the inter and intra-operation approaches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To summarize what we’ve learned in this section, *Table 8.1* covers the main
+    characteristics of each model parallelism paradigm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Paradigm** | **Strategy** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Inter-layer | Processes layers in parallel |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Intra-operation | Computes distinct operations in parallel |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Inter-operation | Computes parts of the same operation in parallel |'
+  prefs: []
+  type: TYPE_TB
+- en: Table 8.1 – Summary of the model parallelism paradigms
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although model parallelism can accelerate the training process, it has prominent
+    disadvantages, such as poor scalability and imbalance usage of resources, besides
+    being highly dependent on the network architecture. These issues explain why this
+    parallelism strategy is not so popular among data scientists and is usually not
+    the primary option to distribute the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even so, model parallelism can be the unique solution for cases in which the
+    model does not fit in the computing resource – that is, when we do not have enough
+    memory on the device to allocate the entire model. This is the case with **large
+    language models** (**LLMs**), which commonly have thousands of parameters and
+    occupy a lot of bytes when loaded in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another strategy, known as data parallelism, is more robust, scalable, and simple
+    to implement, as we will learn in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data parallelism
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The idea behind the **data parallelism** strategy is very simple to understand.
+    Instead of dividing the set of computing tasks that are executed by the network,
+    the data parallelism strategy divides the training dataset into smaller pieces
+    of data and uses these chunks of data to train distinct *replicas* of the original
+    model, as illustrated in *Figure 8**.9*. As each model replica is independent
+    of each other, they can be trained in parallel:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.9 – Data parallelism strategy](img/B20959_08_09.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.9 – Data parallelism strategy
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of each training step, the distributed training process starts a
+    **synchronization phase** to update the weights of all model replicas. This synchronization
+    phase is responsible for collecting and sharing the average gradient among all
+    models running in distinct computing resources. After receiving the average gradient,
+    each replica adjusts its weights according to this shared information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The synchronization phase is the core mechanism behind the data parallelism
+    strategy. In simpler words, it guarantees that the knowledge obtained by a model
+    replica, after executing a single training step, is shared with the other replicas
+    and vice versa. Thus, when completing the distributed training process, the resultant
+    model has the same knowledge as it would have if trained conventionally:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.10 – Synchronization phase in data parallelism](img/B20959_08_10.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.10 – Synchronization phase in data parallelism
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are half a dozen approaches to executing this synchronization phase, including
+    **parameter server** and **all-reduce**. The former does not have good scalability
+    since a unique server is used to aggregate the gradients that are obtained by
+    each model replica, calculate the average gradient, and send it all over the place.
+    As we increase the number of training processes, the parameter server becomes
+    the major bottleneck of the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, the all-reduce technique is more scalable because all training
+    instances participate evenly in the update process. Therefore, this technique
+    has been broadly adopted by all frameworks and communications libraries to synchronize
+    the parameters of the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll learn more about it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All-reduce synchronization
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: All-reduce is a collective communication technique that’s used to simplify the
+    computation that’s executed by multiple processes. Since all-reduce is derived
+    from the reduce operation, let’s understand this technique before describing the
+    all-reduce communication primitive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the context of distributed and parallel computing, the **reduce** operation
+    executes a function on data held in multiple processes and sends the result of
+    this function to a root process. The reduce operation can execute any function,
+    though it is more common to apply trivial and simple functions such as sum, multiplication,
+    average, maximum, and minimum, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 8**.11* shows an example of the reduce operation applied to vectors
+    held by four processes. In this example, the reduce primitive executes the sum
+    of the four vectors and sends the result to process 0, which is the root process
+    in this scenario:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.11 – The reduce operation](img/B20959_08_11.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.11 – The reduce operation
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The all-reduce operation is a particular case of the reduce primitive, in which
+    all processes receive the result of the function, as shown in *Figure 8**.12*.
+    So, instead of only sending the result to the root process, all-reduce shares
+    the result with all processes participating in the computation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.12 – The all-reduce operation](img/B20959_08_12.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.12 – The all-reduce operation
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are different ways to implement the all-reduce operation. Concerning
+    the distributed training context, one of the most efficient solutions is **ring
+    all-reduce**. In this implementation, the processes use a logical ring topology,
+    as shown in *Figure 8**.13*, to exchange information among themselves:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.13 – The ring all-reduce implementation](img/B20959_08_13.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.13 – The ring all-reduce implementation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Information flows through the ring until all the processes end up with the same
+    data. There are a couple of libraries that provide an optimized version of the
+    ring all-reduce implementation, such as NCCL from NVIDIA and oneCCL from Intel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Data parallelism is easy to understand and implement, besides being flexible
+    and scalable. However, as nothing is perfect, this strategy also has its drawbacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although it provides a higher level of parallelism compared to the model parallelism
+    approach, it can face limiting factors that prevent it from achieving high levels
+    of scalability. As the gradient is shared among all replicas after each training
+    step, any latency in communication between those replicas can slow down the entire
+    training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, the data parallelism strategy does not address the problem of training
+    large models because the model is loaded entirely on the device exactly as-is.
+    The same large model will be loaded with distinct computing resources, which,
+    in turn, will not be able to host them. Concerning models that do not fit on the
+    device, the problem remains the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even so, nowadays, the data parallel strategy is the straightforward approach
+    to distribute the training process. The simplicity and flexibility of this strategy
+    to train a wide range of model types and architectures turns this approach into
+    the default choice to distribute the training process. From now on, we will use
+    the term **distributed training** as a synonym for distributed training based
+    on the data parallelism strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most adopted frameworks for building machine learning models have a built-in
+    implementation of distributed training. So does PyTorch! In the next section,
+    we will take our first look at how to implement this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Distributed training on PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This section introduces the basic workflow to implement distributed training
+    on PyTorch, besides presenting the components used in this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basic workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Generally speaking, the basic workflow to implement distributed training on
+    PyTorch comprises the steps illustrated in *Figure 8**.14*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.14 – Basic workflow to implement distributed training in PyTorch](img/B20959_08_14.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.14 – Basic workflow to implement distributed training in PyTorch
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at each step in more detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter08/pytorch_ddp.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize and destroy the communication group
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The communication group is the logical entity that’s used by PyTorch to define
+    and control the distributed environment. So, the first step to code the distributed
+    training concerns *initializing a communication group*. This step is performed
+    by instantiating an object from the `torch.distributed` class and calling the
+    `init_process_group` method, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Strictly speaking, the initialization method does not require any argument.
+    However, there are two important parameters, though not mandatory. These parameters
+    allow us to select the communication backend and the initialization method. We
+    will learn about these arguments in [*Chapter 9*](B20959_09.xhtml#_idTextAnchor132),
+    *Training with* *Multiple CPUs*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'During the creation of the communication group, PyTorch identifies the processes
+    that will participate in the distributed training and assigns a unique identifier
+    to each of them. This identifier, which is called `get_rank` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since *all processes execute the same code*, we can use the rank to differentiate
+    the execution flow of a given process, thus assigning the execution of particular
+    tasks to specific processes. For example, we can use the rank to assign the responsibility
+    of performing the final model evaluation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The last step that’s executed by distributed training concerns *destroying
+    the communication group*, which was created at the beginning of the code. This
+    process is performed by calling the `destroy_process_group()` method, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Terminating the communication group is important since it tells all processes
+    that distributed training is over.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instantiate the distributed data loader
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As we are implementing a data parallelism strategy, it is mandatory to divide
+    the training dataset into small chunks of data to feed each model replica. In
+    other words, we need to instantiate a data loader that’s aware of the distributed
+    training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In PyTorch, we count on the `DistributedSampler` component to facilitate this
+    task. The `DistributedSampler` component abstracts all unnecessary details from
+    the programmer and is very straightforward to use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The unique change regards adding an extra parameter, called `sampler`, to the
+    original `DataLoader` creation line. The `sampler` argument must be filled out
+    with an object instantiated from the `DistributedSampler` component, which, in
+    turn, only requires the original dataset object as an input parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The resultant data loader is ready to deal with the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instantiate the distributed model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: With the communication group in hand and the distributed data loader ready to
+    go, it is time to instantiate a distributed version of the original model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PyTorch provides the native `DistributedDataParallel` component (DDP for short)
+    to encapsulate the original model and prepare it to be trained in a distributed
+    fashion. DDP returns a new model object, which is then used to execute the distributed
+    training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After instantiating the distributed model, all further steps are executed on
+    the distributed version of the model. For example, the optimizer receives the
+    distributed model as a parameter in place of the original model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: At this point, we have all we need to run the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the distributed training process
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Surprisingly, executing the training loop in a distributed manner is almost
+    the same as executing traditional training. The unique difference lies in passing
+    the DDP model as a parameter instead of the original one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Nothing else is necessary because the components that we’ve used so far have
+    intrinsic functionalities to execute the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PyTorch runs the distributed training process continuously until it reaches
+    the defined number of epochs. After completing each training step, PyTorch automatically
+    synchronizes the weights among model replicas. There is no need for any kind of
+    intervention from the programmer’s side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Checkpoint and save the training status
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As the distributed training process can take many hours to complete and involves
+    distinct computing resources and devices, it is more likely to be affected by
+    failures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, it is recommended to periodically **checkpoint** and **save**
+    the current training state to resume the training process in case of failure.
+    We will cover this topic in detail in [*Chapter 10*](B20959_10.xhtml#_idTextAnchor149),
+    *Training with* *Multiple GPUs*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We may need to instantiate other modules and objects to implement special functionalities
+    for distributed training, but this workflow is usually enough to code a basic
+    – though functional – distributed training implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Communication backend and program launcher
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Implementing distributed training on PyTorch involves defining a **communication
+    backend** and using a **program launcher** to execute the process on multiple
+    computing resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following subsections briefly explain each of these components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Communication backends
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As we have learned before, model replicas exchange gradient information among
+    themselves during the distributed training process. From another point of view,
+    the processes running on distinct computing resources must communicate with each
+    other to propagate such data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the same way, PyTorch relies on backend software to perform model compiling
+    and multithreading. It also counts on communication backends to provide an optimized
+    communication channel among model replicas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are communication backends that specialize in working with high-performance
+    networks, whereas other ones are suitable for dealing with communication among
+    multiple devices inside a single machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most common communication backends that are supported by PyTorch are Gloo,
+    MPI, NCCL, and oneCCL. Each of these backends is particularly interesting to use
+    in a given scenario, as we will learn in the next few chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Program launchers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Running distributed training is not the same as executing a traditional training
+    process. The execution of any distributed and parallel program is quite distinct
+    from running any traditional and sequential program.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the context of distributed training in PyTorch, we use program launchers
+    to put the distributed process on the road. This tool is responsible for setting
+    up the environment and creating processes in the operating system, local or remote.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most common launchers that are used for this are `mp.spawn`, which is provided
+    by the `torch.multiprocessing` package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting everything together
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The concept map illustrated in *Figure 8**.15* shows the components and resources
+    that surround the distributed training process provided by PyTorch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.15 – Concept map of the distributed training in PyTorch](img/B20959_08_15.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.15 – Concept map of the distributed training in PyTorch
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we have learned, PyTorch relies on a communication backend to control communication
+    among multiple computing resources and uses a program launcher to submit distributed
+    training to the local or remote operating system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are distinct ways to do the same thing. For example, we can use a certain
+    program launcher to execute distributed training based on two different communication
+    backends. The contrary is also true – that is, there are cases in which a communication
+    backend supports more than one launcher.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, defining the tuple *communication backend x program launcher* will depend
+    on the environment and resources used in the distributed training process. We
+    will learn more about this in the next few chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section provides a couple of questions to help you retain what you
+    have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering a few questions.
+    Initially, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter08-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter08-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that this is not a test! This section aims
+    to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choose the correct option for the following questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are the two main reasons for distributing the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Reliability and performance improvement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leak of memory and power consumption.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Power consumption and performance improvement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leak of memory and performance improvement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which are the two main parallel strategies to distribute the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Model and data parallelism.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Model and hardware parallelism.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hardware and data parallelism.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Software and hardware parallelism.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which paradigm is used by the model parallelism approach?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Inter-model.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Inter-data.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Inter-operation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Inter-parameter.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What does the intra-operation paradigm process in parallel?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Distinct operations.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Parts of the same operation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Layers of the model.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dataset samples.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Besides the parameter server, what other synchronization approach is used by
+    the data parallelism strategy?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: All-operations.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: All-gather.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: All-reduce.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: All-scatter.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the first step of executing distributed training in PyTorch?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Initialize the communication group.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Initialize the model replica.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Initialize the data loader.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Initialize the container environment.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the context of distributed training in PyTorch, which component is used to
+    put the distributed process on the road?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execution library.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Communication backend.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Program launcher.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compiler backend.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: PyTorch supports which of the following as a communication backend?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NDL.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: MPI.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: AMP.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: NNI.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned that distributed training is indicated to accelerate
+    the training process and training models that do not fit on a device’s memory.
+    Although going distributed can be a way out for both cases, we must consider applying
+    performance improvement techniques before going distributed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can perform distributed training by adopting the model parallelism or data
+    parallelism strategy. The former employs different paradigms to divide the model
+    computation among multiple computing resources, while the latter creates model
+    replicas to be trained over chunks of the training dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also learned that PyTorch relies on third-party components such as communication
+    backends and program launchers to execute the distributed training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn how to spread out the distributed training
+    process so that it can run on multiple CPUs located in a single machine.
+  prefs: []
+  type: TYPE_NORMAL

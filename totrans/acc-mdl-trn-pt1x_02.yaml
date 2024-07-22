@@ -1,0 +1,840 @@
+- en: '1'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Deconstructing the Training Process
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We already know that training neural network models takes a long time to finish.
+    Otherwise, we would not be here discussing ways to run this process faster. But
+    which characteristics make the building process of these models so computationally
+    heavy? Why does the training step take so long? To answer these questions, we
+    need to understand the computational burden of the training phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will first remember how the training phase works under the
+    hood. We will understand what makes the training process so computationally heavy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what you will learn as part of this first chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remembering the training process
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the computational burden of the training phase
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the factors that influence training time
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the complete code of the examples mentioned in this chapter in
+    the book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can access your favorite environment to execute this notebook, such as Google
+    Colab or Kaggle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remembering the training process
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before describing the computational burden imposed by neural network training,
+    we must remember how this process works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section gives a very brief introduction to the training process. If you
+    are totally unfamiliar with this topic, you should invest some time to understand
+    this theme before moving to the following chapters. An excellent resource for
+    learning this topic is the book entitled *Machine Learning with PyTorch and Scikit-Learn*,
+    published by Packt and written by Sebastian Raschka, Yuxi (Hayden) Liu, and Vahid
+    Mirjalili.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basically speaking, neural networks learn from examples, similar to a child
+    observing an adult. The learning process relies on feeding the neural network
+    with pairs of input and output values so that the network catches the intrinsic
+    relation between the input and output data. Such relationships can be interpreted
+    as the knowledge obtained by the model. So, where a human sees a bunch of data,
+    the neural network sees veiled knowledge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This learning process depends on the dataset used to train a model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A **dataset** comprises a set of **data instances** related to some problem,
+    scenario, event, or phenomenon. Each instance has features and target information
+    corresponding to the input and output data. The concept of a dataset instance
+    is similar to a registry in a table or relational database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dataset is usually split into two parts: training and testing sets. The
+    training set is used to train the network, whereas the testing part is used to
+    test the model against unseen data. Occasionally, we can also use another part
+    to validate the model after each training iteration.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at Fashion-MNIST, a famous dataset that is commonly used to test
+    and teach neural networks. This dataset comprises 70,000 labeled images of clothes
+    and accessories such as dresses, shirts, and sandals belonging to 10 distinct
+    classes or categories. The dataset is split into 60,000 instances for training
+    and 10,000 instances for testing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in *Figure 1**.1*, a single instance of this dataset comprises a 28
+    x 28 grayscale image and a label identifying its class. In the case of Fashion-MNIST,
+    we have 70,000 instances, which is often referred to as the length of the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.1 – Concept of a dataset instance](img/B20959_01_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.1 – Concept of a dataset instance
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides the concept of dataset instance, we also have the concept of a **dataset
+    sample**. A sample is defined as a group of instances, as shown in *Figure 1**.2*.
+    Usually, the training process executes on samples and not just on a single dataset
+    instance. The reason why the training process takes samples instead of single
+    instances is related to the way the training algorithm works. Don’t worry about
+    this topic; we will cover it in the following sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.2 – Concept of a dataset sample](img/B20959_01_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.2 – Concept of a dataset sample
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of instances in a sample is called the **batch size**. For example,
+    if we divide the Fashion-MNIST training set into samples of a batch size equal
+    to 32, we get 1,875 samples since this set has 60,000 instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The higher the batch size, the lower the number of samples in a training set,
+    as pictorially described in *Figure 1**.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.3 – Concept of batch size](img/B20959_01_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.3 – Concept of batch size
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a batch size equal to eight, the dataset in the example is divided into
+    two samples, each with eight dataset instances. On the other hand, with a lower
+    batch size (in this case, four), the training set is divided into a higher number
+    of samples (four samples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The neural network receives input samples and outputs a set of results, each
+    corresponding to an instance of the input sample. In the case of a model to treat
+    the classification image problem of Fashion-MNIST, the neural network gets a set
+    of images and outputs another set of labels, as you can see in *Figure 1**.4*.
+    Each one of these labels indicates the corresponding class of the input image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.4 – Neural networks work on input samples](img/B20959_01_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.4 – Neural networks work on input samples
+  prefs: []
+  type: TYPE_NORMAL
+- en: To extract the intrinsic knowledge present in the dataset, we need to submit
+    the neural network to a training algorithm so it can learn the pattern present
+    in the data. Let’s jump to the next section to understand how this algorithm works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The training algorithm
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The training algorithm is an **iterative process** that takes each dataset sample
+    and adjusts the neural network parameters according to the degree of error related
+    to the difference between the correct result and the predicted one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A single training iteration is called the **training step**. So, the number
+    of training steps executed in the learning process equals the number of samples
+    used to train the model. As we stated before, the batch size defines the number
+    of samples, which also determines the number of training steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After executing all the training steps, we say the training algorithm has completed
+    a **training epoch**. The developer must define the number of epochs before starting
+    the model-building process. Usually, the developer determines the number of epochs
+    by varying it and evaluating the accuracy of the resultant model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A single training step executes the four phases sequentially, as illustrated
+    in *Figure 1**.5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.5 – The four phases of the training process](img/B20959_01_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.5 – The four phases of the training process
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s go through each one of these steps to understand their role in the entire
+    training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Forward
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In the forward phase, the neural network receives the input data, performs calculations,
+    and outputs a result. This output is also known as the value predicted by the
+    neural network. In the case of Fashion-MNIST, the input data is the grayscale
+    image and the predicted value is the class to which the item belongs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considering the tasks executed in the training step, the forward phase has a
+    higher computational cost. This happens because it executes all the heavy computations
+    involved in the neural network. Such computations, commonly known as operations,
+    will be explained in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is interesting to note that the forward phase is exactly the same as the
+    inference process. When using the model in practice, we continuously execute the
+    forward phase to infer a value or result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss calculation
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: After the forward phase, the neural network will output a predicted value. Then,
+    the training algorithm needs to compare the predicted value with the expected
+    one to see how good the prediction made by the model is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the predicted value is close or equal to the real value, the model is performing
+    as expected and the training process is going in the right direction. Otherwise,
+    the training step needs to quantify the error achieved by the model to adjust
+    the parameters proportionally to the error degree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the terminology of neural networks, this error is usually referred to as
+    **loss** or **cost**. So, it is common to see names such as loss or cost function
+    in the literature when addressing this topic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are different kinds of loss functions, each one suitable to treat a specific
+    sort of problem. The **cross-entropy** (**CE**) loss function is used in multiclass
+    image classification problems, where we need to classify an image within a group
+    of classes. For example, this loss function can be used in the Fashion-MNIST problem.
+    Suppose we have just two classes or categories. In that case, we face a binary
+    class problem, so using the **binary cross-entropy** (**BCE**) function rather
+    than the original cross-entropy loss function is recommended.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For regression problems, the loss function is completely different from the
+    ones used in classification problems. We can use functions such as the **mean
+    squared error** (**MSE**), which measures the squared difference between the original
+    value and the predicted value by the neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimization
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: After obtaining the loss, the training algorithm calculates the partial derivative
+    of the loss function concerning the current parameters of the network. This operation
+    results in the so-called **gradient**, which the training process uses to adjust
+    network parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leaving the mathematical foundations aside, we can think of the gradient as
+    the change we need to apply to network parameters to minimize the error or loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find more information about the math used in deep learning by reading
+    the book *Hands-On Mathematics for Deep Learning*, published by Packt and written
+    by Jay Dawani.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to the loss function, we also have distinct implementations of optimizers.
+    The **stochastic gradient descent** (**SGD**) and Adam are used the most.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backward
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: To finish the training process, the algorithm updates the network parameters
+    according to the gradient obtained in the optimization phase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section provides a theoretical explanation of the training algorithm. So,
+    be aware that depending on the machine learning framework, the training process
+    can have a set of phases that is different from the ones in the preceding list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, these phases constitute the computational burden of the training
+    process. Follow me to the next section to understand how this computational burden
+    is impacted by different factors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the computational burden of the model training phase
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we’ve brushed up on how the training process works, let’s understand
+    the computational cost required to train a model. By using the terms computational
+    cost or burden, we mean the computing power needed to execute the training process.
+    The higher the computational cost, the higher the time taken to train the model.
+    In the same way, the higher the computational burden, the higher the computing
+    resources required to train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Essentially, we can say the computational burden to train a model is defined
+    by a three-fold factor, as illustrated in *Figure 1**.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.6 – Factors that influence the training computational burden](img/B20959_01_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.6 – Factors that influence the training computational burden
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each one of these factors contributes (to some degree) to the computational
+    complexity imposed by the training process. Let’s talk about each one of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hyperparameters
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Hyperparameters** define two aspects of neural networks: the neural network
+    configuration and how the training algorithm works.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Concerning neural network configuration, the hyperparameters determine the number
+    and type of layers and the number of neurons in each layer. Simple networks have
+    a few layers and neurons, whereas complex networks have thousands of neurons spread
+    in hundreds of layers. The number of layers and neurons determines the number
+    of parameters of the network, which directly impacts the computational burden.
+    Due to the significant influence of the number of parameters in the computational
+    cost of the training step, we will discuss this topic later in this chapter as
+    a separate performance factor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding how the training algorithm executes the training process, hyperparameters
+    control the number of epochs and steps and determine the optimizer and loss function
+    used during the training phase, among other things. Some of these hyperparameters
+    have a tiny influence on the computational cost of the training process. For example,
+    if we change the optimizer from SGD to Adam, we will not face any relevant impact
+    on the computational cost of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other hyperparameters can definitely raise the training phase time, though.
+    One of the most emblematic examples is the batch size. The higher the batch size,
+    the fewer training steps are needed to train a model. So, with a few training
+    steps, we can speed up the building process since the training phase will execute
+    fewer steps per epoch. On the other hand, we can spend more time executing a single
+    training step if we have big batch sizes. This happens because the forward phase
+    executed on each training step should deal with a higher dimensional input data.
+    In other words, we have a trade-off here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, consider the case of a batch size equal to *32* for the Fashion-MNIST
+    dataset. In this case, the input data dimension is *32 x 1 x 28 x 28*, where 32,
+    1, and 28 represent the batch size, the number of channels (colors, in this scenario),
+    and the image size, respectively. Therefore, for this case, the input data comprises
+    25,088 numbers, which is the number of numbers the forward phase should compute.
+    However, if we increase the batch size to *128*, the input data changes to 100,352
+    numbers, which can result in a longer time to execute a single forward phase iteration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, a bigger input sample requires a higher amount of memory to execute
+    each training step. Depending on the hardware configuration, the amount of memory
+    required to execute the training step can drastically reduce the performance of
+    the entire training process or even make it impossible to execute in that hardware.
+    Conversely, we can accelerate the training process by using hardware endowed with
+    huge memory resources. This is why we need to know the details of the hardware
+    resources we use and what factors influence the computational complexity of the
+    training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will dive into all of these issues throughout the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Operations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We already know each training step executes four training phases: forward,
+    loss computation, optimization, and backward. In the forward phase, the neural
+    network receives the input data and processes it according to the neural network’s
+    architecture. Besides other things, the architecture defines the network layers,
+    where each layer has one or more operations that the network executes during the
+    forward phase.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, a **fully connected neural network** (**FCNN**) usually executes
+    general matrix-to-matrix multiplication operations, whereas **convolutional neural
+    networks** (**CNNs**) execute special computer vision operations such as convolution,
+    padding, and pooling. It turns out that the computational complexity of one operation
+    is not the same as another. So, depending on the network architecture and the
+    operations, we can get distinct performance behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nothing is better than an example, right? Let’s define a class to instantiate
+    a traditional CNN model that is able to deal with the Fashion-MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter01/cnn-fashion_mnist.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter01/cnn-fashion_mnist.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This model receives an input sample of size *64 x 1 x 28 x 28*. This means the
+    model receives 64 grayscale images (one channel) with a height and width equal
+    to 28 pixels. As a result, the model outputs a tensor of dimension *64 x 10*,
+    which represents the probability of the image belonging to each of the 10 categories
+    of the Fashion-MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model has two convolutional and two fully connected layers. Each convolutional
+    layer comprises one bidimensional convolution, the **rectified linear unit** (**ReLU**)
+    activation function, and pooling. The first fully connected layer has 3,136 neurons
+    connected to the 512 neurons of the fully connected second layer. The second layer
+    is then connected to the 10 neurons of the output layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are unfamiliar with CNN models, it would be useful to watch the video
+    *What is a convolutional neural network (CNN)?* from the Packt YouTube channel
+    at [https://youtu.be/K_BHmztRTpA](https://youtu.be/K_BHmztRTpA).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By exporting this model to the ONNX format, we get the diagram illustrated
+    in *Figure 1**.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 1.7 – Operations of a CNN model](img/B20959_01_7.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 1.7 – Operations of a CNN model
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **Open Neural Network Exchange** (**ONNX**) is an open standard for machine
+    learning interoperability. Besides other things, ONNX provides a standard format
+    to export neural network models from many distinct frameworks and tools. We can
+    use the ONNX file to inspect model details, import it into another framework,
+    or execute the inference process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By evaluating *Figure 1**.7*, we can see five distinct operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Conv`: Bidimensional convolution'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`MaxPool`: Max pooling'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Relu`: Activation function (ReLU)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Reshape`: Tensor dimensional transformation'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Gemm`: General matrix multiplication'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'So, under the hood, the neural network executes these operations in the forward
+    phase. From a computing perspective, this is the set of real operations that the
+    machine runs during each training step. Therefore, we can rethink the training
+    process of this model in terms of its operations and write it as a simpler algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, the training process is just a set of operations executed one
+    after another. Despite the functions or classes used to define the model, the
+    machine is actually running this set of operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that each operation has a particular computational complexity,
+    thus requiring distinct levels of computing power and resources to be executed
+    satisfactorily. In this way, we can face different performance gains and bottlenecks
+    for each one of those operations. Similarly, some operations can be more suitable
+    to execute in a given hardware architecture, as we will see throughout the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To obtain the practical meaning of this topic, we can check the percentage
+    of time these operations spent during the training step. So, let’s use **PyTorch
+    Profiler** to get the percentage of CPU usage for each operation. The following
+    list resumes the CPU usage when running the forward phase of our CNN model with
+    one input sample of the Fashion-MNIST dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: ATen is a C++ library used by PyTorch to execute basic operations. You can find
+    more information about this library at [https://pytorch.org/cppdocs/#aten](https://pytorch.org/cppdocs/#aten).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The results show the Conv operation (labeled here as `aten::mkldnn_convolution`)
+    presented higher CPU usage (44%), followed by the MaxPool operation (`aten:: max_pool2d_with_indices`),
+    with 30% CPU usage. On the other hand, the ReLU (`aten::relu`) and Reshape (`aten::reshape`)
+    operations consumed less than 1% of the total CPU usage. Finally, the Gemm operation
+    (`aten::addmm`) used around 14% of the CPU time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this simple profiling test, we can assert the operations involved in the
+    forward phase; hence, in the training process, there are distinct levels of computational
+    complexity. We can see the training process consumed much more CPU cycles when
+    executing the Conv operation than the Gemm operation. Notice that our CNN model
+    has two layers comprising both operations. Thus, in this example, both operations
+    are executed the same number of times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Based on this knowledge about the distinct computational burden of neural network
+    operations, we can choose the best hardware architecture or software stack to
+    reduce the execution time of the predominant operation of a given neural network.
+    For example, suppose we need to train a CNN composed of dozens of convolutional
+    layers. In that case, we will look for hardware resources endowed with special
+    capabilities to execute Conv operations more efficiently. Even though the model
+    has some fully connected layers, we already know that the Gemm operation can be
+    less computationally intensive than Conv. This justifies prioritizing a hardware
+    resource that is able to accelerate convolutional operations to train that model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parameters
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Besides hyperparameters and operations, the neural network parameters are another
+    factor that has a relevant influence on the computational cost of the training
+    process. As we discussed earlier, the number and type of layers in the neural
+    network configuration define the total number of parameters on the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Obviously, the higher the number of parameters, the higher the computational
+    burden of the training process. These parameters comprise kernel values employed
+    on convolutional operations, biases, and the weights of connections between neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our CNN model, with just 4 layers, has 1,630,090 parameters. We can easily
+    count the total number of parameters in PyTorch by using this function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we add an extra fully connected layer with 256 neurons to our CNN model and
+    rerun this function, we will get 1,758,858 parameters in total, representing an
+    increase of nearly 8%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After training and testing this new CNN model, we got the same accuracy as before.
+    Then, paying attention to the trade-off between network complexity and model accuracy
+    is essential. On many occasions, increasing the number of layers and neurons will
+    not necessarily result in better efficiency but will possibly increase the time
+    of the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another aspect of parameters is the numeric precision used to represent these
+    numbers in the model. We will dive into this topic in [*Chapter 7*](B20959_07.xhtml#_idTextAnchor098),
+    *Adopting Mixed Precision*, but for now, keep in mind that the number of bytes
+    used to represent parameters pays a relevant contribution to the time needed to
+    train a model. So, not only does the number of parameters have an impact on training
+    time but so does the numeric precision chosen to represent these numbers in the
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section brings a couple of questions to help you retain what you have
+    learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quiz time!
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s review what we have learned in this chapter by answering eight questions.
+    At first, try to answer these questions without consulting the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter01-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter01-answers.md).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the quiz, remember that it is not a test at all! This section
+    aims to complement your learning process by revising and consolidating the content
+    covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Choose the correct option for the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which phases comprise the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Forward, processing, optimization, and backward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Processing, pre-processing, and post-processing.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Forward, loss calculation, optimization, and backward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Processing, loss calculation, optimization, and post-processing.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which factors impact the computational burden of the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loss function, optimizer, and parameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hyperparameters, parameters, and operations.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hyperparameters, loss function, and operations.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Parameters, operations, and loss function.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After executing the training algorithm on all dataset samples, the training
+    process has completed a training what?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Evolution.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Epoch.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Step.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A dataset sample comprises a set of what?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dataset collections.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dataset steps.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dataset epochs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Dataset instances.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which hyperparameter is more likely to increase the computational burden of
+    the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Batch size.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optimizer.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Number of epochs.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learning rate.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A training set has 2,500 instances. By defining a batch size equal to 1 and
+    50, the number of steps executed during the training process is, respectively,
+    which of the following?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 500 and 5.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 2,500 and 1.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 2,500 and 50.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 500 and 50.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The profiling of a training process showed that the most time-consuming operation
+    was `aten::mkldnn_convolution`. In this case, what is the heavier computing phase
+    of the training process?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Backward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Forward.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loss calculation.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optimization.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A model has two convolutional layers and two fully connected layers. If we add
+    two more convolutional layers to the model, it will increase the number of what?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hyperparameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Training steps.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Parameters.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Training samples.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let’s summarize what we’ve learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have reached the end of the first step of our training acceleration journey.
+    You started this chapter by remembering how the training process works. In addition
+    to refreshing concepts such as datasets and samples, you remembered the four phases
+    of the training algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, you learned that hyperparameters, operations, and parameters are the three-fold
+    factors influencing the training process’s computational burden.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you have remembered the training process and understood what contributes
+    to its computational complexity, it’s time to move on to the next topic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s take our first steps to learn how to accelerate this heavy computational
+    process!
+  prefs: []
+  type: TYPE_NORMAL
