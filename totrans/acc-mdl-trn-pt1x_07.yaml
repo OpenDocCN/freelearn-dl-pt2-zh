@@ -1,666 +1,969 @@
 - en: '5'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '5'
 - en: Building an Efficient Data Pipeline
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 构建高效的数据管道
 - en: Machine learning is grounded on data. Simply put, the training process feeds
     the neural network with a bunch of data, such as images, videos, sound, and text.
     Thus, apart from the training algorithm itself, data loading is an essential part
     of the entire model-building process.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 机器学习基于数据。简而言之，训练过程向神经网络提供大量数据，如图像、视频、声音和文本。因此，除了训练算法本身，数据加载是整个模型构建过程中的重要部分。
 - en: It turns out that deep learning models deal with huge amounts of data, such
     as thousands of images and terabytes of text sequences. As a consequence, tasks
     related to data loading, preparation, and augmentation can severely delay the
     training process as a whole. So, to overcome a potential bottleneck in the model-building
     process, we must guarantee an uninterrupted flow of dataset samples to the training
     process.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 深度学习模型处理大量数据，如成千上万的图像和数百兆字节的文本序列。因此，与数据加载、准备和增强相关的任务可能会严重延迟整个训练过程。因此，为了克服模型构建过程中的潜在瓶颈，我们必须确保数据集样本顺畅地流入训练过程。
 - en: In this chapter, we’ll explain how to build an efficient data pipeline to keep
     the training process running smoothly. The main idea is to prevent the training
     process from being stalled by data-related tasks.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将解释如何构建一个高效的数据管道，以确保训练过程的顺利运行。主要思路是防止训练过程因与数据相关的任务而停滞不前。
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是本章的学习内容：
 - en: Understanding why it is mandatory to have an efficient data pipeline
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解为何拥有高效的数据管道是必要的
 - en: Learning how to increase the number of workers in the data pipeline
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 学习如何通过内存固定来增加数据管道中的工作人员数量
 - en: Understanding how to accelerate data transfer through memory pining
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解如何加速数据传输过程
 - en: Technical requirements
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can find the complete code examples mentioned in this chapter in this book’s
     GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在这本书的GitHub仓库中找到本章提到的所有代码示例，网址为[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main)。
 - en: You can access your favorite environment to execute this notebook, such as Google
     Colab or Kaggle.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以访问您喜欢的环境来执行这个笔记本，比如Google Colab或Kaggle。
 - en: Why do we need an efficient data pipeline?
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 为什么我们需要一个高效的数据管道？
 - en: We’ll start this chapter by making you aware of the relevance of having an efficient
     data pipeline. In the next few subsections, you will understand what a data pipeline
     is and how it can impact the performance of the training process.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从使您意识到拥有高效的数据管道的重要性开始本章。在接下来的几个小节中，您将了解数据管道的定义以及它如何影响训练过程的性能。
 - en: What is a data pipeline?
+  id: totrans-14
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 什么是数据管道？
 - en: 'As you learned in [*Chapter 1*](B20959_01.xhtml#_idTextAnchor016), *Deconstructing
     the Training Process*, the training process is composed of four phases: forward,
     loss calculation, optimization, and backward. The training algorithm iterates
     on dataset samples until there’s a complete epoch. Nevertheless, there is an additional
     phase we excluded from that explanation: **data loading**.'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您在[*第1章*](B20959_01.xhtml#_idTextAnchor016)中学到的，*解构训练过程*，训练过程由四个阶段组成：前向、损失计算、优化和反向。训练算法在数据集样本上进行迭代，直到完成一个完整的周期。然而，我们在那个解释中排除了一个额外的阶段：**数据加载**。
 - en: 'The forward phase invokes data loading to get dataset samples to execute the
     training process. More specifically, the forward phase calls the data loading
     process on each iteration to get the data required to execute the current training
     step, as shown in *Figure 5**.1*:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 前向阶段调用数据加载以获取数据集样本来执行训练过程。更具体地说，前向阶段在每次迭代中调用数据加载过程，以获取执行当前训练步骤所需的数据，如*图5.1*所示：
 - en: '![Figure 5.1 – Data loading process](img/B20959_05_1.jpg)'
+  id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![图5.1 – 数据加载过程](img/B20959_05_1.jpg)'
 - en: Figure 5.1 – Data loading process
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.1 – 数据加载过程
 - en: 'In short, the data loading executes three main tasks:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，数据加载执行三项主要任务：
 - en: '**Loading**: This step involves reading data from a disk and loading it in
     memory. We can load data into main memory (DRAM) or directly into GPU memory (GRAM).'
+  id: totrans-20
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**加载**：此步骤涉及从磁盘读取数据并将其加载到内存中。我们可以将数据加载到主内存（DRAM）或直接加载到GPU内存（GRAM）。'
 - en: '**Preparation**: Usually, we need to prepare data before using it in the training
     process, such as by performing normalization and resizing.'
+  id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**准备**: 通常，我们在将数据用于训练过程之前需要对其进行准备，例如执行标准化和调整大小等操作。'
 - en: '**Augmentation**: When the dataset is small, we must augment it by creating
     new samples derived from the original ones. Otherwise, the neural network won’t
     be able to catch the intrinsic knowledge presented in the data. Augmentation tasks
     include rotation, mirroring, and flipping images.'
+  id: totrans-22
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**增广**: 当数据集很小时，我们必须通过从原始样本派生新样本来增广它。否则，神经网络将无法捕捉数据中呈现的内在知识。增广任务包括旋转、镜像和翻转图像。'
 - en: In general, data loading executes those tasks *on demand*. So, when invoked
     by the forward phase, it starts to execute all tasks to deliver a dataset sample
     to the training process. Then, we can see this whole process as a **data pipeline**,
     in which the data is processed before being used to train the neural network.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常情况下，数据加载按需执行这些任务。因此，在前向阶段调用时，它开始执行所有任务，以将数据集样本传递给训练过程。然后，我们可以将整个过程看作是一个 **数据流水线**，在这个流水线中，在用于训练神经网络之前对数据进行处理。
 - en: 'A data pipeline (pictorially described in *Figure 5**.2*) is similar to an
     industrial production line. The original dataset sample is processed sequentially
     and transformed until it is ready to feed the training process:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据流水线（在 *图 5.2* 中以图形描述）类似于工业生产线。原始数据集样本被顺序处理和转换，直到准备好供训练过程使用：
 - en: '![Figure 5.2 – Data pipeline](img/B20959_05_2.jpg)'
+  id: totrans-25
   prefs: []
   type: TYPE_IMG
+  zh: '![图 5.2 – 数据流水线](img/B20959_05_2.jpg)'
 - en: Figure 5.2 – Data pipeline
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.2 – 数据流水线
 - en: In many cases, model quality is dependent on transformations that are made to
     the dataset. This is particularly true for small datasets – for which augmentation
     is almost mandatory – and datasets comprised of poor-quality images.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在许多情况下，模型质量取决于对数据集进行的转换。对于小数据集来说尤其如此——几乎是必需的增广——以及由质量低劣的图像组成的数据集。
 - en: In other situations, we do not need to make any modifications to the sample
     to reach a highly accurate model, perhaps only changing the data format or something
     like that. In such cases, the data pipeline is limited to loading dataset samples
     from memory or disk and delivering them to the forward phase.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 在其他情况下，我们不需要对样本进行任何修改就能达到高度精确的模型，也许只需要改变数据格式或类似的内容。在这种情况下，数据流水线仅限于从内存或磁盘加载数据集样本并将其传递给前向阶段。
 - en: Regardless of tasks related to transforming, preparing, and converting data,
     we need to build a data pipeline to feed the forward phase. In PyTorch, we can
     use components provided by the `torch.utils.data` API to create a data pipeline,
     as we will see in the next section.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 无论与数据转换、准备和转换相关的任务如何，我们都需要构建一个数据流水线来供给前向阶段。在 PyTorch 中，我们可以使用 `torch.utils.data`
+    API 提供的组件来创建数据流水线，如我们将在下一节中看到的那样。
 - en: How to build a data pipeline
+  id: totrans-30
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何构建数据流水线
 - en: 'The `torch.utils.data` API provides two components to build a data pipeline:
     `Dataset` and `DataLoader` (as shown in *Figure 5**.3*). The former is used to
     indicate the source of the dataset (local files, downloads from the internet,
     and so on) and to define the set of transformations to be applied to the dataset,
     whereas the latter is used as an interface to obtain samples from the dataset:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '`torch.utils.data` API 提供了两个组件来构建数据流水线：`Dataset` 和 `DataLoader`（如 *图 5.3* 所示）。前者用于指示数据集的来源（本地文件、从互联网下载等）并定义要应用于数据集的转换集合，而后者用作从数据集获取样本的接口：'
 - en: '![Figure 5.3 – The DataLoader and Dataset components](img/B20959_05_3.jpg)'
+  id: totrans-32
   prefs: []
   type: TYPE_IMG
+  zh: '![图 5.3 – DataLoader 和 Dataset 组件](img/B20959_05_3.jpg)'
 - en: Figure 5.3 – The DataLoader and Dataset components
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.3 – DataLoader 和 Dataset 组件
 - en: In practical terms, the training process talks directly to `DataLoader` to consume
     dataset samples. Thus, the forward phase asks `DataLoader` for a dataset sample
     on each training step.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 在实际操作中，训练过程直接与 `DataLoader` 对话以消耗数据集样本。因此，前向阶段在每个训练步骤中向 `DataLoader` 请求数据集样本。
 - en: 'The following piece of code shows an example of the basic usage of `DataLoader`:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码片段展示了 `DataLoader` 的基本用法：
 - en: '[PRE0]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: This piece of code creates a `DataLoader` instance, namely `dataloader`, to
     provide samples with batch sizes equal to 128.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码片段创建了一个 `DataLoader` 实例，即 `dataloader`，以批量大小为 128 提供样本。
 - en: Note
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Note that `Dataset` was not used directly in this case since CIFAR-10 encapsulates
     dataset creation.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在这种情况下没有直接使用 `Dataset`，因为 CIFAR-10 封装了数据集创建。
 - en: There are other strategies to build a data pipeline in PyTorch, but `Dataset`
     and `DataLoader` commonly attend to most cases.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PyTorch中建立数据管道的其他策略也有，但`Dataset`和`DataLoader`通常适用于大多数情况。
 - en: Next, we’ll learn how an inefficient data pipeline can slow down the entire
     training process.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将学习一个低效的数据管道如何拖慢整个训练过程。
 - en: Data pipeline bottleneck
+  id: totrans-42
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据管道瓶颈
 - en: Depending on the complexity of tasks incorporated into the data pipeline, as
     well as the size of the dataset sample, data loading can take a reasonable time
     to finish. As a consequence, we can throttle the entire building process.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据数据管道中任务的复杂性以及数据集样本的大小，数据加载可能需要一定的时间来完成。因此，我们可以控制整个构建过程的节奏。
 - en: In general, data loading is executed on the CPU, whereas training takes place
     on the GPU. As the CPU is much slower than the GPU, the GPU can stay idle, waiting
     for the next sample to proceed with the training process. The higher the complexity
     of tasks executed on data feeding, the worse the impact on the training phase.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常情况下，数据加载在CPU上执行，而训练则在GPU上进行。由于CPU比GPU慢得多，GPU可能会空闲，等待下一个样本以继续训练过程。数据喂养任务的复杂性越高，对训练阶段的影响越大。
 - en: 'As shown in *Figure 5**.4*, data loading uses the CPU to process dataset samples.
     When samples become ready, the training phase uses them to train the network.
     This procedure is continuously executed until all the training steps are completed:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*图 5**.4*所示，数据加载使用CPU处理数据集样本。当样本准备好时，训练阶段使用它们来训练网络。这个过程持续执行，直到所有训练步骤完成：
 - en: '![Figure 5.4 – Bottleneck caused by the inefficient data pipeline](img/B20959_05_4.jpg)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![图 5.4 – 由低效数据管道引起的瓶颈](img/B20959_05_4.jpg)'
 - en: Figure 5.4 – Bottleneck caused by the inefficient data pipeline
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.4 – 由低效数据管道引起的瓶颈
 - en: 'Although this procedure seems fine at first sight, we are wasting GPU computing
     power because it stays idle between training steps. The desired behavior is more
     like what’s shown in *Figure 5**.5*:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这个过程乍看起来还不错，但我们浪费了GPU的计算能力，因为它在训练步骤之间空闲。期望的行为更接近于*图 5**.5*所示：
 - en: '![Figure 5.5 – Efficient data pipeline](img/B20959_05_5.jpg)'
+  id: totrans-49
   prefs: []
   type: TYPE_IMG
+  zh: '![图 5.5 – 高效数据管道](img/B20959_05_5.jpg)'
 - en: Figure 5.5 – Efficient data pipeline
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.5 – 高效数据管道
 - en: Unlike the previous scenario, the interleaving time between training steps is
     hardly reduced since samples are loaded earlier, ready to feed the training process
     that’s executed on the GPU. As a consequence, we experience an overall speedup
     in the model-building process.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 与前一场景不同，训练步骤之间的交错时间几乎被减少到最低，因为样本提前加载，准备好喂养在GPU上执行的训练过程。因此，我们在模型构建过程中总体体验到了加速。
 - en: In the next section, we’ll learn how to accelerate the data-loading process
     by making a couple of simple changes to the code.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何通过对代码进行简单的更改来加速数据加载过程。
 - en: Accelerating data loading
+  id: totrans-53
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加速数据加载
 - en: 'Accelerating data loading is crucial to get an efficient data pipeline. In
     general, the following two changes are enough to get the work done:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 加速数据加载对于获得高效的数据管道至关重要。一般来说，以下两个改变足以完成这项工作：
 - en: Optimizing a data transfer between the CPU and GPU
+  id: totrans-55
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 优化CPU和GPU之间的数据传输
 - en: Increasing the number of workers in the data pipeline
+  id: totrans-56
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 增加数据管道中的工作线程数量
 - en: Putting it that way, these changes may sound tougher to implement than they
     are. Making these changes is quite simple – we just need to add a couple of parameters
     when creating the `DataLoader` instance for the data pipeline. We will cover this
     in the following subsections.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 换句话说，这些改变可能听起来比实际要难以实现。实际上，做这些改变非常简单 – 我们只需要在创建`DataLoader`实例时添加几个参数。我们将在以下子节中介绍这些内容。
 - en: Optimizing a data transfer to the GPU
+  id: totrans-58
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 优化GPU的数据传输
 - en: 'To transfer data from main memory to the GPU, and vice versa, the device driver
     must ask the operating system to pin or lock a portion of memory. After receiving
     access to that pinned memory, the device driver starts to copy data from the original
     memory location to the GPU, but using the pinned memory as a **staging area**:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将数据从主存储器传输到GPU，反之亦然，设备驱动程序必须请求操作系统锁定一部分内存。在获得对该锁定内存的访问权限后，设备驱动程序开始将数据从原始内存位置复制到GPU，但使用锁定内存作为**缓冲区**：
 - en: '![Figure 5.6 – Data transfer between main memory and GPU](img/B20959_05_6.jpg)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![图 5.6 – 主存储器与GPU之间的数据传输](img/B20959_05_6.jpg)'
 - en: Figure 5.6 – Data transfer between main memory and GPU
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 5.6 – 主存储器与GPU之间的数据传输
 - en: The usage of pinned memory in the middle of this process is obligatory because
     the device driver cannot copy data directly from pageable memory to the GPU. There
     are architectural issues involved in that procedure, which explains this behavior.
     Anyway, we can assert that this **double-copy procedure** can negatively affect
     the performance of the data pipeline.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此过程中使用固定内存是强制性的，因为设备驱动程序无法直接从可分页内存复制数据到GPU。 这涉及到该过程中的架构问题，解释了这种行为。 无论如何，我们可以断言，这种**双重复制过程**可能会对数据管道的性能产生负面影响。
 - en: Note
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can find more information about pinned memory transfer here: [https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc)/.'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在此处找到有关固定内存传输的更多信息：[https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc](https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc)/。
 - en: 'To overcome this problem, we can tell the device driver to allocate a portion
     of pinned memory right away instead of requesting a pageable memory area, as usual.
     By doing so, we can eliminate the unnecessary copy between pageable and pinned
     memory, thus greatly reducing the overhead involved in GPU data transfer, as shown
     in *Figure 5**.7*:'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 要解决这个问题，我们可以告诉设备驱动程序立即分配一部分固定内存，而不是像通常那样请求可分页的内存区域。 通过这样做，我们可以消除可分页和固定内存之间不必要的复制，从而大大减少GPU数据传输中涉及的开销，如图*5**.7*所示：
 - en: '![Figure 5.7 – Data transfer using pinned memory](img/B20959_05_7.jpg)'
+  id: totrans-66
   prefs: []
   type: TYPE_IMG
+  zh: '![图5.7 – 使用固定内存的数据传输](img/B20959_05_7.jpg)'
 - en: Figure 5.7 – Data transfer using pinned memory
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.7 – 使用固定内存的数据传输
 - en: 'To enable this option on the data pipeline, we need to turn on the `pin_memory`
     flag while creating `DataLoader`:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在数据管道上启用此选项，我们需要在创建`DataLoader`时打开`pin_memory`标志：
 - en: '[PRE1]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Nothing else is necessary. But if it is so simple to implement and highly beneficial,
     why does PyTorch not enable this feature by default? There are two reasons for
     this:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 没有其他必要的事情。 但是如果实现起来如此简单且收益颇丰，那么为什么PyTorch不默认启用此功能呢？ 这有两个原因：
 - en: '*Request for pinned memory can fail*: As stated on the Nvidia developer blog,
     “*It is possible for pinned memory allocation to fail, so you should always check
     for errors.*” Thus, there is no guarantee of success in allocating pinned memory.'
+  id: totrans-71
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*请求固定内存可能失败*：如Nvidia开发者博客所述，“*固定内存分配可能失败，因此您应始终检查错误*。” 因此，无法保证成功分配固定内存。'
 - en: '*Increase in memory usage*: Modern operating systems commonly adopt a paging
     mechanism to manage memory resources. By using this strategy, the operating system
     can move unused memory pages to disk to free space on main memory. However, pinned
     memory allocation makes the operating system unable to move pages of that area,
     disrupting the memory management process and increasing the effective amount of
     memory usage.'
+  id: totrans-72
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*内存使用增加*：现代操作系统通常采用分页机制来管理内存资源。 通过使用这种策略，操作系统可以将未使用的内存页面移到磁盘以释放主存储器上的空间。 但是，固定内存分配使操作系统无法移动该区域的页面，从而破坏内存管理过程并增加实际内存使用量。'
 - en: Besides optimizing GPU data transfer, we can configure workers to accelerate
     data pipeline tasks, as discussed in the next section.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了优化GPU数据传输外，我们还可以配置工作者以加速数据管道任务，如下一节所述。
 - en: Configuring data pipeline workers
+  id: totrans-74
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 配置数据管道工作者
 - en: 'The default operation mode of `DataLoader` uses a `DataLoader` stays idle waiting
     for samples, wasting valuable computing resources. Such harmful behavior becomes
     worse in a heavy data pipeline:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: '`DataLoader`的默认操作模式是等待样本的`DataLoader`保持空闲，浪费宝贵的计算资源。 这种有害行为在重型数据管道中变得更加严重：'
 - en: '![Figure 5.8 – Single worker data pipeline](img/B20959_05_8.jpg)'
+  id: totrans-76
   prefs: []
   type: TYPE_IMG
+  zh: '![图5.8 – 单工作器数据管道](img/B20959_05_8.jpg)'
 - en: Figure 5.8 – Single worker data pipeline
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.8 – 单工作器数据管道
 - en: 'Fortunately, we can increase the number of processes operating on the data
     pipeline – that is, we can increase the number of data pipeline *workers*. When
     set to more than one worker, PyTorch will create additional processes to work
     simultaneously in more than one dataset sample:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，我们可以增加操作数据管道的进程数 - 也就是说，我们可以增加数据管道*工作者*的数量。 当设置为多个工作者时，PyTorch将创建额外的进程以同时处理多个数据集样本：
 - en: '![Figure 5.9 – Multiworker data pipeline](img/B20959_05_9.jpg)'
+  id: totrans-79
   prefs: []
   type: TYPE_IMG
+  zh: '![图5.9 – 多工作器数据管道](img/B20959_05_9.jpg)'
 - en: Figure 5.9 – Multi-worker data pipeline
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 图5.9 – 多工作器数据管道
 - en: As illustrated in *Figure 5**.9*, DataLoader receives **Sample 2** as soon as
     it asks for a new sample. This happens because **Worker 2** has started to work
     asynchronously and simultaneously on that sample, even without receiving a request
     to do it.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 如*图5**.9*所示，DataLoader在请求新样本时会立即接收**Sample 2**，这是因为**Worker 2**已开始异步并同时处理该样本，即使没有收到请求也是如此。
 - en: 'To increase the number of workers, we just need to set the `num_workers` parameter
     on `DataLoader` creation:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 要增加工作者数量，我们只需在创建`DataLoader`时设置`num_workers`参数：
 - en: '[PRE2]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: We’ll look at a practical performance improvement case in the next section.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节我们将看一个实际的性能提升案例。
 - en: Reaping the rewards
+  id: totrans-85
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 收获成果
 - en: Note
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb).
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节显示的完整代码可以在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter05/complex_pipeline.ipynb)找到。
 - en: 'To see a relevant performance improvement provided by those changes, we need
     to apply them to a complex data pipeline – that is, a worthy data pipeline! Otherwise,
     there is no room for performance gain. Therefore, we will adopt a data pipeline
     composed of seven tasks as our baseline, as shown here:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 要看到这些更改提供的相关性能改进，我们需要将它们应用于一个复杂的数据管道——也就是说，一个值得的数据管道！否则，性能提升的空间就不存在了。因此，我们将采用由七个任务组成的数据管道作为我们的基线，如下所示：
 - en: '[PRE3]'
+  id: totrans-89
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: For each sample, the data loading process applies five transformations, namely
     resizing, cropping, flipping, rotation, and Gaussian blur. After applying these
     transformations, data loading converts the resultant image into a tensor data
     type. Finally, the data is normalized according to a set of parameters.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于每个样本，数据加载过程应用五种转换，即调整大小、裁剪、翻转、旋转和高斯模糊。在应用这些转换后，数据加载将结果图像转换为张量数据类型。最后，数据根据一组参数进行标准化。
 - en: 'To assess performance improvement, we used this pipeline to train the **ResNet121**
     model over the **CIFAR-10** dataset. The training process, which is comprised
     of 10 epochs, took 1,892 seconds to complete, even running on an environment endowed
     with an NVIDIA A100 GPU:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了评估性能改进，我们使用此管道在**CIFAR-10**数据集上训练**ResNet121**模型。这个训练过程包括10个epochs，共计1,892秒完成，即使在配备NVIDIA
+    A100 GPU的环境下也是如此：
 - en: '[PRE4]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Note that this data pipeline is significantly heavier than the ones we’ve adopted
     so far in this book, which is exactly what we want!
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这个数据管道比本书中到目前为止采用的那些要复杂得多，这正是我们想要的！
 - en: 'To use pinned memory and enable multi-worker capability, we must set those
     two parameters on the original code:'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用固定内存并启用多工作进程能力，我们必须在原始代码中设置这两个参数：
 - en: '[PRE5]'
+  id: totrans-95
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'After applying these changes to our code, we’ll get the following result:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的代码中应用这些更改后，我们将得到以下结果：
 - en: '[PRE6]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: We have reduced the training time from 1,892 to 846 seconds, representing an
     impressive performance improvement of 123%!
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已将训练时间从1,892秒缩短至846秒，性能提升达到123％，令人印象深刻！
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节提供了几个问题，帮助您巩固本章学习的内容。
 - en: Quiz time!
+  id: totrans-100
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     Initially, try to answer these questions without consulting the material.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答一些问题来回顾本章学到的内容。初始时，请尝试不查阅材料回答这些问题。
 - en: Note
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md).
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些问题的答案都可以在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter05-answers.md)找到。
 - en: Before starting this quiz, remember that this is not a test! This section aims
     to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始本测验之前，请记住这不是一次测试！本节旨在通过复习和巩固本章内容来补充您的学习过程。
 - en: 'Choose the correct options for the following questions:'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 为以下问题选择正确的选项：
 - en: What three main tasks are executed during the data loading process?
+  id: totrans-106
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 数据加载过程执行的三个主要任务是什么？
 - en: Loading, scaling, and resizing.
+  id: totrans-107
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载、缩放和调整大小。
 - en: Scaling, resizing, and loading.
+  id: totrans-108
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 缩放、调整大小和加载。
 - en: Resizing, loading, and filtering.
+  id: totrans-109
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整大小、加载和过滤。
 - en: Loading, preparation, and augmentation.
+  id: totrans-110
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载、准备和增强。
 - en: Data loading feeds which phase of the training process?
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 数据加载是训练过程的哪个阶段？
 - en: Forward.
+  id: totrans-112
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 向前。
 - en: Backward.
+  id: totrans-113
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 向后。
 - en: Optimization.
+  id: totrans-114
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 优化。
 - en: Loss calculation.
+  id: totrans-115
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 损失计算。
 - en: Which components provided by the `torch.utils.data` API can be used to implement
     a data pipeline?
+  id: totrans-116
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`torch.utils.data` API 提供的哪些组件可用于实现数据流水线？'
 - en: '`Datapipe` and `DataLoader`.'
+  id: totrans-117
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`数据管道`和`数据加载器`。'
 - en: '`Dataset` and `DataLoading`.'
+  id: totrans-118
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`数据集`和`数据加载`。'
 - en: '`Dataset` and `DataLoader`.'
+  id: totrans-119
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`数据集`和`数据加载器`。'
 - en: '`Datapipe` and `DataLoading`.'
+  id: totrans-120
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`数据管道`和`数据加载`。'
 - en: Besides increasing the number of workers in the data pipeline, what can we do
     to improve the performance of the data loading process?
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了增加数据流水线中的工作人员数量，我们还能做什么来改善数据加载过程的性能？
 - en: Reduce the size of the dataset.
+  id: totrans-122
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 减少数据集的大小。
 - en: Do not use a GPU.
+  id: totrans-123
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 不使用 GPU。
 - en: Avoid the usage of high-dimensional images.
+  id: totrans-124
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 避免使用高维图像。
 - en: Optimize data transfer between the CPU and GPU.
+  id: totrans-125
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 优化 CPU 和 GPU 之间的数据传输。
 - en: How can we accelerate the data transfer between the CPU and GPU?
+  id: totrans-126
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们如何加快 CPU 和 GPU 之间的数据传输？
 - en: Use smaller datasets.
+  id: totrans-127
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用更小的数据集。
 - en: Use the fastest GPUs.
+  id: totrans-128
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用最快的 GPU。
 - en: Allocate and use pinned memory instead of pageable memory.
+  id: totrans-129
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 分配和使用固定内存而不是可分页内存。
 - en: Increase the amount of main memory.
+  id: totrans-130
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 增加主存储器的容量。
 - en: What should we do to enable the usage of pinned memory on `DataLoader`?
+  id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们应该做什么来启用在`DataLoader`上使用固定内存？
 - en: Nothing. It is already enabled by default.
+  id: totrans-132
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 没有。它已经默认启用。
 - en: Set the `pin_memory` parameter to `True`.
+  id: totrans-133
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将`pin_memory`参数设置为`True`。
 - en: Set the `experimental_copy` parameter to `True`.
+  id: totrans-134
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将`experimental_copy`参数设置为`True`。
 - en: Update PyTorch to version 2.0.
+  id: totrans-135
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 更新 PyTorch 到 2.0 版本。
 - en: Why can using more than one worker on the pipeline accelerate data loading on
     PyTorch?
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为什么在 PyTorch 上使用多个工作人员可以加速数据加载？
 - en: PyTorch reduces the amount of allocated memory.
+  id: totrans-137
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch 减少了分配的内存量。
 - en: PyTorch enables the usage of special hardware capabilities.
+  id: totrans-138
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch 启用了使用特殊硬件功能的能力。
 - en: PyTorch uses the fastest links to communicate with GPUs.
+  id: totrans-139
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch 使用最快的链接与 GPU 通信。
 - en: PyTorch processes simultaneously more than one dataset sample.
+  id: totrans-140
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch 同时处理多个数据集样本。
 - en: Which of the following is true when making a request to allocate pinned memory?
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在请求分配固定内存时，以下哪项是正确的？
 - en: It is always satisfied.
+  id: totrans-142
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 它总是满足的。
 - en: It can fail.
+  id: totrans-143
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 它可能失败。
 - en: It always fails.
+  id: totrans-144
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 它总是失败。
 - en: It cannot be done through PyTorch.
+  id: totrans-145
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 不能通过 PyTorch 完成。
 - en: Now, let’s summarize what we’ve covered in this chapter.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们总结一下本章涵盖的内容。
 - en: Summary
+  id: totrans-147
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, you learned that the data pipeline is an important piece of
     the model-building process. Thus, an efficient data pipeline is essential to keep
     the training process running without interruptions. Besides optimizing data transfer
     to the GPU through memory pining, you have learned how to enable and configure
     a multi-worker data pipeline.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，您了解到数据流水线是模型构建过程中的重要组成部分。因此，一个高效的数据流水线对于保持训练过程的连续运行至关重要。除了通过内存固定优化数据传输到
+    GPU 外，您还学会了如何启用和配置多工作人员数据流水线。
 - en: In the next chapter, you will learn how to reduce model complexity to speed
     up the training process without penalizing model quality.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，您将学习如何减少模型复杂性以加快训练过程，而不会影响模型质量。
