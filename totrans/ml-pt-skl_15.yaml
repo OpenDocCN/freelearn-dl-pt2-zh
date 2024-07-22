@@ -1,0 +1,2147 @@
+- en: '15'
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: '15'
+- en: Modeling Sequential Data Using Recurrent Neural Networks
+  id: totrans-1
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 使用循环神经网络对序列数据进行建模
+- en: In the previous chapter, we focused on **convolutional neural networks** (**CNNs**).
+    We covered the building blocks of CNN architectures and how to implement deep
+    CNNs in PyTorch. Finally, you learned how to use CNNs for image classification.
+    In this chapter, we will explore **recurrent neural networks** (**RNNs**) and
+    see their application in modeling sequential data.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在前一章中，我们专注于**卷积神经网络**（**CNNs**）。我们涵盖了CNN架构的基本构建模块以及如何在PyTorch中实现深度CNN。最后，您学习了如何使用CNN进行图像分类。在本章中，我们将探索**循环神经网络**（**RNNs**）并看到它们在建模序列数据中的应用。
+- en: 'We will cover the following topics:'
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将涵盖以下主题：
+- en: Introducing sequential data
+  id: totrans-4
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 引入序列数据
+- en: RNNs for modeling sequences
+  id: totrans-5
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 用于建模序列的RNN
+- en: Long short-term memory
+  id: totrans-6
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 长短期记忆（Long short-term memory）
+- en: Truncated backpropagation through time
+  id: totrans-7
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 截断的时间反向传播
+- en: Implementing a multilayer RNN for sequence modeling in PyTorch
+  id: totrans-8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在PyTorch中实现多层RNN进行序列建模
+- en: 'Project one: RNN sentiment analysis of the IMDb movie review dataset'
+  id: totrans-9
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 项目一：对IMDb电影评论数据集进行RNN情感分析
+- en: 'Project two: RNN character-level language modeling with LSTM cells, using text
+    data from Jules Verne’s *The Mysterious Island*'
+  id: totrans-10
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 项目二：使用LSTM单元进行RNN字符级语言建模，使用朱尔斯·凡尔纳的《神秘岛》文本数据
+- en: Using gradient clipping to avoid exploding gradients
+  id: totrans-11
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用梯度裁剪以避免梯度爆炸
+- en: Introducing sequential data
+  id: totrans-12
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 引入序列数据
+- en: Let’s begin our discussion of RNNs by looking at the nature of sequential data,
+    which is more commonly known as sequence data or **sequences**. We will look at
+    the unique properties of sequences that make them different from other kinds of
+    data. We will then see how to represent sequential data and explore the various
+    categories of models for sequential data, which are based on the input and output
+    of a model. This will help us to explore the relationship between RNNs and sequences
+    in this chapter.
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们开始讨论RNN，看看序列数据的性质，通常称为序列数据或**序列**。我们将探讨使序列数据与其他类型数据不同的独特属性。然后，我们将看如何表示序列数据并探索基于模型的输入和输出的各种序列数据模型类别。这将帮助我们在本章中探索RNN与序列之间的关系。
+- en: Modeling sequential data – order matters
+  id: totrans-14
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 建模序列数据 - 顺序至关重要
+- en: What makes sequences unique, compared to other types of data, is that elements
+    in a sequence appear in a certain order and are not independent of each other.
+    Typical machine learning algorithms for supervised learning assume that the input
+    is **independent and identically distributed** (**IID**) data, which means that
+    the training examples are *mutually independent* and have the same underlying
+    distribution. In this regard, based on the mutual independence assumption, the
+    order in which the training examples are given to the model is irrelevant. For
+    example, if we have a sample consisting of *n* training examples, **x**^((1)),
+    **x**^((2)), ..., **x**^(^n^), the order in which we use the data for training
+    our machine learning algorithm does not matter. An example of this scenario would
+    be the Iris dataset that we worked with previously. In the Iris dataset, each
+    flower has been measured independently, and the measurements of one flower do
+    not influence the measurements of another flower.
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与其他类型数据相比，使序列独特的是序列中的元素按一定顺序出现，并且彼此不独立。典型的监督学习机器学习算法假设输入数据为**独立同分布**（**IID**）数据，这意味着训练样本是*相互独立*且具有相同的基础分布。在这方面，基于相互独立的假设，训练样本被输入模型的顺序是无关紧要的。例如，如果我们有一个由*n*个训练样本组成的样本，**x**^((1)),
+    **x**^((2)), ..., **x**^(^n^)，那么使用数据训练我们的机器学习算法的顺序就不重要。在我们之前处理的鸢尾花数据集中就是一个例子。在鸢尾花数据集中，每朵花的测量是独立进行的，一朵花的测量不会影响另一朵花的测量。
+- en: However, this assumption is not valid when we deal with sequences—by definition,
+    order matters. Predicting the market value of a particular stock would be an example
+    of this scenario. For instance, assume we have a sample of *n* training examples,
+    where each training example represents the market value of a certain stock on
+    a particular day. If our task is to predict the stock market value for the next
+    three days, it would make sense to consider the previous stock prices in a date-sorted
+    order to derive trends rather than utilize these training examples in a randomized
+    order.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，当我们处理序列时，这种假设就不成立了——根据定义，顺序是重要的。例如，预测特定股票的市场价值就是这种情况的一个例子。假设我们有一个包含 *n* 个训练示例的样本，其中每个训练示例代表某一天某只股票的市场价值。如果我们的任务是预测接下来三天的股市价值，考虑以日期排序的先前股价以推断趋势会比随机顺序处理这些训练示例更合理。
+- en: Sequential data versus time series data
+  id: totrans-17
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 顺序数据与时间序列数据的区别
+- en: Time series data is a special type of sequential data where each example is
+    associated with a dimension for time. In time series data, samples are taken at
+    successive timestamps, and therefore, the time dimension determines the order
+    among the data points. For example, stock prices and voice or speech records are
+    time series data.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 时间序列数据是一种特殊的顺序数据类型，其中每个示例与时间维度相关联。在时间序列数据中，样本是在连续的时间戳上获取的，因此时间维度决定了数据点之间的顺序。例如，股票价格和语音记录就是时间序列数据的例子。
+- en: On the other hand, not all sequential data has the time dimension. For example,
+    in text data or DNA sequences, the examples are ordered, but text or DNA does
+    not qualify as time series data. As you will see, in this chapter, we will focus
+    on examples of natural language processing (NLP) and text modeling that are not
+    time series data. However, note that RNNs can also be used for time series data,
+    which is beyond the scope of this book.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一方面，并非所有的顺序数据都具有时间维度。例如，在文本数据或DNA序列中，示例是有序的，但文本或DNA并不符合时间序列数据的定义。正如你将在本章中看到的那样，我们将专注于自然语言处理
+    (NLP) 和文本建模的示例，这些不属于时间序列数据。然而，请注意，RNNs 也可以用于时间序列数据，这超出了本书的范围。
+- en: Representing sequences
+  id: totrans-20
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 表示序列
+- en: We’ve established that order among data points is important in sequential data,
+    so we next need to find a way to leverage this ordering information in a machine
+    learning model. Throughout this chapter, we will represent sequences as ![](img/B17582_15_001.png).
+    The superscript indices indicate the order of the instances, and the length of
+    the sequence is *T*. For a sensible example of sequences, consider time series
+    data, where each example point, *x*^(^t^), belongs to a particular time, *t*.
+    *Figure 15.1* shows an example of time series data where both the input features
+    (**x**’s) and the target labels (**y**’s) naturally follow the order according
+    to their time axis; therefore, both the **x**’s and **y**’s are sequences.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经确认在顺序数据中，数据点的顺序是重要的，因此我们接下来需要找到一种方法来利用这些顺序信息在机器学习模型中进行应用。在本章中，我们将把序列表示为
+    ![](img/B17582_15_001.png)。上标索引表示实例的顺序，序列的长度为 *T*。作为序列的一个合理示例，考虑时间序列数据，其中每个示例点
+    *x*^(^t^) 都属于特定的时间 *t*。*图 15.1* 展示了时间序列数据的一个示例，其中输入特征 (**x**'s) 和目标标签 (**y**'s)
+    都按照它们的时间轴自然地遵循顺序；因此，**x**'s 和 **y**'s 都是序列。
+- en: '![](img/B17582_15_01.png)'
+  id: totrans-22
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_01.png)'
+- en: 'Figure 15.1: An example of time series data'
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 15.1：时间序列数据示例
+- en: As we have already mentioned, the standard NN models that we have covered so
+    far, such as **multilayer perceptrons** (**MLPs**) and CNNs for image data, assume
+    that the training examples are independent of each other and thus do not incorporate
+    *ordering information*. We can say that such models do not have a *memory* of
+    previously seen training examples. For instance, the samples are passed through
+    the feedforward and backpropagation steps, and the weights are updated independently
+    of the order in which the training examples are processed.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如我们之前提到的，迄今为止我们涵盖的标准神经网络模型，如多层感知机 (**MLPs**) 和用于图像数据的CNNs，假定训练示例是相互独立的，因此不包括顺序信息。我们可以说这类模型没有对先前观察到的训练示例有所“记忆”。例如，样本通过前向传播和反向传播步骤，权重独立于处理训练示例的顺序而更新。
+- en: RNNs, by contrast, are designed for modeling sequences and are capable of remembering
+    past information and processing new events accordingly, which is a clear advantage
+    when working with sequence data.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 相比之下，RNNs 是专为建模序列设计的，能够记忆过去的信息并根据新事件进行处理，这在处理序列数据时是一个明显的优势。
+- en: The different categories of sequence modeling
+  id: totrans-26
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 序列建模的不同类别
+- en: Sequence modeling has many fascinating applications, such as language translation
+    (for example, translating text from English to German), image captioning, and
+    text generation. However, in order to choose an appropriate architecture and approach,
+    we have to understand and be able to distinguish between these different sequence
+    modeling tasks. *Figure 15.2*, based on the explanations in the excellent article
+    *The Unreasonable Effectiveness of Recurrent Neural Networks*, by *Andrej Karpathy*,
+    2015 ([http://karpathy.github.io/2015/05/21/rnn-effectiveness/](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)),
+    summarizes the most common sequence modeling tasks, which depend on the relationship
+    categories of input and output data.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 序列建模有许多迷人的应用，例如语言翻译（例如，将文本从英语翻译成德语）、图像字幕和文本生成。然而，为了选择合适的架构和方法，我们必须理解并能够区分这些不同的序列建模任务。*图15.2*基于Andrey
+    Karpathy在2015年撰写的优秀文章*循环神经网络的非理性有效性*（[http://karpathy.github.io/2015/05/21/rnn-effectiveness/](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)），总结了依赖于输入和输出数据关系类别的最常见序列建模任务。
+- en: '![](img/B17582_15_02.png)'
+  id: totrans-28
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_02.png)'
+- en: 'Figure 15.2: The most common sequencing tasks'
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.2：最常见的序列任务
+- en: 'Let’s discuss the different relationship categories between input and output
+    data, which were depicted in the previous figure, in more detail. If neither the
+    input nor output data represent sequences, then we are dealing with standard data,
+    and we could simply use a multilayer perceptron (or another classification model
+    previously covered in this book) to model such data. However, if either the input
+    or output is a sequence, the modeling task likely falls into one of these categories:'
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们详细讨论输入和输出数据之间不同的关系类别，这些类别在之前的图中已经描述过。如果输入和输出数据都不表示序列，那么我们处理的是标准数据，可以简单地使用多层感知器（或本书中先前介绍过的其他分类模型）来对这些数据进行建模。然而，如果输入或输出是序列之一，建模任务很可能属于以下某一类别：
+- en: '**Many-to-one**: The input data is a sequence, but the output is a fixed-size
+    vector or scalar, not a sequence. For example, in sentiment analysis, the input
+    is text-based (for example, a movie review) and the output is a class label (for
+    example, a label denoting whether a reviewer liked the movie).'
+  id: totrans-31
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**多对一**：输入数据是一个序列，但输出是一个固定大小的向量或标量，而不是序列。例如，在情感分析中，输入是基于文本的（例如电影评论），而输出是一个类别标签（例如表示评论者是否喜欢电影）。'
+- en: '**One-to-many**: The input data is in standard format and not a sequence, but
+    the output is a sequence. An example of this category is image captioning—the
+    input is an image and the output is an English phrase summarizing the content
+    of that image.'
+  id: totrans-32
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**一对多**：输入数据是标准格式而不是序列，但输出是一个序列。这一类别的一个例子是图像字幕，输入是图像，输出是总结该图像内容的英文短语。'
+- en: '**Many-to-many**: Both the input and output arrays are sequences. This category
+    can be further divided based on whether the input and output are synchronized.
+    An example of a synchronized many-to-many modeling task is video classification,
+    where each frame in a video is labeled. An example of a *delayed* many-to-many
+    modeling task would be translating one language into another. For instance, an
+    entire English sentence must be read and processed by a machine before its translation
+    into German is produced.'
+  id: totrans-33
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**多对多**：输入和输出数组都是序列。这一类别可以进一步根据输入和输出是否同步进行划分。同步多对多建模任务的一个例子是视频分类，其中标记每个视频帧。延迟多对多建模任务的例子是语言翻译，例如，机器必须先读取并处理整个英语句子，然后才能生成其德语翻译。'
+- en: Now, after summarizing the three broad categories of sequence modeling, we can
+    move forward to discussing the structure of an RNN.
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，在总结了序列建模的三大类别之后，我们可以继续讨论RNN的结构。
+- en: RNNs for modeling sequences
+  id: totrans-35
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 用于序列建模的RNN
+- en: In this section, before we start implementing RNNs in PyTorch, we will discuss
+    the main concepts of RNNs. We will begin by looking at the typical structure of
+    an RNN, which includes a recursive component to model sequence data. Then, we
+    will examine how the neuron activations are computed in a typical RNN. This will
+    create a context for us to discuss the common challenges in training RNNs, and
+    we will then discuss solutions to these challenges, such as LSTM and **gated recurrent
+    units** (**GRUs**).
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这一节中，在我们开始在PyTorch中实现RNN之前，我们将讨论RNN的主要概念。我们将首先查看典型RNN的结构，其中包括一个递归组件来建模序列数据。然后，我们将检查典型RNN中如何计算神经元的激活。这将为我们讨论训练RNN时面临的常见挑战创造一个背景，然后我们将讨论这些挑战的解决方案，例如LSTM和门控循环单元（**GRUs**）。
+- en: Understanding the dataflow in RNNs
+  id: totrans-37
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 理解RNN中的数据流动
+- en: 'Let’s start with the architecture of an RNN. *Figure 15.3* shows the dataflow
+    in a standard feedforward NN and in an RNN side by side for comparison:'
+  id: totrans-38
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们从RNN的架构开始。*图15.3*并排显示了标准前馈NN和RNN的数据流动，以便进行比较：
+- en: '![](img/B17582_15_03.png)'
+  id: totrans-39
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_03.png)'
+- en: 'Figure 15.3: The dataflow of a standard feedforward NN and an RNN'
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.3：标准前馈NN和RNN的数据流动
+- en: Both of these networks have only one hidden layer. In this representation, the
+    units are not displayed, but we assume that the input layer (**x**), hidden layer
+    (**h**), and output layer (**o**) are vectors that contain many units.
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这两个网络都只有一个隐藏层。在这个表示中，单位没有显示出来，但我们假设输入层（**x**），隐藏层（**h**）和输出层（**o**）都是包含许多单元的向量。
+- en: '**Determining the type of output from an RNN**'
+  id: totrans-42
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**确定RNN的输出类型**'
+- en: This generic RNN architecture could correspond to the two sequence modeling
+    categories where the input is a sequence. Typically, a recurrent layer can return
+    a sequence as output, ![](img/B17582_15_002.png), or simply return the last output
+    (at *t* = *T*, that is, **o**^(^T^)). Thus, it could be either many-to-many, or
+    it could be many-to-one if, for example, we only use the last element, **o**^(^T^),
+    as the final output.
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种通用的RNN架构可以对应两种序列建模类别，其中输入是一个序列。通常，递归层可以返回一个序列作为输出，![](img/B17582_15_002.png)，或者仅返回最后一个输出（在*t*
+    = *T*时，即**o**^(^T^)）。因此，它可能是多对多，或者如果例如我们仅使用最后一个元素**o**^(^T^)作为最终输出，那么它可能是多对一。
+- en: We will see later how this is handled in the PyTorch `torch.nn` module, when
+    we take a detailed look at the behavior of a recurrent layer with respect to returning
+    a sequence as output.
+  id: totrans-44
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在后面看到，当我们详细研究具有返回序列输出的递归层行为时，这是如何在PyTorch的`torch.nn`模块中处理的。
+- en: In a standard feedforward network, information flows from the input to the hidden
+    layer, and then from the hidden layer to the output layer. On the other hand,
+    in an RNN, the hidden layer receives its input from both the input layer of the
+    current time step and the hidden layer from the previous time step.
+  id: totrans-45
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在标准前馈网络中，信息从输入层流向隐藏层，然后从隐藏层流向输出层。另一方面，在RNN中，隐藏层接收来自当前时间步的输入层和上一时间步隐藏层的输入。
+- en: The flow of information in adjacent time steps in the hidden layer allows the
+    network to have a memory of past events. This flow of information is usually displayed
+    as a loop, also known as a **recurrent edge** in graph notation, which is how
+    this general RNN architecture got its name.
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 隐藏层中相邻时间步的信息流使得网络能够记住过去的事件。这种信息流通常显示为一个循环，也称为图表中的**递归边缘**，这也是这种通用RNN架构得名的方式。
+- en: 'Similar to multilayer perceptrons, RNNs can consist of multiple hidden layers.
+    Note that it’s a common convention to refer to RNNs with one hidden layer as a
+    *single-layer RNN*, which is not to be confused with single-layer NNs without
+    a hidden layer, such as Adaline or logistic regression. *Figure 15.4* illustrates
+    an RNN with one hidden layer (top) and an RNN with two hidden layers (bottom):'
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 类似于多层感知器，RNN可以由多个隐藏层组成。请注意，将只有一个隐藏层的RNN称为*单层RNN*是一种常见约定，不应与没有隐藏层的单层NN（如Adaline或逻辑回归）混淆。*图15.4*展示了具有一个隐藏层（顶部）和具有两个隐藏层（底部）的RNN：
+- en: '![](img/B17582_15_04.png)'
+  id: totrans-48
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_04.png)'
+- en: 'Figure 15.4: Examples of an RNN with one and two hidden layers'
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.4：具有一个和两个隐藏层的RNN示例
+- en: To examine the architecture of RNNs and the flow of information, a compact representation
+    with a recurrent edge can be unfolded, which you can see in *Figure 15.4*.
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了检验RNN的架构和信息流动，可以展开具有递归边缘的紧凑表示，您可以在*图15.4*中看到。
+- en: As we know, each hidden unit in a standard NN receives only one input—the net
+    preactivation associated with the input layer. In contrast, each hidden unit in
+    an RNN receives two *distinct* sets of input—the preactivation from the input
+    layer and the activation of the same hidden layer from the previous time step,
+    *t* – 1.
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如我们所知，标准NN中的每个隐藏单元只接收一个输入——来自输入层的净激活。相比之下，RNN中的每个隐藏单元接收两个*不同的*输入集——来自输入层的净激活以及前一个时间步*t*
+    – 1的相同隐藏层的激活。
+- en: At the first time step, *t* = 0, the hidden units are initialized to zeros or
+    small random values. Then, at a time step where *t* > 0, the hidden units receive
+    their input from the data point at the current time, **x**^(^t^), and the previous
+    values of hidden units at *t* – 1, indicated as **h**^(^t^(–1)).
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在第一个时间步*t* = 0时，隐藏单元被初始化为零或小的随机值。然后，在时间步*t* > 0时，隐藏单元接收来自当前时间点数据点**x**^(^t^)以及上一个时间步中的隐藏单元值**h**^(^t^(–1))的输入。
+- en: 'Similarly, in the case of a multilayer RNN, we can summarize the information
+    flow as follows:'
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 类似地，在多层RNN的情况下，信息流可以总结如下：
+- en: '*layer* = 1: Here, the hidden layer is represented as ![](img/B17582_15_003.png)
+    and it receives its input from the data point, **x**^(^t^), and the hidden values
+    in the same layer, but at the previous time step, ![](img/B17582_15_004.png).'
+  id: totrans-54
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '*layer* = 1：在这里，隐藏层表示为![](img/B17582_15_003.png)，它从数据点**x**^(^t^)以及同一层中但前一个时间步的隐藏值![](img/B17582_15_004.png)接收输入。'
+- en: '*layer* = 2: The second hidden layer, ![](img/B17582_15_005.png), receives
+    its inputs from the outputs of the layer below at the current time step (![](img/B17582_15_006.png))
+    and its own hidden values from the previous time step, ![](img/B17582_15_007.png).'
+  id: totrans-55
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '*layer* = 2：第二隐藏层，![](img/B17582_15_005.png)，从当前时间步下方图层的输出接收输入（![](img/B17582_15_006.png)），以及其自身在前一个时间步的隐藏值，![](img/B17582_15_007.png)。'
+- en: Since, in this case, each recurrent layer must receive a sequence as input,
+    all the recurrent layers except the last one must *return a sequence as output*
+    (that is, we will later have to set `return_sequences=True`). The behavior of
+    the last recurrent layer depends on the type of problem.
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于在这种情况下，每个递归层必须接收一个序列作为输入，除了最后一个递归层必须*返回一个序列作为输出*（也就是说，我们稍后必须设置`return_sequences=True`）。最后一个递归层的行为取决于问题的类型。
+- en: Computing activations in an RNN
+  id: totrans-57
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 在RNN中计算激活值
+- en: Now that you understand the structure and general flow of information in an
+    RNN, let’s get more specific and compute the actual activations of the hidden
+    layers, as well as the output layer. For simplicity, we will consider just a single
+    hidden layer; however, the same concept applies to multilayer RNNs.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在您已经理解了RNN中的结构和信息流动的一般流程，让我们更加具体地计算隐藏层的实际激活以及输出层。为简单起见，我们将只考虑单个隐藏层；然而，相同的概念也适用于多层RNN。
+- en: 'Each directed edge (the connections between boxes) in the representation of
+    an RNN that we just looked at is associated with a weight matrix. Those weights
+    do not depend on time, *t*; therefore, they are shared across the time axis. The
+    different weight matrices in a single-layer RNN are as follows:'
+  id: totrans-59
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在刚刚查看的RNN表示中，每条有向边（连接框之间的连接）都与一个权重矩阵相关联。这些权重不依赖于时间*t*，因此它们在时间轴上是共享的。单层RNN中的不同权重矩阵如下：
+- en: '**W**[xh]: The weight matrix between the input, **x**^(^t^), and the hidden
+    layer, **h**'
+  id: totrans-60
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**W**[xh]：输入**x**^(^t^)与隐藏层**h**之间的权重矩阵'
+- en: '**W**[hh]: The weight matrix associated with the recurrent edge'
+  id: totrans-61
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**W**[hh]：与递归边关联的权重矩阵'
+- en: '**W**[ho]: The weight matrix between the hidden layer and output layer'
+  id: totrans-62
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**W**[ho]：隐藏层与输出层之间的权重矩阵'
+- en: 'These weight matrices are depicted in *Figure 15.5*:'
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些权重矩阵如图15.5所示：
+- en: '![](img/B17582_15_05.png)'
+  id: totrans-64
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_05.png)'
+- en: 'Figure 15.5: Applying weights to a single-layer RNN'
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 15.5：应用权重到单层RNN
+- en: In certain implementations, you may observe that the weight matrices, **W**[xh]
+    and **W**[hh], are concatenated to a combined matrix, **W**[h] = [**W**[xh]; **W**[hh]].
+    Later in this section, we will make use of this notation as well.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在某些实现中，您可能会注意到权重矩阵**W**[xh]和**W**[hh]被连接成一个组合矩阵**W**[h] = [**W**[xh]; **W**[hh]]。在本节后面，我们将也会使用这种表示法。
+- en: 'Computing the activations is very similar to standard multilayer perceptrons
+    and other types of feedforward NNs. For the hidden layer, the net input, **z**[h]
+    (preactivation), is computed through a linear combination; that is, we compute
+    the sum of the multiplications of the weight matrices with the corresponding vectors
+    and add the bias unit:'
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 计算激活与标准的多层感知器和其他类型的前馈神经网络非常相似。对于隐藏层，净输入 **z**[h]（预激活）通过线性组合计算；即，我们计算权重矩阵与相应向量的乘积的总和，并添加偏置单元：
+- en: '![](img/B17582_15_008.png)'
+  id: totrans-68
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_008.png)'
+- en: 'Then, the activations of the hidden units at the time step, *t*, are calculated
+    as follows:'
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，在时间步 *t* 处计算隐藏单元的激活如下：
+- en: '![](img/B17582_15_009.png)'
+  id: totrans-70
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_009.png)'
+- en: Here, **b**[h] is the bias vector for the hidden units and ![](img/B17582_15_010.png)
+    is the activation function of the hidden layer.
+  id: totrans-71
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，**b**[h] 是隐藏单元的偏置向量，![](img/B17582_15_010.png) 是隐藏层的激活函数。
+- en: 'In case you want to use the concatenated weight matrix, **W**[h] = [**W**[xh]; **W**[hh]],
+    the formula for computing hidden units will change, as follows:'
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果要使用连接的权重矩阵，**W**[h] = [**W**[xh]; **W**[hh]]，则计算隐藏单元的公式将发生变化，如下所示：
+- en: '![](img/B17582_15_011.png)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_011.png)'
+- en: 'Once the activations of the hidden units at the current time step are computed,
+    then the activations of the output units will be computed, as follows:'
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦计算了当前时间步的隐藏单元的激活，那么输出单元的激活将按以下方式计算：
+- en: '![](img/B17582_15_012.png)'
+  id: totrans-75
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_012.png)'
+- en: 'To help clarify this further, *Figure 15.6* shows the process of computing
+    these activations with both formulations:'
+  id: totrans-76
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了进一步澄清，*Figure 15.6* 显示了使用这两种形式计算这些激活的过程：
+- en: '![](img/B17582_15_06.png)'
+  id: totrans-77
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_06.png)'
+- en: 'Figure 15.6: Computing the activations'
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.6：计算激活
+- en: '**Training RNNs using backpropagation through time (BPTT)**'
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**使用时间反向传播（BPTT）训练RNNs**'
+- en: 'The learning algorithm for RNNs was introduced in 1990: *Backpropagation Through
+    Time: What It Does and How to Do It* (*Paul Werbos*, *Proceedings of IEEE*, 78(10):
+    1550-1560, 1990).'
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: RNNs的学习算法首次在1990年引入：*通过时间的反向传播：它的作用及实现方法*（*Paul Werbos*，*IEEE会议录*，78(10)：1550-1560，1990）。
+- en: 'The derivation of the gradients might be a bit complicated, but the basic idea
+    is that the overall loss, *L*, is the sum of all the loss functions at times *t* = 1
+    to *t* = *T*:'
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 梯度的推导可能有些复杂，但基本思想是总体损失 *L* 是时间 *t* = 1 到 *t* = *T* 所有损失函数的总和：
+- en: '![](img/B17582_15_013.png)'
+  id: totrans-82
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_013.png)'
+- en: 'Since the loss at time *t* is dependent on the hidden units at all previous
+    time steps 1 : *t*, the gradient will be computed as follows:'
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于时间 *t* 处的损失依赖于所有之前时间步骤1 : *t* 的隐藏单元，梯度将按以下方式计算：
+- en: '![](img/B17582_15_014.png)'
+  id: totrans-84
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_014.png)'
+- en: 'Here, ![](img/B17582_15_015.png) is computed as a multiplication of adjacent
+    time steps:'
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，![](img/B17582_15_015.png) 是相邻时间步长的乘积计算：
+- en: '![](img/B17582_15_016.png)'
+  id: totrans-86
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_016.png)'
+- en: Hidden recurrence versus output recurrence
+  id: totrans-87
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 隐藏层的递归与输出的递归
+- en: 'So far, you have seen recurrent networks in which the hidden layer has the
+    recurrent property. However, note that there is an alternative model in which
+    the recurrent connection comes from the output layer. In this case, the net activations
+    from the output layer at the previous time step, **o**^t^(–1), can be added in
+    one of two ways:'
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，您已经看到具有隐藏层递归属性的递归网络。然而，请注意，还存在另一种模型，其中递归连接来自输出层。在这种情况下，从上一个时间步的输出层的净激活
+    **o**^t^(–1) 可以通过两种方式之一相加：
+- en: To the hidden layer at the current time step, **h**^t (shown in *Figure 15.7*
+    as output-to-hidden recurrence)
+  id: totrans-89
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 到当前时间步的隐藏层，**h**^t（如在 *Figure 15.7* 中显示的输出到隐藏递归）
+- en: To the output layer at the current time step, **o**^t (shown in *Figure 15.7*
+    as output-to-output recurrence)
+  id: totrans-90
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 到当前时间步的输出层，**o**^t（如在 *Figure 15.7* 中显示的输出到输出递归）
+- en: '![](img/B17582_15_07.png)'
+  id: totrans-91
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_07.png)'
+- en: 'Figure 15.7: Different recurrent connection models'
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.7：不同的递归连接模型
+- en: As shown in *Figure 15.7*, the differences between these architectures can be
+    clearly seen in the recurring connections. Following our notation, the weights
+    associated with the recurrent connection will be denoted for the hidden-to-hidden
+    recurrence by **W**[hh], for the output-to-hidden recurrence by **W**[oh], and
+    for the output-to-output recurrence by **W**[oo]. In some articles in literature,
+    the weights associated with the recurrent connections are also denoted by **W**[rec].
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如*图15.7*所示，这些架构之间的差异在递归连接中可以清楚地看到。根据我们的符号约定，与递归连接相关的权重将由隐藏到隐藏的递归表示为 **W**[hh]，由输出到隐藏的递归表示为
+    **W**[oh]，由输出到输出的递归表示为 **W**[oo]。在一些文献中，递归连接相关的权重也被表示为 **W**[rec]。
+- en: To see how this works in practice, let’s manually compute the forward pass for
+    one of these recurrent types. Using the `torch.nn` module, a recurrent layer can
+    be defined via `RNN`, which is similar to the hidden-to-hidden recurrence. In
+    the following code, we will create a recurrent layer from `RNN` and perform a
+    forward pass on an input sequence of length 3 to compute the output. We will also
+    manually compute the forward pass and compare the results with those of `RNN`.
+  id: totrans-94
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了看看这在实践中是如何工作的，让我们手动计算其中一种递归类型的前向传播。使用`torch.nn`模块，可以通过`RNN`定义一个递归层，它类似于隐藏到隐藏的递归。在以下代码中，我们将从`RNN`创建一个递归层，并对长度为3的输入序列执行前向传播以计算输出。我们还将手动计算前向传播并将结果与`RNN`的结果进行比较。
+- en: 'First, let’s create the layer and assign the weights and biases for our manual
+    computations:'
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 首先，让我们创建层，并为我们的手动计算分配权重和偏置：
+- en: '[PRE0]'
+  id: totrans-96
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: The input shape for this layer is `(batch_size, sequence_length, 5)`, where
+    the first dimension is the batch dimension (as we set `batch_first=True`), the
+    second dimension corresponds to the sequence, and the last dimension corresponds
+    to the features. Notice that we will output a sequence, which, for an input sequence
+    of length 3, will result in the output sequence ![](img/B17582_15_017.png). Also,
+    `RNN` uses one layer by default, and you can set `num_layers` to stack multiple
+    RNN layers together to form a stacked RNN.
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这一层的输入形状为`(batch_size, sequence_length, 5)`，其中第一维是批处理维度（因为我们设置了`batch_first=True`），第二维对应于序列，最后一维对应于特征。请注意，我们将输出一个序列，对于长度为3的输入序列，将产生输出序列
+    ![](img/B17582_15_017.png)。此外，`RNN`默认使用一层，您可以设置`num_layers`来堆叠多个RNN层以形成堆叠的RNN。
+- en: 'Now, we will call the forward pass on the `rnn_layer` and manually compute
+    the outputs at each time step and compare them:'
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，我们将在`rnn_layer`上调用前向传播，并手动计算每个时间步长的输出并进行比较：
+- en: '[PRE1]'
+  id: totrans-99
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: In our manual forward computation, we used the hyperbolic tangent (tanh) activation
+    function since it is also used in `RNN` (the default activation). As you can see
+    from the printed results, the outputs from the manual forward computations exactly
+    match the output of the `RNN` layer at each time step. Hopefully, this hands-on
+    task has enlightened you on the mysteries of recurrent networks.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的手动前向计算中，我们使用了双曲正切（tanh）激活函数，因为它也用于`RNN`（默认激活函数）。正如您从打印的结果中看到的那样，手动前向计算的输出在每个时间步长上与`RNN`层的输出完全匹配。希望这个实际任务能让您对递归网络的奥秘有所启发。
+- en: The challenges of learning long-range interactions
+  id: totrans-101
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 学习长程交互的挑战
+- en: BPTT, which was briefly mentioned earlier, introduces some new challenges. Because
+    of the multiplicative factor, ![](img/B17582_15_018.png), in computing the gradients
+    of a loss function, the so-called **vanishing** and **exploding** gradient problems
+    arise.
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: BPTT（之前简要提到过）引入了一些新的挑战。由于梯度计算中的乘法因子，称为![](img/B17582_15_018.png)，导致了所谓的**消失**和**爆炸**梯度问题的产生。
+- en: 'These problems are explained by the examples in *Figure 15.8*, which shows
+    an RNN with only one hidden unit for simplicity:'
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些问题通过*图15.8*中的例子进行了解释，显示了一个仅具有一个隐藏单元的简单RNN：
+- en: '![](img/B17582_15_08.png)'
+  id: totrans-104
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_08.png)'
+- en: 'Figure 15.8: Problems in computing the gradients of the loss function'
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.8：计算损失函数梯度中的问题
+- en: Basically, ![](img/B17582_15_018.png) has *t* – *k* multiplications; therefore,
+    multiplying the weight, *w,* by itself *t* – *k* times results in a factor, *w*^t^–^k.
+    As a result, if |*w*| < 1, this factor becomes very small when *t* – *k* is large.
+    On the other hand, if the weight of the recurrent edge is |*w*| > 1, then *w*^t^–^k
+    becomes very large when *t* – *k* is large. Note that a large *t* – *k* refers
+    to long-range dependencies. We can see that a naive solution to avoid vanishing
+    or exploding gradients can be reached by ensuring |*w*| = 1\. If you are interested
+    and would like to investigate this in more detail, read *On the difficulty of
+    training recurrent neural networks* by *R. Pascanu*, *T. Mikolov*, and *Y. Bengio*,
+    2012 ([https://arxiv.org/pdf/1211.5063.pdf](https://arxiv.org/pdf/1211.5063.pdf)).
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 基本上，![](img/B17582_15_018.png)有*t* – *k*个乘法；因此，将权重*w*乘以它自己*t* – *k*次得到因子*w*^t^–^k。因此，如果|*w*| < 1，当*t* – *k*很大时，这个因子变得非常小。另一方面，如果递归边的权重是|*w*| > 1，则当*t* – *k*很大时*w*^t^–^k变得非常大。请注意，大*t* – *k*指的是长程依赖性。我们可以看到，避免梯度消失或爆炸的一个朴素解决方案是确保|*w*| = 1。如果您有兴趣并且希望更详细地研究这一点，请阅读*R.
+    Pascanu*，*T. Mikolov*和*Y. Bengio*在2012年发表的论文*《On the difficulty of training recurrent
+    neural networks》*（[https://arxiv.org/pdf/1211.5063.pdf](https://arxiv.org/pdf/1211.5063.pdf)）。
+- en: 'In practice, there are at least three solutions to this problem:'
+  id: totrans-107
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在实践中，至少有三种解决方案：
+- en: Gradient clipping
+  id: totrans-108
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 梯度裁剪
+- en: '**Truncated backpropagation through time** (**TBPTT**)'
+  id: totrans-109
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '**截断时间反向传播**（**TBPTT**）'
+- en: LSTM
+  id: totrans-110
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: LSTM
+- en: Using gradient clipping, we specify a cut-off or threshold value for the gradients,
+    and we assign this cut-off value to gradient values that exceed this value. In
+    contrast, TBPTT simply limits the number of time steps that the signal can backpropagate
+    after each forward pass. For example, even if the sequence has 100 elements or
+    steps, we may only backpropagate the most recent 20 time steps.
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用梯度裁剪，我们为梯度指定了一个截断或阈值，并将超过此值的梯度赋予此截断值。相比之下，TBPTT仅限制了每次前向传递后信号能够反向传播的时间步数。例如，即使序列有100个元素或步骤，我们也只能反向传播最近的20个时间步。
+- en: While both gradient clipping and TBPTT can solve the exploding gradient problem,
+    the truncation limits the number of steps that the gradient can effectively flow
+    back and properly update the weights. On the other hand, LSTM, designed in 1997
+    by Sepp Hochreiter and Jürgen Schmidhuber, has been more successful in vanishing
+    and exploding gradient problems while modeling long-range dependencies through
+    the use of memory cells. Let’s discuss LSTM in more detail.
+  id: totrans-112
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管梯度裁剪和TBPTT都可以解决梯度爆炸问题，但截断限制了梯度能够有效流动和适当更新权重的步数。另一方面，1997年由Sepp Hochreiter和Jürgen
+    Schmidhuber设计的LSTM通过使用记忆细胞在建模长程依赖性时更为成功地解决了梯度消失和爆炸问题。让我们更详细地讨论LSTM。
+- en: Long short-term memory cells
+  id: totrans-113
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 长短期记忆细胞
+- en: 'As stated previously, LSTMs were first introduced to overcome the vanishing
+    gradient problem (*Long Short-Term Memory* by *S. Hochreiter* and *J. Schmidhuber*,
+    *Neural Computation*, 9(8): 1735-1780, 1997). The building block of an LSTM is
+    a **memory cell**, which essentially represents or replaces the hidden layer of
+    standard RNNs.'
+  id: totrans-114
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如之前所述，LSTM最初是为了解决梯度消失问题而引入的（*长短期记忆*，由*S. Hochreiter*和*J. Schmidhuber*，*Neural
+    Computation*，9(8)：1735-1780，1997年提出）。LSTM的构建模块是一个**记忆细胞**，它本质上表示或替代标准RNN的隐藏层。
+- en: 'In each memory cell, there is a recurrent edge that has the desirable weight,
+    *w* = 1, as we discussed, to overcome the vanishing and exploding gradient problems.
+    The values associated with this recurrent edge are collectively called the **cell
+    state**. The unfolded structure of a modern LSTM cell is shown in *Figure 15.9*:'
+  id: totrans-115
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在每个记忆细胞中，都有一个具有理想权重*w* = 1的递归边，正如我们讨论过的，用来解决梯度消失和爆炸问题。与这个递归边相关联的值被统称为**细胞状态**。现代LSTM细胞的展开结构如图*15.9*所示：
+- en: '![](img/B17582_15_09.png)'
+  id: totrans-116
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_09.png)'
+- en: 'Figure 15.9: The structure of an LSTM cell'
+  id: totrans-117
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.9：LSTM细胞的结构
+- en: Notice that the cell state from the previous time step, **C**^(^t^(–1)), is
+    modified to get the cell state at the current time step, **C**^(^t^), without
+    being multiplied directly by any weight factor. The flow of information in this
+    memory cell is controlled by several computation units (often called *gates*)
+    that will be described here. In the figure, ![](img/B17582_15_020.png) refers
+    to the **element-wise product** (element-wise multiplication) and ![](img/B17582_15_021.png)
+    means **element-wise summation** (element-wise addition). Furthermore, **x**^(^t^)
+    refers to the input data at time *t*, and **h**^(^t^(–1)) indicates the hidden
+    units at time *t* – 1\. Four boxes are indicated with an activation function,
+    either the sigmoid function (![](img/B17582_14_032.png)) or tanh, and a set of
+    weights; these boxes apply a linear combination by performing matrix-vector multiplications
+    on their inputs (which are **h**^(^t^(–1)) and **x**^(^t^)). These units of computation
+    with sigmoid activation functions, whose output units are passed through ![](img/B17582_15_023.png),
+    are called gates.
+  id: totrans-118
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，从上一个时间步骤的细胞状态 **C**^(^t^(–1)) 修改为获取当前时间步骤的细胞状态 **C**^(^t^)，而不直接乘以任何权重因子。这个记忆单元中的信息流由几个计算单元（通常称为*门*）控制，这些将在这里描述。在图中，![](img/B17582_15_020.png)
+    指代**逐元素乘积**，![](img/B17582_15_021.png) 表示**逐元素求和**。此外，**x**^(^t^) 指时间 *t* 的输入数据，**h**^(^t^(–1))
+    表示时间 *t* – 1 的隐藏单元。有四个框指示激活函数，可以是sigmoid函数（![](img/B17582_14_032.png)）或tanh，以及一组权重；这些框通过在它们的输入（**h**^(^t^(–1))
+    和 **x**^(^t^)）上执行矩阵-向量乘法来应用线性组合。这些具有sigmoid激活函数的计算单元，其输出单元通过 ![](img/B17582_15_023.png)
+    传递，称为门。
+- en: 'In an LSTM cell, there are three different types of gates, which are known
+    as the forget gate, the input gate, and the output gate:'
+  id: totrans-119
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在LSTM单元中，有三种不同类型的门，称为遗忘门、输入门和输出门：
+- en: 'The **forget gate** (**f**[t]) allows the memory cell to reset the cell state
+    without growing indefinitely. In fact, the forget gate decides which information
+    is allowed to go through and which information to suppress. Now, **f**[t] is computed
+    as follows:'
+  id: totrans-120
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**遗忘门**（**f**[t]）允许记忆单元在不无限增长的情况下重置细胞状态。实际上，遗忘门决定了哪些信息允许通过，哪些信息被抑制。现在，**f**[t]
+    计算如下：'
+- en: '![](img/B17582_15_024.png)'
+  id: totrans-121
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_024.png)'
+- en: 'Note that the forget gate was not part of the original LSTM cell; it was added
+    a few years later to improve the original model (*Learning to Forget: Continual
+    Prediction with LSTM* by *F. Gers*, *J. Schmidhuber*, and *F. Cummins*, *Neural
+    Computation 12*, 2451-2471, 2000).'
+  id: totrans-122
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 注意，遗忘门并不是最初的LSTM单元的一部分；几年后才添加，以改进原始模型（《忘记学习：连续预测与LSTM》作者 *F. Gers*、*J. Schmidhuber*
+    和 *F. Cummins*，*神经计算 12*，2451-2471，2000年）。
+- en: 'The **input gate** (**i**[t]) and **candidate value** (![](img/B17582_15_025.png))
+    are responsible for updating the cell state. They are computed as follows:'
+  id: totrans-123
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**输入门**（**i**[t]）和**候选值**（![](img/B17582_15_025.png)）负责更新细胞状态。它们的计算如下：'
+- en: '![](img/B17582_15_026.png)'
+  id: totrans-124
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_026.png)'
+- en: 'The cell state at time *t* is computed as follows:'
+  id: totrans-125
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 时间 *t* 的细胞状态计算如下：
+- en: '![](img/B17582_15_027.png)'
+  id: totrans-126
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_027.png)'
+- en: 'The **output gate** (**o**[t]) decides how to update the values of hidden units:'
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**输出门**（**o**[t]）决定如何更新隐藏单元的值：'
+- en: '![](img/B17582_15_028.png)'
+  id: totrans-128
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_028.png)'
+- en: 'Given this, the hidden units at the current time step are computed as follows:'
+  id: totrans-129
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 给定这一点，当前时间步骤的隐藏单元计算如下：
+- en: '![](img/B17582_15_029.png)'
+  id: totrans-130
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_029.png)'
+- en: The structure of an LSTM cell and its underlying computations might seem very
+    complex and hard to implement. However, the good news is that PyTorch has already
+    implemented everything in optimized wrapper functions, which allows us to define
+    our LSTM cells easily and efficiently. We will apply RNNs and LSTMs to real-world
+    datasets later in this chapter.
+  id: totrans-131
+  prefs: []
+  type: TYPE_NORMAL
+  zh: LSTM单元的结构及其底层计算可能看起来非常复杂且难以实现。然而，好消息是PyTorch已经用优化的包装函数实现了一切，这使我们可以轻松高效地定义我们的LSTM单元。我们将在本章后面将RNN和LSTM应用于实际数据集。
+- en: '**Other advanced RNN models**'
+  id: totrans-132
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**其他高级RNN模型**'
+- en: LSTMs provide a basic approach for modeling long-range dependencies in sequences.
+    Yet, it is important to note that there are many variations of LSTMs described
+    in literature (*An Empirical Exploration of Recurrent Network Architectures* by
+    *Rafal Jozefowicz*, *Wojciech Zaremba*, and *Ilya Sutskever*, *Proceedings of
+    ICML*, 2342-2350, 2015). Also worth noting is a more recent approach, **gated
+    recurrent unit** (**GRU**), which was proposed in 2014\. GRUs have a simpler architecture
+    than LSTMs; therefore, they are computationally more efficient, while their performance
+    in some tasks, such as polyphonic music modeling, is comparable to LSTMs. If you
+    are interested in learning more about these modern RNN architectures, refer to
+    the paper, *Empirical Evaluation of Gated Recurrent Neural Networks on Sequence
+    Modeling* by *Junyoung Chung* and others, 2014 ([https://arxiv.org/pdf/1412.3555v1.pdf](https://arxiv.org/pdf/1412.3555v1.pdf)).
+  id: totrans-133
+  prefs: []
+  type: TYPE_NORMAL
+  zh: LSTM提供了一种基本方法来建模序列中的长期依赖性。然而，值得注意的是，文献中描述了许多LSTM的变体（*Rafal Jozefowicz*，*Wojciech
+    Zaremba*和*Ilya Sutskever*的 *An Empirical Exploration of Recurrent Network Architectures*，*ICML会议论文*，2015年，第2342-2350页）。还值得注意的是，2014年提出了更近期的方法，**门控循环单元**（**GRU**）。GRU比LSTM具有更简单的架构，因此在计算上更高效，而在某些任务（如多声部音乐建模）中，它们的性能与LSTM相当。如果您有兴趣了解这些现代RNN架构的更多信息，请参考
+    *Junyoung Chung* 等人的论文，*Empirical Evaluation of Gated Recurrent Neural Networks
+    on Sequence Modeling*，2014年（[https://arxiv.org/pdf/1412.3555v1.pdf](https://arxiv.org/pdf/1412.3555v1.pdf)）。
+- en: Implementing RNNs for sequence modeling in PyTorch
+  id: totrans-134
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 在PyTorch中实现序列建模的RNN
+- en: 'Now that we have covered the underlying theory behind RNNs, we are ready to
+    move on to the more practical portion of this chapter: implementing RNNs in PyTorch.
+    During the rest of this chapter, we will apply RNNs to two common problem tasks:'
+  id: totrans-135
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们已经讨论了RNN背后的基本理论，我们准备进入本章更加实际的部分：在PyTorch中实现RNN。在本章的其余部分，我们将将RNN应用于两个常见的问题任务：
+- en: Sentiment analysis
+  id: totrans-136
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 情感分析
+- en: Language modeling
+  id: totrans-137
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 语言建模
+- en: These two projects, which we will walk through together in the following pages,
+    are both fascinating but also quite involved. Thus, instead of providing the code
+    all at once, we will break the implementation up into several steps and discuss
+    the code in detail. If you like to have a big picture overview and want to see
+    all the code at once before diving into the discussion, take a look at the code
+    implementation first.
+  id: totrans-138
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在接下来的页面一起步入的这两个项目，既有趣又复杂。因此，我们将代码实现分成几个步骤，并详细讨论代码，而不是一次性提供所有代码。如果您想要有一个全局视图，并在深入讨论之前先看到所有代码，请首先查看代码实现。
+- en: Project one – predicting the sentiment of IMDb movie reviews
+  id: totrans-139
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 第一个项目——预测IMDb电影评论的情感
+- en: You may recall from *Chapter 8*, *Applying Machine Learning to Sentiment Analysis*,
+    that sentiment analysis is concerned with analyzing the expressed opinion of a
+    sentence or a text document. In this section and the following subsections, we
+    will implement a multilayer RNN for sentiment analysis using a many-to-one architecture.
+  id: totrans-140
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您可能还记得在 *第8章* *将机器学习应用于情感分析* 中，情感分析关注于分析句子或文本文档的表达意见。在本节和接下来的子节中，我们将使用多层RNN实现情感分析，采用多对一架构。
+- en: In the next section, we will implement a many-to-many RNN for an application
+    of language modeling. While the chosen examples are purposefully simple to introduce
+    the main concepts of RNNs, language modeling has a wide range of interesting applications,
+    such as building chatbots—giving computers the ability to directly talk and interact
+    with humans.
+  id: totrans-141
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将实现一个用于语言建模的多对多RNN应用。虽然所选择的示例故意简单，以介绍RNN的主要概念，但语言建模有广泛的有趣应用，例如构建聊天机器人——让计算机直接与人类进行对话和交互。
+- en: Preparing the movie review data
+  id: totrans-142
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 准备电影评论数据
+- en: 'In *Chapter 8*, we preprocessed and cleaned the review dataset. And we will
+    do the same now. First, we will import the necessary modules and read the data
+    from `torchtext` (which we will install via `pip install torchtext`; version 0.10.0
+    was used as of late 2021) as follows:'
+  id: totrans-143
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在 *第8章* 中，我们对评论数据集进行了预处理和清洗。现在我们将做同样的事情。首先，我们将导入必要的模块，并从 `torchtext` 中读取数据（我们将通过
+    `pip install torchtext` 进行安装；截至2021年末，版本为0.10.0）如下：
+- en: '[PRE2]'
+  id: totrans-144
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: Each set has 25,000 samples. And each sample of the datasets consists of two
+    elements, the sentiment label representing the target label we want to predict
+    (`neg` refers to negative sentiment and `pos` refers to positive sentiment), and
+    the movie review text (the input features). The text component of these movie
+    reviews is sequences of words, and the RNN model classifies each sequence as a
+    positive (`1`) or negative (`0`) review.
+  id: totrans-145
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 每个集合包含 25,000 个样本。每个数据集样本由两个元素组成，情感标签表示我们想要预测的目标标签（`neg` 表示负面情感，`pos` 表示正面情感），以及电影评论文本（输入特征）。这些电影评论的文本部分是单词序列，RNN
+    模型将每个序列分类为正面（`1`）或负面（`0`）评论。
+- en: 'However, before we can feed the data into an RNN model, we need to apply several
+    preprocessing steps:'
+  id: totrans-146
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在将数据输入到 RNN 模型之前，我们需要执行几个预处理步骤：
+- en: Split the training dataset into separate training and validation partitions.
+  id: totrans-147
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将训练数据集分割为单独的训练和验证分区。
+- en: Identify the unique words in the training dataset
+  id: totrans-148
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 识别训练数据集中的唯一单词
+- en: Map each unique word to a unique integer and encode the review text into encoded
+    integers (an index of each unique word)
+  id: totrans-149
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将每个唯一单词映射到唯一整数，并将评论文本编码为编码整数（每个唯一单词的索引）。
+- en: Divide the dataset into mini-batches as input to the model
+  id: totrans-150
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将数据集分割为小批量作为模型的输入。
+- en: 'Let’s proceed with the first step: creating a training and validation partition
+    from the `train_dataset` we read earlier:'
+  id: totrans-151
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们继续进行第一步：从我们之前读取的 `train_dataset` 创建训练和验证分区：
+- en: '[PRE3]'
+  id: totrans-152
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: The original training dataset contains 25,000 examples. 20,000 examples are
+    randomly chosen for training, and 5,000 for validation.
+  id: totrans-153
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 原始训练数据集包含 25,000 个示例。随机选择 20,000 个示例用于训练，5,000 个用于验证。
+- en: To prepare the data for input to an NN, we need to encode it into numeric values,
+    as was mentioned in *steps 2* and *3*. To do this, we will first find the unique
+    words (tokens) in the training dataset. While finding unique tokens is a process
+    for which we can use Python datasets, it can be more efficient to use the `Counter`
+    class from the `collections` package, which is part of Python’s standard library.
+  id: totrans-154
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了准备数据以输入到 NN，我们需要将其编码为数字值，如 *步骤 2* 和 *3* 中提到的那样。为此，我们首先将找到训练数据集中的唯一单词（标记）。虽然查找唯一标记是一个可以使用
+    Python 数据集完成的过程，但使用 Python 标准库中的 `collections` 包中的 `Counter` 类可能更有效。
+- en: 'In the following code, we will instantiate a new `Counter` object (`token_counts`)
+    that will collect the unique word frequencies. Note that in this particular application
+    (and in contrast to the bag-of-words model), we are only interested in the set
+    of unique words and won’t require the word counts, which are created as a side
+    product. To split the text into words (or tokens), we will reuse the `tokenizer`
+    function we developed in *Chapter 8*, which also removes HTML markups as well
+    as punctuation and other non-letter characters:'
+  id: totrans-155
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下面的代码中，我们将实例化一个新的 `Counter` 对象（`token_counts`），它将收集唯一单词的频率。请注意，在这种特定的应用程序中（与词袋模型相反），我们只关注唯一单词集合，而不需要单词计数，这些计数是作为副产品创建的。为了将文本分割成单词（或标记），我们将重用在
+    *第 8 章* 中开发的 `tokenizer` 函数，该函数还会移除 HTML 标记以及标点符号和其他非字母字符：
+- en: 'The code for collecting unique tokens is as follows:'
+  id: totrans-156
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 收集唯一标记的代码如下：
+- en: '[PRE4]'
+  id: totrans-157
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: If you want to learn more about `Counter`, refer to its documentation at [https://docs.python.org/3/library/collections.html#collections.Counter](https://docs.python.org/3/library/collections.html#collections.Counter).
+  id: totrans-158
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您想了解更多关于 `Counter` 的信息，请参阅其文档：[https://docs.python.org/3/library/collections.html#collections.Counter](https://docs.python.org/3/library/collections.html#collections.Counter)。
+- en: 'Next, we are going to map each unique word to a unique integer. This can be
+    done manually using a Python dictionary, where the keys are the unique tokens
+    (words) and the value associated with each key is a unique integer. However, the
+    `torchtext` package already provides a class, `Vocab`, which we can use to create
+    such a mapping and encode the entire dataset. First, we will create a `vocab`
+    object by passing the ordered dictionary mapping tokens to their corresponding
+    occurrence frequencies (the ordered dictionary is the sorted `token_counts`).
+    Second, we will prepend two special tokens to the vocabulary – the padding and
+    the unknown token:'
+  id: totrans-159
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们将把每个唯一单词映射到一个唯一整数。这可以通过手动使用 Python 字典完成，其中键是唯一标记（单词），与每个键关联的值是唯一整数。然而，`torchtext`
+    包已经提供了一个名为 `Vocab` 的类，我们可以使用它来创建这样一个映射并对整个数据集进行编码。首先，我们将通过传递将标记映射到其相应出现频率的有序字典（有序字典是排序后的
+    `token_counts`）来创建一个 `vocab` 对象。其次，我们将在词汇表中添加两个特殊标记 – 填充和未知标记：
+- en: '[PRE5]'
+  id: totrans-160
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: 'To demonstrate how to use the `vocab` object, we will convert an example input
+    text into a list of integer values:'
+  id: totrans-161
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了演示如何使用 `vocab` 对象，我们将把一个示例输入文本转换为整数值列表：
+- en: '[PRE6]'
+  id: totrans-162
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: Note that there might be some tokens in the validation or testing data that
+    are not present in the training data and are thus not included in the mapping.
+    If we have *q* tokens (that is, the size of `token_counts` passed to `Vocab`,
+    which in this case is 69,023), then all tokens that haven’t been seen before,
+    and are thus not included in `token_counts`, will be assigned the integer 1 (a
+    placeholder for the unknown token). In other words, the index 1 is reserved for
+    unknown words. Another reserved value is the integer 0, which serves as a placeholder,
+    a so-called *padding token*, for adjusting the sequence length. Later, when we
+    are building an RNN model in PyTorch, we will consider this placeholder, 0, in
+    more detail.
+  id: totrans-163
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，验证或测试数据中可能有些标记不在训练数据中，因此未包含在映射中。如果我们有 *q* 个标记（即传递给 `Vocab` 的 `token_counts`
+    的大小，在本例中为 69,023），那么所有以前未见过的标记，因此未包含在 `token_counts` 中，将被分配整数 1（未知标记的占位符）。换句话说，索引
+    1 保留给未知词。另一个保留值是整数 0，用作调整序列长度的占位符，即所谓的 *填充标记*。稍后，在 PyTorch 中构建 RNN 模型时，我们将详细考虑这个占位符
+    0。
+- en: 'We can define the `text_pipeline` function to transform each text in the dataset
+    accordingly and the `label_pipeline` function to convert each label to 1 or 0:'
+  id: totrans-164
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以定义 `text_pipeline` 函数来相应地转换数据集中的每个文本，以及 `label_pipeline` 函数来将每个标签转换为 1 或
+    0：
+- en: '[PRE7]'
+  id: totrans-165
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: 'We will generate batches of samples using `DataLoader` and pass the data processing
+    pipelines declared previously to the argument `collate_fn`. We will wrap the text
+    encoding and label transformation function into the `collate_batch` function:'
+  id: totrans-166
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将使用 `DataLoader` 生成样本批次，并将先前声明的数据处理流水线传递给 `collate_fn` 参数。我们将文本编码和标签转换函数封装到
+    `collate_batch` 函数中：
+- en: '[PRE8]'
+  id: totrans-167
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: So far, we’ve converted sequences of words into sequences of integers, and labels
+    of `pos` or `neg` into 1 or 0\. However, there is one issue that we need to resolve—the
+    sequences currently have different lengths (as shown in the result of executing
+    the following code for four examples). Although, in general, RNNs can handle sequences
+    with different lengths, we still need to make sure that all the sequences in a
+    mini-batch have the same length to store them efficiently in a tensor.
+  id: totrans-168
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，我们已经将单词序列转换为整数序列，并将 `pos` 或 `neg` 的标签转换为 1 或 0。然而，我们需要解决一个问题——当前序列的长度不同（如在执行以下代码对四个示例进行操作后所示）。尽管通常
+    RNN 可以处理不同长度的序列，但我们仍然需要确保一个小批量中的所有序列具有相同的长度，以便在张量中有效地存储它们。
+- en: PyTorch provides an efficient method, `pad_sequence()`, which will automatically
+    pad the consecutive elements that are to be combined into a batch with placeholder
+    values (0s) so that all sequences within a batch will have the same shape. In
+    the previous code, we already created a data loader of a small batch size from
+    the training dataset and applied the `collate_batch` function, which itself included
+    a `pad_sequence()` call.
+  id: totrans-169
+  prefs: []
+  type: TYPE_NORMAL
+  zh: PyTorch 提供了一个高效的方法，`pad_sequence()`，它会自动使用占位值（0）填充要合并到批次中的连续元素，以便批次中的所有序列具有相同的形状。在前面的代码中，我们已经从训练数据集中创建了一个小批量大小的数据加载器，并应用了
+    `collate_batch` 函数，该函数本身包含了 `pad_sequence()` 调用。
+- en: 'However, to illustrate how padding works, we will take the first batch and
+    print the sizes of the individual elements before combining these into mini-batches,
+    as well as the dimensions of the resulting mini-batches:'
+  id: totrans-170
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，为了说明填充的工作原理，我们将取第一个批次并打印单个元素在合并这些元素成小批次之前的大小，以及生成的小批次的维度：
+- en: '[PRE9]'
+  id: totrans-171
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: As you can observe from the printed tensor shapes, the number of columns in
+    the first batch is 218, which resulted from combining the first four examples
+    into a single batch and using the maximum size of these examples. This means that
+    the other three examples (whose lengths are 165, 86, and 145, respectively) in
+    this batch are padded as much as necessary to match this size.
+  id: totrans-172
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您从打印的张量形状中可以观察到的那样，第一个批次的列数为 218，这是将前四个示例合并为单个批次并使用这些示例的最大大小得到的结果。这意味着该批次中的其他三个示例（它们的长度分别为
+    165、86 和 145）将根据需要进行填充，以匹配此大小。
+- en: 'Finally, let’s divide all three datasets into data loaders with a batch size
+    of 32:'
+  id: totrans-173
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，让我们将所有三个数据集分成批量大小为 32 的数据加载器：
+- en: '[PRE10]'
+  id: totrans-174
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: Now, the data is in a suitable format for an RNN model, which we are going to
+    implement in the following subsections. In the next subsection, however, we will
+    first discuss feature **embedding**, which is an optional but highly recommended
+    preprocessing step that is used to reduce the dimensionality of the word vectors.
+  id: totrans-175
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，数据已经处于适合RNN模型的格式中，我们将在接下来的小节中实现它。但是，在下一小节中，我们首先讨论特征**嵌入**，这是一个可选但强烈推荐的预处理步骤，用于减少词向量的维度。
+- en: Embedding layers for sentence encoding
+  id: totrans-176
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 用于句子编码的嵌入层
+- en: During the data preparation in the previous step, we generated sequences of
+    the same length. The elements of these sequences were integer numbers that corresponded
+    to the *indices* of unique words. These word indices can be converted into input
+    features in several different ways. One naive way is to apply one-hot encoding
+    to convert the indices into vectors of zeros and ones. Then, each word will be
+    mapped to a vector whose size is the number of unique words in the entire dataset.
+    Given that the number of unique words (the size of the vocabulary) can be in the
+    order of 10⁴ – 10⁵, which will also be the number of our input features, a model
+    trained on such features may suffer from the **curse of dimensionality**. Furthermore,
+    these features are very sparse since all are zero except one.
+  id: totrans-177
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在前一步骤的数据准备过程中，我们生成了相同长度的序列。这些序列的元素是整数，对应于唯一单词的*索引*。这些单词索引可以以多种方式转换为输入特征。一个天真的方法是应用独热编码，将索引转换为由零和一组成的向量。然后，每个单词将被映射到一个向量，其大小为整个数据集中唯一单词的数量。考虑到唯一单词的数量（词汇表的大小）可能在10⁴ 至 10⁵的数量级，这也将是我们输入特征的数量，模型在这些特征上训练可能会受到**维度诅咒**的影响。此外，这些特征非常稀疏，因为除了一个之外，所有都是零。
+- en: A more elegant approach is to map each word to a vector of a fixed size with
+    real-valued elements (not necessarily integers). In contrast to the one-hot encoded
+    vectors, we can use finite-sized vectors to represent an infinite number of real
+    numbers. (In theory, we can extract infinite real numbers from a given interval,
+    for example [–1, 1].)
+  id: totrans-178
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 更加优雅的方法是将每个单词映射到一个固定大小、具有实值元素（不一定是整数）的向量中。与独热编码向量相比，我们可以使用有限大小的向量来表示无限数量的实数。
+    （理论上，我们可以从给定区间（例如[-1, 1]）中提取无限的实数。）
+- en: This is the idea behind embedding, which is a feature-learning technique that
+    we can utilize here to automatically learn the salient features to represent the
+    words in our dataset. Given the number of unique words, *n*[words], we can select
+    the size of the embedding vectors (a.k.a., embedding dimension) to be much smaller
+    than the number of unique words (*embedding_dim* << *n*[words]) to represent the
+    entire vocabulary as input features.
+  id: totrans-179
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这就是嵌入的概念，它是一种特征学习技术，我们可以利用它来自动学习表示数据集中单词的显著特征。鉴于唯一单词的数量，*n*[words]，我们可以选择嵌入向量的大小（即嵌入维度），远小于唯一单词的数量（*embedding_dim* << *n*[words]），以表示整个词汇表作为输入特征。
+- en: 'The advantages of embedding over one-hot encoding are as follows:'
+  id: totrans-180
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 嵌入与独热编码相比的优势如下：
+- en: A reduction in the dimensionality of the feature space to decrease the effect
+    of the curse of dimensionality
+  id: totrans-181
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 通过减少特征空间的维度来减少维度诅咒的影响
+- en: The extraction of salient features since the embedding layer in an NN can be
+    optimized (or learned)
+  id: totrans-182
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 由于NN中的嵌入层可以被优化（或学习），所以可以提取显著特征
+- en: 'The following schematic representation shows how embedding works by mapping
+    token indices to a trainable embedding matrix:'
+  id: totrans-183
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下示意图表示了嵌入如何工作，通过将标记索引映射到可训练的嵌入矩阵：
+- en: '![](img/B17582_15_10.png)'
+  id: totrans-184
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_10.png)'
+- en: 'Figure 15.10: A breakdown of how embedding works'
+  id: totrans-185
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '图 15.10: 嵌入式工作原理的分解'
+- en: 'Given a set of tokens of size *n* + 2 (*n* is the size of the token set, plus
+    index 0 is reserved for the padding placeholder, and 1 is for the words not present
+    in the token set), an embedding matrix of size (*n* + 2) × *embedding_dim* will
+    be created where each row of this matrix represents numeric features associated
+    with a token. Therefore, when an integer index, *i*, is given as input to the
+    embedding, it will look up the corresponding row of the matrix at index *i* and
+    return the numeric features. The embedding matrix serves as the input layer to
+    our NN models. In practice, creating an embedding layer can simply be done using
+    `nn.Embedding`. Let’s see an example where we will create an embedding layer and
+    apply it to a batch of two samples, as follows:'
+  id: totrans-186
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 给定大小为*n* + 2的一组标记（*n*为标记集的大小，加上索引0保留为填充占位符，1为不在标记集中的词），将创建一个大小为（*n* + 2）× *embedding_dim*的嵌入矩阵，其中矩阵的每一行表示与一个标记相关联的数值特征。因此，当整数索引*i*作为嵌入的输入时，它将查找矩阵中索引*i*对应的行，并返回数值特征。嵌入矩阵充当我们NN模型的输入层。在实践中，可以简单地使用`nn.Embedding`来创建一个嵌入层。让我们看一个例子，我们将创建一个嵌入层，并将其应用于一个包含两个样本的批处理，如下所示：
+- en: '[PRE11]'
+  id: totrans-187
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: The input to this model (embedding layer) must have rank 2 with the dimensionality
+    *batchsize* × *input_length*, where *input_length* is the length of sequences
+    (here, 4). For example, an input sequence in the mini-batch could be <1, 5, 9, 2>,
+    where each element of this sequence is the index of the unique words. The output
+    will have the dimensionality *batchsize* × *input_length* × *embedding_dim*, where
+    *embedding_dim* is the size of the embedding features (here, set to 3). The other
+    argument provided to the embedding layer, `num_embeddings`, corresponds to the
+    unique integer values that the model will receive as input (for instance, *n* + 2,
+    set here to 10). Therefore, the embedding matrix in this case has the size 10×6.
+  id: totrans-188
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此模型的输入（嵌入层）必须具有二维的rank，维度为*batchsize* × *input_length*，其中*input_length*是序列的长度（这里为4）。例如，小批量中的一个输入序列可以是<1, 5, 9, 2>，其中每个元素是唯一单词的索引。输出将具有维度*batchsize* × *input_length* × *embedding_dim*，其中*embedding_dim*是嵌入特征的大小（这里设置为3）。提供给嵌入层的另一个参数`num_embeddings`对应于模型将接收的唯一整数值（例如，*n* + 2，在这里设置为10）。因此，在这种情况下，嵌入矩阵的大小为10×6。
+- en: '`padding_idx` indicates the token index for padding (here, 0), which, if specified,
+    will not contribute to the gradient updates during training. In our example, the
+    length of the original sequence of the second sample is 3, and we padded it with
+    1 more element 0\. The embedding output of the padded element is [0, 0, 0].'
+  id: totrans-189
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`padding_idx`指示填充的标记索引（这里为0），如果指定，将在训练期间不会对其进行梯度更新。在我们的例子中，第二个样本的原始序列长度为3，我们用1个额外的元素0进行了填充。填充元素的嵌入输出为[0, 0, 0]。'
+- en: Building an RNN model
+  id: totrans-190
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 构建一个RNN模型
+- en: 'Now we’re ready to build an RNN model. Using the `nn.Module` class, we can
+    combine the embedding layer, the recurrent layers of the RNN, and the fully connected
+    non-recurrent layers. For the recurrent layers, we can use any of the following
+    implementations:'
+  id: totrans-191
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们可以构建一个RNN模型。使用`nn.Module`类，我们可以将嵌入层、RNN的递归层和完全连接的非递归层组合在一起。对于递归层，我们可以使用以下任意一种实现：
+- en: '`RNN`: a regular RNN layer, that is, a fully connected recurrent layer'
+  id: totrans-192
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`RNN`：常规的RNN层，即全连接递归层'
+- en: '`LSTM`: a long short-term memory RNN, which is useful for capturing the long-term
+    dependencies'
+  id: totrans-193
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`LSTM`：长短期记忆RNN，用于捕捉长期依赖性'
+- en: '`GRU`: a recurrent layer with a gated recurrent unit, as proposed in *Learning
+    Phrase Representations Using RNN Encoder–Decoder for Statistical Machine Translation*
+    by *K. Cho* et al., 2014 ([https://arxiv.org/abs/1406.1078v3](https://arxiv.org/abs/1406.1078v3)),
+    as an alternative to LSTMs'
+  id: totrans-194
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`GRU`：具有门控递归单元的递归层，作为LSTM的替代方案，由*K. Cho*等人在*Learning Phrase Representations
+    Using RNN Encoder–Decoder for Statistical Machine Translation*中提出（2014年）([https://arxiv.org/abs/1406.1078v3](https://arxiv.org/abs/1406.1078v3))'
+- en: 'To see how a multilayer RNN model can be built using one of these recurrent
+    layers, in the following example, we will create an RNN model with two recurrent
+    layers of type `RNN`. Finally, we will add a non-recurrent fully connected layer
+    as the output layer, which will return a single output value as the prediction:'
+  id: totrans-195
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要查看如何使用这些递归层之一构建多层RNN模型，请看下面的例子，我们将创建一个包含两个`RNN`递归层的RNN模型。最后，我们将添加一个非递归完全连接层作为输出层，该层将返回单个输出值作为预测：
+- en: '[PRE12]'
+  id: totrans-196
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: As you can see, building an RNN model using these recurrent layers is pretty
+    straightforward. In the next subsection, we will go back to our sentiment analysis
+    task and build an RNN model to solve that.
+  id: totrans-197
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您所看到的，使用这些循环层构建 RNN 模型非常简单。在下一个小节中，我们将回到情感分析任务，并建立一个 RNN 模型来解决这个问题。
+- en: Building an RNN model for the sentiment analysis task
+  id: totrans-198
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 为情感分析任务构建 RNN 模型
+- en: 'Since we have very long sequences, we are going to use an LSTM layer to account
+    for long-range effects. We will create an RNN model for sentiment analysis, starting
+    with an embedding layer producing word embeddings of feature size 20 (`embed_dim=20`).
+    Then, a recurrent layer of type LSTM will be added. Finally, we will add a fully
+    connected layer as a hidden layer and another fully connected layer as the output
+    layer, which will return a single class-membership probability value via the logistic
+    sigmoid activation as the prediction:'
+  id: totrans-199
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因为我们有非常长的序列，所以我们将使用 LSTM 层来考虑长期效应。我们将创建一个用于情感分析的 RNN 模型，从产生特征大小为 20 的词嵌入的嵌入层开始（`embed_dim=20`）。然后，将添加类型为
+    LSTM 的递归层。最后，我们将添加一个全连接层作为隐藏层，另一个全连接层作为输出层，通过逻辑 sigmoid 激活返回单个类成员概率值作为预测：
+- en: '[PRE13]'
+  id: totrans-200
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: 'Now we will develop the `train` function to train the model on the given dataset
+    for one epoch and return the classification accuracy and loss:'
+  id: totrans-201
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将开发 `train` 函数，在给定数据集上训练模型一个 epoch，并返回分类准确率和损失值：
+- en: '[PRE14]'
+  id: totrans-202
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: 'Similarly, we will develop the `evaluate` function to measure the model’s performance
+    on a given dataset:'
+  id: totrans-203
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 同样地，我们将开发 `evaluate` 函数来衡量模型在给定数据集上的表现：
+- en: '[PRE15]'
+  id: totrans-204
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE15]'
+- en: 'The next step is to create a loss function and optimizer (Adam optimizer).
+    For a binary classification with a single class-membership probability output,
+    we use the binary cross-entropy loss (`BCELoss`) as the loss function:'
+  id: totrans-205
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下一步是创建损失函数和优化器（Adam 优化器）。对于具有单个类成员概率输出的二元分类，我们使用二元交叉熵损失 (`BCELoss`) 作为损失函数：
+- en: '[PRE16]'
+  id: totrans-206
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE16]'
+- en: 'Now we will train the model for 10 epochs and display the training and validation
+    performances:'
+  id: totrans-207
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将对模型进行 10 个 epochs 的训练，并显示训练和验证的表现：
+- en: '[PRE17]'
+  id: totrans-208
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE17]'
+- en: 'After training this model for 10 epochs, we will evaluate it on the test data:'
+  id: totrans-209
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在对测试数据进行 10 个 epochs 的训练后，我们将对其进行评估：
+- en: '[PRE18]'
+  id: totrans-210
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE18]'
+- en: It showed 85 percent accuracy. (Note that this result is not the best when compared
+    to the state-of-the-art methods used on the IMDb dataset. The goal was simply
+    to show how an RNN works in PyTorch.)
+  id: totrans-211
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 它显示了 85% 的准确率。（请注意，与 IMDb 数据集上使用的最先进方法相比，这个结果并不是最好的。目标只是展示 PyTorch 中 RNN 的工作原理。）
+- en: More on the bidirectional RNN
+  id: totrans-212
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: 关于双向 RNN 的更多信息
+- en: 'In addition, we will set the `bidirectional` configuration of the `LSTM` to
+    `True`, which will make the recurrent layer pass through the input sequences from
+    both directions, start to end, as well as in the reverse direction:'
+  id: totrans-213
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，我们将设置 `LSTM` 的 `bidirectional` 配置为 `True`，这将使递归层通过输入序列的正向和反向两个方向进行传递：
+- en: '[PRE19]'
+  id: totrans-214
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE19]'
+- en: 'The bidirectional RNN layer makes two passes over each input sequence: a forward
+    pass and a reverse or backward pass (note that this is not to be confused with
+    the forward and backward passes in the context of backpropagation). The resulting
+    hidden states of these forward and backward passes are usually concatenated into
+    a single hidden state. Other merge modes include summation, multiplication (multiplying
+    the results of the two passes), and averaging (taking the average of the two).'
+  id: totrans-215
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 双向 RNN 层使每个输入序列经过两次传递：正向传递和反向传递（请注意，这与反向传播的正向和反向传递的上下文不同）。这些正向和反向传递的隐藏状态通常被连接成一个单一的隐藏状态。其他合并模式包括求和、乘积（将两次传递的结果相乘）和平均值（取两者的平均值）。
+- en: We can also try other types of recurrent layers, such as the regular `RNN`.
+    However, as it turns out, a model built with regular recurrent layers won’t be
+    able to reach a good predictive performance (even on the training data). For example,
+    if you try replacing the bidirectional LSTM layer in the previous code with a
+    unidirectional `nn.RNN` (instead of `nn.LSTM`) layer and train the model on full-length
+    sequences, you may observe that the loss will not even decrease during training.
+    The reason is that the sequences in this dataset are too long, so a model with
+    an `RNN` layer cannot learn the long-term dependencies and may suffer from vanishing
+    or exploding gradient problems.
+  id: totrans-216
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们还可以尝试其他类型的递归层，比如常规的`RNN`。然而，事实证明，使用常规递归层构建的模型无法达到良好的预测性能（即使在训练数据上）。例如，如果您尝试将前面代码中的双向LSTM层替换为单向的`nn.RNN`层（而不是`nn.LSTM`），并且在完整长度的序列上训练模型，您可能会观察到损失在训练过程中甚至不会减少。原因是数据集中的序列太长，因此具有`RNN`层的模型无法学习长期依赖关系，并可能遭遇梯度消失或梯度爆炸问题。
+- en: Project two – character-level language modeling in PyTorch
+  id: totrans-217
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 项目二 – 在PyTorch中进行字符级语言建模
+- en: Language modeling is a fascinating application that enables machines to perform
+    human language-related tasks, such as generating English sentences. One of the
+    interesting studies in this area is *Generating Text with Recurrent Neural Networks*
+    by *Ilya Sutskever*, *James Martens*, and *Geoffrey E. Hinton*, *Proceedings of
+    the 28th International Conference on Machine Learning (ICML-11)*, 2011 ([https://pdfs.semanticscholar.org/93c2/0e38c85b69fc2d2eb314b3c1217913f7db11.pdf](https://pdfs.semanticscholar.org/93c2/0e38c85b69fc2d2eb314b3c1217913f7db11.pdf)).
+  id: totrans-218
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 语言建模是一种迷人的应用，它使机器能够执行与人类语言相关的任务，例如生成英文句子。在这个领域的一个有趣研究是*Ilya Sutskever*、*James
+    Martens*和*Geoffrey E. Hinton*的文章*Generating Text with Recurrent Neural Networks*，发表于2011年的第28届国际机器学习会议（ICML-11）([https://pdfs.semanticscholar.org/93c2/0e38c85b69fc2d2eb314b3c1217913f7db11.pdf](https://pdfs.semanticscholar.org/93c2/0e38c85b69fc2d2eb314b3c1217913f7db11.pdf))。
+- en: In the model that we will build now, the input is a text document, and our goal
+    is to develop a model that can generate new text that is similar in style to the
+    input document. Examples of such input are a book or a computer program in a specific
+    programming language.
+  id: totrans-219
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们即将构建的模型中，输入是一个文本文档，我们的目标是开发一个能够生成与输入文档风格类似的新文本的模型。这样的输入示例包括书籍或特定编程语言的计算机程序。
+- en: In character-level language modeling, the input is broken down into a sequence
+    of characters that are fed into our network one character at a time. The network
+    will process each new character in conjunction with the memory of the previously
+    seen characters to predict the next one.
+  id: totrans-220
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在字符级语言建模中，输入被分解为一个字符序列，逐个字符输入到我们的网络中。网络将每个新字符与先前看到的字符的记忆一起处理，以预测下一个字符。
+- en: '*Figure 15.11* shows an example of character-level language modeling (note
+    that EOS stands for “end of sequence”):'
+  id: totrans-221
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '*图15.11*显示了字符级语言建模的一个示例（注意EOS代表“序列结束”）：'
+- en: '![](img/B17582_15_11.png)'
+  id: totrans-222
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_11.png)'
+- en: 'Figure 15.11: Character-level language modeling'
+  id: totrans-223
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图15.11：字符级语言建模
+- en: 'We can break this implementation down into three separate steps: preparing
+    the data, building the RNN model, and performing next-character prediction and
+    sampling to generate new text.'
+  id: totrans-224
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以将这个实现分解成三个单独的步骤：准备数据，构建RNN模型，以及进行下一个字符预测和抽样，以生成新的文本。
+- en: Preprocessing the dataset
+  id: totrans-225
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 数据集预处理
+- en: In this section, we will prepare the data for character-level language modeling.
+  id: totrans-226
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本节中，我们将为字符级语言建模准备数据。
+- en: To obtain the input data, visit the Project Gutenberg website at [https://www.gutenberg.org/](https://www.gutenberg.org/),
+    which provides thousands of free e-books. For our example, you can download the
+    book *The Mysterious Island*, by Jules Verne (published in 1874) in plain text
+    format from [https://www.gutenberg.org/files/1268/1268-0.txt](https://www.gutenberg.org/files/1268/1268-0.txt).
+  id: totrans-227
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要获取输入数据，请访问古腾堡计划网站 [https://www.gutenberg.org/](https://www.gutenberg.org/)，该网站提供数千本免费电子书。例如，您可以从
+    [https://www.gutenberg.org/files/1268/1268-0.txt](https://www.gutenberg.org/files/1268/1268-0.txt)
+    下载儒勒·凡尔纳（于1874年出版）的书籍《神秘岛》的纯文本格式版本。
+- en: 'Note that this link will take you directly to the download page. If you are
+    using macOS or a Linux operating system, you can download the file with the following
+    command in the terminal:'
+  id: totrans-228
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，此链接将直接带您到下载页面。如果您使用的是macOS或Linux操作系统，您可以使用终端中的以下命令下载文件：
+- en: '[PRE20]'
+  id: totrans-229
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE20]'
+- en: If this resource becomes unavailable in the future, a copy of this text is also
+    included in this chapter’s code directory in the book’s code repository at [https://github.com/rasbt/machine-learning-book](https://github.com/rasbt/machine-learning-book).
+  id: totrans-230
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果将来此资源不可用，本章节代码目录中也包含了此文本的副本，位于书籍代码库的[https://github.com/rasbt/machine-learning-book](https://github.com/rasbt/machine-learning-book)。
+- en: 'Once we have downloaded the dataset, we can read it into a Python session as
+    plain text. Using the following code, we will read the text directly from the
+    downloaded file and remove portions from the beginning and the end (these contain
+    certain descriptions of the Gutenberg project). Then, we will create a Python
+    variable, `char_set`, that represents the set of *unique* characters observed
+    in this text:'
+  id: totrans-231
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦我们下载了数据集，我们可以将其作为纯文本读入Python会话。使用以下代码，我们将直接从下载的文件中读取文本，并删除开头和结尾的部分（这些部分包含Gutenberg项目的某些描述）。然后，我们将创建一个Python变量`char_set`，表示在这个文本中观察到的*唯一*字符集：
+- en: '[PRE21]'
+  id: totrans-232
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE21]'
+- en: 'After downloading and preprocessing the text, we have a sequence consisting
+    of 1,112,350 characters in total and 80 unique characters. However, most NN libraries
+    and RNN implementations cannot deal with input data in string format, which is
+    why we have to convert the text into a numeric format. To do this, we will create
+    a simple Python dictionary that maps each character to an integer, `char2int`.
+    We will also need a reverse mapping to convert the results of our model back to
+    text. Although the reverse can be done using a dictionary that associates integer
+    keys with character values, using a NumPy array and indexing the array to map
+    indices to those unique characters is more efficient. *Figure 15.12* shows an
+    example of converting characters into integers and the reverse for the words `"Hello"`
+    and `"world"`:'
+  id: totrans-233
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下载和预处理文本之后，我们总共有1,112,350个字符的序列，其中包含80个唯一字符。然而，大多数神经网络库和RNN实现无法处理字符串格式的输入数据，因此我们必须将文本转换为数值格式。为此，我们将创建一个简单的Python字典，将每个字符映射到一个整数`char2int`。我们还需要一个反向映射，将我们模型的结果转换回文本。虽然可以使用一个将整数键与字符值关联的字典来执行反向映射，但是使用NumPy数组并索引该数组以将索引映射到这些唯一字符更为高效。*图
+    15.12*展示了将字符转换为整数以及对单词`"Hello"`和`"world"`进行反向映射的示例：
+- en: '![](img/B17582_15_12.png)'
+  id: totrans-234
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_12.png)'
+- en: 'Figure 15.12: Character and integer mappings'
+  id: totrans-235
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '图 15.12: 字符和整数映射'
+- en: 'Building the dictionary to map characters to integers, and reverse mapping
+    via indexing a NumPy array, as was shown in the previous figure, is as follows:'
+  id: totrans-236
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 构建将字符映射到整数的字典，并通过索引NumPy数组进行反向映射，如前面的图所示，如下所示：
+- en: '[PRE22]'
+  id: totrans-237
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE22]'
+- en: 'The `text_encoded` NumPy array contains the encoded values for all the characters
+    in the text. Now, we will print out the mappings of the first five characters
+    from this array:'
+  id: totrans-238
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`text_encoded` NumPy数组包含文本中所有字符的编码值。现在，我们将打印出这个数组中前五个字符的映射：'
+- en: '[PRE23]'
+  id: totrans-239
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE23]'
+- en: Now, let’s step back and look at the big picture of what we are trying to do.
+    For the text generation task, we can formulate the problem as a classification
+    task.
+  id: totrans-240
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，让我们退后一步，看看我们试图做的大局。对于文本生成任务，我们可以将问题描述为一个分类任务。
+- en: 'Suppose we have a set of sequences of text characters that are incomplete,
+    as shown in *Figure 15.13*:'
+  id: totrans-241
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 假设我们有一组不完整的文本字符序列，如*图 15.13*所示：
+- en: '![](img/B17582_15_13.png)'
+  id: totrans-242
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_13.png)'
+- en: 'Figure 15.13: Predicting the next character for a text sequence'
+  id: totrans-243
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '图 15.13: 预测文本序列的下一个字符'
+- en: In *Figure 15.13*, we can consider the sequences shown in the left-hand box
+    to be the input. In order to generate new text, our goal is to design a model
+    that can predict the next character of a given input sequence, where the input
+    sequence represents an incomplete text. For example, after seeing “Deep Learn,”
+    the model should predict “i” as the next character. Given that we have 80 unique
+    characters, this problem becomes a multiclass classification task.
+  id: totrans-244
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在*图 15.13*中，我们可以将左侧框中显示的序列视为输入。为了生成新的文本，我们的目标是设计一个模型，该模型可以预测给定输入序列的下一个字符，其中输入序列代表不完整的文本。例如，看到“Deep
+    Learn”后，模型应该预测下一个字符是“i”。鉴于我们有80个唯一字符，这个问题成为了一个多类别分类任务。
+- en: 'Starting with a sequence of length 1 (that is, one single letter), we can iteratively
+    generate new text based on this multiclass classification approach, as illustrated
+    in *Figure 15.14*:'
+  id: totrans-245
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 从长度为1的序列开始（即一个单一字母），我们可以根据这种多类别分类方法迭代地生成新的文本，如*图 15.14*所示：
+- en: '![](img/B17582_15_14.png)'
+  id: totrans-246
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/B17582_15_14.png)'
+- en: 'Figure 15.14: Generating next text based on this multiclass classification
+    approach'
+  id: totrans-247
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '图 15.14: 基于这种多类别分类方法生成下一个文本'
+- en: To implement the text generation task in PyTorch, let’s first clip the sequence
+    length to 40\. This means that the input tensor, **x**, consists of 40 tokens.
+    In practice, the sequence length impacts the quality of the generated text. Longer
+    sequences can result in more meaningful sentences. For shorter sequences, however,
+    the model might focus on capturing individual words correctly, while ignoring
+    the context for the most part. Although longer sequences usually result in more
+    meaningful sentences, as mentioned, for long sequences, the RNN model will have
+    problems capturing long-range dependencies. Thus, in practice, finding a sweet
+    spot and good value for the sequence length is a hyperparameter optimization problem,
+    which we have to evaluate empirically. Here, we are going to choose 40, as it
+    offers a good trade-off.
+  id: totrans-248
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要在 PyTorch 中实现文本生成任务，让我们首先将序列长度剪切为 40。这意味着输入张量 **x** 由 40 个标记组成。在实践中，序列长度影响生成文本的质量。较长的序列可能会导致更有意义的句子。然而，对于较短的序列，模型可能会更专注于正确捕捉单个单词，而忽略大部分上下文。虽然较长的序列通常会产生更有意义的句子，但正如前面提到的，对于长序列，RNN
+    模型可能难以捕捉长距离的依赖关系。因此，在实践中找到适当的序列长度是一个需要经验评估的超参数优化问题。在这里，我们选择 40，因为它提供了一个良好的折衷。
+- en: 'As you can see in the previous figure, the inputs, **x**, and targets, **y**,
+    are offset by one character. Hence, we will split the text into chunks of size
+    41: the first 40 characters will form the input sequence, **x**, and the last
+    40 elements will form the target sequence, **y**.'
+  id: totrans-249
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您在前面的图中所看到的，输入 **x** 和目标 **y** 相差一个字符。因此，我们将文本分割成大小为 41 的块：前 40 个字符将形成输入序列
+    **x**，最后的 40 个元素将形成目标序列 **y**。
+- en: 'We have already stored the entire encoded text in its original order in `text_encoded`.
+    We will first create text chunks consisting of 41 characters each. We will further
+    get rid of the last chunk if it is shorter than 41 characters. As a result, the
+    new chunked dataset, named `text_chunks`, will always contain sequences of size
+    41\. The 41-character chunks will then be used to construct the sequence **x**
+    (that is, the input), as well as the sequence **y** (that is, the target), both
+    of which will have 40 elements. For instance, sequence **x** will consist of the
+    elements with indices [0, 1, ..., 39]. Furthermore, since sequence **y** will
+    be shifted by one position with respect to **x**, its corresponding indices will
+    be [1, 2, ..., 40]. Then, we will transform the result into a `Dataset` object
+    by applying a self-defined `Dataset` class:'
+  id: totrans-250
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经将整个编码文本按其原始顺序存储在 `text_encoded` 中。我们将首先创建由每个包含 41 个字符的文本块组成的文本块。如果最后一个块少于
+    41 个字符，我们将删除它。因此，被命名为 `text_chunks` 的新文本块数据集将始终包含大小为 41 的序列。这些 41 个字符的块将用于构建序列
+    **x**（即输入）和序列 **y**（即目标），它们都将包含 40 个元素。例如，序列 **x** 将由索引 [0, 1, ..., 39] 的元素组成。此外，由于序列
+    **y** 将相对于 **x** 向后移动一个位置，其对应的索引将是 [1, 2, ..., 40]。然后，我们将通过应用自定义的 `Dataset` 类将结果转换为
+    `Dataset` 对象：
+- en: '[PRE24]'
+  id: totrans-251
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE24]'
+- en: 'Let’s take a look at some example sequences from this transformed dataset:'
+  id: totrans-252
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们来看看从转换后的数据集中提取的一些示例序列：
+- en: '[PRE25]'
+  id: totrans-253
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE25]'
+- en: 'Finally, the last step in preparing the dataset is to transform this dataset
+    into mini-batches:'
+  id: totrans-254
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，准备数据集的最后一步是将该数据集转换为小批次：
+- en: '[PRE26]'
+  id: totrans-255
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE26]'
+- en: Building a character-level RNN model
+  id: totrans-256
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 构建字符级 RNN 模型
+- en: 'Now that the dataset is ready, building the model will be relatively straightforward:'
+  id: totrans-257
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在数据集准备好了，构建模型将相对简单：
+- en: '[PRE27]'
+  id: totrans-258
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE27]'
+- en: Notice that we will need to have the logits as outputs of the model so that
+    we can sample from the model predictions in order to generate new text. We will
+    get to this sampling part later.
+  id: totrans-259
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，我们需要将模型的输出设定为 logits，以便我们可以从模型预测中进行采样，以生成新的文本。我们稍后会涉及到这个采样部分。
+- en: 'Then, we can specify the model parameters and create an RNN model:'
+  id: totrans-260
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，我们可以指定模型参数并创建一个 RNN 模型：
+- en: '[PRE28]'
+  id: totrans-261
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE28]'
+- en: 'The next step is to create a loss function and optimizer (Adam optimizer).
+    For a multiclass classification (we have `vocab_size=80` classes) with a single
+    logits output for each target character, we use `CrossEntropyLoss` as the loss
+    function:'
+  id: totrans-262
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来的步骤是创建损失函数和优化器（Adam 优化器）。对于单个 logits 输出的多类别分类（我们有 `vocab_size=80` 类），我们使用
+    `CrossEntropyLoss` 作为损失函数：
+- en: '[PRE29]'
+  id: totrans-263
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE29]'
+- en: 'Now we will train the model for 10,000 epochs. In each epoch, we will use only
+    one batch randomly chosen from the data loader, `seq_dl`. We will also display
+    the training loss for every 500 epochs:'
+  id: totrans-264
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将对模型进行 10,000 个周期的训练。在每个周期中，我们将从数据加载器 `seq_dl` 中随机选择一个批次进行训练。我们还将每 500 个周期显示一次训练损失：
+- en: '[PRE30]'
+  id: totrans-265
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE30]'
+- en: Next, we can evaluate the model to generate new text, starting with a given
+    short string. In the next section, we will define a function to evaluate the trained
+    model.
+  id: totrans-266
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们可以评估模型以生成新文本，从给定的短字符串开始。 在下一节中，我们将定义一个函数来评估训练好的模型。
+- en: Evaluation phase – generating new text passages
+  id: totrans-267
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 评估阶段 – 生成新的文本段落
+- en: 'The RNN model we trained in the previous section returns the logits of size
+    80 for each unique character. These logits can be readily converted to probabilities,
+    via the softmax function, that a particular character will be encountered as the
+    next character. To predict the next character in the sequence, we can simply select
+    the element with the maximum logit value, which is equivalent to selecting the
+    character with the highest probability. However, instead of always selecting the
+    character with the highest likelihood, we want to (randomly) *sample* from the
+    outputs; otherwise, the model will always produce the same text. PyTorch already
+    provides a class, `torch.distributions.categorical.Categorical`, which we can
+    use to draw random samples from a categorical distribution. To see how this works,
+    let’s generate some random samples from three categories [0, 1, 2], with input
+    logits [1, 1, 1]:'
+  id: totrans-268
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们在前一节训练的 RNN 模型为每个独特字符返回大小为 80 的对数。 这些对数可以通过 softmax 函数轻松转换为概率，即特定字符将被遇到作为下一个字符的概率。
+    为了预测序列中的下一个字符，我们可以简单地选择具有最大对数值的元素，这相当于选择具有最高概率的字符。 但是，我们不希望总是选择具有最高可能性的字符，而是希望（随机）*从输出中抽样*；否则，模型将始终生成相同的文本。
+    PyTorch 已经提供了一个类，`torch.distributions.categorical.Categorical`，我们可以使用它从分类分布中绘制随机样本。
+    看看这是如何工作的，让我们从三个类别 [0, 1, 2] 中生成一些随机样本，使用输入对数 [1, 1, 1]：
+- en: '[PRE31]'
+  id: totrans-269
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE31]'
+- en: 'As you can see, with the given logits, the categories have the same probabilities
+    (that is, equiprobable categories). Therefore, if we use a large sample size (*num_samples* → ∞),
+    we would expect the number of occurrences of each category to reach ≈ 1/3 of the
+    sample size. If we change the logits to [1, 1, 3], then we would expect to observe
+    more occurrences for category 2 (when a very large number of examples are drawn
+    from this distribution):'
+  id: totrans-270
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您所见，给定的对数，各类别具有相同的概率（即，等概率类别）。 因此，如果我们使用大样本量（*num_samples* → ∞），我们期望每个类别的出现次数达到样本大小的
+    ≈ 1/3。 如果我们将对数更改为 [1, 1, 3]，那么我们预期会观察到更多类别 2 的出现次数（当从该分布中抽取大量示例时）：
+- en: '[PRE32]'
+  id: totrans-271
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE32]'
+- en: Using `Categorical`, we can generate examples based on the logits computed by
+    our model.
+  id: totrans-272
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用 `Categorical`，我们可以基于模型计算的对数生成示例。
+- en: We will define a function, `sample()`, that receives a short starting string,
+    `starting_str`, and generate a new string, `generated_str`, which is initially
+    set to the input string. `starting_str` is encoded to a sequence of integers,
+    `encoded_input`. `encoded_input` is passed to the RNN model one character at a
+    time to update the hidden states. The last character of `encoded_input` is passed
+    to the model to generate a new character. Note that the output of the RNN model
+    represents the logits (here, a vector of size 80, which is the total number of
+    possible characters) for the next character after observing the input sequence
+    by the model.
+  id: totrans-273
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将定义一个函数，`sample()`，接收一个短起始字符串，`starting_str`，并生成一个新字符串，`generated_str`，最初设置为输入字符串。
+    `starting_str` 被编码为一系列整数，`encoded_input`。 `encoded_input` 逐个字符传递给 RNN 模型以更新隐藏状态。
+    `encoded_input` 的最后一个字符传递给模型以生成新字符。注意，RNN 模型的输出表示下一个字符的对数（这里是一个大小为 80 的向量，即可能字符的总数）。
+- en: Here, we only use the `logits` output (that is, **o**^(^T^)), which is passed
+    to the `Categorical` class to generate a new sample. This new sample is converted
+    to a character, which is then appended to the end of the generated string, `generated_text`,
+    increasing its length by 1\. Then, this process is repeated until the length of
+    the generated string reaches the desired value. The process of consuming the generated
+    sequence as input for generating new elements is called **autoregression**.
+  id: totrans-274
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们仅使用 `logits` 输出（即，**o**^(^T^)），传递给 `Categorical` 类以生成一个新样本。 这个新样本被转换为一个字符，然后附加到生成的字符串
+    `generated_text` 的末尾，使其长度增加 1。 然后，此过程重复，直到生成字符串的长度达到所需值。 将生成序列作为生成新元素的输入消耗的过程称为**自回归**。
+- en: 'The code for the `sample()` function is as follows:'
+  id: totrans-275
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`sample()` 函数的代码如下所示：'
+- en: '[PRE33]'
+  id: totrans-276
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE33]'
+- en: 'Let’s now generate some new text:'
+  id: totrans-277
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在让我们生成一些新文本：
+- en: '[PRE34]'
+  id: totrans-278
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE34]'
+- en: As you can see, the model generates mostly correct words, and, in some cases,
+    the sentences are partially meaningful. You can further tune the training parameters,
+    such as the length of input sequences for training, and the model architecture.
+  id: totrans-279
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您所见，模型生成的大多数词汇是正确的，有时甚至部分句子是有意义的。您可以进一步调整训练参数，例如训练的输入序列长度和模型架构。
+- en: 'Furthermore, to control the predictability of the generated samples (that is,
+    generating text following the learned patterns from the training text versus adding
+    more randomness), the logits computed by the RNN model can be scaled before being
+    passed to `Categorical` for sampling. The scaling factor, ![](img/B17582_15_030.png),
+    can be interpreted as an analog to the temperature in physics. Higher temperatures
+    result in more entropy or randomness versus more predictable behavior at lower
+    temperatures. By scaling the logits with ![](img/B17582_15_031.png), the probabilities
+    computed by the softmax function become more uniform, as shown in the following
+    code:'
+  id: totrans-280
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，为了控制生成样本的可预测性（即根据训练文本学习模式生成文本与增加更多随机性之间的权衡），RNN模型计算的logits可以在传递给`Categorical`进行抽样之前进行缩放。缩放因子![](img/B17582_15_030.png)可以类比于物理学中的温度。较高的温度导致更多的熵或随机性，而较低的温度则导致更可预测的行为。通过![](img/B17582_15_031.png)缩放logits，softmax函数计算出的概率变得更加均匀，如下面的代码所示：
+- en: '[PRE35]'
+  id: totrans-281
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE35]'
+- en: 'As you can see, scaling the logits by ![](img/B17582_15_032.png) results in
+    near-uniform probabilities [0.31, 0.31, 0.38]. Now, we can compare the generated
+    text with ![](img/B17582_15_033.png) and ![](img/B17582_15_034.png), as shown
+    in the following points:'
+  id: totrans-282
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您所见，通过![](img/B17582_15_032.png)缩放logits，生成的概率几乎是均匀的[0.31, 0.31, 0.38]。现在，我们可以将生成的文本与![](img/B17582_15_033.png)和![](img/B17582_15_034.png)进行比较，如下所示：
+- en: '![](img/B17582_15_035.png):'
+  id: totrans-283
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '![](img/B17582_15_035.png)：'
+- en: '[PRE36]'
+  id: totrans-284
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE36]'
+- en: '![](img/B17582_15_036.png):'
+  id: totrans-285
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '![](img/B17582_15_036.png)：'
+- en: '[PRE37]'
+  id: totrans-286
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE37]'
+- en: The results show that scaling the logits with ![](img/B17582_15_034.png) (increasing
+    the temperature) generates more random text. There is a trade-off between the
+    novelty of the generated text and its correctness.
+  id: totrans-287
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 结果显示，使用![](img/B17582_15_034.png)（增加温度）来缩放logits会生成更随机的文本。生成的文本的新颖性与其正确性之间存在权衡。
+- en: In this section, we worked with character-level text generation, which is a
+    sequence-to-sequence (seq2seq) modeling task. While this example may not be very
+    useful by itself, it is easy to think of several useful applications for these
+    types of models; for example, a similar RNN model can be trained as a chatbot
+    to assist users with simple queries.
+  id: totrans-288
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本节中，我们进行了字符级文本生成的工作，这是一个序列到序列（seq2seq）建模任务。虽然这个例子本身可能不是非常有用，但很容易想到这些模型的几个实用应用，例如，类似的RNN模型可以训练成为一个聊天机器人，以帮助用户解决简单的查询问题。
+- en: Summary
+  id: totrans-289
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 概要
+- en: In this chapter, you first learned about the properties of sequences that make
+    them different from other types of data, such as structured data or images. We
+    then covered the foundations of RNNs for sequence modeling. You learned how a
+    basic RNN model works and discussed its limitations with regard to capturing long-term
+    dependencies in sequence data. Next, we covered LSTM cells, which consist of a
+    gating mechanism to reduce the effect of exploding and vanishing gradient problems,
+    which are common in basic RNN models.
+  id: totrans-290
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，您首先了解了使序列不同于其他类型数据（如结构化数据或图像）的特性。然后，我们介绍了用于序列建模的RNN的基础知识。您了解了基本RNN模型的工作原理，并讨论了其在捕获序列数据中的长期依赖性方面的局限性。接下来，我们介绍了LSTM单元，它包括一个门控机制，用于减少基本RNN模型中常见的爆炸梯度和消失梯度问题的影响。
+- en: After discussing the main concepts behind RNNs, we implemented several RNN models
+    with different recurrent layers using PyTorch. In particular, we implemented an
+    RNN model for sentiment analysis, as well as an RNN model for generating text.
+  id: totrans-291
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在讨论了RNN的主要概念之后，我们使用PyTorch实现了几个具有不同循环层的RNN模型。特别是，我们实现了用于情感分析的RNN模型，以及用于生成文本的RNN模型。
+- en: In the next chapter, we will see how we can augment an RNN with an attention
+    mechanism, which helps it with modeling long-range dependencies in translation
+    tasks. Then, we will introduce a new deep learning architecture called *transformer*,
+    which has recently been used to further push the state of the art in the natural
+    language processing domain.
+  id: totrans-292
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下一章中，我们将看到如何通过引入注意力机制来增强RNN，帮助其模拟翻译任务中的长距离依赖关系。然后，我们将介绍一种称为*transformer*的新深度学习架构，该架构最近在自然语言处理领域推动了技术前沿。
+- en: Join our book’s Discord space
+  id: totrans-293
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 加入我们书籍的Discord空间
+- en: 'Join the book’s Discord workspace for a monthly *Ask me Anything* session with
+    the authors:'
+  id: totrans-294
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 加入该书的Discord工作区，与作者进行每月的*问我任何事*会话：
+- en: '[https://packt.link/MLwPyTorch](https://packt.link/MLwPyTorch)'
+  id: totrans-295
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://packt.link/MLwPyTorch](https://packt.link/MLwPyTorch)'
+- en: '![](img/QR_Code874410888448293359.png)'
+  id: totrans-296
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/QR_Code874410888448293359.png)'
