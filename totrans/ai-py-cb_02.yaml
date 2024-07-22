@@ -1,0 +1,1975 @@
+- en: Advanced Topics in Supervised Machine Learning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Following the tasters with scikit-learn, Keras, and PyTorch in the previous
+    chapter, in this chapter, we will move on to more end-to-end examples. These examples
+    are more advanced in the sense that they include more complex transformations
+    and model types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll be predicting partner choices with sklearn, where we'll implement a lot
+    of custom transformer steps and more complicated machine learning pipelines. We'll
+    then predict house prices in PyTorch and visualize feature and neuron importance.
+    After that, we will perform active learning to decide customer values together
+    with online learning in sklearn. In the well-known case of repeat offender prediction,
+    we'll build a model without racial bias. Last, but not least, we'll forecast time
+    series of CO[2] levels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Online learning** in this context (as opposed to internet-based learning)
+    refers to a model update strategy that incorporates training data that comes in
+    sequentially. This can be useful in cases where the dataset is very big (often
+    the case with images, videos, and texts) or where it''s important to keep the
+    model up to date given the changing nature of the data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In many of these recipes, we've shortened the description to the most salient
+    details in order to highlight particular concepts. For the full details, please
+    refer to the notebooks on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we''ll be covering the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming data in scikit-learn
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Predicting house prices in PyTorch
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Live decisioning customer values
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Battling algorithmic bias
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Forecasting CO[2] time series
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The code and notebooks for this chapter are available on GitHub at [https://github.com/PackPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter02](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter02).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming data in scikit-learn
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we will be building more complex pipelines using mixed-type
+    columnar data. We'll use a speed dating dataset that was published in 2006 by
+    Fisman *et al.*: [https://doi.org/10.1162/qjec.2006.121.2.673](https://doi.org/10.1162/qjec.2006.121.2.673)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Perhaps this recipe will be informative in more ways than one, and we'll learn
+    something useful about the mechanics of human mating choices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dataset description on the OpenML website reads as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This data was gathered from participants in experimental speed dating events
+    from 2002-2004\. During the events, the attendees would have a four-minute **first
+    date** with every other participant of the opposite sex. At the end of their 4
+    minutes, participants were asked whether they would like to see their date again.
+    They were also asked to rate their date on six attributes: attractiveness, sincerity,
+    intelligence, fun, ambition, and shared interests. The dataset also includes questionnaire
+    data gathered from participants at different points in the process. These fields
+    include demographics, dating habits, self-perception across key attributes, beliefs
+    in terms of what others find valuable in a mate, and lifestyle information.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The problem is to predict mate choices from what we know about participants
+    and their matches. This dataset presents some challenges that can serve an illustrative
+    purpose:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It contains 123 different features, of different types:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Categorical
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Numerical
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Range features
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It also contains the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some missing values
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Target imbalance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: On the way to solving this problem of predicting mate choices, we will build
+    custom encoders in scikit-learn and a pipeline comprising all features and their
+    preprocessing steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primary focus in this recipe will be on pipelines and transformers. In particular,
+    we will build a custom transformer for working with range features and another
+    one for numerical features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll need the following libraries for this recipe. They are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenML to download the dataset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`openml_speed_dating_pipeline_steps` to use our custom transformer'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`imbalanced-learn` to work with imbalanced classes'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`shap` to show us the importance of features'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In order to install them, we can use `pip` again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: OpenML is an organization that intends to make data science and machine learning
+    reproducible and  therefore  more conducive to research. The OpenML website not
+    only hosts datasets, but also allows the uploading of machine learning results
+    to public leaderboards under the condition that the implementation relies solely
+    on open source. These results and how they were obtained can be inspected in complete
+    detail by anyone who's interested.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to retrieve the data, we will use the OpenML Python API. The `get_dataset()`
+    method will download the dataset; with `get_data()`, we can get pandas DataFrames
+    for features and target, and we''ll conveniently get the information on categorical
+    and numerical feature types:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the original version of the dataset, as presented in the paper, there was
+    a lot more work to do. However, the version of the dataset on OpenML already has
+    missing values represented as `numpy.nan`, which lets us skip this conversion.
+    You can see this preprocessor on GitHub if you are interested: [https://github.com/benman1/OpenML-Speed-Dating](https://github.com/benman1/OpenML-Speed-Dating)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, you can use a download link from the OpenML dataset web page
+    at [https://www.openml.org/data/get_csv/13153954/speeddating.arff](https://www.openml.org/data/get_csv/13153954/speeddating.arff).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the dataset loaded, and the libraries installed, we are ready to start
+    cracking.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Pipelines are a way of describing how machine learning algorithms, including
+    preprocessing steps, can follow one another in a sequence of transformations on
+    top of the raw dataset before applying a final predictor. We will see examples
+    of these concepts in this recipe and throughout this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A few things stand out pretty quickly looking at this dataset. We have a lot
+    of categorical features. So, for modeling, we will need to encode them numerically, as
+    in the *Modeling and predicting in Keras* recipe in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml),
+    *Getting Started with Artificial Intelligence in Python*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoding ranges numerically
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Some of these are actually encoded ranges. This means these are ordinal, in
+    other words, they are categories that are ordered; for example, the `d_interests_correlate`
+    feature contains strings like these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we were to treat these ranges as categorical variables, we'd lose the information
+    about the order, and we would lose information about how different two values
+    are. However, if we convert them to numbers, we will keep this information and
+    we would be able to apply other numerical transformations on top.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are going to implement a transformer to plug into an sklearn pipeline in
+    order to convert these range features to numerical features. The basic idea of
+    the conversion is to extract the upper and lower bounds of these ranges as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll see this for our example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In order to get numerical features, we can then take the mean between the two
+    bounds. As we''ve mentioned before, on OpenML, not only are results shown, but also the models are transparent. Therefore, if
+    we want to submit our model, we can only use published modules. We created a module and published
+    it in the `pypi` Python package repository, where you can find the package with
+    the complete code: [https://pypi.org/project/openml-speed-dating-pipeline-steps/](https://pypi.org/project/openml-speed-dating-pipeline-steps/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the simplified code for `RangeTransformer`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a shortened snippet of the custom transformer for ranges. Please see
+    the full implementation on GitHub at [https://github.com/benman1/OpenML-Speed-Dating](https://github.com/benman1/OpenML-Speed-Dating).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please pay attention to how the `fit()` and `transform()` methods are used. We
+    don't need to do anything in the `fit()` method, because we always apply the same
+    static rule. The `transfer()` method applies this rule. We've seen the examples
+    previously. What we do in the `transfer()` method is to iterate over columns. This
+    transformer also shows the use of the parallelization pattern typical to scikit-learn.
+    Additionally, since these ranges repeat a lot, and there aren't so many, we'll
+    use a cache so that, instead of doing costly string transformations, the range
+    value can be retrieved from memory once the range has been processed once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An important thing about custom transformers in scikit-learn is that they should
+    inherit from `BaseEstimator` and `TransformerMixin`, and implement the `fit()` and
+    `transform()`methods. Later on, we will require `get_feature_names()` so we can
+    find out the names of the features generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deriving higher-order features
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s implement another transformer. As you may have noticed, we have different
+    types of features that seem to refer to the same personal attributes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Personal preferences
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Self-assessment
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Assessment of the other person
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It seems clear that differences between any of these features could be significant,
+    such as the importance of sincerity versus how sincere someone assesses a potential
+    partner. Therefore, our next transformer is going to calculate the differences
+    between numerical features. This is supposed to help highlight these differences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These features are derived from other features, and combine information from
+    two (or potentially more features). Let''s see what the `NumericDifferenceTransformer` feature
+    looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a custom transformer that calculates differences between numerical features.
+    Please refer to the full implementation in the repository of the OpenML-Speed-Dating
+    library at [https://github.com/benman1/OpenML-Speed-Dating](https://github.com/benman1/OpenML-Speed-Dating).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This transformer has a very similar structure to `RangeTransformer`. Please
+    note the parallelization between columns. One of the arguments to the `__init__()`
+    method is the function that is used to calculate the difference. This is `operator.sub()`
+    by default. The operator library is part of the Python standard library and implements
+    basic operators as functions. The `sub()` function does what it sounds like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: This gives us a prefix or functional syntax for standard operators. Since we
+    can pass functions as arguments, this gives us the flexibility to specify different
+    operators between columns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `fit()` method this time just collects the names of numerical columns, and
+    we'll use these names in the `transform()` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining transformations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We will put these transformers together with `ColumnTransformer` and the pipeline.
+    However, we''ll need to make the association between columns and their transformations.
+    We''ll define different groups of columns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we have columns that are ranges, columns that are categorical, and columns
+    that are numerical, and we can assign pipeline steps to them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our case, we put this together as follows, first in a preprocessor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And then we''ll put the preprocessing in a pipeline, together with the estimator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is the performance in the test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We get the following performance as an output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a very good performance, as you can see comparing it to the leaderboard
+    on OpenML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'It is time to explain basic scikit-learn terminology relevant to this recipe.
+    Neither of these concepts corresponds to existing machine learning algorithms,
+    but to composable modules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Transformer (in scikit-learn): A class that is derived from `sklearn.base.TransformerMixin`;
+    it has `fit()` and `transform()` methods. These involve preprocessing steps or
+    feature selection.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Predictor: A class that is derived from either `sklearn.base.ClassifierMixin`
+    or `sklearn.base.RegressorMixin`; it has `fit()` and `predict()` methods. These
+    are machine learning estimators, in other words, classifiers or regressors.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Pipeline: An interface that wraps all steps together and gives you a single
+    interface for all steps of the transformation and the resulting estimator. A pipeline
+    again has `fit()` and `predict()` methods.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There are a few things to point out regarding our approach. As we said before,
+    we have missing values, so we have to impute (meaning replace) missing values
+    with other values. In this case, we replace missing values with -1\. In the case
+    of categorical variables, this will be a new category, while in the case of numerical
+    variables, it will become a special value that the classifier will have to handle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ColumnTransformer` came with version 0.20 of scikit-learn and was a long-awaited
+    feature. Since then, `ColumnTransformer` can often be seen like this, for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`feature_preprocessing` can then be used as usual with the `fit()`, `transform()`,
+    and `fit_transform()` methods:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `X` means our features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alternatively, we can put `ColumnTransformer` as a step into a pipeline, for
+    example, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our classifier is a modified form of the random forest classifier. A random
+    forest is a collection of decision trees, each trained on random subsets of the
+    training data. The balanced random forest classifier (Chen *et al.*: [https://statistics.berkeley.edu/sites/default/files/tech-reports/666.pdf](https://statistics.berkeley.edu/sites/default/files/tech-reports/666.pdf))
+    makes sure that each random subset is balanced between the two classes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since `NumericDifferenceTransformer` can provide lots of features, we will incorporate
+    an extra step of model-based feature selection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You can see the complete example with the speed dating dataset, a few more custom
+    transformers, and an extended imputation class in the GitHub repository of the
+    `openml_speed_dating_pipeline_steps` library and notebook, on GitHub at [https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/blob/master/chapter02/Transforming%20Data%20in%20Scikit-Learn.ipynb](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/blob/master/chapter02/Transforming%20Data%20in%20Scikit-Learn.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both `RangeTransformer` and `NumericDifferenceTransformer` could also have been
+    implemented using `FunctionTransformer` in scikit-learn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ColumnTransformer` is especially handy for pandas DataFrames or NumPy arrays
+    since it allows the specification of different operations for different subsets
+    of the features. However, another option is `FeatureUnion`, which allows concatenation
+    of the results from different transformations. For yet another way to chain our
+    operations together, please have a look at `PandasPicker` in our repository.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this recipe, we used ANOVA f-values for univariate feature selection, which
+    is relatively simple, yet effective. Univariate feature selection methods are
+    usually simple filters or statistical tests that measure the relevance of a feature
+    with regard to the target. There are, however, many different methods for feature
+    selection, and scikit-learn implements a lot of them: [https://scikit-learn.org/stable/modules/feature_selection.html](https://scikit-learn.org/stable/modules/feature_selection.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predicting house prices in PyTorch
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, the aim of the problem is to predict house prices in Ames, Iowa,
+    given 81 features describing the house, area, land, infrastructure, utilities,
+    and much more. The Ames dataset has a nice combination of categorical and continuous
+    features, a good size, and, perhaps most importantly, it doesn't suffer from problems
+    of potential redlining or data entry like other, similar datasets, such as Boston
+    Housing. We'll concentrate on the main aspects of PyTorch modeling here. We'll
+    do online learning, analogous to Keras, in the *Modeling and predicting in Keras *recipe
+    in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml), *Getting Started with
+    Artificial Intelligence in Python*. If you want to see more details on some of
+    the steps, please look at our notebook on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a little extra, we will also demonstrate neuron importance for the models
+    developed in PyTorch. You can try out different network architectures in PyTorch or
+    model types. The focus in this recipe is on the methodology, not an exhaustive
+    search for the best solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In order to prepare for the recipe, we need to do a few things. We''ll download
+    the data as in the previous recipe, *Transforming data in scikit-learn*, and perform
+    some preprocessing by following these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can see the full dataset description at OpenML: [https://www.openml.org/d/42165](https://www.openml.org/d/42165).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is the DataFrame information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: PyTorch and seaborn are installed by default in Colab. We will assume, even
+    if you are working with your self-hosted install by now, that you'll have the
+    libraries installed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use one more library, however, `captum`, which allows the inspection
+    of PyTorch models for feature and neuron importance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: There is one more thing. We'll assume you have a GPU available. If you don't
+    have a GPU in your computer, we'd recommend you try this recipe on Colab. In Colab,
+    you'll have to choose a runtime type with GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After all these preparations, let's see how we can predict house prices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The Ames Housing dataset is a small- to mid-sized dataset (1,460 rows) with
+    81 features, both categorical and numerical. There are no missing values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the Keras recipe previously, we've seen how to scale the variables. Scaling
+    is important here because all variables have different scales. Categorical variables
+    need to be converted to numerical types in order to feed them into our model.
+    We have the choice of one-hot encoding, where we create dummy variables for each
+    categorical factor, or ordinal encoding, where we number all factors and replace
+    the strings with these numbers. We could feed the dummy variables in like any
+    other float variable, while ordinal encoding would require the use of embeddings,
+    linear neural network projections that re-order the categories in a multi-dimensional
+    space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We take the embedding route here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: We go through the data analysis, such as correlation and distribution plots,
+    in a lot more detail in the notebook on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we can split the data into training and test sets, as we did in previous
+    recipes. Here, we add a stratification of the numerical variable. This makes sure
+    that different sections (five of them) are included at equal measure in both training
+    and test sets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before going ahead, let's look at the importance of the features using a model-independent
+    technique.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we run anything, however, let''s make sure we are running on the GPU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's build our PyTorch model, similar to the *Classifying in scikit-learn*,
+    *Keras*, and *PyTorch* recipe in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml), *Getting
+    Started with Artificial Intelligence in Python*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll implement a neural network regression with batch inputs using PyTorch.
+    This will involve the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting data to torch tensors
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining the model architecture
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining the loss criterion and optimizer
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating a data loader for batches
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Running the training
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Without further preamble, let''s get to it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Begin by converting the data to torch tensors:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: This makes sure we load our numerical and categorical data into separate variables,
+    similar to NumPy. If you mix data types in a single variable (array/matrix), they'll
+    become objects. We want to get our numerical variables as floats, and the categorical
+    variables as long (or int) indexing our categories. We also separate the training
+    and test sets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearly, an ID variable should not be important in a model. In the worst case,
+    it could introduce a target leak if there's any correlation of the ID with the
+    target. We've removed it from further processing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Define the model architecture:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our activation function on the two linear layers (dense layers, in Keras terminology)
+    is the **rectified linear unit activation** (**ReLU**) function. Please note that
+    we couldn't have encapsulated the same architecture (easily) as a sequential model
+    because of the different operations occurring on categorical and numerical types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, define the loss criterion and optimizer. We take the **mean square error**
+    (**MSE**) as the loss and stochastic gradient descent as our optimization algorithm:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, create a data loader to input a batch of data at a time:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: We set a batch size of 10\. Now we can do our training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the training!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since this seems so much more verbose than what we saw in Keras in the *Classifying
+    in scikit-learn, Keras, and PyTorch *recipe in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml), *Getting
+    Started with Artificial Intelligence in Python*, we commented this code quite
+    heavily. Basically, we have to loop over epochs, and within each epoch an inference
+    is performance, an error is calculated, and the optimizer applies the adjustments
+    according to the error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is the loop over epochs without the inner loop for training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training is performed inside this loop over all the batches of the training
+    data. This looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is the output we get. TQDM provides us with a helpful progress bar. At
+    every tenth epoch, we print an update to show training and validation performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e7b44a72-a1c4-4bdd-aad4-5df7c46cf88b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Please note that we take the square root of `nn.MSELoss` because `nn.MSELoss`
+    in PyTorch is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s plot how our model performs for training and validation datasets during
+    training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following diagram shows the resulting plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c4127906-e287-4283-ba89-2775c68f147c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We stopped our training just in time before our validation loss stopped decreasing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also rank and bin our target variable and plot the predictions against
+    it in order to see how the model is performing across the whole spectrum of house
+    prices. This is to avoid the situation in regression, especially with MSE as the
+    loss, that you only predict well for a mid-range of values, close to the mean,
+    but don''t do well for anything else. You can find the code for this in the notebook
+    on GitHub. This is called a lift chart (here with 10 bins):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/410cf6a0-9d27-419b-b9b1-6cdb765196ec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see that the model, in fact, predicts very closely across the whole range
+    of house prices. In fact, we get a Spearman rank correlation of about 93% with
+    very high significance, which confirms that this model performs with high accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The deep learning neural network frameworks use different optimization algorithms.
+    Popular among them are **Stochastic Gradient Descent **(**SGD**), **Root Mean
+    Square Propogation** (**RMSProp**), and **Adaptive Moment Estimation** (**ADAM**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We defined stochastic gradient descent as our optimization algorithm. Alternatively,
+    we could have defined other optimizers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: SGD works the same as gradient descent except that it works on a single example
+    at a time. The interesting part is that the convergence is similar to the gradient
+    descent and is easier on the computer memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RMSProp works by adapting the learning rates of the algorithm according to the
+    gradient signs. The simplest of the variants checks the last two gradient signs
+    and then adapts the learning rate by increasing it by a fraction if they are the
+    same, or decreases it by a fraction if they are different.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ADAM is one of the most popular optimizers. It's an adaptive learning algorithm
+    that changes the learning rate according to the first and second moments of the
+    gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Captum is a tool that can help us understand the ins and outs of the neural
+    network model learned on the datasets. It can assist in learning the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feature importance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Layer importance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Neuron importance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is very important in learning interpretable neural networks. Here, integrated
+    gradients have been applied to understand feature importance. Later, neuron importance
+    is also demonstrated by using the layer conductance method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Given that we have our neural network defined and trained, let''s find the
+    important features and neurons using the captum library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we have a NumPy array of feature importances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Layer and neuron importance can also be obtained using this tool. Let''s look
+    at the neuron importances of our first layer. We can pass on `house_model.act1`,
+    which is the ReLU activation function on top of the first linear layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is how it looks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a4f50954-7c9a-45c2-8d56-c406848fe859.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The diagram shows the neuron importances. Apparently, one neuron is just not
+    important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also see the most important variables by sorting the NumPy array we''ve
+    obtained earlier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So here''s a list of the 10 most important variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8f4f1815-2c75-49cc-8641-2690cc20965b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Often, feature importances can help us to both understand the model and prune
+    our model to become less complex (and hopefully less overfitted).
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The PyTorch documentation includes everything you need to know about layer types, data
+    loading, losses, metrics, and training: [https://pytorch.org/docs/stable/nn.html](https://pytorch.org/docs/stable/nn.html)
+  prefs: []
+  type: TYPE_NORMAL
+- en: A detailed discussion about optimization algorithms can be found in the following
+    article: [https://imaddabbura.github.io/post/gradient-descent-algorithm/](https://imaddabbura.github.io/post/gradient-descent-algorithm/).
+    Geoffrey Hinton and others explain mini-batch gradient descent in a presentation
+    slide deck: [https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf](https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf).
+    Finally, you can find all the details on ADAM in the article that introduced it: [https://arxiv.org/abs/1412.6980](https://arxiv.org/abs/1412.6980).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Captum provides a lot of functionality as regards the interpretability and model
+    inspection of PyTorch models. It's worth having a look at its comprehensive documentation
+    at [https://captum.ai/](https://captum.ai/). Details can be found in the original
+    paper at [https://arxiv.org/pdf/1703.01365.pdf](https://arxiv.org/pdf/1703.01365.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Live decisioning customer values
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s assume we have the following scenario: we have a list of customers to
+    call in order to sell them our product. Each phone call costs money in call center
+    personal salaries, so we want to reduce these costs as much as possible. We have
+    certain information about each customer that could help us determine whether they
+    are likely to buy. After every call, we can update our model. The main goal is
+    to call only the most promising customers and to improve our insights into which
+    customers are more likely to pay for our product.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we will approach this with active learning, a strategy where
+    we actively decide what to explore (and learn) next. Our model will help decide
+    whom to call. Because we will update our model after each query (phone call),
+    we will use online learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll prepare for our recipe by downloading our dataset and installing a few
+    libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, we will get the data from OpenML:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: This dataset is called `bank-marketing`, and you can see a description on OpenML
+    at [https://www.openml.org/d/1461](https://www.openml.org/d/1461).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For each row, describing a single person, we have different features, numerical
+    and categorical, that tell us about demographics and customer history.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To model the likelihood of customers signing up for our product, we will use
+    the scikit-multiflow package that specializes in online models. We will also use
+    the `category_encoders` package again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: With these two libraries in place, we can start the recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We need to implement an exploration strategy and a model that is being continuously
+    updated. We are using the online version of the random forest, the Hoeffding Tree,
+    as our model. We are estimating the uncertainties at every step, and based on
+    that we will return a candidate to call next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As always, we will need to define a few preprocessing steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we come to our active learning approach itself. This is inspired by `modAL.models.ActiveLearner`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Again, we create a scikit-learn-compatible class. It basically holds a machine
+    learning model and a data preprocessor. We implement `fit()` and `predict()`,
+    but also `score()` to get a model performance. We also implement an `update()`
+    method that calls `partial_fit()` of the machine learning model. Calling `partial_fit()`
+    instead of `fit()` considerably speeds up the computations, because we don't have
+    to start from scratch every time we get new data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s how to create the active learning pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can run different simulations on our dataset with this setup. For example,
+    we can compare a lot of experimentation (0.5 exploitation) against only exploitation
+    (1.0), or no learning at all after the first batch. We basically go through a
+    loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Via `active_pipeline.``max_margin_uncertainty()`, we present data to the active
+    pipeline, and get a number of data points that integrate uncertainty and target
+    predictions according to our preferences of the integration method.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Once we get the actual results for these data points, we can update our model:
+    `active_pipeline.update()`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can see an example of this in the notebook on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can see that curious wins out after the first few examples. Exploitation
+    is actually the least successful scheme. By not updating the model, performance
+    deteriorates over time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9ea01c94-9b57-4dc3-afb0-8d8b1fc21d2c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is an ideal scenario for active learning or reinforcement learning, because,
+    not unlike in reinforcement learning, uncertainty can be an additional criterion,
+    apart from positive expectation, from a customer. Over time, this entropy reduction-seeking
+    behavior reduces as the model's understanding of customers improves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: It's worth delving a bit more into a few of the concepts and strategies employed
+    in this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Active learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Active learning means that we can actively query for more information; in other
+    words, exploration is part of our strategy. This can be useful in scenarios where
+    we have to actively decide what to learn, and where what we learn influences not
+    only how much our model learns and how well, but also how much return on an investment
+    we can get.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hoeffding Tree
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Hoeffding Tree (also known as the *Very Fast Decision Tree*, *VFDT* for
+    short) was introduced in 2001 by Geoff Hulten and others (*Mining time-changing
+    data streams*). It is an incrementally growing decision tree for streamed data.
+    Tree nodes are expanded based on the Hoeffding bound (or additive Chernoff bound).
+    It was theoretically shown that, given sufficient training data, a model learned
+    by the Hoeffding tree converges very closely to the one built by a non-incremental
+    learner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Hoeffding bound is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/85a026e0-2e21-40a4-ac43-2037dec07219.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It's important to note that the Hoeffding Tree doesn't deal with data distributions
+    that change over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Class weighting
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Since we are dealing with an imbalanced dataset, let's use class weights. This
+    basically means that we are upsampling the minority (signing up) class and downsampling
+    the majority class (not signing up).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The formula for the class weights is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6c582bcf-2fbc-4e0e-8237-dbeae535d90d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Similarly, in Python, we can write the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can then use these class weights for sampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll close the recipe with a few more pointers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Only a few models in scikit-learn allow incremental or online learning. Refer
+    to the list at [https://scikit-learn.org/stable/modules/computing.html](https://scikit-learn.org/stable/modules/computing.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A few linear models include the `partial_fit()` method. The scikit-multiflow library specializes
+    in incremental and online/streaming models: [https://scikit-multiflow.github.io/](https://scikit-multiflow.github.io/)
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find more resources and ideas regarding active learning from a recent
+    review that concentrates on biomedical image processing (Samuel Budd and others,
+    *A Survey on Active Learning and Human-in-the-Loop Deep Learning for Medical Image
+    Analysis*, 2019; [https://arxiv.org/abs/1910.02923](https://arxiv.org/abs/1910.02923)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our approach is inspired by the modalAI Python active learning package, which
+    you can find at [https://modal-python.readthedocs.io/](https://modal-python.readthedocs.io/).
+    We recommend you check it out if you are interested in active learning approaches.
+    A few more Python packages are available, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alipy: Active Learning in Python: [http://parnec.nuaa.edu.cn/huangsj/alipy/](http://parnec.nuaa.edu.cn/huangsj/alipy/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Active Learning: A Google repo about active learning: [https://github.com/google/active-learning](https://github.com/google/active-learning)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'One of the main decisions in active learning is the trade-off between exploration
+    and exploitation. You can find out more about this in a paper called *Exploration
+    versus exploitation in active learning: a Bayesian approach*: [http://www.vincentlemaire-labs.fr/publis/ijcnn_2_2010_camera_ready.pdf](http://www.vincentlemaire-labs.fr/publis/ijcnn_2_2010_camera_ready.pdf)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Battling algorithmic bias
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Correctional Offender Management Profiling for Alternative Sanctions** (**COMPAS**)
+    is a commercial algorithm that assigns risk scores to criminal defendants based
+    on their case records. This risk score corresponds to the likelihood of reoffending
+    (recidivism) and of committing violent crimes, and this score is used in court
+    to help determine sentences. The ProPublica organization obtained scores and data
+    in 1 county in Florida, containing data on about 7,000 people. After waiting for
+    2 years to see who reoffended, they audited the COMPAS model in 2016 and found
+    very concerning issues with the model. Among the ProPublica findings was discrimination
+    according to gender, race, and ethnicity, particularly in the case of over-predicting
+    recidivism for ethnic minorities.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discrimination presents a major problem for AI systems, and illustrates the
+    importance of auditing your model and the data you feed into your model. Models
+    built on human decisions will amplify human biases if this bias is ignored. Not
+    just from a legal perspective, but also ethically, we want to build models that
+    don't disadvantage certain groups. This poses an interesting challenge for model
+    building.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generally, we would think that justice should be blind to gender or race. This
+    means that court decisions should not take these sensitive variables like race
+    or gender into account. However, even if we omit them from our model training,
+    these sensitive variables might be correlated to some of the other variables,
+    and therefore they can still affect decisions, to the detriment of protected groups
+    such as minorities or women.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we are going to work with the COMPAS modeling dataset as provided
+    by ProPublica. We are going to check for racial bias, and then create a model
+    to remove it. You can find the original analysis by ProPublica at [https://github.com/propublica/compas-analysis](https://github.com/propublica/compas-analysis).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Before we can start, we'll first download the data, mention issues in preprocessing,
+    and install the libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s get the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each row represents the risk of violence and the risk of recidivism scores for
+    an inmate. The final column, `two_year_recid`, indicates our target.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'ProPublica compiled their dataset from different sources, which they matched
+    up according to the names of offenders:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Criminal records from the Broward County Clerk's Office website
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Public incarceration records from the Florida Department of Corrections website
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: COMPAS scores, which they obtained through a public record information request
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can highlight a few issues in the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The column race is a protected category. It should not be used as a feature
+    for model training, but as a control.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There are full names in the dataset, which will not be useful, or might even
+    give away the ethnicity of the inmates.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There are case numbers in the dataset. These will likely not be useful for training
+    a model, although they might have some target leakage in the sense that increasing
+    case numbers might give an indication of the time, and there could be a drift
+    effect in the targets over time.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There are missing values. We will need to carry out imputation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There are date stamps. These will probably not be useful and might even come
+    with associated problems (see point 3). However, we can convert these features
+    into UNIX epochs, which indicates the number of seconds that have elapsed since
+    1970, and then calculate time periods between date stamps, for example, by repurposing
+    `NumericDifferenceTransformer` that we saw in an earlier recipe. We can then use
+    these periods as model features rather than the date stamps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We have several categorical variables.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The charge description (`c_charge_desc`) might need to be cleaned up.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Mathias Barenstein has pointed out ([https://arxiv.org/abs/1906.04711](https://arxiv.org/abs/1906.04711))
+    a data processing error in ProPublica''s cutoff that resulted in keeping 40% more
+    recidivists than they should have. We''ll apply his correction to the two-year
+    cutoff:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will use a few libraries in this recipe, which can be installed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`category-encoders` is a library that provides functionality for categorical
+    encoding beyond what scikit-learn provides.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let's get some basic terminology out of the way first. We need to come up with
+    metrics for fairness. But what does fairness (or, if we look at unfairness, bias)
+    mean?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fairness can refer to two very different concepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[**equal opportunity**]: There should be no difference in the relative ratios
+    of predicted by the model versus actually true; or'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[**equal outcome**]: There should be no difference between model outcomes at
+    all.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The first is also called **equal odds**, while the latter refers to **equal
+    false positive rates**. While equal opportunity means that each group should be
+    given the same chance regardless of their group, the equal outcome strategy implies
+    that the underperforming group should be given more lenience or chances relative
+    to the other group(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll go with the idea of false positive rates, which intuitively appeals, and
+    which is enshrined in law in many jurisdictions in the case of equal employment
+    opportunities. We'll provide a few resources about these terms in the *See also* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, the logic for the impact calculation is based on values in the confusion
+    matrix, most importantly, false positives, which we''ve just mentioned. These
+    cases are predicted positive even though they are actually negative; in our case,
+    people predicted as reoffenders, who are not reoffenders. Let''s write a function
+    for this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now use this function in order to summarize the impact on particular
+    groups with this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This first calculates the confusion matrix with true positives and false negatives,
+    and then encodes the **adverse impact ratio** (**AIR**), known in statistics also
+    as the **Relative Risk Ratio** (**RRR**). Given any performance metric, we can
+    write the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4f66e08a-0870-484f-9281-89c9302ac84f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This expresses an expectation that the metric for the protected group (African-Americans)
+    should be the same as the metric for the norm group (Caucasians). In this case,
+    we'll get 1.0\. If the metric of the protected group is more than 20 percentage
+    points different to the norm group (that is, lower than 0.8 or higher than 1.2),
+    we'll flag it as a significant discrimination.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Norm group**: **a norm group**, also known as a **standardization sample**
+    or **norming group**, is a sample of the dataset that represents the population
+    to which the statistic is intended to be compared. In the context of bias, its
+    legal definition is the group with the highest success, but in some contexts,
+    the entire dataset or the most frequent group are taken as the baseline instead. Pragmatically,
+    we take the white group, since they are the biggest group, and the group for which
+    the model works best.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding function, we calculate the false positive rates by sensitive
+    group. We can then check whether the false positive rates for African-Americans
+    versus Caucasians are disproportionate, or rather whether the false positive rates
+    for African-Americans are much higher. This would mean that African-Americans
+    get flagged much more often as repeat offenders than they should be. We find that
+    this is indeed the case:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9e72da81-d801-4426-a642-1bb22a2b7a19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'A short explanation about this table follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'reoffend: frequencies of reoffending'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'score: average score for the group'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'N: the total number of people in the group'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'FPR: false positive rates'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'FNR: false negative rates'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'DFP: disproportionate false positive'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'DFN: disproportionate false negative'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last FPR and FNR columns together can give an idea about the general quality
+    of the model. If both are high, the model just doesn't perform well for the particular
+    group. The last two columns express the adverse impact ratio of FPR and FNR ratios,
+    respectively, which is what we'll mostly focus on. We need to reduce the racial
+    bias in the model by reducing the FPR of African-Americans to a tolerable level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s do some preprocessing and then we''ll build the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`CountVectorizer` counts a vocabulary of words, indicating how many times each
+    word is used. This is called a bag-of-words representation, and we apply it to
+    the charge description column. We exclude English stop words, which are very common
+    words such as prepositions (such as **on** or **at**) and personal pronouns (for
+    example **I **or **me**); we also limit the vocabulary to 100 words and words
+    that don''t appear in more than 85% of the fields.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We apply dummy encoding (one-hot encoding) to the charge degree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why do we use two different transformations? Basically, the description is a
+    textual description of why someone was charged with a crime. Every field is different.
+    If we used one-hot encoding, every field would get their own dummy variable, and
+    we wouldn't be able to see any commonalities between fields.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the end, we create a new variable for stratification in order to make sure
+    that we have similar proportions in the training and test datasets for both recidivism
+    (our target variable) and whether someone is African-American. This will help
+    us to calculate metrics to check for discrimination:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: We do some data engineering, deriving variables to record how many days someone
+    has spent in jail, has waited for a trial, or has waited for an arrest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll build a neural network model using jax similar to the one we''ve encountered
+    in the *Classifying in scikit-learn, Keras, and PyTorch *recipe in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml),
+    *Getting Started with Artificial Intelligence in Python*. This time, we''ll do
+    a fully fledged implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a scikit-learn wrapper of a JAX neural network. For scikit-learn compatibility,
+    we inherit from `ClassifierMixin` and implement `fit()` and `predict()`. The most
+    important part here is the penalized MSE method, which, in addition to model predictions
+    and targets, takes into account a sensitive variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s train it and check the performance. Please note that we feed in `X`,
+    `y`, and `sensitive_train`, which we define as the indicator variable for African-American
+    for the training dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We visualize the statistics as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is the table we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1970d764-9568-4537-aa6f-38e18a5acd15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see that the disproportionate false positive rate for African-Americans
+    is very close to (and even lower than) 1.0, which is what we wanted. The test
+    set is small and doesn't contain enough samples for Asians and native Americans,
+    so we can't calculate meaningful statistics for those groups. We could, however,
+    extend our approach to encompass these two groups as well if we wanted to ensure
+    that these two groups had equal false positive rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The keys for this to work are custom objective functions or loss functions.
+    This is far from straightforward in scikit-learn, although we will show an implementation
+    in the following section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generally, there are different possibilities for implementing your own cost
+    or loss functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LightGBM, Catboost, and XGBoost each provide an interface with many loss functions
+    and the ability to define custom loss functions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: PyTorch and Keras (TensorFlow) provide an interface.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can implement your model from scratch (this is what we've done in the main
+    recipe).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Scikit-learn generally does not provide a public API for defining your own loss
+    functions. For many algorithms, there is only a single choice, and sometimes there
+    are a couple of alternatives. The rationale in the case of split criteria with
+    trees is that loss functions have to be performant, and only Cython implementations
+    will guarantee this. This is only available in a non-public API, which means it
+    is more difficult to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, when there's no (straightforward) way to implement a custom loss, you
+    can wrap your algorithms in a general optimization scheme such as genetic algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In neural networks, as long as you provide a differentiable loss function, you
+    can plug in anything you want.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Basically, we were able to encode the adverse impact as a penalty term with
+    the **Mean Squared Error** (**MSE**) function. It is based on the MSE that we''ve
+    mentioned before, but has a penalty term for adverse impact. Let''s look again
+    at the loss function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing to note is that instead of two variables, we pass three variables.
+    `sensitive` is the variable relevant to the adverse impact, indicating if we have
+    a person from a protected group.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The calculation works as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We calculate the MSE overall, err, from model predictions and targets.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We calculate the MSE for the protected group, `err_s`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We take the ratio of the MSE for the protected group over the MSE overall (AIR)
+    and limit it to between 1.0 and 2.0\. We don't want values lower than 1, because
+    we are only interested in the AIR if it's negatively affecting the protected group.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then multiply AIR by the overall MSE.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As for 2, the MSE can simply be calculated by multiplying the predictions and
+    targets, each by `sensitive`. That would cancel out all points, where sensitive
+    is equal to 0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As for 4, it might seem that this would cancel out the overall error, but we
+    see that it actually seems to work. We probably could have added the two terms
+    as well to give both errors a similar importance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use the autograd functionality in Jax to differentiate this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the following, we''ll use the non-public scikit-learn API to implement a
+    custom split criterion for decision trees. We''ll use this to train a random forest
+    model with the COMPAS dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This extends the implementation of the Hellinger criterion by Evgeni Dubov ([https://github.com/EvgeniDubov/hellinger-distance-criterion](https://github.com/EvgeniDubov/hellinger-distance-criterion)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s use this for training and test it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives us an AUC of 0.62:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3d393169-1317-4c60-8c3e-28c201f86e29.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see that, although we came a long way, we didn't completely remove all
+    bias. 30% (DFP for African-Americans) would still be considered unacceptable.
+    We could try different refinements or sampling strategies to improve the result.
+    Unfortunately, we wouldn't be able to use this model in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an example, a way to address this is to do model selection within the random
+    forest. Since each of the trees would have their own way of classifying people,
+    we could calculate the adverse impact statistics for each of the individual trees
+    or combinations of trees. We could remove trees until we are left with a subset
+    of trees that satisfy our adverse impact conditions. This is beyond the scope
+    of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You can read up more on algorithmic fairness in different places. There''s
+    a wide variety of literature available on fairness:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Science Magazine article about the COMPAS model (Julia Dressel and Hany Farid,
+    2018, *The accuracy, fairness, and limits of predicting recidivism*): [https://advances.sciencemag.org/content/4/1/eaao5580](https://advances.sciencemag.org/content/4/1/eaao5580)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*A comparative study of fairness-enhancing interventions in machine learning*
+    (Sorelle Friedler and others, 2018): [https://arxiv.org/pdf/1802.04422.pdf](https://arxiv.org/pdf/1802.04422.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*A Survey on Bias and Fairness in Machine Learning* (Mehrabi and others, 2019): [https://arxiv.org/pdf/1908.09635.pdf](https://arxiv.org/pdf/1908.09635.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The effect of explaining fairness (Jonathan Dodge and others, 2019): [https://arxiv.org/pdf/1901.07694.pdf](https://arxiv.org/pdf/1901.07694.pdf)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Different Python libraries are available for tackling bias (or, inversely,
+    algorithmic fairness):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: fairlearn: [https://github.com/fairlearn/fairlearn](https://github.com/fairlearn/fairlearn)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AIF360: [https://github.com/IBM/AIF360](https://github.com/IBM/AIF360)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: FairML:[ https://github.com/adebayoj/fairml](https://github.com/adebayoj/fairml)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'BlackBoxAuditing: [https://github.com/algofairness/BlackBoxAuditing](https://github.com/algofairness/BlackBoxAuditing)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Balanced Committee Election: [https://github.com/huanglx12/Balanced-Committee-Election](https://github.com/huanglx12/Balanced-Committee-Election)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, Scikit-Lego includes functionality for fairness: [https://scikit-lego.readthedocs.io/en/latest/fairness.html](https://scikit-lego.readthedocs.io/en/latest/fairness.html)
+  prefs: []
+  type: TYPE_NORMAL
+- en: While you can find many datasets on recidivism by performing a Google dataset
+    search ([https://toolbox.google.com/datasetsearch](https://toolbox.google.com/datasetsearch)),
+    there are many more applications and corresponding datasets where fairness is
+    important, such as credit scoring, face recognition, recruitment, or predictive
+    policing, to name just a few.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are different places to find out more about custom losses. The article
+    *Custom loss versus custom scoring* ([https://kiwidamien.github.io/custom-loss-vs-custom-scoring.html](https://kiwidamien.github.io/custom-loss-vs-custom-scoring.html))
+    affords a good overview. For implementations of custom loss functions in gradient
+    boosting, towardsdatascience ([https://towardsdatascience.com/custom-loss-functions-for-gradient-boosting-f79c1b40466d](https://towardsdatascience.com/custom-loss-functions-for-gradient-boosting-f79c1b40466d))
+    is a good place to start.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Forecasting CO[2] time series
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we will test out some well-known models (ARIMA, SARIMA) and
+    signal decomposition by forecasting using Facebook's Prophet library on the time
+    series data, in order to check their performance at forecasting our time series
+    of CO[2] values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order to prepare for this recipe, we'll install libraries and download a
+    dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use the `statsmodels` package and prophet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will analyze the CO[2] concentration data in this recipe. You can see the
+    data loading in the notebook on GitHub accompanying this recipe, or in the scikit-learn
+    **Gaussian process regression** (**GPR**) example regarding Mauna Loa CO[2] data: [https://scikit-learn.org/stable/auto_examples/gaussian_process/plot_gpr_co2.html#sphx-glr-auto-examples-gaussian-process-plot-gpr-co2-py](https://scikit-learn.org/stable/auto_examples/gaussian_process/plot_gpr_co2.html#sphx-glr-auto-examples-gaussian-process-plot-gpr-co2-py)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This dataset is one of the earliest recordings available on atmospheric recordings
+    of CO[2]. As it will be later observed, this data follows a sinusoidal pattern,
+    with the CO[2] concentration rising in winter and falling in the summer owing
+    to the decreasing quantity of plants and vegetation in the winter season:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: The dataset contains the average CO[2] concentration measured at Mauna Loa Observatory
+    in Hawaii from 1958 to 2001\. We will model the CO[2] concentration with respect
+    to that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now we'll get to forecasting our time series of CO[2] data. We'll first explore
+    the dataset, and then we'll apply the ARIMA and SARIMA techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s have a look at the time series:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here''s the graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8234b20c-db4d-477c-973a-6bde1c1cc10a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The script here shows the time series seasonal decomposition of the CO[2] data,
+    showing a clear seasonal variation in the CO[2] concentration, which can be traced
+    back to the biology:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have preprocessed data for decomposition, let''s go ahead with
+    it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we see the decomposition: the observed time series, its trend, seasonal
+    components, and what remains unexplained, the residual element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6df3900f-8db2-4062-8acc-9af6f992bb32.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, let's analyze the time series.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Analyzing time series using ARIMA and SARIMA
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will fit ARIMA and SARIMA models to the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll define our two models and apply them to each point in the test dataset.
+    Here, we iteratively fit the model on all the points and predict the next point,
+    as a one-step-ahead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we split the data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: This leaves us with 468 samples for training and 53 for testing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define the models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we train the models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We get an MSE in the test of 0.554 and 0.405 for ARIMA and SARIMA models, respectively. Let''s
+    see how the models fit graphically:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b50a0712-4290-488e-a50a-5790bb09df7a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We could do a parameter exploration using the **Akaike information criterion**
+    (**AIC**), which expresses the quality of the model relative to the number of
+    parameters in the model. The model object returned by the fit function in statsmodels
+    includes the AIC, so we could do a grid search over a range of parameters, and
+    then select the model that minimizes the AIC.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Time series data is a collection of observations *x(t)*, where each data point
+    is recorded at time *t*. In most cases, time is a discrete variable, that is, ![](img/baa09adc-90fb-44ca-b96e-087c92c3cf22.png).
+    We are looking at forecasting, which is the task of predicting future values based
+    on the previous observations in the time series.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to explain the models that we''ve used, ARIMA and SARIMA, we''ll have
+    to go step by step, and explain each in turn:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Autoregression** (**AR**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Moving Average** (**MA**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Autoregressive Moving Average** (**ARMA**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Autoregressive Integrated Moving Average** (**ARIMA**) and'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Seasonal Autoregressive Integrated Moving Average** (**SARIMA**)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ARIMA and SARIMA are based on the ARMA model, which is an **autoregressive moving
+    average** model. Let's briefly go through some of the basics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'ARMA is a linear model, defined in two parts. First, the autoregressive linear
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d8d3ef6c-4bde-4615-8fea-de6c11f13222.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/75d01535-5147-4d3d-81e3-44ed4e4b3e51.png) are parameters and ![](img/fb710b5e-aa6e-4bcc-a4d6-2d241bf69636.png) is
+    a constant, ![](img/503d11f9-a902-4347-a467-f99a479cae45.png) is white noise,
+    and ![](img/47929613-e8f3-428c-9f03-cab92c370125.png) is the order of the model
+    (or the window size of the linear model). The second part of ARMA is the moving
+    average, and this is again a linear regression, but of non-observable, lagged
+    error terms, defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ce04acdd-ae4c-43dd-8593-0e24cffbf671.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/da090912-380c-4843-81e6-3a4a5535fbf4.png) is the order of the
+    moving average, ![](img/17c2294b-a3e3-4c3a-98c9-5f55f1273173.png) are the parameters,
+    and ![](img/20426613-f884-4151-b919-a318c9bc0bb1.png) the expectation or the mean
+    of the time series ![](img/5b764349-1447-468f-ae94-a061b2fe1d10.png). The ARMA(p, q)
+    model is then the composite of both of these models, AR(p) and MA(q):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5c17c537-7b95-4202-acd1-d1126b2c5bc2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The fitting procedure is a bit involved, particularly because of the MA part.
+    You can read up on the Box-Jenkins method on Wikipedia if you are interested: [https://en.wikipedia.org/wiki/Box%E2%80%93Jenkins_method](https://en.wikipedia.org/wiki/Box%E2%80%93Jenkins_method)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a few limitations to note, however. The time series has to be the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Stationary: Basically, mean and covariance across observations have to be constant
+    over time.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Nonperiodic: Although bigger values for p and q could be used to model seasonality,
+    it is not part of the model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Linear: Each value for ![](img/1bd795c4-8671-4f00-b53b-7e68a6247202.png)can
+    be modeled as a linear combination of previous values and error terms.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There are different extensions of ARMA to address the first two limitations,
+    and that's where ARIMA and SARIMA come in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'ARIMA (*p*, *d*, *q*) stands for **autoregressive integrated moving average**.
+    It comes with three parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**p**: The number of autoregressive terms (autoregression)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**d**: The number of non-seasonal differences needed for stationarity (integration)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**q**: The number of lagged forecast errors (moving average)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The *integration* refers to differencing. In order to stabilize the mean, we
+    can take the difference between consecutive observations. This can also remove
+    a trend or eliminate seasonality. It can be written as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0430a833-0c30-420f-9959-192925196e54.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This can be repeated several times, and this is what the parameter d describes
+    that ARIMA comes with. Please note that ARIMA can handle drifts and non-stationary
+    time series. However, it is still unable to handle seasonality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SARIMA stands for seasonal ARIMA, and is an extension of ARIMA in that it also
+    takes into account the seasonality of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*SARIMA*(*p*, *d*, *q*)(*P*, *D*, *Q*)*m* contains the non-seasonal parameters
+    of ARIMA and additional seasonal parameters. Uppercase letters P, D, and Q annotate
+    the seasonal moving average and autoregressive components, where *m* is the number
+    of periods in each season. Often this is the number of periods in a year; for
+    example *m=4* would stand for a quarterly seasonal effect, meaning that *D* stands
+    for seasonal differencing between observations *Xt* and *Xt-m*, and *P* and *Q*
+    stand for linear models with backshifts of *m*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Python, the statsmodels library provides a method to perform the decomposition
+    of the signal based on the seasonality of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Prophet is a library provided by Facebook for forecasting time series data.
+    It works on an additive model and fits non-linear models. The library works best
+    when the data has strong seasonal effects and has enough historic trends available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how we can use it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here are our model forecasts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1abc025e-b3cb-4f9c-a7e9-dfd148ef05db.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We get a similar decomposition as before with the ARIMA/SARIMA models, namely,
+    the trend and the seasonal components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/746fb1c2-b7c0-4737-98b6-7c389548db42.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The yearly variation nicely shows the rise and fall of the CO[2] concentration
+    according to the seasons. The trend clearly goes up over time, which could be
+    worrisome if you think about global warming.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ve used the following libraries in this recipe:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Statsmodels: [http://statsmodels.sourceforge.net/stable/](http://statsmodels.sourceforge.net/stable/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Prophet: [https://facebook.github.io/prophet/](https://facebook.github.io/prophet/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'There are many more interesting libraries relating to time series, including
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Time series modeling using state space models in statsmodels:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[https://www.statsmodels.org/dev/statespace.html](https://www.statsmodels.org/dev/statespace.html)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'GluonTS: Probabilistic Time Series Models in MXNet (Python): [https://gluon-ts.mxnet.io/](https://gluon-ts.mxnet.io/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'SkTime: A unified interface for time series modeling: [https://github.com/alan-turing-institute/sktime](https://github.com/alan-turing-institute/sktime)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

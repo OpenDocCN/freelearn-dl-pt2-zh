@@ -1,0 +1,946 @@
+- en: Working with Generative Adversarial Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: All the examples that we saw in the previous chapters were focused on solving
+    problems such as classification or regression. This chapter is very interesting
+    and important for understanding how deep learning is evolving to solve problems
+    in unsupervised learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will train networks that learn how to create the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Images based on content and a particular artistic style, popularly called style
+    transfer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating faces of new people using a particular type of **generative adversarial
+    network** (**GAN**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These techniques form the basis of most of the advanced research that is happening
+    in the deep learning space. Going into the exact specifics of each of the subfields,
+    such as GANs and language modeling is beyond the scope of this book, as they deserve
+    a separate book for themselves. We will learn how they work in general and the
+    process of building them in PyTorch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neural style transfer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing GANs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DCGANs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Neural style transfer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We humans generate artwork with different levels of accuracy and complexity.
+    Though the process of creating art can be a very complex process, it can be seen
+    as a combination of the two most important factors, namely, what to draw and how
+    to draw. What to draw is inspired by what we see around us, and how we draw will
+    also take influences from certain things that are found around us. This could
+    be an oversimplification from an artist's perspective, but for understanding how
+    we can create artwork using deep learning algorithms, it is very useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will train a deep learning algorithm to take content from one image and then
+    draw it according to a specific artistic style. If you are an artist or in the
+    creative industry, you can directly use the amazing research that has gone on
+    in recent years to improve this and create something cool within the domain you
+    work in. Even if you are not, it still introduces you to the field of generative
+    models, where networks generate new content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s understand what is done in neural style transfer at a high-level, and
+    then dive into details, along with the PyTorch code required to build it. The
+    style transfer algorithm is provided with a content image (C) and a style image
+    (S)—the algorithm has to generate a new image (O) that has the content from the
+    content image and the style from the style image. This process of creating neural
+    style transfer was introduced by Leon Gates and others in 2015 in their paper,
+    *A Neural Algorithm of Artistic Style *([https://arxiv.org/pdf/1508.06576.pdf](https://arxiv.org/pdf/1508.06576.pdf)).
+    The following is the content image (C) that we will be using:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ae2eed1a-2f91-4555-8108-e93918763e13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'And the following is the style image (S):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/77e1e4d5-53f2-48c7-a99b-d5a757abaf2f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Source of the preceding image: The Great Wave Off Kanagawa from by Katsushika
+    Hokusai ([https://commons.wikimedia.org/wiki/File:The_Great_Wave_off_Kanagawa.jpg](https://commons.wikimedia.org/wiki/File:The_Great_Wave_off_Kanagawa.jpg)[)](https://commons.wikimedia.org/wiki/File:The_Great_Wave_off_Kanagawa.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'And this is the image that we will get as the result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fe2c6633-93e1-407b-af23-90a1f80994ef.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The idea behind style transfer becomes clear when you understand how **convolutional
+    neural networks** (**CNNs**) work. When CNNs are trained for object recognition,
+    the early layers of a trained CNN learn very generic information like lines, curves,
+    and shapes. The last layers in a CNN capture the higher-level concepts from an
+    image, such as eyes, buildings, and trees. So the values of the last layers of
+    similar images tend to be closer. We take the same concept and apply it for content
+    loss. The last layer for the content image and the generated image should be similar,
+    and we calculate the similarity using the mean square error (MSE). We use our
+    optimization algorithms to bring down the loss value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The style of the image is generally captured across multiple layers in a CNN
+    by a technique called the gram matrix. The gram matrix calculates the correlation
+    between the feature maps captured across multiple layers. The gram matrix gives
+    a measure of calculating the style. Similarly styled images have similar values
+    for the gram matrix. The style loss is also calculated using the MSE between the
+    gram matrix of the style image and the generated image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will use a pretrained VGG19 model, provided in the TorchVision models. The
+    steps required for training a style transfer model are similar to any other deep
+    learning models, except for the fact that calculating losses is more involved
+    than for a classification or regression model. The training of the neural style
+    algorithm can be broken down to the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading data.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating a VGG19 model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining content loss.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Defining style loss.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Extracting losses across layers from the VGG model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating an optimizer.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Training—generating an image similar to the content image, and a style similar
+    to the style image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Loading the data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Loading data is similar to what we saw for solving image classification problems
+    in Chapter 3, *Diving Deep into Neural Networks*. We will be using the pretrained
+    VGG model, so we have to normalize the images using the same values on which the
+    pretrained model is trained.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code shows how we can do this. The code is mostly self-explanatory
+    as we already discussed it in detail in the previous chapters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this code, we defined three functionalities, preprocess does all the preprocessing
+    required and uses the same values for normalization as those with which the VGG
+    model was trained. The output of the model needs to be normalized back to its
+    original values; the `processing` function does the processing required. The generated
+    model may be out of the range of accepted values, and the `postprocess_b` function
+    limits all the values greater than one to one, and values that are less than zero
+    to zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we define the `loader` function, which loads the image, applies the `preprocessing`
+    transformation, and converts it into a variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following function loads the style and content image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can either create an image with noise (random numbers), or we can use the
+    same content image. We will use the content image in this case. The following
+    code creates the content image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use an optimizer to tune the values of the `output_image` variable in
+    order for the image to be closer to the content image and style image. For that
+    reason, we are asking PyTorch to maintain the gradients by mentioning `requires_grad=True`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the VGG model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will load a pretrained model from `torchvisions.models`. We will be using
+    this model only for extracting features, and the PyTorch VGG model is defined
+    in such a way that all the convolutional blocks will be in the features module
+    and the fully connected, or linear, layers are in the classifier module. Since
+    we will not be training any of the weights or parameters in the VGG model, we
+    will also freeze the model, as the following code demonstrates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this code, we created a VGG model, used only its convolution blocks, and
+    froze all of the parameters of the model as we will be using it only for extracting
+    features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Content loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The **content loss** is the distance between the input and the output images.
+    The aim is to preserve the original content of the image. It is the MSE calculated
+    on the output of a particular layer, extracted by passing two images through the
+    network. We extract the outputs of the intermediate layers from the VGG by using
+    the `register_forward_hook` functionality, passing in the content image and the
+    image to be optimized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We calculate the MSE obtained from the outputs of these layers, as described
+    in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will implement `dummy_fn` for this code in the coming sections. For now,
+    all we know is that the `dummy_fn` function returns the outputs of particular
+    layers by passing an image. We pass the outputs generated by passing the content
+    image and noise image to the MSE loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Style loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The style loss is calculated across multiple layers. Style loss is the MSE of
+    the gram matrix generated for each feature map. The gram matrix represents the
+    correlation value of its features. Let's understand how gram matrix works by using
+    the following diagram and a code implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following table shows the output of a feature map of dimension [2, 3, 3,
+    3], having the column attributes **Batch_size**, **Channels**, and **Values**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f5f3c025-6bb8-48b4-aa51-44ac7c74c93a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'To calculate the gram matrix, we flatten all the values per channel and then
+    find its correlation by multiplying with its transpose, as shown in the following
+    table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8c6392dc-69c2-40eb-8111-3d6adf5cf0bd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'All we did is flatten all the values, with respect to each channel, to a single
+    vector or tensor. The following code implements this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We implement the `GramMatrix` function as another PyTorch module with a `forward`
+    function so that we can use it like a PyTorch layer. We are extracting the different
+    dimensions from the input image in this line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, `b` represents batch, `c` represents filters or channels, `h` represents
+    height, and `w` represents width. In the next step, we will use the following
+    code to keep the batch and channel dimensions intact and flatten all the values
+    along the height and width dimension as shown in the preceding diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The gram matrix is calculated by multiplying the flattening values along with
+    its transposed vector. We can do it by using the PyTorch batch matrix multiplication
+    function, provided as `torch.bmm()`, as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We finish normalizing the values of the gram matrix by dividing it by the number
+    of elements. This prevents a particular feature map with a lot of values dominating
+    the score. Once `GramMatrix` is calculated, it becomes simple to calculate the
+    style loss, which is implemented in this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `StyleLoss` class is implemented as another PyTorch layer. It calculates
+    the MSE between the input `GramMatrix` values and the style image `GramMatrix`
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extracting the losses
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Just like we extracted the activation of a convolution layer using the `register_forward_hook()`
+    function, we can extract losses of different convolutional layers required to
+    calculate style loss and content loss. The one difference in this case is that
+    instead of extracting from one layer, we need to extract outputs of multiple layers.
+    The following class integrates the required change:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `__init__` method takes the model on which we need to call the `register_forward_hook`
+    method and the layer numbers for which we need to extract the outputs. The `for`
+    loop in the `__init__` method iterates through the layer numbers and registers
+    the forward hook required to pull the outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `hook_fn` function passed to the `register_forward_hook` method is called
+    by PyTorch after that layer on which the `hook_fn` function is registered. Inside
+    the function, we capture the output and store it in the features array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to call the remove function once when we don't want to capture the outputs.
+    Forgetting to invoke the remove methods can cause out-of-memory exceptions as
+    all the outputs get accumulated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s write another utility function that can extract the outputs required
+    for the style and content images. The following function does the same:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Inside the `extract_layers` function, we create objects for the `LayerActivations`
+    class by passing in the model and the layer numbers. The features list may contain
+    outputs from previous runs, so we are reinitiating to an empty list. Then we pass
+    in the image through the model, and we are not going to use the outputs. We are
+    more interested in the outputs generated in the features array. We call the remove
+    method to remove all the registered hooks from the model and return the features.
+    The following code shows how we extract the targets required for style and content
+    image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we extract the targets, we need to detach the outputs from the graphs
+    that created them. Remember that all these outputs are PyTorch variables, which
+    maintain information on how they are created. But, for our case, we are interested
+    in only the output values and not the graph, as we are not going to update either
+    the style image or the content image. The following code illustrates this technique:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we have detached, let''s add all the targets into one list. The following
+    code illustrates this technique:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When calculating the style loss and content loss, we passed on two lists called
+    content layers and style layers. Different layer choices will have an impact on
+    the quality of the image generated. Let''s pick the same layers as the authors
+    of the paper mentioned. The following code shows the choice of layers that we
+    are using here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The optimizer expects a single scalar quantity to minimize. To achieve a single
+    scalar value, we sum up all the losses that have arrived at different layers.
+    It is common practice to do a weighted sum of these losses, and again we pick
+    the same weights as used in the paper''s implementation in the GitHub repository
+    ([https://github.com/leongatys/PytorchNeuralStyleTransfer](https://github.com/leongatys/PytorchNeuralStyleTransfer)).
+    Our implementation is a slightly modified version of the author''s implementation.
+    The following code describes the weights being used, which are calculated by the
+    number of filters in the selected layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To visualize this, we can print the VGG layers. Take a minute to observe which
+    layers we are picking, and you can experiment with different layer combinations.
+    We will use the following code to print the VGG layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have to define the loss functions and the optimizer to generate artistic
+    images. We will initialize both of them in the following section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a loss function for each layer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have already defined loss functions as PyTorch layers. So, let''s create
+    the loss layers for different style losses and content losses. The following code
+    defines the function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `loss_fns` function is a list containing a bunch of style loss objects and
+    content loss objects based on the length of the arrays created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the optimizer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In general, we pass in the parameters of a network like VGG to be trained.
+    But, in this example, we are using VGG models as feature extractors, and so we
+    cannot pass the VGG parameters. Here, we will only provide the parameters of the
+    `opt_img` variable that we will optimize to make the image have the required content
+    and style. The following code creates the optimizer that optimizes its values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we have all the components for training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The training method is different compared to the other models that we have
+    trained till now. Here, we need to calculate loss at multiple layers, and every
+    time the optimizer is called, it will change the input image so that its content
+    and style gets close to the target''s content and style. Let''s look at the code
+    used for training, and then we will walk through the important steps in the training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are running the training loop for 500 iterations. For every iteration, we
+    calculate the output from different layers of the VGG model using our `extract_layers`
+    function. In this case, the only thing that changes is the values of `output_image`,
+    which will contain our style image. Once the outputs are calculated, we calculate
+    the losses by iterating through the outputs and passing them to the corresponding
+    loss functions, along with their respective targets. We sum up all the losses
+    and call the backward function. At the end of the closure function, the loss is
+    returned. The closure method is called along with the `optimizer.step` method
+    for `max_iterations`. If you are running on a GPU, it could take a few minutes
+    to run; if you are running on a CPU, try reducing the size of the image to make
+    it run faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After running for 500 epochs, the resulting image on my machine looks as shown
+    here. Try different combinations of content and style to generate interesting
+    images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/437c55d3-b973-4645-8f0c-299c1950f01f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, let's go ahead and generate human faces using **deep convolutional
+    generative adversarial networks** (**DCGANs**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'GANs were introduced by Ian Goodfellow in 2014 and have become very popular.
+    There have been many significant developments to GAN research in recent times,
+    and the following timeline shows some of the most noteworthy advances and key
+    developments in GAN research:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ba98fa2c-d37b-4b53-82b1-86e006287777.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this chapter, we will focus on the PyTorch implementation of DCGAN. However,
+    there is a very useful GitHub repository that provides a host of PyTorch implementation
+    examples of the GANs shown in the timeline along with others. It can be accessed
+    via the following link: [https://github.com/eriklindernoren/PyTorch-GAN](https://github.com/eriklindernoren/PyTorch-GAN).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GAN addresses the problem of unsupervised learning by training two deep
+    neural networks, called a generator and discriminator, which compete with each
+    other. In the course of training, both eventually become better at the tasks that
+    they perform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GANs are intuitively understood using the case of a counterfeiter (generator)
+    and the police (discriminator). Initially, the counterfeiter shows the police
+    fake money. The police identifies it as fake and explains to the counterfeiter
+    why it is fake. The counterfeiter makes new fake money based on the feedback it
+    received. The police finds it's fake and informs the counterfeiter why it is fake.
+    It repeats this a huge number of times until the counterfeiter is able to make
+    fake money, which the police is unable to recognize. In the GAN scenario, we end
+    up with a generator that generates fake images that are quite similar to the real
+    ones, and a classifier becomes great at identifying a fake from the real thing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GAN is a combination of a forger network and an expert network, each being trained
+    to beat the other. The generator network takes a random vector as input and generates
+    a synthetic image. The discriminator network takes an input image, and predicts
+    whether the image is real or fake. We pass the discriminator network either a
+    real image or a fake image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator network is trained to produce images and fool the discriminator
+    network into believing they are real. The discriminator network is also constantly
+    improving at not getting fooled, as we pass the feedback while training it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram depicts the architecture of a GAN model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/05cb99b2-943e-45e6-8a0b-6b5ff08d566f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Though the idea of GANs sounds simple in theory, training a GAN model that actually
+    works is very difficult as there are two deep neural networks that need to be
+    trained in parallel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The DCGAN is one of the early models that demonstrated how to build a GAN that
+    learns by itself and generates meaningful images. You can learn more about it
+    here: [https://arxiv.org/pdf/1511.06434.pdf](https://arxiv.org/pdf/1511.06434.pdf).
+    We will walk through each of the components of this architecture along with some
+    of the reasoning behind it and how this can be implemented in PyTorch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DCGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we will implement different parts of training a GAN architecture,
+    based on the DCGAN paper I mentioned in the preceding information box. Some of
+    the important parts of training a DCGAN include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A generator network, which maps a latent vector (list of numbers) of some fixed
+    dimension to images of some shape. In our implementation, the shape is (3, 64,
+    64).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A discriminator network, which takes as input an image generated by the generator
+    or from the actual dataset, and maps to that a score estimating if the input image
+    is real or fake.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Defining loss functions for the generator and discriminator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Defining an optimizer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's explore each of these sections in detail. The implementation provides
+    a more detailed explanation of the code that is available in the PyTorch GitHub
+    repository: [https://github.com/pytorch/examples/tree/master/dcgan.](https://github.com/pytorch/examples/tree/master/dcgan)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the generator network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The generator network takes a random vector of fixed dimension as input, and
+    applies a set of transposed convolutions, batch normalization, and ReLU activation
+    to it, and generates an image of the required size. Before looking into the generator
+    implementation, let's look at defining transposed convolution and batch normalization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transposed convolutions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Transposed convolutions are also called fractionally strided convolutions. They
+    work in the opposite way to how convolution works. Intuitively, they try to calculate
+    how the input vector can be mapped to higher dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the following diagram to understand it better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1a04a38c-5d6b-4228-a1f9-097c0a29349e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This diagram is referenced in the Theano documentation (another popular deep
+    learning framework—[http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html](http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html)).
+    If you want to explore more about how strided convolutions work, I strongly recommend
+    you read this article from the Theano documentation. What is important for us
+    is that it helps to convert a vector to a tensor of the required dimensions, and
+    we can train the values of the kernels by backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Batch normalization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have already observed a couple of times that all the features that are being
+    passed to either machine learning or deep learning algorithms are normalized;
+    that is, the values of the features are centered to zero by subtracting the mean
+    from the data and giving the data a unit standard deviation by dividing the data
+    by its standard deviation. We would generally do this by using the PyTorch `torchvision.Normalize`
+    method. The following code shows an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In all the examples we have seen, the data is normalized just before it enters
+    a neural network; there is no guarantee that the intermediate layers get a normalized
+    input. The following diagram shows how the intermediate layers in the neural network
+    fail to get normalized data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6aad96ae-05b1-4e43-afd9-3f35022daee2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Batch normalization acts like an intermediate function or a layer, which normalizes
+    the intermediate data when the mean and variance change over time during training.
+    Batch normalization was introduced in 2015 by Ioffe and Szegedy ([https://arxiv.org/abs/1502.03167](https://arxiv.org/abs/1502.03167)).
+    Batch normalization behaves differently during training and validation or testing.
+    During training, the mean and variance are calculated for the data in the batch.
+    For validation and testing, the global values are used. All we need to understand
+    in order to use it is that it normalizes the intermediate data. Some of the key
+    advantages of using batch normalization are that it does the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improves gradient flow through the network, thus helping us build deeper networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Allows higher learning rates
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reduces the strong dependency of initialization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Acts as a form of regularization and reduces the dependency of dropout
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Most of the modern architectures, such as ResNet and Inception, extensively
+    use batch normalization in their architectures. We will be diving deeper into
+    these architectures in the next chapter. Batch normalization layers are introduced
+    after a convolution layer or linear/fully connected layers, as shown in the following
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/31c77afe-a498-4552-86ed-6aaea16c9890.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: By now, we have an intuitive understanding of the key components of a generator
+    network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generator
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s quickly look at the following generator network code, and then discuss
+    the key features of the generator network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: In most of the code examples we have seen, we use a bunch of different layers
+    and then define the flow in the forward method. In the generator network, we define
+    the layers and the flow of the data inside the `__init__` method using a sequential
+    model. The model takes as input a tensor of size nz, and then passes it on to
+    a transposed convolution to map the input to the image size that it needs to generate.
+    The forward function passes on the input to the sequential module and returns
+    the output.  The last layer of the generator network is a tanh layer, which limits
+    the range of values the network can generate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of using the same random weights, we initialize the model with weights
+    as defined in the paper. The following is the weight initialization code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We call the weight function by passing the function to the generator object,
+    `net_generator`. Each layer is passed on to the function; if the layer is a convolution
+    layer we initialize the weights differently, and if it is `BatchNorm`, then we
+    initialize it a bit differently. We call the function on the network object using
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining the discriminator network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s quickly look at the following discriminator network code, and then discuss
+    the key features of the discriminator network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: There are two important things in the previous network, namely, the usage of
+    leaky ReLU as an activation function, and the usage of sigmoid as the last activation
+    layer. First, let's understand what leaky ReLU is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leaky ReLU is an attempt to fix the dying ReLU problem. Instead of the function
+    returning zero when the input is negative, leaky ReLU will output a very small
+    number like 0.001\. In the paper, it is shown that using leaky ReLU improves the
+    efficiency of the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important difference is not using fully connected layers at the end
+    of the discriminator. It is common to see the last fully connected layers being
+    replaced by global average pooling. But using global average pooling reduces the
+    rate of the convergence speed (number of iterations to build an accurate classifier).
+    The last convolution layer is flattened and passed to a sigmoid layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other than these two differences, the rest of the network is similar to the
+    other image classifier networks we have seen in the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining loss and optimizer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will define a binary cross-entropy loss and two optimizers, one for the
+    generator and another one for the discriminator, in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Up to this point, it is very similar to what we have seen in all our previous
+    examples. Let's explore how we can train the generator and discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the discriminator
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The loss of the discriminator network depends on how it performs on real images
+    and how it performs on fake images generated by the generator network. The loss
+    can be defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/67e56b88-415b-4aad-9ac2-fa5bd8efa0ba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So, we need to train the discriminator with real images and the fake images
+    generated by the generator network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the discriminator with real images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's pass some real images as direct information to train the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will take a look at the code for doing the same and then explore
+    the important features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the previous code, we calculate the loss and the gradients required for the
+    discriminator image. The `inputv` and `labelv` values represents the input image
+    from the CIFAR10 dataset and labels, which is one for real images. It is pretty
+    straightforward, as it is similar to what we do for other image classifier networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the discriminator with fake images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now pass some random images to train the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the code for it and then explore the important features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first line in this code passes a vector with a size of 100, and the generator
+    network (`net_generator`) generates an image. We pass on the image to the discriminator
+    for it to identify whether the image is real or fake. We do not want the generator
+    to get trained, as the discriminator is getting trained. So, we remove the fake
+    image from its graph by calling the detach method on its variable. Once all the
+    gradients are calculated, we call the optimizer to train the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the generator network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s look at the following code for training the generator network and then
+    explore the important features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: It looks similar to what we did while we trained the discriminator on fake images,
+    except for some key differences. We are passing the same fake images created by
+    the generator, but this time we are not detaching it from the graph that produced
+    it, because we want the generator to be trained. We calculate the loss (`err_generator`)
+    and calculate the gradients. Then we call the generator optimizer, as we only
+    want the generator to be trained, and we repeat this entire process for several
+    iterations before we have the generator producing slightly realistic images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the complete network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have looked at individual pieces of how a GAN is trained. Let''s summarize
+    them as follows and look at the complete code that will be used to train the GAN
+    network we created:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train the discriminator network with real images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Train the discriminator network with fake images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimize the discriminator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Train the generator based on the discriminator feedback
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimize the generator network alone
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We will use the following code to train the network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `vutils.save_image` will take a tensor and save it as an image. If provided
+    with a mini-batch of images, then it saves them as a grid of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, we will take a look at what the generated images
+    and real images look like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inspecting the generated images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So, let's compare the generated images and real images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The generated images will be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d3831026-e209-4ed4-a4ff-64ce32619d78.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The real images are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c7a8f6dc-3021-421b-ad1b-cd60fd6b60d6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Comparing both sets of images, we can see that our GAN was able to learn how
+    to generate images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered how to train deep learning algorithms that can generate
+    artistic style transfers using generative networks. We also learned how to generate
+    new images using GAN and DCGAN. In DCGAN, we explored training the discriminator
+    with real and fake images and inspected the generated images. Apart from training
+    to generate new images, we also have a discriminator, which can be used for classification
+    problems. The discriminator learns important features about the images that can
+    be used for classification tasks when there is a limited amount of labeled data
+    available. When there is limited labeled data, we can train a GAN that will give
+    us a classifier, which can be used to extract features—and a classifier module
+    can be built on top of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will cover some of the modern architectures, such as
+    ResNet and Inception, for building better computer vision models and models such
+    as sequence-to-sequence, which can be used for building language translation and
+    image captioning.
+  prefs: []
+  type: TYPE_NORMAL

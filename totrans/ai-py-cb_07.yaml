@@ -1,0 +1,1006 @@
+- en: Advanced Image Applications
+  prefs: []
+  type: TYPE_NORMAL
+- en: The applications of artificial intelligence in computer vision include robotics, self-driving
+    cars, facial recognition, recognizing diseases in biomedical images, and quality
+    control in manufacturing, among many others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll start with image recognition (or image classification),
+    where we'll look into basic models and more advanced models. We'll then create
+    images using **Generative Adversarial Networks** (**GANs**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recognizing clothing items
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Encoding images and style
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We'll use many standard libraries, such as NumPy, Keras, and PyTorch, but we'll
+    also see a few more libraries that we'll mention at the beginning of each recipe
+    as they become relevant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the notebooks for this chapter's recipes on GitHub at [https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter07](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter07).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recognizing clothing items
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A popular example of image classification is the MNIST dataset, which contains
+    digits from 0 to 9 in different styles. Here, we'll use a drop-in replacement,
+    called Fashion-MNIST, consisting of different pieces of clothing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fashion-MNIST is a dataset of Zalando's article images consisting of a training
+    set of 60,000 examples and a test set of 10,000 examples: [https://github.com/zalandoresearch/fashion-mnist](https://github.com/zalandoresearch/fashion-mnist).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are a few examples from the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8458cbc3-4fcb-4552-8188-b8a5750a77ed.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this recipe, we'll recognize clothing items with different models – we'll
+    start with generic image features (**Difference of Gaussians**, or **DoG**) and
+    a support vector machine; then we'll move on to a feedforward **Multilayer Perceptron**
+    (**MLP**); then we'll use a **Convolutional Neural Network** (**ConvNet**); and
+    finally, we'll look at transfer learning with MobileNet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before we can start, we have to install a library. In this recipe, we''ll use
+    `scikit-image`, a library for image transformations, so we''ll quickly set this
+    up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are now ready to move on to the recipe!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll first load and prepare the dataset, then we'll learn models for classifying
+    clothing items from the Fashion-MNIST dataset using different approaches. Let's
+    start by loading the Fashion-MNIST fashion dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can get the dataset directly via a `keras` utility function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are also normalizing the images within the range of 0 and 1 by dividing by
+    the maximal pixel intensity (`255.0`), and we visualize the first image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We should see the following image of a sneaker, the first image in the training
+    set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8e0688ac-887e-4084-8015-78372b95ce7d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As we mentioned in the introduction of this recipe, we''ll apply different
+    approaches in the upcoming sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DoG features
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: MLP
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: LeNet
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transfer learning with MobileNet
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's start with DoG.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Difference of Gaussians
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Before the breakthroughs of deep learning in image recognition, images were
+    featurized using filters from the Difference of Laplacians or Gaussians. These
+    are implemented in `scikit-image`, so we can take an off-the-shelf implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s write a function that extracts image features using a Gaussian pyramid:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `get_pyramid_features()` function applies the Gaussian pyramid and returns
+    these features flattened as a vector. We'll explain what a Gaussian pyramid is in
+    the *How it works...* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are nearly ready to start learning. We only need to iterate over all the
+    images and extract our Gaussian pyramid features. Let''s create another function
+    that does that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For training the model, we apply the `featurize()` function on our training
+    dataset. We''ll use a linear support vector machine as our model. Then, we''ll
+    apply this model to the features extracted from our test dataset - please note
+    that this might take a while to run:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: We get 84% accuracy over the validation dataset from a linear support vector
+    machine using these features. With some more tuning of the filters, we could have
+    achieved higher performance, but that is beyond the scope of this recipe. Before
+    the publication of AlexNet in 2012, this method was one of the state-of-the-art
+    methods for image classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another way to train a model is to flatten the images and feed the normalized
+    pixel values directly into a classifier, such as an MLP. That is what we'll try
+    now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multilayer perceptron
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: A relatively simple way to classify images is with an MLP. In this case of a
+    two-layer MLP with 10 neurons, you can think of the hidden layer as a feature
+    extraction layer of 10 feature detectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have seen examples of MLPs already a few times in this book, so we'll skip
+    over the details here; perhaps of interest is that we flatten images from 28x28
+    to a vector of 784\. As for the rest, suffice it to say that we train for categorical
+    cross-entropy and we'll monitor accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You''ll see this in the following code block:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: This model has 101,770 trainable parameters between the two layers and their
+    connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use the following function to wrap our training set. It should be fairly
+    self-explanatory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: After 50 epochs, our accuracy in the validation set is 0.886.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next model is the classic ConvNet proposed for MNIST, employing convolutions,
+    pooling, and fully connected layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LeNet5
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'LeNet5 is a feedforward neural network with convolutional layers and max pooling,
+    as well as fully connected feedforward layers for features leading to the read-out.
+    Let''s see how it performs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `create_lenet()` function builds our model. We only have to call it and
+    run our `train_model()` function with it in order to fit it to the training dataset
+    and see our test performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: After 50 episodes, our validation accuracy is at 0.891.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also have a look at the confusion matrix to see how well we distinguish
+    particular pieces of clothing from others:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8d5c07cf-93cf-4cfc-a2da-19b598b12494.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let's move on to our last attempt at classifying the clothing items.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MobileNet transfer learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The MobileNetV2 model was trained on ImageNet, a database of 14 million images
+    that have been hand-annotated into categories of the WordNet taxonomy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'MobileNet can be downloaded with weights for transfer learning. This means
+    that we leave most or all of MobileNet''s weights fixed. In most cases, we would
+    only add a new output projection in order to discriminate a new set of classes
+    on top of the MobileNet representation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: MobileNet comprises 2,257,984 parameters. Downloading MobileNet, we have the
+    convenient option of leaving out the output layer (`include_top=False`), which
+    saves us work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For our transfer model, we have to append a pooling layer, and then we can
+    append an output layer just as in the previous two neural networks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that we freeze or fix the weights in the MobileNet model, and only
+    learn the two layers that we add on top.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might have noticed a detail when we downloaded MobileNet: we specified
+    dimensions of 224x224x3\. MobileNet comes with different input shapes, and 224x224x3
+    is one of the smallest. This means that we have to rescale our images and convert
+    them to RGB (by concatenating the grayscales). You can find the details for that
+    in the online notebook on GitHub.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The validation accuracy for MobileNet transfer learning is very similar to LeNet
+    and our MLP: 0.893.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Image classification consists of assigning a label to an image, and this was
+    where the deep learning revolution started.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following graph, taken from the preceding URL, illustrates the performance
+    increase for the ImageNet benchmark for image classification over time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/03666f38-8879-4237-a09d-82e3161cccbc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: TOP 1 ACCURACY (also more simply called accuracy) on the *y* axis is a metric that measures
+    the proportion of correct predictions over all predictions, or in other words,
+    the ratio of how often an object was correctly identified. The State-of-the-art line
+    on the graph has been continuously improving over time (the *x* axis), until now,
+    reaching an 87.4% accuracy rate with the NoisyStudent method (see here for details: [https://paperswithcode.com/paper/self-training-with-noisy-student-improves](https://paperswithcode.com/paper/self-training-with-noisy-student-improves)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following graph, you can see a timeline of deep learning in image recognition,
+    where you can see the increasing complexity (in terms of the number of layers)
+    and the decreasing error rate in the **ImageNet Large-Scale Visual Recognition
+    Challenge** (**ILSVRC**):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b2f9c9ac-28ad-467a-bae3-1cacc46b2e4c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can find more details about the challenge at [http://www.image-net.org/challenges/LSVRC/](http://www.image-net.org/challenges/LSVRC/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Difference of Gaussian
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Gaussian pyramid is a series of recursively downscaled versions of the original
+    image, where the downscaling is performed using a Gaussian filter. You can find
+    detailed information on Scholarpedia at [http://www.scholarpedia.org/article/Scale_Invariant_Feature_Transform](http://www.scholarpedia.org/article/Scale_Invariant_Feature_Transform).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We used utility functions from `skimage` to extract the features, then we applied
+    a linear support vector machine on top as the classifier. We could have tried
+    other classifiers, such as random forest or gradient boosting, instead in order
+    to improve the performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LeNet5
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: A CNN or ConvNet is a neural network with at least one convolutional layer.
+    LeNet, a classic example of a ConvNet, was proposed by Yann LeCun and others in
+    its original form in 1989 (*backpropagation applied to handwritten zip code recognition*)
+    and in the revised form (called LeNet5) in 1998 (*gradient-based learning applied
+    to document recognition*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can see the LeNet architecture in the following diagram (created using
+    the NN-SVG tool at [http://alexlenail.me/NN-SVG](http://alexlenail.me/NN-SVG)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0828b177-fe32-4e10-a3b4-d91d587ad95e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Convolutions are a very important transformation in image recognition and are
+    one of the most important building blocks of very deep neural networks in image
+    recognition. Convolutions consist of feedforward connections, called filters or
+    kernels, which are applied to rectangular patches of the image (the previous layer).
+    Each resulting map is then the sliding window of the kernel over the whole image.
+    These convolutional maps are usually followed by subsampling by pooling layers
+    (in the case of LeNet, the maximum of each kernel is extracted).
+  prefs: []
+  type: TYPE_NORMAL
+- en: MobileNet transfer learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'MobileNets (Howard and others, *MobileNets: Efficient Convolutional Neural
+    Networks for Mobile Vision**Applications*; 2017; [https://arxiv.org/abs/1704.04861](https://arxiv.org/abs/1704.04861)) are
+    a class of models developed by Google for efficiency with mobile and embedded
+    applications, keeping in mind explicitly trading off latency versus accuracy.
+    MobileNet consists largely of stacked convolutional layers of different shapes.
+    All convolutional layers are followed by batch normalization and ReLU activation.
+    The final convolution is followed by an average pooling layer, which removes the
+    spatial dimension, and a final dense read-out layer with a softmax function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the model is a matter of a single command in Keras. The `tf.keras.applications`
+    package exposes architectures and weights for many models, such as DenseNet, EfficientNet
+    Inception-ResNet V2, Inception V3, MobileNetV1, MobileNetV2, NASNet-A, ResNet,
+    ResNet v2, VGG16, VGG19, and Xception V1\. In our case, we have a pre-trained
+    model, which means it has architecture and weights with the `tf.keras.applications.MobileNetV2()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can retrain (fine-tune) the model to improve performance for our application,
+    or we could use the model as is and put additional layers on top in order to classify
+    new classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we do to load the model is this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As mentioned before, we have the option of specifying different input shapes
+    from a selection of choices. `include_top` specifies whether we want to include
+    the classification layer. If we wanted to use the original model output for the
+    ImageNet dataset on which it has been trained, we would set this to `True`. Since
+    we have different classes in our dataset, we want to set this to `False`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we wanted to fine-tune the model (with or without the top), we would leave
+    the base model (MobileNetV2) trainable. Obviously, the training could take much
+    longer that way since many more layers would need to be trained. That's why we've
+    frozen all of MobileNetV2's layers during training, setting its `trainable` attribute
+    to `False`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You can find a review of ConvNet, from LeNet over AlexNet to more recent architectures,
+    in *A Survey of the Recent Architectures of Deep Convolutional Neural Networks*
+    by Khan and others (2020), available from arXiv: [https://arxiv.org/pdf/1901.06032.pdf](https://arxiv.org/pdf/1901.06032.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A more recent architecture is EfficientNet (Mingxing Tan and Quoc V. Le, 2019)
+    which achieves state-of-the-art performance on ImageNet, while close to a magnitude
+    smaller and about five times faster than the best ConvNets: [https://arxiv.org/abs/1905.11946](https://arxiv.org/abs/1905.11946).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Adversarial learning with GANs, introduced by Ian Goodfellow and others in 2014,
+    is a framework for fitting the distributions of a dataset by pairing two networks
+    against each other in a way that one model generates examples and the others discriminate,
+    whether they are real or not. This can help us to extend our dataset with new
+    training examples. Semi-supervised training with GANs can help achieve higher
+    performance in supervised tasks while using only small amounts of labeled training
+    examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The focus of this recipe is implementing a **Deep Convolutional Generative Adversarial
+    Network** (**DCGAN**) and a discriminator on the MNIST dataset, one of the best-known
+    datasets, consisting of 60,000 digits between 0 and 9\. We'll explain the terminology
+    and background in the *How it works...* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We don''t need any special libraries for this recipe. We''ll use TensorFlow
+    with Keras, NumPy, and Matplotlib, all of which we''ve seen earlier. For saving
+    images, we''ll use the Pillow library, which you can install or upgrade as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's jump right into it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For our approach with a GAN, we need a generator – a network that takes some
+    input, which could be noise – and a discriminator, an image classifier, such as
+    the one seen in the *Recognizing clothing items* recipe of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both the generator and discriminator are deep neural networks, and the two will
+    be paired together for training. After training, we'll see the training loss,
+    example images over epochs, and a composite image of the final epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we will design the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a classic example of a ConvNet. It''s a series of convolution and pooling
+    operations (typically average or max pooling), followed by flattening and an output
+    layer. For more details, please see the *Recognizing clothing items* recipe of
+    this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is very similar to the LeNet convolution block, which we introduced in
+    the *Recognizing clothing items* recipe of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we design the generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While discriminators downsample their input with convolutions and pooling operations,
+    generators upsample. Our generator takes an input vector of 100 dimensions and
+    generates an image from this by performing the operations in the opposite direction
+    of a ConvNet. For this reason, this type of network is sometimes referred to as
+    a DeconvNet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output of the generator is normalized back within the range of -1 to 1
+    by the Tanh activation. One of the major contributions of the DCGAN paper (Alec
+    Radford and others, 2015, *Unsupervised Representation Learning with Deep Convolutional
+    Generative Adversarial Networks*) was the introduction of batch normalization
+    after the deconvolutional operation. In Keras, there are two ways to achieve deconvolution:
+    one is by using `UpSampling2D` (see [https://www.tensorflow.org/api_docs/python/tf/keras/layers/UpSampling2D](https://www.tensorflow.org/api_docs/python/tf/keras/layers/UpSampling2D)),
+    and the other by using `Conv2DTranspose`. Here, we chose `UpSampling2D`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Calling this function, we'll get an output of our network architecture by using `summary()`.
+    We'll see that we have 6,751,233 trainable parameters. We'd recommend running
+    this on a powerful system – for example, Google Colab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For training the network, we load the MNIST dataset and normalize it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The images come in grayscale with pixel values of 0–255\. We normalize into
+    the range -1 and +1\. We then reshape to give a singleton dimension at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the error to feed through to the generator, we chain the generator with
+    the discriminator, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As our optimizer, we''ll use Keras stochastic gradient descent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s create and initialize our models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A single training step consists of three steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator generates images from noise.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The discriminator learns to distinguish generated images from real images.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The generator learns to create better images given the discriminator feedback.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s go through these in turn. First is generating images from noise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the discriminator learns when given fake and real images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: We concatenate true, `1`, and fake, `0`, images for the input to the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the generator learns from the discriminator feedback:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note the inversion of the discriminator target in this function. Instead
+    of 0 (for fake, as before), we feed 1s. It is important to note as well that parameters
+    in the discriminator are fixed during the learning of the generator (otherwise,
+    we'd unlearn again).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can incorporate additional commands into our training in order to save images
+    so that we can appreciate our generator progress visually:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our training works, then, by alternating the preceding steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: We let it run. The `tqdm` progress bars will show us how much time is left.
+    It might take about an hour on Google Colab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Over 100 epochs, our training errors look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e490a7c7-b0cb-40c6-9606-de3a8a827f58.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We have saved images – so, we can also have a look at the generator output
+    over epochs. Here''s a gallery of a single randomly generated digit for each of
+    the 100 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d71821c3-f9fd-40f4-811c-2f6fb8dd1455.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can see that images generally become sharper and sharper. This is interesting,
+    because the training error for the generator seems to stay at the same baseline
+    after the first couple of epochs. Here''s an image that shows the 100 generated
+    images during the last epoch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa2dab9c-b996-49e5-b2dc-3319eab236ce.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The images are not perfect, but most of them are recognizable as digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Generative models can generate new data with the same statistics as the training
+    set, and this can be useful for semi-supervised and unsupervised learning. GANs
+    were introduced by Ian Goodfellow and others in 2014 (*Generative Adversarial
+    Nets*, in NIPS; [https://papers.nips.cc/paper/5423-generative-adversarial-nets](https://papers.nips.cc/paper/5423-generative-adversarial-nets))
+    and DCGANs by Alec Radford and others in 2015 (*Unsupervised Representation Learning
+    with Deep Convolutional Generative Adversarial Networks*; [https://arxiv.org/abs/1511.06434](https://arxiv.org/abs/1511.06434)).
+    Since the original papers, many incremental improvements have been proposed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the GAN technique, the generative network learns to map from a seed – for
+    example, randomized input to the target data distribution – while the discriminative
+    network evaluates and discriminates data produced by the generator from the true
+    data distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generative network generates data while the discriminative network evaluates
+    them. The two neural networks compete with each other, where the generative network's
+    training increases the error rate of the discriminative network and the discriminator
+    training increases the error of the generator, thereby engaging in a weapons race,
+    forcing each other to become better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In training, we feed random noise into our generator and then let the discriminator
+    learn how to classify generator output against genuine images. The generator is
+    then trained given the output of the discriminator, or rather the inverse of it.
+    The less likely the discriminator judges an image a fake, the better for the generator,
+    and vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The original GAN paper, *Generative Adversarial Networks* (Ian Goodfellow and
+    others; 2014), is available from arXiv: [https://arxiv.org/abs/1406.2661](https://arxiv.org/abs/1406.2661).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The DCGAN paper, *Unsupervised Representation Learning with Deep Convolutional
+    Generative Adversarial Networks* (Alec Radford and others; 2015), is available
+    on arXiv as well: [https://arxiv.org/abs/1511.06434](https://arxiv.org/abs/1511.06434).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find a tutorial on DCGANs on the PyTorch website at [https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html](https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many more GAN architectures that are worth exploring. Erik Linder-Norén
+    implemented dozens of state-of-the-art architectures in both PyTorch and Keras.
+    You can find them in his GitHub repositories ([https://github.com/eriklindernoren/PyTorch-GAN](https://github.com/eriklindernoren/PyTorch-GAN) and [https://github.com/eriklindernoren/Keras-GAN](https://github.com/eriklindernoren/Keras-GAN),
+    respectively).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoding images and style
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Autoencoders are useful for representing the input efficiently. In their 2016
+    paper, Makhazani and others showed that adversarial autoencoders can create clearer
+    representations than variational autoencoders, and – similar to the DCGAN that
+    we saw in the previous recipe – we get the added benefit of learning to create
+    new examples, which can help in semi-supervised or supervised learning scenarios,
+    and allow training with less labeled data. Representing in a compressed fashion
+    can also help in content-based retrieval.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we'll implement an adversarial autoencoder in PyTorch. We'll
+    implement both supervised and unsupervised approaches and show the results. There's
+    a nice clustering by classes in the unsupervised approach, and in the supervised
+    approach, our encoder-decoder architecture can identify styles, which gives us
+    the ability to do style transfer. In this recipe, we'll use the *hello world*
+    dataset of computer vision, MNIST.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll need `torchvision` for this recipe. This will help us download our dataset.
+    We''ll quickly install it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For PyTorch, we''ll need to get a few preliminaries out of the way, such as
+    to enable `CUDA` and set `tensor` type and `device`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In a break from the style in other recipes, we''ll also get the imports out
+    of the way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let's get to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll implement an adversarial autoencoder in this recipe and apply it to the
+    MNIST dataset of digits. This code is based on the implementation by Maurits Diephuis
+    and Shideh Rezaeifar: [https://github.com/mdiephuis/adversarial-autoencoders](https://github.com/mdiephuis/adversarial-autoencoders).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll first get the imports out of the way. Then, we'll load our dataset, define
+    the model components, including the encoder, decoder, and discriminator, then
+    we'll do our training, and finally, we'll visualize the resulting representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First is loading the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll need to set a few global variables that will define training and the
+    dataset. Then, we load our dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: The transformation in the normalize corresponds to the mean and standard deviation
+    of the MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next is defining the autoencoder model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The autoencoder consists of an encoder, a decoder, and a discriminator. If you
+    are familiar with autoencoders, this is nothing new for you. You'll find an explanation
+    in the next section, *How it works...*, where this is broken down.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we''ll define our encoder and decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note `dim`, the parameter that stands for the size of the representational
+    layer. We choose `10` as the size of our encoding layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we''ll define our decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'While we are at it, we can also define our discriminator to compete against
+    our encoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that we squash our outputs in order to stay within the range of
+    0 and 1\. This will become important for our loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then comes training the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The adversarial autoencoder can be used in a supervised fashion, where labels
+    are fed into the decoder in addition to the encoding output. In that case, we''ll
+    need one more utility function, which one-hot encodes our variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll show how to use the adversarial autoencoder with and without labels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see in the comment, we''ve broken out the training loop. The training
+    loop looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: For this code segment, we'll discuss in the *How it works...* section how three
+    different losses are calculated and back-propagated. Please also note the supervised
+    parameter, which defines whether we want to use supervised or unsupervised training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s initialize our models and optimizers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can start training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: This does nothing much except for calling the `train_validate()` function defined
+    previously, once with the `train=True` option and once with `train=False`. From
+    both calls, we collect the errors for training and validation, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training and validation errors go consistently down, as we can see in the
+    following graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8632423a-edfe-4697-8b33-df183ffd69f4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If you run this, compare the generator and discriminator losses – it's interesting
+    to see how the generator and discriminator losses drive each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is visualizing representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the supervised condition, the projections of the encoder space do not have much
+    to do with the classes, as you can see in the following `tsne` plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9d13d053-0ff3-46d3-8f6f-74112e6fad11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is a 2D visualization of the encoder's representation space of the digits.
+    The colors (or shades if you are looking at this in black and white), representing
+    different digits, are all grouped together, rather than being separated into clusters.
+    The encoder is not distinguishing between different digits at all.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What is encoded is something else entirely, which is style. In fact, we can
+    vary the input into the decoder on each of the two dimensions separately in order
+    to show this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1c68c6ac-0d69-4022-be7c-cd1be83e6532.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The first five rows correspond to a linear range of the first dimension with
+    the second dimension kept constant, then in the next five rows, the first dimension
+    is fixed and the second dimension is varied. We can appreciate that the first
+    dimension corresponds to the thickness and the second to inclination. This is
+    called style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also try the unsupervised training, by setting `supervised=False`. We
+    should see a projection like this, where classes are clustered in the 2D space
+    of the `tsne` projection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4a54cf9c-19cf-4385-a9d7-5de2a48b0d4f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is a 2D visualization of the encoder's representation space of the digits.
+    Each color (or shade) represents a different digit. We can see different clusters
+    that group together instances of the same digit. The encoder is distinguishing
+    between different digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we'll discuss how this works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: An **autoencoder** is a network of two parts – an encoder and a decoder – where
+    the encoder maps the input into a latent space and the decoder reconstructs the
+    input. Autoencoders can be trained to reconstruct the input by a reconstruction
+    loss, which is often the squared error between the original input and the restored
+    input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adversarial autoencoders were introduced in 2016 by Makhazani and others (*Adversarial
+    Autoencoders*; [https://arxiv.org/pdf/1511.05644.pdf](https://arxiv.org/pdf/1511.05644.pdf)).
+    The publication showed how they could be used in clustering and semi-supervised
+    training, or how they could decorrelate class representations. An adversarial
+    autoencoder is a probabilistic autoencoder that uses a GAN to perform variational
+    inference. Instead of matching input to output directly, the aggregated posterior
+    of the hidden code vector of the autoencoder is matched to an arbitrary prior
+    distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since adversarial autoencoders are GANs, and therefore rely on the competition
+    between generator and discriminator, the training is a bit more involved than
+    it would be for a vanilla autoencoder. We calculate three different types of errors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard reconstruction error
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An error of the discriminator that quantifies a failure to distinguish between
+    real random numbers and encoder output
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The encoder error that penalizes the encoder for failing to trick the discriminator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In our case, we force prior distribution and decoder output within the range
+    0 and 1, and we can therefore use cross-entropy as the reconstruction error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It might be helpful to highlight the code segments responsible for calculating
+    the different types of error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reconstruction error looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's an extra flag for feeding the labels into the decoder as supervised
+    training. We found that in the supervised setting, the encoder doesn't represent
+    the digits, but rather the style. We argue that this is the case since, in the
+    supervised setting, the reconstruction error doesn't depend on the labels anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The discriminator loss is calculated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that this is for training the discriminator, not the encoder, hence
+    the `encoder.eval()` statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The generator loss is calculated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we'll look at more material and background.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For a more up-to-date and fuller-featured implementation of adversarial autoencoders,
+    please refer to a repository maintained by Maurits Diephuis at [https://github.com/mdiephuis/generative-models](https://github.com/mdiephuis/generative-models).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more historical and mathematical background on autoencoders and adversarial
+    autoencoders, please see Lilian Weng's excellent overview article, *From Autoencoder
+    to Beta-VAE*, on her blog: [https://lilianweng.github.io/lil-log/2018/08/12/from-autoencoder-to-beta-vae.html](https://lilianweng.github.io/lil-log/2018/08/12/from-autoencoder-to-beta-vae.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, please have a look at Maurits Diephuis and others, *Variational Saccading:
+    Efficient Inference for Large Resolution Images* (Ramapuram and others, 2019).
+    They introduce a probabilistic algorithm for focusing on regions of interest in
+    bigger images inspired by the eye''s saccade movements. You can find their code
+    on GitHub at [https://github.com/jramapuram/variational_saccading](https://github.com/jramapuram/variational_saccading).'
+  prefs: []
+  type: TYPE_NORMAL

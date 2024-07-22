@@ -1,0 +1,1237 @@
+- en: Artificial Intelligence in Production
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the creation of a system that involves **artificial intelligence** (**AI**),
+    the actual AI usually only takes a small fraction of the total amount of work,
+    while a major part of the implementation entails the surrounding infrastructure,
+    starting from data collection and verification, feature extraction, analysis,
+    resource management, and serving and monitoring (David Sculley and others. *Hidden
+    technical debt in machine learning systems*, 2015).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll deal with monitoring and model versioning, visualizations
+    as dashboards, and securing a model against malicious hacking attacks that could
+    leak user data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we''ll be covering the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing model results
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Serving a model for live decisioning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Securing a model against attack
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For Python libraries, we will work with models developed in TensorFlow and PyTorch,
+    and we'll apply different, more specialized libraries in each recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, you can find the recipe notebooks on GitHub at [https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter11](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter11).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visualizing model results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Frequent communication with business shareholders is key to getting the buy-in
+    for deploying an AI solution, and should start from the idea and premises to decisions
+    and findings. How results are communicated can make the difference between success
+    and failure in a commercial setting. In this recipe, we'll be building a visualization
+    solution for a **machine learning** (**ML**) model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll be building our solution in `streamlit` ([https://www.streamlit.io/](https://www.streamlit.io/))
+    and we''ll be using visualizations from `altair`, one of the many Python plotting
+    libraries that `streamlit` integrates with (a list that also includes `matplotlib`
+    and `plotly`). Let''s install `streamlit` and `altair`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We won't use the notebook in this recipe. Therefore, we've omitted the exclamation
+    marks in this code block. We'll be running everything from the terminal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Altair has a very pleasant declarative way to plot graphs, which we'll see in
+    the recipe. Streamlit is a framework to create data apps – interactive applications
+    in the browser with visualizations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's proceed with building an interactive data app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll be building a simple app for model building. This is meant to show how
+    easy it is to create a visual interactive application for the browser in order
+    to demonstrate findings to non-technical or technical audiences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For a very quick, practical introduction to `streamlit`, let's look at how a
+    few lines of code in a Python script can be served.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streamlit hello-world
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We'll write our streamlit applications as Python scripts, not as notebooks,
+    and we'll execute the scripts with streamlit to be deployed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll create a new Python file, let''s say `streamlit_test.py`, in our favorite
+    editor, for example, vim, and we''ll write these lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: This would show a select box or drop-down menu with the title *Hello* and a
+    choice between options *A*, *B*, and *C*. This choice will be stored in the `chosen_option` variable,
+    which we can output in the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can run our intro app from the terminal as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The server port option is optional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This should open our browser in a new tab or window showing our drop-down menu
+    with the three choices. We can change the option, and the new value will be displayed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This should be enough for an introduction. We'll come to the actual recipe now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating our data app
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The main idea of our data app is that we incorporate decisions such as modeling
+    choices into our application, and we can observe the consequences, both summarized
+    in numbers and visually in plots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll start by implementing the core functionality, such as modeling and dataset
+    loading, and then we''ll create the interface to it, first in the side panel,
+    and then the main page. We''ll write all of the code in this recipe to a single
+    Python script that we can call `visualizing_model_results.py`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Loading the dataset – we''ll implement dataset loaders:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let''s begin with a few preliminaries such as imports:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you've followed the hello-world introduction attentively, you might have
+    wondered how the interface communicates with Python. This is handled by streamlit
+    by re-running your script every time the user makes a change by clicking somewhere
+    or entering a field.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need to load datasets into memory. This can include a download step, and
+    for bigger datasets, downloading could potentially take a long time. Therefore,
+    we are going to cache this step to disk, so instead of downloading every time
+    there''s a button-click, we''ll retrieve it from the cache on disk:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This implements the functions for modeling and dataset loaders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note the use of the streamlit cache decorator, `@st.cache`. It handles
+    the caching of the decorated function, in this case, `load_data()`, in such a
+    way that any number of parameters passed to the function will be stored together
+    with the associated outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, the dataset loading might take some time. However, caching means that
+    we only have to load each dataset exactly once, because subsequently the dataset
+    will be retrieved from cache, and therefore loading will be much faster. This
+    caching functionality, which can be applied to long-running functions, is central
+    to making streamlit respond more quickly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are using the scikit-learn datasets API to download a dataset. Since scikit-learn's
+    `load_x()` type functions, such as `load_iris()`, which are mostly for toy datasets,
+    include attributes such as `target_names` and `feature_names`, but scikit-learn's
+    `fetch_x()` functions, such as `fetch_covtype()`, are intended for bigger, more
+    serious datasets, we'll generate feature and target names for these separately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training procedure is similarly decorated to be cached. However, please
+    note that we have to include our hyperparameters in order to make sure that the
+    cache is unique to the model type, dataset, and all hyperparameters as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The modeling function takes a list of models, which we'll update based on the
+    choices of hyperparameters. We'll implement this choice now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exposing key decisions in the side panel:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the side panel, we''ll be presenting the choices of datasets, model type,
+    and hyperparameters. Let''s start by choosing the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will load the datasets after we've made the choice between iris, wine,
+    and cover type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the model hyperparameters, we''ll provide slider bars:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we will expose the model type again as a drop-down menu:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the end, after the choice, we will call the `train_model()` function with
+    the dataset, model type, and hyperparameters as arguments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This screenshot shows what the side panel looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3941d25d-401c-44d0-9eef-960efb578eaa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This shows you the menu options in the browser. We'll show the results of these
+    choices in the main part of the browser page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Reporting classification results in the main panel:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the main panel, we'll be showing important statistics, including a classification
+    report, a few plots that should give insights into the model strengths and weaknesses,
+    and a view of the data itself, where incorrect decisions by the model will be
+    highlighted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first need a title:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we present basic statistics in relation to our modeling result, such as
+    the area under the curve, precision, and many more:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll then show a confusion matrix that tabulates the actual and predicted
+    labels for each of the classes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also want to be able to scroll through our test data to be able to inspect
+    samples that were incorrectly classified:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Incorrectly classified samples will be highlighted against a red background.
+    We've made this raw data exploration optional. It needs to be activated by clicking
+    a checkbox.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we''ll show a facet plot of variables plotted against each other in
+    scatter plots. This is the part where we use the `altair` library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Incorrectly classified examples are highlighted in these plots. Again, we've
+    made this part optional, activated by marking a checkbox.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The upper part of the main page for the `Covetype` dataset looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1e4d7a5d-be93-434d-b320-f007ddfba7c4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see the classification report and the confusion matrix. Below these
+    (not part of the screenshot) would be the data exploration and the data plots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our demo app. Our app is relatively simple, but hopefully this
+    recipe can serve as a guide for building these apps for clear communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This book is about hands-on learning, and we'd recommend this for streamlit
+    as well. Working with streamlit, you have a quick feedback loop where you implement
+    changes and see the results, and you continue until you are happy with what you
+    see.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streamlit provides a local server that you can access remotely over the browser
+    if you want. So you can run your streamlit application server on Azure, Google
+    Cloud, AWS, or your company cloud, and see your results in your local browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is important to understand is the streamlit workflow. Values for widgets
+    are stored by streamlit. Other values are recomputed on the fly every time a user
+    interacts with a widget as the Python script is executed again from top to bottom.
+    In order to avoid expensive computations, these can be cached using the `@st.cache`
+    decorator, as we've seen in the recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streamlit's API has an integration for many plotting and graphing libraries.
+    These include Matplotlib, Seaborn, Plotly, Bokeh, interactive plotting libraries,
+    such as Altair, Vega Lite, deck.gl for maps and 3D charts, and graphviz graphs.
+    Other integrations include Keras models, SymPy expressions, pandas DataFrames,
+    images, audio, and others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streamlit also comes with several types of widgets, such as sliders, buttons,
+    and drop-down menus. Streamlit also includes an extensible component system, where
+    each component consists of a browser frontend in HTML and JavaScript and a Python
+    backend, able to send and receive information bi-directionally. Existing components interface
+    with further libraries, including HiPlot, Echarts, Spacy, and D3, to name but
+    a few: [https://www.streamlit.io/components](https://www.streamlit.io/components).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can play around with different inputs and outputs, you can start from scratch,
+    or you can improve on the code in this recipe. We could extend it to show different
+    results, build dashboards, connect to a database for live updates, or build user
+    feedback forms for subject matter experts to relay their judgment such as, for
+    example, annotation or approval.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Visualization in AI and statistics is a broad field. Fernanda Viégas and Martin
+    Wattenberg gave an overview talk, *Visualization for Machine Learning*, at NIPS
+    2018, and you can find their slide deck and a recording of their talk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s a list of a few interesting streamlit demos to look at:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a live TensorFlow session to create an interactive face-GAN explorer: [https://github.com/streamlit/demo-face-gan/](https://github.com/streamlit/demo-face-gan/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An image browser for the Udacity self-driving car dataset and real-time object
+    detection: [https://github.com/streamlit/demo-self-driving](https://github.com/streamlit/demo-self-driving).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A components demo for maps, audio, images, and many others: [https://fullstackstation.com/streamlit-components-demo](https://fullstackstation.com/streamlit-components-demo).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Aside from streamlit, there are other libraries and frameworks that can help
+    to create interactive dashboards, presentations, and reports, such as Bokeh, Jupyter
+    Voilà, Panel, and Plotly Dash.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are looking for dashboarding and live charting with database integration,
+    tools such as Apache Superset come in handy: [https://](https://superset.apache.org/)[superset.apache.org/](https://superset.apache.org/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Serving a model for live decisioning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Often, specialists in AI are asked to model, present, or come up with models.
+    However, even though the solution could be commercially impactful, in practice, productionizing
+    a **proof of concept** (**POC**) for live decisioning in order to actually act
+    on the insight can be a bigger struggle than coming up with the models in the
+    first place. Once we've created a model based on training data, analyzed it to
+    verify that it's working to an expected standard, and communicated with stakeholders,
+    we want to make that model available so it can provide predictions on data for
+    new decisions. This can mean certain requirements, such as latency (for real-time
+    applications), and bandwidth (for servicing a large volume of customers). Often,
+    a model is deployed as part of a microservice such as an inference server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we'll build a small inference server from scratch, and we'll
+    focus on the technical challenges around bringing AI into production. We'll showcase
+    how to develop a POC into a software solutions that is fit for production by being
+    robust, scaling to demand, responding timely, and that you can update as fast
+    as needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll have to switch between the terminal and the Jupyter environment in this
+    recipe. We'll create and log the model from the Jupyter environment. We'll control
+    the `mlflow` server from the terminal. We will note which one is appropriate for
+    each code block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use `mlflow` in this recipe. Let''s install it from the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: We'll assume you have conda installed. If not, please refer to the *Setting
+    up a Jupyter environment* recipe in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml), *Getting
+    Started with Artificial Intelligence in Python*, for detailed instructions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can start our local `mlflow` server with a `sqlite` database backend for
+    backend storage from the terminal like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: We should see a message that our server is listening at [http://0.0.0.0:5000](http://0.0.0.0:5000).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where we can access this server from our browser. In the browser, we'll
+    be able to compare and check different experiments, and see the metrics of our
+    models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the *There''s more...* section, we''ll do a quick demo of setting up a custom
+    API using the `FastAPI` library. We''ll quickly install this library as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this, we are ready to go!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll build a simple model from a **column-separated value** (**CSV**) file.
+    We''ll try different modeling options, and compare them. Then we''ll deploy this
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Downloading and preparing the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We''ll download a dataset as a CSV file and prepare for training. The dataset
+    chosen in this recipe is the Wine dataset, describing the quality of wine samples.
+    We''ll download and read the wine-quality CSV file from the UCI ML archive:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We split the data into training and test sets. The predicted column is **column
+    quality**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Training with different hyperparameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We can track as much as we like in the `mlflow` server. We can create a reporting
+    function for performance metrics like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before running our training, we need to register the `mlflow` library with
+    the server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: We set our server URI. We can also give our experiment a name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each time we run the training set with different options, MLflow can log the
+    results, including metrics, hyperparameters, the pickled model, and a definition
+    as MLModel that captures library versions and creation time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our training function, we train on our training data, extracting metrics
+    of our model over the test data. We need to choose the appropriate hyperparameters
+    and metrics for comparison:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: We fit the model, extract our metrics, print them to the screen, log them to
+    the `mlflow` server, and store the model artifact on the server as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For convenience, we are exposing our model hyperparameter in the `train()`
+    function. We chose to log all the hyperparameters with `mlflow`. Alternatively,
+    we could have logged only store-relevant parameters like this: `mlflow.log_param(''alpha'',
+    alpha)`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could also calculate more artifacts to accompany our model, for example,
+    variable importance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also try with different hyperparameters, for example, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We should get the performance metrics as an output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: After we've run this for a number of times with different parameters, we can
+    go to our server, compare model runs, and choose a model for deployment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying a model as a local server. We can compare our models in the browser.
+    We should be able to find our wine experiments under the experiments tab on our
+    server.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We can then compare different model runs in the overview table, or get an overview
+    plot for different hyperparameters, such as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/72165e28-19c7-4ee2-b5b9-91375c757cec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This contour plot shows us the two hyperparameters we've changed against the
+    **Mean Average Error** (**MAE**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can then choose a model for deployment. We can see the run ID for our best
+    model. Deployment of a model to a server can be done from the command line, for
+    example, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can pass data as JSON, for example, using curl, again from the terminal.
+    This could look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this, we've finished our demo of model deployment with `mlflow`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The basic workflow for productionizing a model is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train a model on data.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Package the model itself in a reusable and reproducible model format together
+    with glue code that extracts a prediction from the model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deploy the model in an HTTP server that will enable you to score predictions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This typically results in a microservice that communicates via JSON (usually
+    this is then called a RESTful service) or GRPC (remote procedure calls via Google's
+    protocol buffers). This has the advantage of being able to disentangle shipping
+    of the decisioning intelligence from the backend, and have ML experts take full
+    ownership of their solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **microservice** is a single service that is independently deployable, maintainable,
+    and testable. Structuring an application as a collection of loosely coupled microservices
+    is called a **microservice**** architecture.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another route would be to package your model and glue code for deployment within
+    the existing enterprise backend of your company. This integration has several
+    alternatives:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In model interchange formats such as the **Predictive Model Markup Language**
+    (**PMML**), a format developed by a group of organizations under the umbrella
+    of the Data Mining Group.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Some software implementations, such as LightGBM, XGBoost, or TensorFlow have
+    APIs in multiple programming languages, so that models can be developed in Python,
+    and loaded up from languages such as C, C++, or Java.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Re-engineering your model:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Some tools can help to convert models such as decision trees into C or other
+    languages.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This can be done manually as well.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: MLflow has command-line, Python, R, Java, and REST API interfaces for uploading
+    models to a model repository, for logging model results (**experiments**), for uploading
+    models to a model repository, for downloading them again to use them locally,
+    for controlling the server, and much more. It offers a server, however, that also
+    allows deployment to Azure ML, Amazon Sagemaker, Apache Spark UDF, and RedisAI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you want to be able to access your `mlflow` server remotely, such as the
+    case usually when using the model server as an independent service (microservice),
+    we want to set the root to `0.0.0.0`, as we've done in the recipe. By default,
+    the local server will start up at `http://127.0.0.1:5000`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we want to access models, we need to switch from the default backend storage (this
+    is where metrics will be stored) to a database backend, and we have to define
+    our artifact storage using a protocol in the URI, such as `file://$PWD/mlruns` for
+    the local `mlruns/` directory. We've enabled a SQLite database for the backend,
+    which is the easiest way (but probably not the best for production). We could
+    have chosen MySQL Postgres, or another database backend as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is only part of the challenge, however, because models become stale or
+    might be unsuitable, facts we can only establish if we are equipped to monitor
+    model and server performance in deployment. Therefore, a note on monitoring is
+    in order.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Monitoring
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'When monitoring AI solutions, what we are especially interested in are metrics
+    that are either operational or relate to appropriate decision making. Metrics
+    of the former kind are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Latency** – How long does it take to perform a prediction on data?'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Throughput** – How many data points can we process in any timeframe?'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Resource usage** – How much CPU, memory, and disk space do we allocate when
+    completing inference?'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following metrics could form part of monitoring the decision-making process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Statistical indicators, such as averages, variances of predictions over a certain
+    period of time
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Outlier and drift detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The business impact of decisions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For methods to detect outliers, please refer to the *Discovering anomalies* recipe in
+    [Chapter 3](424f3988-2d11-4098-9c52-beb685a6ed27.xhtml), *Patterns, Outliers,
+    and Recommendations*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Standalone monitoring could be built from scratch following a template similar
+    to the *Visualizing model results* recipe in this chapter, or be integrated with
+    more specialist monitoring solutions, such as Prometheus, Grafana, or Kibana (for
+    log monitoring).
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'This is a very broad topic, and we''ve mentioned many aspects of productionization
+    in the *How it works...* section of this recipe. There are many competing industrial-strength
+    solutions for ML and **deep learning** (**DL**) models, and we can only try to
+    give an overview given the space constraint. As always in this book, we''ll be
+    mostly concentrating on open source solutions that will avoid a vendor lock-in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: MLflow aspires to manage the whole ML life cycle, including experimentation,
+    reproducibility, deployment, and a central model registry: [https://mlflow.org/](https://mlflow.org/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: BentoML creates a high-performance API endpoint serving trained models: [https://github.com/bentoml/bentoml](https://github.com/bentoml/bentoml).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: While some tools support only one or a few modeling frameworks, others, particularly
+    BentoML and MLflow, support deploying models trained under all major ML training
+    frameworks such as FastAI, scikit-learn, PyTorch, Keras, XGBoost, LightGBM, H2o,
+    FastText, Spacy, and ONNX. Both of these further provide maximum flexibility for
+    anything created in Python, and they both have a tracking functionality for monitoring.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our recipe was adapted from the `mlflow` tutorial example. MLflow has many more
+    examples for different modeling framework integrations on GitHub: [https://github.com/mlflow/mlflow/](https://github.com/mlflow/mlflow/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Other tools include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Elyra is a cloud-based deployment solution for Jupyter notebooks that comes
+    with a visual data flow editor: [https://elyra.readthedocs.io/en/latest/index.html](https://elyra.readthedocs.io/en/latest/index.html).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RedisAI is a Redis module for executing DL/ML models and managing their data: [https://oss.redislabs.com/redisai/](https://oss.redislabs.com/redisai/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TFX is a Google production-scale ML platform: [https://www.tensorflow.org/tfx/guide](https://www.tensorflow.org/tfx/guide).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TorchServe is a tool for serving PyTorch models: [https://pytorch.org/serve/](https://pytorch.org/serve/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Furthermore, there are many libraries available for creating custom microservices.
+    Two of the most popular such libraries are these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Flask: [https://palletsprojects.com/p/flask/](https://palletsprojects.com/p/flask/)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: FastAPI: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using these, you can create endpoints that would take data such as images or
+    text and return a prediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Securing a model against attack
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Adversarial attacks** in ML refer to fooling a model by feeding input with
+    the purpose of deceiving it. Examples of such attacks include adding perturbations
+    to an image by changing a few pixels, thereby causing the classifier to misclassify
+    the sample, or carrying t-shirts with certain patterns to evade person detectors
+    (**adversarial t-shirts**). One particular kind of adversarial attack is a **privacy
+    attack**, where a hacker can gain knowledge of the training dataset of the model,
+    potentially exposing personal or sensitive information by membership inference
+    attacks and model inversion attacks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Privacy attacks are dangerous, particularly in domains such as medical or financial,
+    where the training data can involve sensitive information (for example, a health
+    status) and that is possibly traceable to an individual's identity. In this recipe,
+    we'll build a model that is safe against privacy attacks, and therefore cannot
+    be hacked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll implement a PyTorch model, but we''ll rely on a script in the TensorFlow/privacy
+    repository created and maintained by Nicolas Papernot and others. We''ll clone
+    the repository as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Later during the recipe, we'll use the analysis script to calculate the privacy
+    bounds of our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll have to define data loaders for teacher models and the student model.
+    The teacher and student architectures are the same in our case. We'll train the
+    teachers, and then we train the student from the aggregates of the teacher responses.
+    We'll close with a privacy analysis executing the script from the privacy repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is adapted from a notebook by Diego Muñoz that is available on GitHub: [https://github.com/dimun/pate_torch](https://github.com/dimun/pate_torch):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by loading the data. We''ll download the data using `torch` utility
+    functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will load the MNIST dataset, and may take a moment. The transform converts
+    data to `torch.FloatTensor`. `train_data` and `test_data` define the loaders for
+    training and test data, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please refer to the *Recognizing clothing items* recipe in [Chapter 7](f386de9e-b56d-4b39-bf36-803860def385.xhtml), *Advanced
+    Image Applications*, for a brief discussion of the MNIST dataset, and the *Generating
+    images* recipe in the same chapter for another model using the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note that we'll define a few parameters in an ad hoc fashion throughout
+    the recipe. Among these are `num_teachers` and `standard_deviation`. You'll see
+    an explanation of the algorithm in the *How it works...* section and, hopefully,
+    the parameters will make sense then.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another parameter, `num_workers`, defines the number of subprocesses to use
+    for data loading. `batch_size` defines how many samples per batch to load.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll define data loaders for the teachers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `get_data_loaders()` function implements a simple partitioning algorithm
+    that returns the right portion of the data needed by a given teacher out of a
+    certain number of teachers. Each teacher model will get a disjoint subset of the
+    training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define a training set for the student of 9,000 training samples and 1,000
+    test samples. Both sets are taken from the teachers'' test dataset as unlabeled
+    training points – they will be labeled using the teacher predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Defining the models: We are going to define a single model for all the teachers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a convolutional neural network for image processing. Please refer to
+    [Chapter 7](f386de9e-b56d-4b39-bf36-803860def385.xhtml), *Advanced Image Applications*,
+    for more image processing models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create another utility function for prediction from these models given
+    a `dataloader`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can now start training the teachers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Training the teacher models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'First, we''ll implement a function to train the models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are now ready to train our teachers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: This instantiates and trains the models for each teacher.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Training the student:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the student, we require an aggregation function. You can see an explanation
+    of the aggregation function in the *How it works...* section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `aggregated_teacher()` function makes the predictions for all the teachers,
+    counts the votes, and adds noise. Finally, it returns the votes and the results aggregated
+    by `argmax`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`standard_deviation` defines the standard deviation for noise. This is important
+    for the privacy guarantees.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The student requires a data loader first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This student data loader will be fed the aggregated teacher label:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: This runs the student training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some parts of this code have been omitted from the training loop for the sake
+    of brevity. The validation looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The final training update reads as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We see that it''s a good model: 95.2 percent accuracy on the test dataset.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Analyzing the privacy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In Papernot and others (2018), they detail how data-dependent differential privacy
+    bounds can be computed to estimate the cost of training the student.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'They provide a script to do this analysis based on the vote counts and the
+    used standard deviation of the noise. We''ve clone this repository earlier, so
+    we can change into a directory within it, and execute the analysis script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We need to save the aggregated teacher counts as a NumPy file. This can then
+    be loaded by the analysis script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: This puts together the `counts` matrix, and saves it as a file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we call the privacy analysis script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: The epsilon privacy guarantee is estimated at 34.226 (data-independent) and 6.998
+    (data-dependent). The epsilon value is not intuitive by itself, but needs an interpretation
+    in the context of the dataset and its dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We've created a set of teacher models from a dataset, and then we bootstrapped
+    from these teachers a student model that gives privacy guarantees. In this section,
+    we'll discuss some background about the problem of privacy in ML, differential
+    privacy, and how PATE works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leaking data about customers can bring great reputational damage to a company,
+    not to speak of fees from the regulator for being in violation of data protection
+    and privacy laws such as GDPR. Therefore, considering privacy in the creation
+    of datasets and in ML is as important as ever. As a point in case, data of 500,000
+    users from the well-known Netflix prize dataset for recommender development was
+    de-anonymized by co-referencing them to publicly available Amazon reviews.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While a combination of a few columns could give too much away about specific
+    individuals, for example, an address or postcode together with the age would be
+    a give-away for anyone trying to trace data, ML models created on top of such
+    datasets can be insecure as well. ML models can potentially leak sensitive information
+    when hit by attacks such as membership inference attacks and model inversion attacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Membership attacks** consist, roughly speaking, of recognizing differences
+    in the target model''s predictions on inputs that it was trained on compared to
+    inputs that it wasn''t trained on. You can find out more about membership attacks
+    from the paper *Membership Inference Attacks against Machine Learning Models* (Reza
+    Shokri and others, 2016). They showed that off-the-shelf models provided as a
+    service by Google and others can be vulnerable to these attacks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In **inversion attacks**, given API or black box access to a model and some
+    demographic information, the samples used in the model training can be reconstructed.
+    In a particularly impressive example, faces used for training facial recognition
+    models were reconstructed. Of even greater concern, Matthew Fredrikson and others
+    showed that models in personalized medicine can expose sensitive genomic information
+    about individuals (*Privacy in pharmacogenetics*: *An end-to-end case study of
+    personalized warfarin dosing*; 2014)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Differential privacy** (**DP**) mechanisms can prevent model inversion and
+    membership attacks. In the next sections, we''ll be talking about DP and then
+    about PATE.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Differential privacy
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The concept of DP, first formulated by Cynthia Dwork and others in 2006 (*Calibrating
+    Noise to Sensitivity in Private Data Analysis*), is the gold standard for privacy
+    in ML. It centers around the influence of individual data points on the decisions
+    of an algorithm. Roughly speaking, this implies, in turn, that any output from
+    the model wouldn't give away whether an individual’s information was included. In
+    DP, data is perturbed with the noise of a certain distribution. This not only
+    can lead to safety against privacy attacks, but also to less overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to properly explain DP, we need to introduce the notion of a neighboring
+    database (think *dataset*), which is a database that only differs in a single
+    row or, in other words, a single individual. Two datasets, ![](img/55700e1a-0f83-4775-8c1c-fbc3caa7aeb0.png),
+    differ only in the fact that ![](img/2a14b3c8-c40c-42b5-89be-c929571c7d56.png) and ![](img/9785a1e6-2768-4195-959c-67271285d237.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The key is then to set an upper bound to require nearly identical behavior
+    of the mapping (or mechanism) ![](img/ac721097-c2e1-4ff1-8681-e7dca18cf7e7.png) on
+    neighboring databases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/159ecea7-78ce-4908-b2c3-1d1dd77a4fdc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is called the epsilon-delta parametrized DP for an algorithm, ![](img/9c8f6557-cc19-4c1f-ba59-9d7eaf478a25.png), on
+    any neighboring databases ![](img/f0c7a900-7bd1-4625-bf25-8c5aafc0764d.png), and
+    any subsets ![](img/e22dc4a5-e34e-4811-b770-361205818947.png) of outcomes ![](img/a0d85543-c836-44f7-b342-dbf5d81c5656.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this formulation, the epsilon parameter is the multiplicative guarantee,
+    and the delta parameter the additive guarantee of probabilistically almost exact
+    outcomes. This means the DP cost that an individual incurs as a result of their
+    data being used is minimal. Delta privacy can be seen as a subset or the special
+    case, where epsilon is *0*, and epsilon privacy as the case, where delta is *0*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These guarantees are achieved by masking small changes in the input data. For
+    example, a simple routine for this masking was described by Stanley L. Warner
+    in 1965 (*Randomized response: A survey technique for eliminating evasive answer
+    bias*). Respondents in surveys answer sensitive questions such as *Have you had
+    an abortion?* either truthfully or deterministically according to coin flips:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Flip a coin.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If tails, respond truthfully: no.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If heads, flip a second coin and respond *yes* if heads, or respond *no* if
+    tails.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This gives plausible deniability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Private aggregation of teacher ensembles
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Based on the paper *Semi-supervised Knowledge Transfer for Deep Learning from
+    Private Training Data*, by Nicolas Papernot and others (2017), the **Private Aggregation
+    of Teacher Ensembles** (**PATE**) technique relies on the noisy aggregation of
+    teachers. In 2018, Nicolas Papernot and others (*Scalable private learning with
+    PATE*) refined the 2017 framework, improving both the accuracy and privacy of
+    the combined model. They further demonstrated the applicability of the PATE framework to large-scale,
+    real-world datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The PATE training follows this procedure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An ensemble of models (**teacher models**) is created based on different datasets
+    with no training examples in common.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A student model is trained based on querying noisy aggregate decisions of the
+    teacher models.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Only the student model can be published, not the teacher models.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As mentioned, each teacher is trained on disjointed subsets of the dataset.
+    The intuition is that if teachers agree on how to classify a new input example,
+    then the aggregate decision does not reveal information about any single training
+    example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The aggregate mechanism in queries includes **Gaussian NoisyMax** (**GNMax**),
+    an argmax with Gaussian noise, ![](img/975cbb64-614f-4915-a4de-44635c8bee5b.png), defined
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0ac6440c-ab4d-4e7f-b6a7-cc7c72c2d0d6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This has a data point ![](img/de7e5935-dcdc-4fdb-912a-0937f3558686.png), classes ![](img/f5a8f67f-93ce-4c48-bf39-f77d46115d19.png),
+    and the vote ![](img/0811e4a1-0de7-4374-b6a3-37f988052e7a.png) of teacher ![](img/092eca96-251d-4e05-85c4-05cf49aa91aa.png) on x.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2242b80b-3881-4650-8540-3f99f826c212.png) denotes the vote count for
+    class ![](img/b9e69f5f-f720-4683-9e9a-f6a900dc7cf0.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9d0a05f3-2e88-4efe-9857-6b89ecc169d2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Intuitively, accuracy decreases with the variance of the noise, so the variance
+    has to be chosen tight enough to provide good performance, but wide enough for
+    privacy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The epsilon value depends on the aggregation, particularly the noise level,
+    but also on the context of the dataset and its dimensions. Please see *How Much
+    is Enough? Choosing ![](img/ddf81d96-459b-48e2-88c3-a4bd813cc607.png) for Differential
+    Privacy* (2011), by Jaewoo Lee and Chris Clifton, for a discussion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A detailed overview of the concepts in DP can be found in *The Algorithmic Foundations
+    of Differential Privacy*, by Cynthia Dwork and Aaron Roth. Please see the second
+    PATE paper (Nicolas Papernot and others 2018; [https://arxiv.org/pdf/1802.08908.pdf](https://arxiv.org/pdf/1802.08908.pdf)),
+    the method of which we adopted for this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As for Python libraries concerning DP, a number are available:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Opacus enables training PyTorch models with DP: [https://github.com/pytorch/opacus](https://github.com/pytorch/opacus).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: PySyft works with PyTorch, TensorFlow, and Keras, and includes many mechanisms,
+    including PATE: [https://github.com/OpenMined/PySyft](https://github.com/OpenMined/PySyft).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TensorFlow's cleverhans library provides tools for benchmarking model vulnerability
+    to adversarial attacks: [https://github.com/tensorflow/cleverhans](https://github.com/tensorflow/cleverhans).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TensorFlow's privacy repository contains optimizers and models related to DP.
+    It also contains tutorials using different mechanisms, such as a DP Stochastic
+    Gradient Descent, DP Adam Optimizer, or PATE, on the adult, IMDB, or other datasets: [https://github.com/tensorflow/privacy](https://github.com/tensorflow/privacy).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are frameworks for both TensorFlow and PyTorch for encrypted ML:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: tf-encrypted relates to privacy-preserving ML and encryption in TensorFlow: [tf-encrypted.io/](https://tf-encrypted.io/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Facebook's CrypTen also relates to PyTorch, and includes the encryption of models
+    and data: [https://github.com/facebookresearch/CrypTen](https://github.com/facebookresearch/CrypTen).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

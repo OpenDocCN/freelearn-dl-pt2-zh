@@ -1,0 +1,799 @@
+- en: Deep Learning in Audio and Speech
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll deal with sounds and speech. Sound data comes in the
+    form of waves, and therefore requires different preprocessing than other types
+    of data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Machine learning on audio signals finds commercial applications in speech enhancement
+    (for example, in hearing aids), speech-to-text and text-to-speech, noise cancellation
+    (as in headphones), recommending music to users based on their preferences (such
+    as Spotify), and generating audio. Many fun problems can be encountered in audio,
+    including the classification of music genres, the transcription of music, generating
+    music, and many more besides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll implement several applications with sound and speech in this chapter.
+    We'll first do a simple example of a classification task, where we try to distinguish
+    different words. This would be a typical application in a smart home device to
+    distinguish different commands. We'll then look at a text-to-speech architecture.
+    You could apply this to create your own audio books from text, or for the voice
+    output of your home-grown smart home device. We'll close with a recipe for generating
+    music. This is perhaps more of a niche application in the commercial sense, but
+    you could build your own music for fun or to entertain users of your video game.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we''ll look at the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recognizing voice commands
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Synthesizing speech from text
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating melodies
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can find the source code for the notebooks associated with the recipes in
+    this chapter on GitHub at [https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter09](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter09).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use the `librosa` audio processing library ([https://librosa.org/doc/latest/index.html](https://librosa.org/doc/latest/index.html))
+    in this chapter, which you can install as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Librosa comes installed by default in Colab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the recipes in this chapter, please make sure you have a GPU available.
+    On Google Colab, make sure you activate a GPU runtime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recognizing voice commands
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we will look at a simple sound recognition problem on Google's
+    Speech Commands dataset. We'll classify sound commands into different classes.
+    We'll then set up a deep learning model and train it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For this recipe, we''ll need the `librosa` library as mentioned at the start
+    of the chapter. We''ll also need to download the Speech Commands dataset, and
+    for that we''ll need to install the `wget` library first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Alternatively, we could use the `!wget` system command in Linux and macOS.
+    We''ll create a new directory, download the archive with the dataset, and extract
+    the `tarfile`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives us a number of files and directories within the `data/train` directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Most of these refer to speech commands; for example, the `bed` directory contains
+    examples of the `bed` command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With all of this available, we are now ready to start.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this recipe, we'll train a neural network to recognize voice commands. This
+    recipe is inspired by the TensorFlow tutorial on speech commands at [https://www.tensorflow.org/tutorials/audio/simple_audio](https://www.tensorflow.org/tutorials/audio/simple_audio).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll first perform data exploration, then we''ll import and preprocess our
+    dataset for training, and then we will create a model, train it, and check its
+    performance in validation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start with some data exploration: we''ll listen to a command, look at
+    its waveform, and then at its spectrum. The `librosa` library provides functionality
+    to load sound files into a vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also get a Jupyter widget for listening to sound files or to the loaded
+    vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The widget looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/06c58925-04d1-4647-9a74-4f0976ea4f8d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Pressing play, we hear the sound. Note that this works even over a remote connection,
+    for example, if we use Google Colab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the sound waveform now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The waveform looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6e74df18-4205-44ba-a3a2-30486e0fdc03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is also called the pressure-time plot, and shows the (signed) amplitude
+    over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can plot the spectrum as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The spectrum looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/593a7454-c705-4231-82c5-e2720f935923.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Please note that we've used a log scale on the *y*-axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s get to the data importing and preprocessing. We have to iterate
+    over files, and store them as a vector:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For simplicity, we are only taking three commands here: `bed`, `bird`, and
+    `tree`. This is enough to illustrate the problems and the application of a deep
+    neural network to sound classification, and is simple enough that it won''t take
+    very long. This process can, however, still take a while. It took about an hour
+    on Google Colab.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we need to convert the Python list of features to a NumPy array, and
+    we need to split the training and validation data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we need to do something with our training data. We'll need a model that
+    we can train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create a deep learning model and then train and test it. First we need
+    to create our model and normalization. Let''s do the normalization first:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is followed by the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note the `conv_layer()` function, which provides the core of the network.
+    Very similar convolutional modules can be used in vision, it is just that we use
+    1D convolutions here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This gives us a relatively small model of only about 75,000 parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: You'll note that the biggest layer (in terms of parameters) is the final dense
+    layer. We could have further reduced the number of parameters by changing the
+    convolutional or maxpooling operations before the dense layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now perform training and validation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: We should see something like 0.805 as the output for the model accuracy in the
+    validation set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sound is not that different from other domains, except for the preprocessing.
+    It's important to have at least a basic understanding about how sound is stored
+    in a file. At their most basic level, sounds are stored as amplitude over time
+    and frequency. Sounds are sampled at discrete intervals (this is the *sampling
+    rate*). 48 kHz would be a typical recording quality for a DVD, and refers to a
+    sampling frequency of 48,000 times per second. The *bit depth* (also known as
+    the *dynamic range*) is the resolution for the amplitude of the signal (for example,
+    16 bits means a range of 0-65,535).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For machine learning, we can do feature extraction from the waveform, and use
+    1D convolutions on the raw waveforms, or 2D convolutions on the spectrogram representation
+    (for example, Mel spectrograms – Davis and Mermelstein, *Experiments in syllable-based
+    recognition of continuous speech*, 1980). We've dealt with convolutions before,
+    in [Chapter 7](f386de9e-b56d-4b39-bf36-803860def385.xhtml), *Advanced Image Applications*. Briefly,
+    convolutions are feedforward filters that are applied to rectangular patches over
+    the layer input. The resulting maps are usually followed by subsampling by pooling
+    layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The convolutional layers can be stacked very deeply (for example, Dai and others,
+    2016: [https://arxiv.org/abs/1610.00087](https://arxiv.org/abs/1610.00087)). We've
+    made it easy for the reader to experiment with stacked layers. The number of layers,
+    `nlayers`, is one of the parameters in `create_model()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Interestingly, many speech recognition models use recurrent neural networks.
+    However, some models, such as Facebook's wav2letter ([https://github.com/facebookresearch/wav2letter](https://github.com/facebookresearch/wav2letter)), for
+    example, use a fully convolutional model instead, which is not too dissimilar
+    to the approach taken in this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Apart from `librosa`, useful libraries for audio processing in Python include
+    `pydub` ([https://github.com/jiaaro/pydub](https://github.com/jiaaro/pydub)) and
+    `scipy`. The pyAudioProcessing library comes with feature extraction and classification functionality for
+    audio: [https://github.com/jsingh811/pyAudioProcessing](https://github.com/jsingh811/pyAudioProcessing).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a few more libraries and repositories that are interesting to explore:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: wav2letter++ is an open source speech processing toolkit from the speech team
+    at Facebook AI Research with Python bindings: [https://github.com/facebookresearch/wav2letter](https://github.com/facebookresearch/wav2letter).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A project from a master's thesis – *Structured Autoencoder with Application
+    to Music Genre Recognition*: [https://github.com/mdeff/dlaudio](https://github.com/mdeff/dlaudio).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Erdene-Ochir Tuguldur maintains a GitHub repository for Mongolian speech recognition
+    with PyTorch that includes training from scratch: [https://github.com/tugstugi/mongolian-speech-recognition](https://github.com/tugstugi/mongolian-speech-recognition).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Synthesizing speech from text
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A text-to-speech program, easily intelligible by humans, can allow people with visual
+    or reading impairments to listen to written words on a home computer, or can allow
+    you to enjoy a book while driving a car. In this recipe, we'll work through loading
+    a text-to-speech model, and having it read a text to us. In the *How it works...*
+    section, we'll go through the model implementation and the model architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For this recipe, please make sure you have a GPU available. On Google Colab,
+    make sure you activate a GPU runtime. We''ll also need the `wget` library, which
+    we can install from the notebook as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need to clone the `pytorch-dc-tts` repository from GitHub and install
+    its requirements. Please run this from the notebook (or run it from the terminal
+    without the leading exclamation marks):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that you need to have Git installed in order for this to work. If
+    you don't have Git installed, you can download the repository directly from within
+    your web browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are ready to tackle the main recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll download the Torch model files, load them up in Torch, and then we''ll
+    synthesize speech from sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Downloading the model files**: We''ll download the dataset from `dropbox`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we can load the model in torch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Loading the model**: Let''s get the dependencies out of the way:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can load the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we can read sentences out loud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Synthesizing speech**: We''ve chosen a few garden-path sentences. These are
+    sentences that are grammatically correct, but mislead the reader regarding their
+    initial understanding of it.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following sentences are examples of garden-path sentences – sentences that
+    mislead listeners about how words relate to one another. We chose them because
+    they are short and fun. You can find these and more garden-path sentences in the
+    academic literature, such as in *Up the Garden Path* (Tomáš Gráf; published in
+    Acta Universitatis Carolinae Philologica, 2013):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can generate speech from these sentences as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the *There's more...* section, we'll have a look at how to train a model
+    for a different dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Speech synthesis is the production of human speech by a program, called a speech
+    synthesizer. A synthesis from natural language to speech is called **text-to-speech** (**TTS**).
+    Synthesized speech can be generated by concatenating audio from recorded pieces
+    that come in units such as distinct sounds, phones, and pairs of phones (diphones).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's look a bit into the details of two methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep Convolutional Networks with Guided Attention
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this recipe, we've loaded the model published by Hideyuki Tachibana and others, *Efficiently
+    Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided
+    Attention* (2017; [https://arxiv.org/abs/1710.08969](https://arxiv.org/abs/1710.08969)).
+    We used the implementation at [https://github.com/tugstugi/pytorch-dc-tts](https://github.com/tugstugi/pytorch-dc-tts).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Published in 2017, the novelty of this method is to work without recurrency
+    in the network, instead relying on convolutions, a decision that results in much
+    faster training and inference compared to other models. In fact, they claim that
+    training their deep convolutional TTS networks only took about 15 hours on a gaming
+    PC equipped with two off-the-shelf GPUs. Crowdsourced mean opinion scores didn't
+    seem to increase after 15 hours of training on a dataset of readings from the
+    **librivox** public domain audiobook project. The authors furnish a demo page
+    to showcase audio samples at different stages of the training, where you can hear
+    sentences spoken, such as *the two-player zero-sum game of wasserstein gan is
+    derived by considering kantorovich-rubinstein duality*: [https://tachi-hi.github.io/tts_samples/](https://tachi-hi.github.io/tts_samples/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture consists of two sub-networks, which can be trained separately,
+    one to synthesize spectrograms from text, and another to create waveforms from
+    spectrograms. The text-to-spectrogram part consists of these modules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Text encoder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Audio encoder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Attention
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Audio decoder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The interesting part of this is the guided attention mentioned in the title
+    of the paper, which is responsible for the alignment of characters with time.
+    They constrain this attention matrix to be nearly linear with time, as opposed
+    to reading characters in random order given a **guided attention loss**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d73731e5-df40-4531-9499-ba2eb6aef7cc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This favors values on the diagonal of the matrix rather than off it. They argue
+    that this constraint helps to speed up the training time considerably.
+  prefs: []
+  type: TYPE_NORMAL
+- en: WaveGAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In the *There''s more...* section, we''ll be loading up a different model,
+    WaveGAN, published as *WaveGAN: Learn to synthesize raw audio with generative
+    adversarial networks*, by Chris Donahue and others (2018; [https://arxiv.org/abs/1802.04208](https://arxiv.org/abs/1802.04208)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Donahue and others train a GAN in an unsupervised setting for the synthesis
+    of raw audio waveforms. They try two different strategies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **spectrogram–strategy** (**SpecGAN**), where they use a DCGAN (please refer
+    to the *Generating images* recipe in [Chapter 7](f386de9e-b56d-4b39-bf36-803860def385.xhtml), *Advanced
+    Image Applications*), and apply it to spectrograms (frequency over time)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A **waveform****–strategy** (**WaveGAN**), where they flatten the architecture
+    (1D convolutions)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the first strategy, they had to develop a spectrogram that they could convert
+    back to text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the WaveGAN, they flattened the 2D convolutions into 1D while keeping the
+    size (for example, a kernel of 5x5 became a 1D kernel of 25). Strides of 2x2 became
+    4\. They removed the batch normalization layers. They trained using a Wasserstein
+    GAN-GP strategy (Ishaan Gulrajani and others, 2017; *Im**proved training of Wasserstein
+    GANs*; [https://arxiv.org/abs/1704.00028](https://arxiv.org/abs/1704.00028)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Their WaveGAN performed notably worse in human judgments (mean opinion scores)
+    than their SpecGAN. You can find a few examples of generated sounds at [https://chrisdonahue.com/wavegan_examples/](https://chrisdonahue.com/wavegan_examples/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's more...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We can also use the WaveGAN model to synthesize speech from text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll download the checkpoints of a model trained on the speech commands we
+    encountered in the previous recipe, *Recognizing voice commands*. Then we''ll
+    run the model to generate speech:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Downloading the TensorFlow model checkpoints**: We''ll download the model
+    data as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can load the computation graph into memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can now generate speech.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generating speech**: The model architecture involves a latent representation
+    of the letters. We can listen to what the model constructs based on random initializations
+    of the latent representation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This should show us two examples of generated sounds, each with a Jupyter widget:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/49495435-bc36-4d82-824f-1741e83b9903.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If these don't sound particularly natural, don't be afraid. After all, we've
+    used a random initialization of the latent space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '*Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks
+    with Guided Attention* ([https://arxiv.org/abs/1710.08969](https://arxiv.org/abs/1710.08969)).
+    on Erdene-Ochir Tuguldur''s GitHub repository, you can find a PyTorch implementation
+    of that paper. The Mongolian text-to-speech was trained on 5 hours of audio from
+    the Mongolian Bible: [https://github.com/tugstugi/pytorch-dc-tts](https://github.com/tugstugi/pytorch-dc-tts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On Chris Donahue's GitHub repository of WaveGAN, you can see the WaveGAN implementation
+    and examples for training from audio files in formats such as MP3, WAV, OGG, and
+    others without preprocessing ([https://github.com/chrisdonahue/wavegan](https://github.com/chrisdonahue/wavegan)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mozilla open sourced their TensorFlow implementation of Baidu's Deep Speech
+    architecture (2014), which you can find here: [https://github.com/mozilla/DeepSpeech](https://github.com/mozilla/DeepSpeech).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating melodies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Artificial intelligence** (**AI**) in music is a fascinating topic. Wouldn''t
+    it be cool if your favorite group from the 70s was bringing out new songs, but
+    maybe more modern? Sony did this with the Beatles, and you can hear a song on
+    YouTube, complete with automatically generated lyrics, called *Daddy''s car*: [https://www.youtube.com/watch?v=LSHZ_b05W7o](https://www.youtube.com/watch?v=LSHZ_b05W7o).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we'll be generating a melody. More specifically, we'll be continuing
+    a song using functionality in the Magenta Python library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We need to install the Magenta library, and a few system libraries as dependencies.
+    Please note that you need admin privileges in order to install system dependencies. If
+    you are not on Linux (or *nix), you'll have to find the ones corresponding to
+    your system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On macOS, this should be relatively straightforward. Otherwise, it might be
+    easier to run this in a Colab environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you are on Colab, you need another tweak to allow Python to find your system
+    libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a clever workaround for Python's foreign library import system, taken
+    from the original Magenta tutorial, at [https://colab.research.google.com/notebooks/magenta/hello_magenta/hello_magenta.ipynb](https://colab.research.google.com/notebooks/magenta/hello_magenta/hello_magenta.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's time to get creative!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll first put together the start of a melody, and then we will load the
+    `MelodyRNN` model from Magenta and let it continue the melody:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s put a melody together. We''ll take *Twinkle Twinkle Little Star*. The
+    Magenta project works with a note sequence representation called `NoteSequence`,
+    which comes with many utilities, including conversion to and from MIDI. We can
+    add notes to a sequence like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can visualize the sequence using Bokeh, and then we can play the note sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0820a4e4-87cd-483f-8680-e38f3789ca89.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can listen to the first 9 seconds of the song.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s load the `MelodyRNN` model from `magenta`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: This should only take a few seconds. The Magenta model is remarkably small compared
+    to some other models we've encountered in this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now feed in our previous melody, along with a few parameters in order
+    to continue the song:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now plot and play the new music:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once again, we get the Bokeh library plot and a play widget:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/142f9df4-6d24-4be8-8268-20ea3b437323.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can create a MIDI file from our note sequence like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: This creates a new MIDI file on disk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On Google Colab, we can download the MIDI file like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can feed different melodies via MIDI files into the model, or we can try
+    with other parameters; we can increase or decrease the randomness (the `temperature` parameter),
+    or let the sequence continue for longer periods (the `num_steps` parameter).
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: MelodyRNN is an LSTM-based language model for musical notes. In order to understand
+    MelodyRNN, we first need to understand how **Long Short-Term Memory** (**LSTM**)
+    works. Published in 1997 by Sepp Hochreiter and Jürgen Schmidhuber (*Long short-term
+    memory*: [https://doi.org/10.1162%2Fneco.1997.9.8.1735](https://doi.org/10.1162%2Fneco.1997.9.8.1735)),
+    and updated numerous times since, LSTM is the most well-known example of a **Recurrent
+    Neural Network** (**RNN**) and represents a state-of-the-art model for image recognition
+    and machine learning tasks with sequences such as speech recognition, natural
+    language processing, and time series. LSTMs were, or have been, behind popular
+    tools by Google, Amazon, Microsoft, and Facebook for voice recognition and language
+    translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The basic unit of an LSTM layer is an LSTM cell, which consists of several
+    regulators, which we can see in the following schematic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/487e29d1-87a7-44b2-b4b2-478e2eecd894.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This diagram is based on Alex Graves and others, *Speech recognition with deep
+    recurrent neural networks*, (2013), taken from the English language Wikipedia
+    article on LSTMs at [https://en.wikipedia.org/wiki/Long_short-term_memory](https://en.wikipedia.org/wiki/Long_short-term_memory).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The regulators include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An input gate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An output gate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A forget gate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can explain the intuition behind these gates without getting lost in the
+    equations. An input gate regulates how strongly the input influences the cell,
+    an output gate dampens the outgoing cell activation, and the forget gate is a
+    decay on the cell activity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTMs have the advantage of being able to handle sequences of different lengths.
+    However, their performance deteriorates with longer sequences. In order to learn
+    even longer sequences, the Magenta library provides a model that includes an attention
+    mechanism (Dzmitry Bahdanau and others, 2014, *Neural Machine Translation by Jointly
+    Learning to Align and Translate*; [https://arxiv.org/abs/1409.0473](https://arxiv.org/abs/1409.0473)). Bahdanau
+    and others showed that their attention mechanism leads to a much improved performance
+    on longer sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In MelodyRNN, an attention mask *a* is applied as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a2fa2dce-f0eb-485b-a755-072fafefcdba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can find more details in the Magenta documentation at [https://magenta.tensorflow.org/2016/07/15/lookback-rnn-attention-rnn/](https://magenta.tensorflow.org/2016/07/15/lookback-rnn-attention-rnn/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Please note that Magenta has different variations of the MelodyRNN model available
+    ([https://github.com/magenta/magenta/tree/master/magenta/models/melody_rnn](https://github.com/magenta/magenta/tree/master/magenta/models/melody_rnn)).
+    Apart from MelodyRNN, Magenta provides further models, including a variational
+    autoencoder for music generation, and many browser-based tools for exploring and
+    generating music: [https://github.com/magenta/magenta](https://github.com/magenta/magenta).
+  prefs: []
+  type: TYPE_NORMAL
+- en: DeepBeat is a project for hip-hop beat generation: [https://github.com/nicholaschiang/deepbeat](https://github.com/nicholaschiang/deepbeat).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Jukebox is an open sourced project based on the paper *Jukebox: A Generative
+    Model for Music*, by Dhariwal and others (2020; [https://arxiv.org/abs/2005.00341](https://arxiv.org/abs/2005.00341)).
+    You can find many audio samples at [https://openai.com/blog/jukebox/](https://openai.com/blog/jukebox/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the original implementation of Parag K. Mital's NIPS paper, *Time
+    Domain Neural Audio Style Transfer* (2017; [https://arxiv.org/abs/1711.11160](https://arxiv.org/abs/1711.11160)),
+    at [https://github.com/pkmital/time-domain-neural-audio-style-transfer](https://github.com/pkmital/time-domain-neural-audio-style-transfer).
+  prefs: []
+  type: TYPE_NORMAL

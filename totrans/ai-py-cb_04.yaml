@@ -1,0 +1,1207 @@
+- en: Probabilistic Modeling
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter is about uncertainty and probabilistic approaches. State-of-the-art
+    machine learning systems have two significant shortcomings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First of all, they can be overconfident (or sometimes underconfident) in their
+    prediction. In practice, given noisy data, even if we observe the best practice
+    of cross-validating with unseen datasets, this confidence might not be warranted. Especially
+    in regulated or sensitive environments, such as in financial services, healthcare,
+    security, and intelligence, we need to be very careful about our predictions and
+    how accurate they are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Secondly, the more complex a machine learning system is, the more data we need
+    to fit our model, and the more severe the risk of overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Probabilistic models are models that produce probabilistic inferences using
+    stochastic sampling techniques. By parametrizing distributions and inherent uncertainties,
+    we can overcome these problems and obtain accuracies that would otherwise take
+    more data without these assumptions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll build a stock-price prediction model with different plug-in
+    methods for confidence estimation. We'll then cover estimating customer lifetime,
+    a common problem in businesses that serve customers.We'll also look at diagnosing
+    a disease, and we'll quantify credit risk, taking into account different types
+    of uncertainty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following recipes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predicting stock prices with confidence
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Estimating customer lifetime value
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Diagnosing a disease
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Stopping credit defaults
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we mainly use the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: scikit-learn, as before
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Keras, as before
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lifetimes ([https://lifetimes.readthedocs.io/](https://lifetimes.readthedocs.io/)),
+    a library for customer lifetime value
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tensorflow-probability` (**tfp**; [https://www.tensorflow.org/probability](https://www.tensorflow.org/probability))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You'll find the code for this chapter on GitHub at [https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter04](https://github.com/PacktPublishing/Artificial-Intelligence-with-Python-Cookbook/tree/master/chapter04).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Predicting stock prices with confidence
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The efficient market hypothesis postulates that at any given time, stock prices
+    integrate all information about a stock, and therefore, the market cannot be consistently
+    outperformed with superior strategy or, more generally, better information. However,
+    it can be argued that current practice in investment banking, where machine learning
+    and statistics are built into algorithmic trading systems, contradicts this. But
+    these algorithms can fail, as seen in the 2010 flash crash or when systemic risks
+    are underestimated, as discussed by Roger Lowenstein in his book *When Genius
+    Failed: The Rise and Fall of Long-Term Capital Management*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we'll build a simple stock prediction pipeline in scikit-learn,
+    and we'll produce probability estimates using different methods. We'll then evaluate
+    our different approaches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We'll retrieve historical stock prices using the `yfinance` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s how we install it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`yfinance` will help us to download historical stock prices.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In a practical setting, we''d want to answer the following question: given
+    the level of prices, are they going to rise or to fall, and how much?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to make progress toward this goal, we''ll proceed with the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Download stock prices.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a featurization function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Write an evaluation function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train models to predict stocks and compare performance.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Particularly, we''ll compare the following methods for generating confidence
+    values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Platt scaling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Naive Bayes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Isotonic regression
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll discuss these methods and their background in the *How it works...* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's give it a go!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Download stock prices**: We''ll download Microsoft''s prices:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we have our stock prices available as the `pandas` DataFrame `hist`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Create a featurization function**: So, let''s start with a function that
+    will give us a dataset for training and prediction given a window size and a shift;
+    basically, how many descriptors we want for each price and how far we look into the
+    future:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll then use our new function, `generate_data()`, to generate our training
+    and testing datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a common pattern, of course, and we''ve seen this a few times by now
+    in recipes leading up to this: we generate our dataset, and then split it into
+    training and validation sets, where the training set is used (as the name suggests)
+    for training, and the validation set is used for checking how well our algorithm
+    works (in particular, whether we''ve overfitted).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our datasets are approximately normally distributed. Here''s what our target
+    looks like in training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a83b4d6a-f269-4d16-bb44-df809c3b2699.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can see that there's a skew to the left, in the sense that more values are
+    below zero (about 49%) than above (about 43%). This means that in training, prices
+    go down rather than up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are not done with our dataset yet, however; we need to do one more transformation.
+    Our scenario is that we want to apply this model to help us decide whether to
+    buy a stock on the chance that prices are going up. We are going to separate three
+    different classes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prices go up by *x*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Prices stay the same.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Prices go down by *x*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In the following code block, we apply this cutoff by `x` given the `threshold`
+    parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: After this, we have the thresholded *y* values for training and testing (validation).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Write an evaluation function**: This is to measure our performance at predicting
+    stock prices with a given model. For the evaluation, we need a helper function
+    to convert from integer encoding into one-hot encoding.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the evaluation, we calculate and print the **Area Under the Curve** (**AUC**)
+    as the performance measure. We create a function, `measure_perf()`, which measures
+    performance and prints out relevant metrics, given a model such as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can use our new method now to evaluate the performance after training our
+    models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Train models to predict sto****cks and compare performance**: We''ll now
+    compare the following methods to generate probabilistic outcomes from our three
+    models, the first two of which we can implement quickly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For Naive Bayes, we try different variants: categorical Naive Bayes and complement
+    Naive Bayes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We find that neither Platt scaling (logistic regression) nor isotonic regression
+    can deal well with our dataset. Naive Bayes regression doesn't get much better
+    than 50%, which is nothing that we'd want to bet our money on, even if it's slightly
+    better than random choice. However, the complement Naive Bayes classifier performs
+    much better, at 59% AUC.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We've seen that we can create a predictor for stock prices. We've broken this
+    down into creating data, and validating and training a model. In the end, we found
+    a method that would give us hope that we could actually use it in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's go through our data generation first, and then over our different methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Featurization
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This is central to any work in artificial intelligence. Before doing any work
+    or the first we look at our dataset, we should ask ourselves what we choose as
+    the unit of our observational units, and how are we going to describe our points
+    in a way that's meaningful and can be captured by an algorithm. This is something
+    that becomes automatic with experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our `generate_data()` function, we extract a dataset for training and testing
+    from stock price history data. We are focused on predicting individual prices,
+    so our observational unit is a single stock price. For each price, we need to
+    extract features, other prices running up to it. We extract prices across a time
+    period that can help us predict future values. To be more precise, we don't use
+    prices directly; we have to normalize them first, so it's better to refer to them
+    as price levels rather than prices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using our method, we parametrize our data for predictions with different time
+    horizons and a number of points. The price level is extracted over a window, a
+    period of days (features). Finally, a price level, some days later, is to be predicted
+    (targets). The time period and the shift are our two additional parameters: `window_size` and
+    `shift`. This function returns *x*, the history of stock prices with their window,
+    and *y*, the stock prices in the future to be predicted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are more concerns that we have to address. We've already seen a few methods
+    for data treatment in time series, in the *Forecasting CO2 time series *recipe in [Chapter
+    2](bca59029-1915-4856-b47d-6041d7b10a0a.xhtml), *Advanced Topics in Supervised
+    Machine Learning*. In particular, stationarity and normalization are concerns
+    that are shared in this recipe as well (you might want to flip back and have a
+    look at the explanation there).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Features are normalized to a mean of 0 and then differenced (each value in a
+    window to the previous values) as a percentage change. The differencing step is
+    done to introduce a measure of stationarity. Particularly, the target is expressed
+    as the percentage change with respect to the last value in the window, the features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll look next at Platt scaling, which is one of the simplest ways of scaling
+    model predictions to get probabilistic outcomes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Platt scaling
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Platt scaling (John Platt, 1999, *Probabilistic outputs for support vector
+    machines and comparisons to regularized likelihood methods*)is the first method
+    of scaling model outcomes that we''ve used. Simply stated, it''s applying logistic
+    regression on top of our classifier predictions. The logistic regression can be
+    expressed as follows (equation 1):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a8bb44b8-5c40-4b62-ba68-40e22e58ecd1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *A* and *B* are learned by a maximum likelihood method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are searching for *A* and *B*, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/60701421-a469-4223-bf9c-e64e0301f5b1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here *p* refers to the preceding equation 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a gradient descent, we can iteratively apply the following two steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculate the gradient as the differential of the likelihood function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the parameters according to the gradient scaled by the learning rate.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the next subsection, we'll look at an alternative method of probabilistic
+    calibration using isotonic regression.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Isotonic regression
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Isotonic regression (Zadrozny and Elkan, 2001, *Learning and Making Decisions
+    When Costs and Probabilities are Both Unknown*) is regression using an isotonic
+    function – that is, a function that is monotonically increasing or non-decreasing,
+    as a function approximation while minimizing the mean squared error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can express this as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0e701b1b-264f-4b03-9367-131f6e8f1b33.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here *m* is our isotonic function, *x* and *y* are features and target, and *f* is
+    our classifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we'll look at one of the simplest probabilistic models, Naive Bayes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naive Bayes
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Naive Bayes classifier is based on the Bayes theorem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Bayes theorem is about the conditional probability of an event *A* occurring
+    given *B*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa00e9f2-b71b-4673-b893-29dc19e48fbf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '*P(A)* is the probability of observing *A* (marginal probability of *A*). Given
+    the formulation, *P(B)*, in the denominator, can''t be 0\. The reasoning behind
+    this is worth reading up on.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A Naive Bayes classifier is about the probability of classes given features.
+    We can plug class *k* and feature *x* into the Bayes theorem, which looks like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fff2a6b5-c15b-49ad-87f3-890449aab260.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'It is called naive because it assumes that features are independent of each
+    other, so the nominator can be simplified as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f2891568-24e6-4a7d-bb8a-476583733bd5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, we'll look at additional material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Here are some resources that you can go through:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For Platt scaling, refer to *Probabilistic Outputs for Support Vector Machines
+    and Comparisons to Regularized Likelihood Methods* by John Platt, (1999).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For isotonic regression, as in our application for probability estimates in
+    classification, please refer to *Transforming classifier scores into accurate multi-class probability estimates* by
+    Zadrozny, B. and Elkan, C., (2002).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For a comparison between the two, refer to *Predicting Good Probabilities with
+    Supervised Learning* by A. Niculescu-Mizil & R. Caruana, ICML, (2005). Refer to
+    Rennie, J. D. and others, *Tackling the Poor Assumptions of Naive Bayes Text Classifiers* (2003),
+    on the complement Naive Bayes algorithm.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The scikit-learn documentation gives an overview of confidence calibration ([https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py](https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py)).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For an approach applied to deep learning models, see the ICLR 2018 paper by
+    Lee and others, *Training Confidence-Calibrated Classifiers for Detecting Out-of-Distribution
+    Samples* ([https://arxiv.org/abs/1711.09325](https://arxiv.org/abs/1711.09325)).
+    Their code is available on GitHub at [https://github.com/alinlab/Confident_classifier](https://github.com/alinlab/Confident_classifier).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can find more examples of probabilistic analyses of time series with different
+    frameworks at the following links:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**bayesloop**: Analyzing stock-market fluctuations – [http://docs.bayesloop.com/en/stable/examples/stockmarketfluctuations.html](http://docs.bayesloop.com/en/stable/examples/stockmarketfluctuations.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Tensorflow Probability**: Different methods – [https://www.tensorflow.org/probability/examples/Structural_Time_Series_Modeling_Case_Studies_Atmospheric_CO2_and_Electricity_Demand](https://www.tensorflow.org/probability/examples/Structural_Time_Series_Modeling_Case_Studies_Atmospheric_CO2_and_Electricity_Demand)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Pyro**: Gaussian process time-series modeling – [https://pyro.ai/examples/timeseries.html](https://pyro.ai/examples/timeseries.html)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Estimating customer lifetime value
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this recipe, we will learn how to compute lifetime values and the value a
+    customer provides to this company. This is important for the marketing budget
+    – for example, in lead acquisition or ads spent based on customer segments. We'll
+    do this by modeling separately changes in customer purchase patterns over time and
+    purchase values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll need the `lifetimes` package for this recipe. Let''s install it as shown
+    in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we can get started.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Datasets used for customer lifetime values can be either transactional or summarized
+    by the customer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The summary data should include the following statistics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**T**: The transaction period; the elapsed time since the first purchase by
+    the customer'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Frequency**: The number of purchases by a customer within the observation
+    period'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Monetary value**: The average value of purchases'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Recency**: The age of the customer at the time of the last purchase'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's start with the first step!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll first fit the **BetaGeo** (**BD**)/**Negative Binomial Distribution**
+    (**NBD**) model to a summary dataset of customer transactions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The Gamma-Gamma model for purchase values can''t handle customers who don''t
+    have repeat purchases, so we''ll exclude those before we fit it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then combine the predictions of the model that predicts the number of
+    future transactions (`bgf`) and the model that predicts average purchase values
+    (`ggf`) using another of the Lifetimes library''s methods. It includes a parameter
+    for discounting future values. We''ll include a discount that corresponds to an
+    annualized 12.7%. We''ll print five customers'' lifetime values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows us the customer lifetime values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we know who our best customers are, and therefore where to invest our time
+    and resources!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's go over some of the methods in this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this recipe, we've estimated lifetime values of customers based on their
+    purchase patterns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each customer has a value to the company. This is important for the marketing
+    budget – for example, in lead acquisition or ads spent based on customer segments.
+    The actual customer lifetime value is known after a customer has left the company;
+    however, we can instead build two different probabilistic forecasting models for
+    each customer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modeling the likelihood of buying more products
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Modeling the average value (revenue) of purchases
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We model purchase frequency – or, more precisely, changes in customer purchase
+    patterns over time – using the BG/NBD model, and purchase values using the Gamma-Gamma
+    model. Both of these models exploit non-linear associations between variables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we can combine the predictions to obtain lifetime values according
+    to the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e18afcc8-4047-44c4-83dd-b21beccf43d3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let's go over the two submodels that we've used here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The BG/NBD model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This takes into account the purchasing frequency of customers and the dropout
+    probability of customers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It comes with the following assumptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Purchases for each customer follow a Poisson distribution with a lambda parameter.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Customer churn probability *p* after each transaction follows a beta distribution.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transaction rates and the dropout probabilities are independent across customers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The lambda and *p* parameters can be estimated according to maximum likelihood
+    estimation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Gamma-Gamma model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'This model is used to estimate the mean transaction value over the customer''s
+    lifetime, *E(M)*, for which we have an imperfect estimate, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d60eaf2c-0e51-4eb8-8cab-4b42a4ba63cd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *x* is the (unknown) total number of purchases over a customer's lifetime,
+    and *z* is the value of each purchase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We assume *z* to be sampled from gamma distributions, and therefore, the model
+    fit involves finding the shape and scale parameters at the individual level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This recipe was relatively short because of the excellent work that's been put
+    into the Lifetimes library, which makes a lot of the needed functionality plug-and-play.
+    An extended explanation of this analysis can be found in the Lifetimes documentation
+    ([https://lifetimes.readthedocs.io/en/latest/Quickstart.html](https://lifetimes.readthedocs.io/en/latest/Quickstart.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Lifetimes library comes with a range of models (called **fitters**), which
+    you might want to look into. You can find more details about the two methods in
+    this recipe in Fader and others, *Counting your Customers the Easy Way: An Alternative
+    to the Pareto/NBD Model*, 2005, and Batislam and others, *Empirical validation
+    and comparison of models for customer base analysis*, *2007*. You can find the
+    details of the Gamma-Gamma model in Fader and Hardi''s report, *Gamma-Gamma Model
+    of Monetary Value* (2013).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Google Cloud Platform GitHub repo shows a model comparison for estimation
+    of customer lifetime values ([https://github.com/GoogleCloudPlatform/tensorflow-lifetime-value](https://github.com/GoogleCloudPlatform/tensorflow-lifetime-value))
+    that includes Lifetimes, a TensorFlow neural network, and AutoML. You can find
+    a very similar dataset of online retail in the UCI machine learning archive ([http://archive.ics.uci.edu/ml/datasets/Online+Retail](http://archive.ics.uci.edu/ml/datasets/Online+Retail)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lifelines is a library for survival regression by the same author as Lifetimes, Cameron
+    Davidson-Pilon ([https://lifelines.readthedocs.io/en/latest/Survival%20Regression.html](https://lifelines.readthedocs.io/en/latest/Survival%20Regression.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Diagnosing a disease
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For probabilistic modeling, experimental libraries abound. Running probabilistic
+    networks can be much slower than algorithmic (non-algorithmic) approaches, which
+    until not long ago rendered them impractical for anything but very small datasets.
+    In fact, most of the tutorials and examples relate to toy datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this has changed in recent years due to faster hardware and variational
+    inference. With TensorFlow Probability, it is often straightforward to define
+    architectures, losses, and layers, even with probabilistic sampling with full
+    GPU support, and state-of-the-art implementations that support fast training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we'll implement an application in healthcare – we'll diagnose
+    a disease.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We already have scikit-learn and TensorFlow installed from previous chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this recipe, we''ll need `tensorflow-probability` as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that `tensorflow-probability` is installed, we'll use it extensively in
+    the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll break this down into several steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Downloading and preparing the data
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating a neural network
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Model training
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Validation
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We''ll start with getting the dataset into Python:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Downloading and preparing the data**: We''ll download a dataset of symptoms
+    and heart disease diagnoses collected at the Hungarian Institute of Cardiology,
+    Budapest, by the group of Andras Janosi ([https://www.openml.org/d/1565/](https://www.openml.org/d/1565/)),
+    then preprocess it, construct a neural network in Keras, and probabilistically
+    diagnose based on symptoms.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We will download it from OpenML as we have before. You can see a complete description
+    there. The target originally encodes different statuses, where 0 is healthy, and
+    the others indicate a disease. We''ll therefore separate between healthy and not-healthy,
+    and treat this as a binary classification problem. We apply a standard scaler
+    so that we can feed z-scores to the neural network. All of this should be familiar
+    from several earlier recipes in [Chapter 1](87098651-b37f-4b05-b0ee-878193f28b95.xhtml),
+    *Getting Started with Artificial Intelligence in Python*, [Chapter 2](bca59029-1915-4856-b47d-6041d7b10a0a.xhtml),
+    *Advanced Topics in Supervised Machine Learning*, [Chapter 3](424f3988-2d11-4098-9c52-beb685a6ed27.xhtml),
+    *Patterns, Outliers, and Recommendations*, and [Chapter 4](562919eb-c6f4-48d8-adc7-fabd55d93599.xhtml), *Probabilistic
+    Modeling*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we have preprocessed and split our dataset into training and test.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Creating a neural network**: The network construction itself is straightforward,
+    and looks very much like any of the other Keras networks that we''ve seen. The
+    difference is a `DistributionLambda` layer at the end, which we will explain in
+    the next section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is important to notice that instead of finishing off with a final layer, `Dense(2,
+    activation = 'softmax'`, as we would do in binary classification tasks, we'll
+    reduce the outputs to the number of parameters our probability distribution needs,
+    which is just one in the case of the Bernoulli distribution, which takes a single
+    parameter, which is the expected average of the binary outcome.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are using a relatively small model of only 181 parameters. We'll explain
+    the loss function in the *How it works...* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Model training**: Now, we can train our model. We''ll plot our training loss
+    in `tensorboard` and we''ll enable early stopping:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will run for 2,000 epochs, and it might take a while to complete. From
+    TensorBoard, we can see the training loss over epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/46376b8d-def4-4e29-9cf0-ad2ed75dc10a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Validating the model**: We can now sample from the model. Each network prediction
+    gives us a mean and variance. We can have a look at a single prediction. We''ve
+    arbitrarily chosen prediction number `10`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This prediction looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/20c9ac30-31f5-488f-9051-d9dfa731f699.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So, each prediction is a sample from a Bernoulli process. We can convert each
+    of these predictions into class probabilities with the cumulative distribution
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can calculate the area under the curve and other metrics against the
+    test targets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 85% AUC sounds good. But we are working in healthcare, so we need to check recall
+    (also called sensitivity) and precision; in other words, do we detect all of the
+    ill patients, and if we diagnose someone, are they actually ill? If we miss someone,
+    they could die of an untreated condition. If we find everyone as ill, it would
+    put a strain on resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code segment, we''ll look in more detail at the results that
+    we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: This visualizes our results in order to give us a better understanding of the
+    trade-off between precision and recall.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We get the following graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5440ee66-781b-476e-b79b-b87c8bd9a71d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This curve visualizes the trade-off inherent in our model, between recall and
+    precision. Given different cutoffs on our confidence (or class probability), we
+    can make a call about whether someone is ill or not. If we want to find everyone
+    (`recall=100%`), precision drops down to below 40%. On the other hand, if we want
+    to be always right (`precision=100%`) when we diagnose someone as ill, then we'd
+    miss everyone (`recall=0%`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's now a question of the cost of, respectively, missing people or diagnosing
+    too many, to make a decision on a cutoff for saying someone is ill. Given the
+    importance of treating people, perhaps there's a sweet spot around 90% recall
+    and around 65% precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We've trained a neural network for probabilistic predictions diagnosing a disease.
+    Let's take this apart a bit, and go through what we've used here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Aleatoric uncertainty
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: TensorFlow Probability comes with layer types for modeling different types of
+    uncertainty. Aleatoric uncertainty refers to the stochastic variability of our
+    outcomes given the same input – in other words, we can learn the spread in our
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can implement this in Keras and TensorFlow Probability by parameterizing a
+    distribution describing predictions, rather than predicting the input directly.
+    Basically, `DistributionLambda` draws from the distribution (in our case, Bernoulli).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Negative log-likelihood
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We use negative log-likelihood as our loss. This loss is often used in maximum
+    likelihood estimation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we defined was this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: The loss function takes two values: `y`, the target, and a probability distribution
+    that provides the `log_prob()` method. This method returns the log of the probability
+    density at `y`. Since high values are good, we want to invert the function with
+    the negative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bernoulli distribution
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Bernoulli distribution (sometimes called coin-flip distribution) is a discrete
+    distribution of an event with two outcomes occurring with probabilities *p* and
+    *q = 1 - p*. There's a single parameter to it, which is *p*. We could have chosen
+    other modeling options, such as the categorical distribution on top of a softmax
+    activation layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Metrics
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Finally, we touched on recall and precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'They are defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0b9e83c0-a59c-42a3-a9d6-546132b1b346.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We've seen **True Positives** (**tp**), **False Positives** (**fp**), and **False
+    Negatives** (**fn**) before. As a reminder, true positives refer to correct predictions,
+    false positives refer to values incorrectly predicted as positive, and false negatives
+    refer to those incorrectly predicted as negatives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this recipe, you've seen how to use a probabilistic model for a health application.
+    There are many other datasets and many different ways of doing probabilistic inference. Please
+    see TensorFlow Probability as one of the frameworks in probabilistic modeling
+    that has the most traction ([https://www.tensorflow.org/probability](https://www.tensorflow.org/probability)).
+    It comes with a wide range of tutorials.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stopping credit defaults
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For a company that extends credit to its customers, in order to be profitable,
+    the most important criterion for approving applications is whether they can pay
+    back their debts. This is determined by a process called credit scoring that is
+    based on the financial history and socio-economic information of the customer.
+    Traditionally, for credit scoring, scorecards have been used, although in recent
+    years, these simple models have given way to more sophisticated machine learning
+    models. Scorecards are basically checklists of different items of information,
+    each associated with points that are all added up in the end and compared to a
+    pass mark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll use a relatively small dataset of credit card applications; however, it
+    can still give us some insights into how to do credit scoring with neural network
+    models. We'll implement a model that includes a distribution of weights as well
+    as a distribution over outputs. This is called epistemic, aleatoric uncertainty,
+    and will give us even better information about how trustworthy predictions are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We''ll be using `tensorflow-probability`. Just in case you skipped the previous
+    recipe, *Diagnosi**ng a disease*, here''s how to install it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we should be ready with Keras and `tensorflow-probability`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s get the dataset and preprocess it, then we create the model, train the
+    model, and validate it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Download and prepare the dataset**: The dataset that we''ll use for this
+    recipe was published in 2009 (I-Cheng Yeh and Che-hui Lien, *The comparisons of
+    data mining techniques for the predictive accuracy of probability of default of
+    credit card clients*), and originally hosted on the UCI machine learning repository
+    at [https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients](https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We''ll download the data with `openml` using scikit-learn''s utility function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: This gives us features about customer demographics and their application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll use a very standard process of preprocessing that we've seen many times
+    before in this book and that we'll largely breeze through. We could have examined
+    the features more, or done some more work on transformations and feature engineering,
+    but this is beside the point of this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All the features register as numeric, so we only apply standard scaling. Here''s
+    the preprocessing, and then we''ll separate it into training and test datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that that's done, let's create the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Create a model**: First, we need the priors and posteriors. This is done
+    by directly following the online TensorFlow Probability tutorial ([http://www.github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_Regression.ipynb](http://www.github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_Layers_Regression.ipynb)),
+    and is appropriate for normal distributions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note `DenseVariational`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now to the main model, where we''ll use the priors and posteriors. You''ll
+    recognize `DistributionLambda`. We''ve replaced `Binomial` from the previous recipe,
+    *Diagnosing a disease*, with `Normal`, which will give us an estimate of the variance
+    of predictions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: After fitting, we apply the model to our test dataset and obtain predictions
+    for it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Validation**: Let''s check how good our model is:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We get around 70% AUC. Since this summary figure often doesn''t tell a full
+    story, let''s look at the confusion matrix as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This code gives us the following confusion matrix:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a86f57ab-7e5c-4bb5-a0cb-177fd684d89a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This confusion matrix tabulates predictions of default against the actual defaults.
+    In the diagonal of the points, false-false and true-true are the correct predictions
+    (true positives and true negatives). We can see that the number of correct predictions
+    are higher than the false predictions, so that's comforting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the most interesting point is that variances of predictions correlate
+    with errors!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We get a rank correlation of about 60% between absolute errors and the variance
+    of predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This gives us a confidence estimate that can be very useful in practice. We
+    find that the variance is higher for test points where the error is high and that
+    it is lower where we expect the error to be lower. We can look at absolute errors
+    and variance in a scatter plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/36e28a66-27ca-4cdd-81cc-05a0c5dc6be3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This concludes our recipe. This recipe is as an exercise for you to try better
+    preprocessing, tweaking the model more, or switching the distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Models for credit scoring often use logistic regression models, which we've
+    encountered in the *Predicting stock prices with confidence* recipe in this chapter.
+    Alternatively, boosted models or interpretable decision trees are also in use.
+    Given the ability to do online learning and to represent residual uncertainties,
+    `tensorflow-probability` offers itself as another practical alternative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we've created a probabilistic credit default prediction model
+    that works with epistemic uncertainty. It's time to explain what that means.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Epistemic uncertainty
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This is the uncertainty related to incomplete information – in other words,
+    the uncertainty inherent in the model. We come across epistemic uncertainty all
+    the time with noisy real-world datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In TensorFlow Probability, this can be modeled as weight uncertainty. In this
+    recipe, we've used a Bayesian neural network, where weights are a probability
+    distribution rather than scalar estimates. This weight uncertainty translates
+    to uncertainty in predictions, which is what we want to see.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As our final network layer, we included stochasticity from a normal distribution
+    to model aleatoric uncertainty. Instead, we could have assumed that this variability
+    was known.
+  prefs: []
+  type: TYPE_NORMAL
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: There are other routes to explore as well, such as libraries or additional material,
+    which we will list here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find similar problems online, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Credit scoring by predicting financial distress: [https://www.kaggle.com/c/GiveMeSomeCredit/data](https://www.kaggle.com/c/GiveMeSomeCredit/data).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lending Club provides a huge dataset of loan applications: [https://www.lendingclub.com/info/download-data.action](https://www.lendingclub.com/info/download-data.action).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Claim severity prediction for insurance: [https://www.kaggle.com/c/allstate-claims-severity/data](https://www.kaggle.com/c/allstate-claims-severity/data).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We couldn't use these here because of copyright restrictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As for libraries, we recommend you have a look at these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: risk-slim is a Python library for customizable risk scores: [https://github.com/ustunb/risk-slim](https://github.com/ustunb/risk-slim).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'scorecardpy is a library for scorecard development: [https://github.com/ShichenXie/scorecardpy](https://github.com/ShichenXie/scorecardpy).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As for tutorials, the Open Risk Manual offers open resources for credit scoring
+    in Python: [https://www.openriskmanual.org/wiki/Credit_Scoring_with_Python](https://www.openriskmanual.org/wiki/Credit_Scoring_with_Python).
+  prefs: []
+  type: TYPE_NORMAL
+- en: NumPyro provides a tutorial about Bayesian regression for divorce rates: [http://pyro.ai/numpyro/bayesian_regression.html#Regression-Model-to-Predict-Divorce-Rate](http://pyro.ai/numpyro/bayesian_regression.html#Regression-Model-to-Predict-Divorce-Rate).
+  prefs: []
+  type: TYPE_NORMAL
