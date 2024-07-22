@@ -1,482 +1,699 @@
 - en: '7'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '7'
 - en: Adopting Mixed Precision
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 采用混合精度
 - en: Scientific computing is a tool that’s used by scientists to push the limits
     of the known. Biology, physics, chemistry, and cosmology are examples of areas
     that rely on scientific computing to simulate and model the real world. In these
     fields of knowledge, numeric precision is paramount to yield coherent results.
     Since each decimal place matters in this case, scientific computing usually adopts
     double-precision data types to represent numbers with the highest possible precision.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 科学计算是科学家用来推动已知界限的工具。生物学、物理学、化学和宇宙学是依赖科学计算来模拟和建模真实世界的领域的例子。在这些知识领域中，数值精度对于产生一致的结果至关重要。由于在这种情况下每个小数位都很重要，科学计算通常采用双精度数据类型来表示具有最高可能精度的数字。
 - en: However, that need for extra information comes with a price. The higher the
     numeric precision, the higher the computing power required to process those numbers.
     Besides that, higher precision also demands a higher memory space, increasing
     memory consumption.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，额外信息的需求是有代价的。数值精度越高，处理这些数字所需的计算能力就越高。此外，更高的精度还要求更高的内存空间，增加内存消耗。
 - en: 'In the face of those drawbacks, we must ask ourselves: do we need so much precision
     to build our models? Usually, we do not! In this sense, we can reduce the numeric
     precision for a few operations, thus bursting the training process and saving
     some memory space. Naturally, this process should not affect the model’s capacity
     to make good predictions.'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 面对这些缺点，我们必须问自己：我们是否需要如此高的精度来构建我们的模型？通常情况下，我们不需要！在这方面，我们可以针对一些操作降低数值精度，从而加快训练过程并节省一些内存空间。当然，这个过程不应影响模型产生良好预测的能力。
 - en: In this chapter, we’ll show you how to adopt a mixed precision strategy to burst
     the model training process without penalizing the model’s accuracy. Besides reducing
     training time in general, this strategy also enables the usage of special hardware
     resources such as Tensor Cores on NVIDIA’s GPU.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将向您展示如何采用混合精度策略来加快模型训练过程，同时又不损害模型的准确性。除了总体上减少训练时间外，这种策略还可以利用特殊硬件资源，如
+    NVIDIA GPU 上的张量核心。
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是本章的学习内容：
 - en: The concept of numeric representation in computer systems
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 计算机系统中数值表示的概念
 - en: Why lower precision reduces the computational burden of the training process
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 为什么降低精度可以减少训练过程的计算负担
 - en: How to enable automatic mixed precision on PyTorch
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何在 PyTorch 上启用自动混合精度
 - en: Technical requirements
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can find the complete code for the examples mentioned in this chapter in
     this book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在本书的 GitHub 仓库中找到本章中提到的示例代码的完整代码：[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main)。
 - en: You can access your favorite environment to execute this code, such as Google
     Colab or Kaggle.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以使用你喜欢的环境来执行这段代码，比如 Google Colab 或者 Kaggle。
 - en: Remembering numeric precision
+  id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 记住数值精度
 - en: Before diving into the benefits of adopting a mixed precision strategy, it is
     essential to ground you on numeric representation and common data types. Let’s
     start by remembering how computers represent numbers.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 在深入探讨采用混合精度策略的好处之前，重要的是让您理解数字表示和常见数据类型的基础知识。让我们首先回顾一下计算机如何表示数字。
 - en: How do computers represent numbers?
+  id: totrans-15
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 计算机如何表示数字？
 - en: A computer is a machine – endowed with finite resources – that’s designed to
     work on bits, the smallest unit of information it can manage. As numbers are infinite,
     computer designers had to put a lot of effort into finding a solution to represent
     this theoretical concept in a real machine.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算机是一种机器，拥有有限的资源，旨在处理比特，即它能管理的最小信息单位。由于数字是无限的，计算机设计师不得不付出很大努力，找到一种方法来在实际机器中表示这一理论概念。
 - en: 'To get the work done, computer designers needed to deal with three key factors
     regarding numeric representation:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了完成这项工作，计算机设计师需要处理与数值表示相关的三个关键因素：
 - en: '**Sign**: Whether the number is positive or negative'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**符号**：数字是正数还是负数'
 - en: '**Range**: The interval of the represented numbers.'
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**范围**：表示数字的区间。'
 - en: '**Precision**: The number of decimal places.'
+  id: totrans-20
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**精度**：小数位数。'
 - en: Considering these elements, computer architects successfully defined numeric
     data types to represent not only integer and floating-point numbers but also characters,
     special symbols, and even complex numbers.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑到这些因素，计算机架构师成功地定义了数值数据类型，不仅可以表示整数和浮点数，还可以表示字符、特殊符号，甚至复数。
 - en: 'Let’s consider an example to make things more tangible. Computer architectures
     and programming languages generally use 32 bits to represent integers via the
     so-called INT32 format, as shown in *Figure 7**.1*:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过一个例子来使事情更具体化。计算机架构和编程语言通常使用32位来通过所谓的INT32格式表示整数，如*图7**.1*所示：
 - en: '![Figure 7.1 – 32-bit numeric representation for integers](img/B20959_07_01.jpg)'
+  id: totrans-23
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.1 – 32位整数的数字表示](img/B20959_07_01.jpg)'
 - en: Figure 7.1 – 32-bit numeric representation for integers
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.1 – 32位整数的数字表示
 - en: Among these 32 bits, 1 bit is reserved to represent the sign of the number,
     where 0 means positive and 1 means otherwise. The remaining 31 bits are used to
     represent the number itself. With 31 bits, we can get 2,147,483,648 distinct combinations
     of zeros and ones. So, the numeric range of this representation falls into -2,147,483,648
     and +2,147,483,647\. Note that the positive portion has one number fewer because
     we must represent zero.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这32位中，有1位用于表示数字的符号，其中0表示正数，1表示负数。其余的31位用于表示数字本身。有了31位，我们可以得到2,147,483,648个不同的0和1的组合。因此，这种表示法的数值范围为-2,147,483,648到+2,147,483,647。注意正数部分比负数部分少一个数，因为我们必须表示零。
 - en: This is an example of **signed** integer representation, where 1 bit was used
     to determine whether the number is positive or negative. However, if only positive
     numbers are relevant for some cases, it is possible to use an **unsigned** representation
     instead. The unsigned representation uses all 32 bits to represent the number,
     resulting in a numeric interval between 0 and 4,294,967,295.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是有符号整数表示的一个示例，其中1位用于确定数值的正负。然而，如果在某些情况下只有正数是相关的，可以使用无符号表示法。无符号表示法使用所有32位来表示数字，因此其数值区间为0到4,294,967,295。
 - en: 'In situations that do not require a larger interval, it is possible to adopt
     a cheaper format – with only 8 bits – to represent integers: the INT8 representation,
     as illustrated in *Figure 7**.2*. The unsigned version of this representation
     provides an interval between 0 and 255:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在不需要更大区间的情况下，可以采用更便宜的格式 - 仅有8位 - 来表示整数：INT8表示法，如*图7**.2*所示。此表示法的无符号版本提供0到255之间的区间：
 - en: '![Figure 7.2 – Example of a number represented in the INT8 format](img/B20959_07_02.jpg)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.2 – INT8格式中数字的示例](img/B20959_07_02.jpg)'
 - en: Figure 7.2 – Example of a number represented in the INT8 format
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.2 – INT8格式中数字的示例
 - en: Assuming that 1 byte is equivalent to 8 bits (this relationship can be different
     on some computer architectures), the INT32 format demands 4 bytes to represent
     one integer, whereas INT8 requires only 1 byte to do the same. Therefore, the
     INT32 format, which is four times more expensive than INT8, demands more memory
     space and computing power to manipulate those numbers.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设1字节等于8位（在某些计算机架构上这种关系可能不同），INT32格式需要4字节来表示一个整数，而INT8只需1字节即可。因此，INT32格式比INT8昂贵四倍，需要更多的内存空间和计算能力来处理这些数字。
 - en: The integer representation is quite simple. However, to represent floating-point
     (decimal) numbers, computer architects had to design a more sophisticated solution,
     as we will learn in the next section.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 整数表示方法非常简单。然而，要表示浮点数（小数），计算机架构师们必须设计更复杂的解决方案，这是我们将在下一节中学习的内容。
 - en: Floating-point representation
+  id: totrans-32
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 浮点数表示
 - en: Modern computers adopt the IEEE 754 standard to represent floating-point numbers.
     This format defines two types of floating-point representation, namely single
     and double-precision. **Single-precision**, also known as FP32 or float32, uses
     32 bits, while **double-precision**, also known as FP64 or float64, uses 64 bits.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 现代计算机采用IEEE 754标准来表示浮点数。该标准定义了两种浮点数表示方式，即单精度和双精度。**单精度**，也称为FP32或float32，使用32位，而**双精度**，也称为FP64或float64，使用64位。
 - en: 'Both single and double-precision are structurally similar and comprise three
     elements: sign, exponent, and fraction (significand), as shown in *Figure 7**.3*.'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 单精度和双精度在结构上相似，由三个元素组成：符号、指数和分数部分（有效数字），如*图7**.3*所示。
 - en: '![Figure 7.3 – Structure of floating-point representation](img/B20959_07_03.jpg)'
+  id: totrans-35
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.3 – 浮点数表示的结构](img/B20959_07_03.jpg)'
 - en: Figure 7.3 – Structure of floating-point representation
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.3 – 浮点表示结构
 - en: The sign has the same meaning as the integer representation – that is, it defines
     whether the number is positive or negative. The **exponent** defines the numerical
     range, and the **fraction** determines the numeric precision – that is, the number
     of decimal places.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 符号位与整数表示的意义相同，即定义数字是正数还是负数。**指数部分**定义了数值范围，而**分数部分**则决定了数值的精度，即小数位数。
 - en: Both formats use 1 bit for the sign. Regarding other portions, FP32 and FP64
     use 8 and 11 bits to represent the exponent and 23 and 52 to represent the fraction
     part, respectively. Roughly speaking, the range of FP64 is slightly higher than
     FP32 because the former uses 3 bits more than the latter for the exponent part.
     On the other hand, FP64 provides more than the double precision of FP32 due to
     52 bits reserved for the fraction part.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 两种格式都使用 1 位来表示符号。关于其他部分，FP32 和 FP64 分别使用 8 和 11 位来表示指数，23 和 52 位来表示分数部分。粗略地说，FP64
+    的范围略高于 FP32，因为前者在指数部分比后者多使用了 3 位。另一方面，FP64 由于为分数部分保留了 52 位，因此提供了超过 FP32 两倍的双精度。
 - en: The high numeric precision provided by FP64 makes it suitable for scientific
     computing, where each additional decimal place is vital to solving the problems
     tackled in this area. As double precision requires 8 bytes to represent a number,
     it is commonly used only on tasks that require so much precision. When there is
     no such requirement, using the single-precision data type is preferable. This
     is the reason why the training process usually adopts FP32.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: FP64 提供的高数值精度使其非常适合科学计算，其中每一位额外的小数点对于解决这一领域的问题至关重要。由于双精度需要 8 字节来表示一个数字，通常仅在需要如此高精度的任务中使用。在没有这种要求的情况下，使用单精度数据类型更为合适。这也是为什么训练过程通常采用
+    FP32 的原因。
 - en: Novel data types
+  id: totrans-40
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 新型数据类型
 - en: Single precision, as defined by the IEEE 754 standard, is the default format
     for representing floating-point numbers. However, as time passes, the rise of
     new problems demands new approaches, methods, and data types.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据 IEEE 754 标准定义，单精度是表示浮点数的默认格式。然而，随着时间的推移，新问题的出现要求新的方法、方法和数据类型。
 - en: 'Among the novel data types, we can highlight three that are particularly interesting
     to machine learning models: FP16, BFP16, and TF32.'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在新型数据类型中，我们可以突出显示三种特别适合机器学习模型的类型：FP16、BFP16 和 TF32。
 - en: FP16
+  id: totrans-43
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: FP16
 - en: '**FP16** or float16, as you may have guessed, uses 16 bits to represent floating-point
     numbers, as depicted in *Figure 7**.4*. As it uses half of the 32 bits used on
     single-precision, this new data type is referred to as **half-precision**.'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: '**FP16** 或 float16，正如你可能猜到的那样，使用 16 位来表示浮点数，如 *图 7**.4* 所示。由于它只使用了单精度的一半 32
+    位，这种新数据类型被称为**半精度**。'
 - en: 'The structure of FP16 is the same as its siblings FP32 and FP64\. The difference
     lies in the number of bits used to represent the exponent and the fraction parts.
     FP16 uses 5 and 10 bits to represent the exponent and fraction portions, respectively:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: FP16 的结构与其兄弟 FP32 和 FP64 相同。区别在于用于表示指数和分数部分的位数。FP16 使用 5 位和 10 位分别表示指数和分数部分：
 - en: '![Figure 7.4 – Structure of the FP16 format](img/B20959_07_04.jpg)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![图 7.4 – FP16 格式结构](img/B20959_07_04.jpg)'
 - en: Figure 7.4 – Structure of the FP16 format
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.4 – FP16 格式结构
 - en: FP16 is an alternative to FP32 in cases where the precision provided by float32
     is beyond the necessary. In these cases, it is much better to use a simpler data
     type to save memory space and reduce the computing power needed to manipulate
     the data.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 在需要的精度超出 float32 提供的情况下，FP16 是 FP32 的一种替代方案。在这些情况下，使用更简单的数据类型来节省内存空间和减少操作数据所需的计算能力要好得多。
 - en: BFP16
+  id: totrans-49
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: BFP16
 - en: '**BFP16** or bfloat16 is a novel data type created by Google Brain, an artificial
     intelligence research group at Google. BFP16, like FP16, uses 16 bits to represent
     floating-point numbers. However, unlike FP16, the focus of BFP16 is preserving
     the same range as FP32 while reducing drastically the precision. Thus, BFP16 uses
     8 bits to represent the exponent – the same amount used on FP32 – but only 7 bits
     to represent the fraction part, as shown in *Figure 7**.5*:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: '**BFP16** 或 bfloat16 是由谷歌大脑（Google Brain）——谷歌的人工智能研究团队创造的一种新型数据类型。BFP16 类似于
+    FP16，使用 16 位来表示浮点数。然而，与 FP16 不同，BFP16 的重点是保留与 FP32 相同的数值范围，同时显著降低精度。因此，BFP16 使用
+    8 位来表示指数部分（与 FP32 相同），但只使用 7 位来表示分数部分，如 *图 7**.5* 所示：'
 - en: '![Figure 7.5 – Structure of the BFP16 format](img/B20959_07_05.jpg)'
+  id: totrans-51
   prefs: []
   type: TYPE_IMG
+  zh: '![图 7.5 – BFP16 格式结构](img/B20959_07_05.jpg)'
 - en: Figure 7.5 – Structure of the BFP16 format
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.5 – BFP16格式的结构
 - en: Google created BFP16 to attend machine learning and artificial intelligence
     workloads, where precision is not a big deal. At the time of writing, bfloat16
     is supported by Intel Xeon processors (through the AVX-512 BF16 instruction set),
     Google TPUs v2 and v3, NVIDIA GPU A100, and other hardware platforms.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 谷歌创建了BFP16以满足机器学习和人工智能工作负载的需求，其中精度并不是很重要。截至撰写时，bfloat16受到英特尔Xeon处理器（通过AVX-512
+    BF16指令集）、谷歌TPU v2和v3、NVIDIA GPU A100以及其他硬件平台的支持。
 - en: Note that being supported in these hardware platforms, there is no guarantee
     that bfloat16 is supported and implemented by any software. PyTorch, for example,
     just supports the usage of bfloat16 on CPUs, even though this data type is also
     supported by NVIDIA GPUs.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，虽然这些硬件平台支持TF32，但不能保证bfloat16会被所有软件支持和实现。例如，PyTorch只支持在CPU上使用bfloat16，尽管NVIDIA
+    GPU也支持这种数据类型。
 - en: TF32
+  id: totrans-55
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: TF32
 - en: '**TF32** stands for TensorFloat 32 and, despite the name, is a 19-bit format
     created by NVIDIA. The TF32 is a mix of the FP32 and FP16 formats since it uses
     8 bits for the exponent and 10 bits for the fraction, just like FP32 and FP16,
     respectively. Therefore, TF32 allies the precision provided by FP16 with the numeric
     range of FP32\. *Figure 7**.6* describes the TF32 format pictorially:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: '**TF32**代表TensorFloat 32，尽管名字如此，但是这是由NVIDIA创建的19位格式。TF32是FP32和FP16格式的混合体，因为它使用8位表示指数和10位表示小数部分，类似于FP32和FP16的格式。因此，TF32结合了FP16提供的精度和FP32的数值范围。*图7.6*以图形方式描述了TF32的格式：'
 - en: '![Figure 7.6 – Structure of the TF32 format](img/B20959_07_06.jpg)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.6 – TF32格式的结构](img/B20959_07_06.jpg)'
 - en: Figure 7.6 – Structure of the TF32 format
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.6 – TF32格式的结构
 - en: Similarly to bfloat16, TF32 was also specifically created to tackle artificial
     intelligence workloads and is currently supported by newer GPU generations, starting
     with the Ampere architecture (NVIDIA A100). Besides the benefits of providing
     a balance between range and precision, TF32 is also supported by Tensor Cores,
     a special hardware component available on NVIDIA GPUs. We will talk more about
     Tensor Cores later in this chapter.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 与bfloat16类似，TF32也是专门为处理人工智能工作负载而创建的，目前受到较新的GPU代数的支持，从安培架构（NVIDIA A100）开始。除了在范围和精度之间提供平衡的好处外，TF32还受Tensor
+    Core的支持，这是NVIDIA GPU上可用的特殊硬件组件。我们稍后将在本章更详细地讨论Tensor Core。
 - en: A summary, please!
+  id: totrans-60
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 总结一下！
 - en: 'Yes, for sure! That was a lot of information to take in. For this reason, *Table
     7.1* summarizes this:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 是的，当然！那是大量信息需要消化。因此，*表7.1*对此进行了总结：
 - en: '| **Format** | **Bits** **for Exponent** | **Bits** **for Fraction** | **Bytes**
     | **Alias** |'
+  id: totrans-62
   prefs: []
   type: TYPE_TB
+  zh: '| **格式** | **指数位数** | **小数位数** | **字节数** | **别名** |'
 - en: '| --- | --- | --- | --- | --- |'
+  id: totrans-63
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- | --- |'
 - en: '| FP32 | 8 | 23 | 4 | Float32, single precision |'
+  id: totrans-64
   prefs: []
   type: TYPE_TB
+  zh: '| FP32 | 8 | 23 | 4 | Float32，单精度 |'
 - en: '| FP64 | 11 | 52 | 8 | Float64, double precision |'
+  id: totrans-65
   prefs: []
   type: TYPE_TB
+  zh: '| FP64 | 11 | 52 | 8 | Float64，双精度 |'
 - en: '| FP16 | 5 | 10 | 2 | Float16, half precision |'
+  id: totrans-66
   prefs: []
   type: TYPE_TB
+  zh: '| FP16 | 5 | 10 | 2 | Float16，半精度 |'
 - en: '| BFP16 | 8 | 7 | 2 | Bfloat16 |'
+  id: totrans-67
   prefs: []
   type: TYPE_TB
+  zh: '| BFP16 | 8 | 7 | 2 | Bfloat16 |'
 - en: '| TF32 | 8 | 10 | 4 | TensorFloat32 |'
+  id: totrans-68
   prefs: []
   type: TYPE_TB
+  zh: '| TF32 | 8 | 10 | 4 | TensorFloat32 |'
 - en: Table 7.1 – Summary of numeric formats
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 表7.1 – 数值格式摘要
 - en: Note
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Grigory Sapunov wrote a nice summary about data types. You can find it at [https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407](https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407).
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: Grigory Sapunov撰写了一个关于数据类型的好摘要。您可以在[https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407](https://moocaholic.medium.com/fp64-fp32-fp16-bfloat16-tf32-and-other-members-of-the-zoo-a1ca7897d407)找到它。
 - en: As you may have noticed, the higher the numeric range and precision, the higher
     the amount of bytes required to represent the numbers. Thus, the numeric format
     incurs the amount of resources needed to store and process such numbers.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您可能已经注意到的那样，数值范围和精度越高，表示这些数字所需的字节数也越多。因此，数值格式会增加存储和处理这些数字所需的资源量。
 - en: If we do not need so much precision (and range) to train our models, why not
     adopt a cheaper format than the usual FP32? If we do that, we will save memory
     and accelerate the training process as a whole.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们不需要如此高的精度（和范围）来训练我们的模型，为什么不采用比通常的FP32更便宜的格式呢？这样做可以节省内存并加速整个训练过程。
 - en: Instead of changing the numeric precision of the entire building process, we
     have the option to adopt a mixed precision approach, as explained next.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们有选择不必更改整个构建过程的数值精度，而是采用下面解释的混合精度方法的选项。
 - en: Understanding the mixed precision strategy
+  id: totrans-75
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解混合精度策略
 - en: The benefits of using lower-precision formats are crystal clear. Besides saving
     memory, the computing power required to handle data with lower precision is less
     than that needed to process numbers with higher precision.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用低精度格式的好处是显而易见的。除了节省内存外，处理低精度数据所需的计算能力也比处理高精度数字所需的少。
 - en: One approach to accelerate the training process of machine learning models concerns
     employing a **mixed precision** strategy. Along the lines of [*Chapter 6*](B20959_06.xhtml#_idTextAnchor085),
     *Simplifying the Model*, we will understand this strategy by asking (and answering,
     of course) a couple of simple NH questions about this approach.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 加速机器学习模型训练过程的一种方法涉及采用**混合精度**策略。沿着[*第6章*](B20959_06.xhtml#_idTextAnchor085)的思路，*简化模型*，我们将通过关于这种方法的一些简单问题（当然也会回答）来理解这一策略。
 - en: Note
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: When searching for information about reducing the precision of deep learning
     models, you may come across a term known as **model quantization**. Despite being
     related terms, the goal of mixed precision is quite different from model quantization.
     The former intends to accelerate the training process by employing reduced numeric
     precision formats. The latter focuses on reducing the complexity of trained models
     to use in the inference phase. Thus, be careful to not mistake both terms.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你搜索有关降低深度学习模型精度的信息时，你可能会遇到一个称为**模型量化**的术语。尽管这些是相关的术语，但混合精度的目标与模型量化有很大不同。前者旨在通过采用降低的数值精度格式加速训练过程。后者侧重于减少已训练模型的复杂性以在推理阶段使用。因此，务必不要混淆这两个术语。
 - en: 'Let’s start by answering the most elementary question: what is this strategy
     about?'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们首先回答最基本的问题：这个策略到底是什么？
 - en: What is mixed precision?
+  id: totrans-81
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 什么是混合精度？
 - en: As you may have guessed, the mixed precision approach mixes up numeric formats
     with distinct degrees of precision. This approach aims to try to use a cheaper
     format **wherever possible** – in other words, it only keeps the default precision
     where it is mandatory.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你可能猜到的那样，混合精度方法将不同精度的数值格式混合使用。该方法旨在尽可能使用更便宜的格式 - 换句话说，它仅在必要时保留默认精度。
 - en: In the context of the training process, we seek to mix FP32 – the default numeric
     format adopted in this task – with a lower-precision representation such as FP16
     or BFP16\. More specifically, we execute some operations under FP32 and others
     with a lower-precision format. By doing this, we keep the needed precision on
     operations where a higher precision is imperative and benefit from the advantages
     of half-precision representations at the same time.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练过程的上下文中，我们希望将FP32 - 在此任务中采用的默认数值格式 - 与FP16或BFP16等低精度表示混合。具体来说，我们在某些操作中使用FP32，而在其他操作中使用低精度格式。通过这样做，我们在需要更高精度的操作上保持所需的精度，同时也享受半精度表示的优势。
 - en: 'As illustrated in *Figure 7**.7*, the mixed approach is the opposite of the
     traditional strategy, where we use the same numeric precision for all operations
     executed in the training process:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如*图7**.7*所示，混合方法与传统策略相反，我们在训练过程中使用相同的数值精度：
 - en: '![Figure 7.7 – The difference between the traditional and mixed precision approaches](img/B20959_07_07.jpg)'
+  id: totrans-85
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.7 – 传统与混合精度方法的差异](img/B20959_07_07.jpg)'
 - en: Figure 7.7 – The difference between the traditional and mixed precision approaches
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.7 – 传统与混合精度方法的差异
 - en: Given the advantages of using a lower-precision format, you might be wondering
     why not use it on all operations involved in the training process – something
     like a pure lower-precision approach rather than a mixed-precision strategy, so
     to speak. It is a fair question, and we will answer it in the following section.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 鉴于使用低精度格式的优势，你可能会想知道为什么不在训练过程中涉及的所有操作中使用纯低精度方法 - 比如说纯低精度方法而不是混合精度策略。这是一个合理的问题，我们将在接下来的部分中回答它。
 - en: Why use mixed precision?
+  id: totrans-88
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 为什么使用混合精度？
 - en: The question posed here is not about the advantages of using mixed precision,
     but why we shouldn’t use an absolute lower-precision approach.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里提出的问题不是关于使用混合精度的优势，而是为什么我们不应该采用绝对的低精度方法。
 - en: 'Well, we cannot use a pure lower-precision approach because of two main reasons:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 好吧，我们不能使用纯低精度方法，因为有两个主要原因：
 - en: Loss of information on the gradient
+  id: totrans-91
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 梯度信息的丢失
 - en: Lack of lower-precision operations
+  id: totrans-92
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 缺乏低精度操作
 - en: Let’s take a closer look at each.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们更详细地看一下每一种。
 - en: Loss of information on the gradient
+  id: totrans-94
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 梯度信息的丢失
 - en: Reduced precision can lead to **gradient problems**, thus affecting the model’s
     accuracy. As the optimization process is carried, the loss of information on the
     gradient, derived from reduced precision, can hamper the optimization process
     as a whole, preventing the model from converging. As a consequence, the trained
     model can exhibit a lower accuracy.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 降低精度可能导致**梯度问题**，从而影响模型的准确性。随着优化过程的进行，由降低精度导致的梯度信息丢失可以阻碍整个优化过程，使模型无法收敛。因此，训练后的模型可能表现出较低的准确性。
 - en: Shall we clarify this issue? Let’s assume we’re in a hypothetical situation
     where we train a model using two distinct precision formats, A and B. Format A
     supports five decimal places of precision, while format B gives only three decimal
     places.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们应该澄清这个问题吗？假设我们处于一个假设情境，正在使用两种不同的精度格式A和B来训练模型。格式A支持五位小数精度，而格式B只支持三位小数精度。
 - en: 'Suppose we have trained our model for five training steps. On each training
     step, the optimizer has calculated the gradient to guide the overall optimization
     process. However, as shown in *Figure 7**.8*, after the third training step, the
     gradient becomes zero on format B. Thereafter, the optimization process will be
     blind since the gradient information was lost:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们已经对模型进行了五个训练步骤的训练。在每个训练步骤中，优化器计算了梯度来指导整体优化过程。然而，正如*图7**.8*所示，在第三个训练步骤后，格式B上的梯度变为零。此后，优化过程将是盲目的，因为梯度信息已丢失：
 - en: '![Figure 7.8 – Loss of information on the gradient](img/B20959_07_08.jpg)'
+  id: totrans-98
   prefs: []
   type: TYPE_IMG
+  zh: '![图7.8 – 梯度信息丢失](img/B20959_07_08.jpg)'
 - en: Figure 7.8 – Loss of information on the gradient
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.8 – 梯度信息丢失
 - en: This is a naive and pictorial example to show what we meant regarding the loss
     of information on the gradient. Nevertheless, in general terms, this is the problem
     we can face when opting to use lower-precision formats.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个关于梯度信息丢失的朴素而形象的例子。然而，总体而言，这是我们在选择使用低精度格式时可能面临的问题。
 - en: Therefore, we must keep some operations running on the default FP32 format to
     avoid such problems. Nevertheless, we still need to take care of the gradient
     when using a lower-precision representation, as we will understand later in this
     chapter.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们必须将一些操作保持在默认的FP32格式上运行，以避免这些问题。然而，当使用较低精度表示时，我们仍然需要注意梯度的处理，正如我们将在本章后面理解的那样。
 - en: Lack of lower-precision operations
+  id: totrans-102
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 缺乏低精度操作
 - en: Concerning the second reason, we can state that many operations do not have
     a lower-precision implementation. Besides technical constraints, the cost-benefit
     ratio of implementing a lower-precision version of some operations can be so low
     that it is not worth doing it.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于第二个原因，我们可以说许多操作没有更低精度的实现。除了技术限制外，实施某些操作的低精度版本的成本效益比可能非常低，因此不值得这样做。
 - en: For this reason, PyTorch maintains a list of *eligible operations* to run under
     lower precision to see which operations are currently supported for a given precision
     and device. For example, the `conv2d` operation is eligible to run under FP16
@@ -484,55 +701,77 @@
     not eligible to run in low-precision, neither on GPU or CPU. Generally speaking,
     at the time of writing, PyTorch only supports FP16 on CUDA devices and only BFP16
     on CPU.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，PyTorch维护了一个*合格操作*列表，以在较低精度下运行，以查看当前支持给定精度和设备的操作。例如，`conv2d`操作可以在CUDA设备上以FP16运行，在CPU上以BFP16运行。另一方面，`softmax`操作既不在GPU上也不在CPU上支持低精度运行。一般来说，在撰写本文时，PyTorch仅在CUDA设备上支持FP16，仅在CPU上支持BFP16。
 - en: Note
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can find the complete list of eligible operations to run in lower precision
     in PyTorch at [https://pytorch.org/docs/stable/amp.html](https://pytorch.org/docs/stable/amp.html).
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在PyTorch的[https://pytorch.org/docs/stable/amp.html](https://pytorch.org/docs/stable/amp.html)找到可以在低精度下运行的所有合格操作的完整列表。
 - en: That said, we must always evaluate whether our model executes at least one of
     the eligible operations to run with lower precision before jumping headlong into
     the mixed-precision approach. Otherwise, we will make an unfruitful effort to
     try to benefit from this strategy.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 也就是说，我们必须始终评估我们的模型是否至少执行了其中一个可以在低精度下运行的合格操作，然后再全力采用混合精度方法。否则，我们将徒劳地尝试从这种策略中获益。
 - en: Even if it is possible to reduce the numeric precision of the training process,
     we should *not expect a tremendous performance gain* for any scenario. After all,
     only a subset of operations executed on the training process currently support
     lower-precision data types. On the other hand, any performance improvement obtained
     from an effortless process is always welcome.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 即使可以减少训练过程的数值精度，我们也不应该期望在任何情景下都会有巨大的性能增益。毕竟，目前只有训练过程中执行的操作的子集支持较低精度的数据类型。另一方面，任何从无需费力的过程中获得的性能改进总是受欢迎的。
 - en: How to use mixed precision
+  id: totrans-109
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 如何使用混合精度
 - en: Usually, we rely on an automatic solution to apply the mixed precision strategy
     to the training process. This solution is called **automatic mixed precision**,
     or **AMP** for short.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，我们依赖于自动解决方案来应用混合精度策略到训练过程中。这种解决方案称为**自动混合精度**，简称 **AMP**。
 - en: 'As illustrated in *Figure 7**.9*, AMP automatically evaluates operations that
     were executed during the training process to decide which ones are eligible to
     run at lower-precision formats:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 如 *图 7**.9* 所示，AMP 自动评估在训练过程中执行的操作，以决定哪些操作可以以低精度格式运行：
 - en: '![Figure 7.9 – The AMP process](img/B20959_07_09.jpg)'
+  id: totrans-112
   prefs: []
   type: TYPE_IMG
+  zh: '![图 7.9 – AMP 过程](img/B20959_07_09.jpg)'
 - en: Figure 7.9 – The AMP process
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.9 – AMP 过程
 - en: Once AMP finds an operation that matches the requirements to execute at lower
     precision, it takes the wheel and replaces the operation running at default precision
     with a lower-precision version. It is an elegant and seamless process that’s designed
     to avoid the occurrence of errors that are difficult to detect, investigate, and
     fix.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦 AMP 发现符合要求以低精度执行的操作，它就会接管并用低精度版本替换以默认精度运行的操作。这是一个优雅而无缝的过程，旨在避免难以检测、调查和修复的错误。
 - en: Although it is *strongly recommended to use an automatic solution* to apply
     the mixed-precision approach, it is possible to do it by hand. However, we must
     be aware of a few things. Generally speaking, we seek to implement a process manually
@@ -541,43 +780,61 @@
     guarantee of getting a substantial performance improvement in doing it by hand,
     we should only consider the manual approach as the last option to adopt mixed
     precision.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管强烈建议使用自动解决方案来应用混合精度方法，但也可以手动进行。然而，我们必须意识到一些事情。一般来说，当自动解决方案提供的结果不好或不合理时，或者简单地不存在时，我们寻求手动实施过程。由于自动解决方案已经可用，并且无法保证手动操作能获得显著的性能改进，我们应该把手动方法仅作为采用混合精度的最后选择。
 - en: Note
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can always experiment and implement mixed precision manually. It can be
     a good idea to deepen your knowledge about this topic. You can start by viewing
     the material presented on NVIDIA GTC 2018, which is available at [https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf](https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf).
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 您始终可以尝试并手动实施混合精度。深入了解这个主题可能是个好主意。您可以从 NVIDIA GTC 2018 上的材料开始，该材料可在 [https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf](https://on-demand.gputechconf.com/gtc-taiwan/2018/pdf/5-1_Internal%20Speaker_Michael%20Carilli_PDF%20For%20Sharing.pdf)
+    上获取。
 - en: How about Tensor Cores?
+  id: totrans-118
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 张量核心如何？
 - en: 'A Tensor Core is a processing unit that’s capable of bursting the execution
     of matrix-to-matrix multiplication, which is an elementary operation that’s often
     executed on AI and HPC workloads. To use this hardware resource, the software
     (library or framework) must be able to work with the numeric format supported
     by the Tensor Core. As shown in *Table 7.2*, the numeric format supported by Tensor
     Core varies according to the GPU architecture:'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 张量核心是一种处理单元，能够加速矩阵乘法执行，这是在人工智能和高性能计算工作负载中经常执行的基本操作。为了使用这一硬件资源，软件（库或框架）必须能够处理张量核心支持的数值格式。如
+    *表 7.2* 所示，张量核心支持的数值格式根据 GPU 架构而异：
 - en: '![Table 7.2 – Supported data types on Tensor Cores (obtained from NVIDIA’s
     official website)](img/B20959_07_10.jpg)'
+  id: totrans-120
   prefs: []
   type: TYPE_IMG
+  zh: '![表 7.2 – 张量核心支持的数据类型（来自 NVIDIA 官方网站）](img/B20959_07_10.jpg)'
 - en: Table 7.2 – Supported data types on Tensor Cores (obtained from NVIDIA’s official
     website)
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 7.2 – 张量核心支持的数据类型（来自 NVIDIA 官方网站）
 - en: Tensor Core of newer GPU models, such as Hopper and Ampere (series H and A,
     respectively), supports lower-precision formats such as TF32, FP16, and bfloat16,
     and the double-precision format (FP64), which is particularly important to attend
     traditional HPC workloads.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
 - en: The Hopper architecture started to support FP8, a fresh new numeric representation
@@ -585,12 +842,14 @@
     this format to accelerate the training process of Transformer neural networks.
     The usage of Tensor Cores to run FP8 operations relies on the Transformer Engine
     library and is outside the scope of this book.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
 - en: On the other hand, none of the available architectures are equipped with Tensor
     Cores that support FP32, the default precision format. So, to harness the computing
     power of this hardware capability, we must adapt our code so that it can use lower-precision
     formats.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
 - en: Moreover, the activation of Tensor Cores is conditioned to other factors beyond
@@ -599,28 +858,35 @@
     of architecture, library version, and numeric representation. For example, in
     the case of A100 (the Ampere architecture), the matrices’ dimensions must be multiple
     of 8 bytes when using FP16 and CuDNN versions before 7.6.3.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
 - en: Therefore, the adoption of lower precision is the first condition to use Tensor
     Cores, but it is *not a unique* requirement to properly enable this resource.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
 - en: You can find more details about the requirements for using Tensor Cores at [https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc](https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc).
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
 - en: Now that we know about the fundamentals of mixed precision, we can learn how
     to use this approach in PyTorch.
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
 - en: Enabling AMP
+  id: totrans-131
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Fortunately, PyTorch provides methods and tools to perform AMP by changing just
     a few things in our original code.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
 - en: In PyTorch, AMP relies on enabling a couple of flags, wrapping the training
@@ -628,35 +894,44 @@
     complex case, which is related to implementing AMP on GPU, takes all these three
     parts, while the most simple scenario (CPU-based training) requires only the usage
     of `torch.autocast`.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
 - en: Let’s start by covering the more complex scenario. So, follow me to the next
     section to learn how to activate this approach in our GPU-based code.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
 - en: Activating AMP on GPU
+  id: totrans-135
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'To activate AMP on GPU, we need to make three modifications to our code:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
 - en: Enable the CUDA and CuDNN backend flags.
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Wrap the training loop with `torch.autocast`.
+  id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Use a gradient scaler.
+  id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Let’s take a closer look.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
 - en: Enabling backend flags
+  id: totrans-141
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -666,151 +941,214 @@
     AMP, we must enable *four flags* related to CUDA and CuDNN backends. All those
     flags come disabled by default and should be turned on at the beginning of the
     code.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在[*第4章*](B20959_04.xhtml#_idTextAnchor060)中学到的，*使用专业库*，PyTorch 依赖第三方库（在PyTorch术语中也称为后端）来帮助执行专业任务。在AMP的上下文中，我们必须启用与CUDA和CuDNN后端相关的*四个标志*。所有这些标志默认情况下都是禁用的，应在代码开头打开。
 - en: Note
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: CuDNN is an NVIDIA library that provides optimized operations commonly executed
     on deep learning neural networks.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: CuDNN是一个NVIDIA库，提供了在深度学习神经网络上常执行的优化操作。
 - en: The first flag is `torch.backend.cudnn.benchmark`, which activates the benchmark
     mode of CuDNN. In this mode, CuDNN executes a set of brief tests to determine
     which operations are the best ones to be executed on a given platform. Although
     this flag is not directly related to mixed precision, it plays an important role
     in the process, enhancing the positive effect of AMP.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个标志是`torch.backend.cudnn.benchmark`，它激活了CuDNN的基准模式。在此模式下，CuDNN执行一组简短的测试，以确定在给定平台上执行哪些操作是最佳的。尽管此标志与混合精度不直接相关，但它在过程中发挥着重要作用，增强了AMP的正面效果。
 - en: CuDNN performs this evaluation the first time it is called by PyTorch. In general,
     this moment occurs at the first training epoch. So, do not be surprised if the
     first epoch takes more time to execute than the remaining epochs of the training
     process.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: CuDNN在第一次被PyTorch调用时执行此评估。一般来说，这一时刻发生在第一个训练时期。因此，如果第一个时期执行比训练过程的其余时期需要更多的时间，请不要感到惊讶。
 - en: The other two flags are called `cuda.matmul.allow_fp16_reduced_precision_reduction`
     and `cuda.matmul.allow_bf16_reduced_precision_reduction`. They tell CUDA to use
     reduced precision on `matmul` operations when executing at FP16 and BFP16 representations,
     respectively. The `matmul` operation is related to matrix-to-matrix multiplication,
     which is one of the most essential computing tasks that can be executed on neural
     networks in general.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 另外两个标志称为`cuda.matmul.allow_fp16_reduced_precision_reduction`和`cuda.matmul.allow_bf16_reduced_precision_reduction`。它们告诉CUDA在执行FP16和BFP16表示时使用减少精度的`matmul`操作。`matmul`操作与矩阵乘法相关，这是通常可以在神经网络上执行的最基本的计算任务之一。
 - en: The last flag is `torch.backends.cudnn.allow_tf32`, which allows CuDNN to use
     the TF32 format, thus enabling one of the formats supported by NVIDIA Tensor Cores.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一个标志是`torch.backends.cudnn.allow_tf32`，它允许CuDNN使用TF32格式，从而启用NVIDIA Tensor
+    Cores支持的格式之一。
 - en: After enabling these flags, we can proceed to change the training loop part.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 在启用这些标志之后，我们可以继续更改训练循环部分。
 - en: Wrapping the training loop with torch.autocast
+  id: totrans-150
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用`torch.autocast`包装训练循环
 - en: The `torch.autocast` class is responsible for implementing AMP on PyTorch. We
     can use `torch.autocast` as a context manager or a decorator. Its usage depends
     on how we have implemented our code. Regardless of the method, AMP works in the
     same way.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: '`torch.autocast`类负责在PyTorch上实现AMP。我们可以将`torch.autocast`用作上下文管理器或装饰器。其使用取决于我们如何实现我们的代码。无论使用哪种方法，AMP的工作方式都是相同的。'
 - en: Specifically, in the case of a context manager, we must wrap the forward and
     loss calculation phases that are executed on the training loop. All other tasks
     that are performed on the training loop must be left out of the context of `torch.autocast`.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，在上下文管理器的情况下，我们必须包装在训练循环中执行的前向和损失计算阶段。所有其他在训练循环中执行的任务必须排除在`torch.autocast`的上下文之外。
 - en: '`torch.autocast` accepts four arguments:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: '`torch.autocast` 接受四个参数：'
 - en: '`device_type`: This defines which kind of device the autocast will execute
     AMP. Accepted values are `cuda`, `cpu`, `xpu`, and `hpu` – that is, the same values
     we can assign to a `torch.device` object. Naturally, the most common values for
     this parameter are `cuda` and `cpu`.'
+  id: totrans-154
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`device_type`：这定义了自动转换将在哪种设备上执行AMP。接受的值包括`cuda`、`cpu`、`xpu`和`hpu` – 即，我们可以分配给`torch.device`对象的相同值。自然地，这个参数最常见的值是`cuda`和`cpu`。'
 - en: '`dtype`: The data type that’s used on the AMP strategy. This parameter accepts
     the corresponding data type object – instantiated from the `torch.dtype` class
     – related to the data type we want to use on the automatic casting.'
+  id: totrans-155
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`dtype`：在AMP策略中使用的数据类型。此参数接受与我们想要在自动转换中使用的数据类型相关联的数据类型对象 – 从`torch.dtype`类实例化。'
 - en: '`enabled`: A flag to enable or disable the AMP process. It comes enabled by
     default, but we can switch it to `false` to debug our code.'
+  id: totrans-156
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`enabled`：一个标志，用于启用或禁用AMP过程。默认情况下是启用的，但我们可以将其切换为`false`来调试我们的代码。'
 - en: '`cache_enabled`: Whether `torch.autocast` should enable the weight cache during
     the AMP process. This parameter is enabled by default.'
+  id: totrans-157
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`cache_enabled`：在AMP过程中，`torch.autocast`是否应启用权重缓存。此参数默认启用。'
 - en: The `device_type` and `dtype` parameters are mandatory to use `torch.autocast`.
     The others are optional and used only for fine-tuning and debugging.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用`torch.autocast`必须传入`device_type`和`dtype`参数。其他参数是可选的，仅用于微调和调试。
 - en: 'The following excerpt shows the usage of `torch.autocast` as a context manager
     inside the training loop (for the sake of simplicity, this example shows only
     the core part of the training loop):'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的摘录展示了在训练循环中作为上下文管理器使用`torch.autocast`（为了简单起见，此示例仅显示了训练循环的核心部分）：
 - en: '[PRE0]'
+  id: totrans-160
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: The other tasks that are executed on the training loop are not encapsulated
     by `torch.autocast` since we are only interested in applying AMP to the forward
     and loss calculation phases. Besides that, the remaining tasks of the training
     process are wrapped by the gradient scaler, as explained next.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练循环中执行的其他任务没有被`torch.autocast`封装，因为我们只对前向和损失计算阶段应用AMP感兴趣。此外，训练过程的剩余任务都被梯度缩放器包装，如下所述。
 - en: Gradient scaler
+  id: totrans-162
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 梯度缩放器
 - en: 'As we learned at the beginning of this chapter, the usage of lower-precision
     representations can lead to loss of information on the gradient. To work around
     this problem, we need to wrap the optimization and backward phases with a `torch.cuda.amp.GradScaler`:'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在本章开头所学到的，使用低精度表示法可能导致梯度信息的丢失。为了解决这个问题，我们需要使用`torch.cuda.amp.GradScaler`来包装优化和反向传播阶段：
 - en: '[PRE1]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: First, we instantiate an object from `torch.cuda.amp.GradScaler`. Next, we wrap
     the `optimizer.step()` and `loss.backward()` calls with the gradient scaler so
     that it assumes control of these tasks. Finally, the training loop asks the scaler
     to definitively update the parameters of the network.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们实例化了一个来自`torch.cuda.amp.GradScaler`的对象。接下来，我们将`optimizer.step()`和`loss.backward()`调用包装到梯度缩放器中，以便它控制这些任务。最后，训练循环要求缩放器最终更新网络参数。
 - en: We’ll join these Lego pieces into a unique building block and see what AMP is
     capable of in the next section!
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将这些乐高积木拼接成一个独特的建筑块，看看AMP在下一节中能做些什么！
 - en: AMP, show us what you are capable of!
+  id: totrans-167
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: AMP，展示你的能力！
 - en: To assess the benefits of using AMP, we will train an EfficientNet neural network
     architecture, which is available in the `torch.vision.models` package, with the
     CIFAR-10 dataset.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了评估使用AMP的好处，我们将使用EfficientNet神经网络架构进行训练，该架构位于`torch.vision.models`包中，并使用CIFAR-10数据集。
 - en: Note
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb).
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 此部分显示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter07/amp-efficientnet_cifar10.ipynb)中找到。
 - en: In this experiment, we will evaluate the usage of AMP with FP16 and BFP16 running
     under a GPU NVIDIA A100 for 50 epochs. Our baseline execution concerns training
     EfficientNet under its default precision (FP32), but with the CuDNN benchmark
     flag enabled. By doing this, we’ll make things fair since, despite being important
     to the AMP process, this flag is not directly related to it.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个实验中，我们将在GPU NVIDIA A100上使用FP16和BFP16评估AMP的使用情况，运行50个epochs。我们的基准执行涉及使用EfficientNet的默认精度（FP32），但启用了CuDNN基准标志。通过这样做，我们将使事情变得公平，因为尽管CuDNN基准标志对AMP过程很重要，但并不直接相关。
 - en: The baseline execution took 811 seconds to complete, achieving an accuracy equal
     to 51%. The accuracy itself is not what we care about here; we are interested
     in evaluating whether AMP will affect the model’s quality.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 基准执行花了811秒完成，达到了51%的准确率。这里我们不关心准确率本身；我们感兴趣的是评估AMP是否会影响模型的质量。
 - en: By adopting the BFP16 precision format, the training process took 754 seconds
     to complete, which represents a shy and disappointing performance improvement
     of 8%. This happens because eligible operations to run under bfloat16 are implemented
@@ -818,282 +1156,401 @@
     our model using GPU, some operations still execute under CPU. So, this tiny performance
     improvement comes from the small pieces of code that continue executing on the
     CPU.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过采用 BFP16 精度格式，训练过程耗时 754 秒完成，这表示性能提升了 8%，这是一个较为微小和令人失望的改进。这是因为仅实现了在 CPU 上执行的
+    BFP16-适用操作，尽管我们正在使用 GPU 训练模型，但仍然有一些操作在 CPU 上执行。因此，这种微小的性能改进来自于继续在 CPU 上执行的一小部分代码片段。
 - en: Note
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: We’re running this experiment with BFP16 on GPU to show the nuances of dealing
     with AMP. Although PyTorch does not provide BFP16-eligible operations to execute
     on GPUs, we did not get any warning about doing it. This is an example of how
     important it is to know the details of the process we are using on our code.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们正在 GPU 上使用 BFP16 运行这个实验，以展示处理 AMP 的细微差别。尽管 PyTorch 并未提供 BFP16-适用的操作在 GPU 上执行的功能，我们却没有收到任何关于此操作的警告。这是一个重要示例，说明了了解我们在代码中使用的过程细节是多么重要。
 - en: Okay, but how about FP16? Well, the training process running with AMP under
     Float16 took 486 seconds to complete 50 epochs, representing a *performance gain
     of 67%*. Due to the work done by the gradient scaler, the accuracy of the model
     was not affected by the usage of lower-precision formats. Indeed, the model that
     was trained on this scenario achieved the same 51% accuracy as the baseline code.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 好的，但是 FP16 呢？嗯，在 Float16 下运行的 AMP 训练过程完成了 50 个 epochs，耗时 486 秒，性能提升了 67%。由于梯度缩放器的工作，模型的准确性没有受到使用低精度格式的影响。事实上，这种场景下训练的模型与基线代码达到了相同的
+    51% 准确率。
 - en: We must keep in mind that such performance improvement is just an example of
     how AMP can accelerate the training process. We can achieve even more impressive
     results depending on the model, libraries, and devices used in the training process.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们必须牢记，这种性能提升只是 AMP 加速训练过程的一个示例。根据模型、库和设备在训练过程中的使用情况，我们可以获得更令人印象深刻的结果。
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节将提供几个问题，以帮助您巩固本章学到的内容。
 - en: Quiz time!
+  id: totrans-179
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     Initially, try to answer these questions without consulting the material.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答一些问题来回顾我们在本章学到的知识。首先，试着在不查阅材料的情况下回答这些问题。
 - en: Note
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md).
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些问题的答案都可以在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter07-answers.md)
+    找到。
 - en: Before starting the quiz, remember that this is not a test! This section aims
     to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始测验之前，请记住这不是一次测试！本节旨在通过复习和巩固本章内容来补充您的学习过程。
 - en: 'Choose the correct option for the following questions:'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择以下问题的正确选项：
 - en: Which of the following numeric formats represents integers by using only 8 bits?
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下哪种数值格式仅使用 8 位表示整数？
 - en: FP8.
+  id: totrans-186
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP8。
 - en: INT32.
+  id: totrans-187
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: INT32。
 - en: INT8.
+  id: totrans-188
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: INT8。
 - en: INTFB8.
+  id: totrans-189
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: INTFB8。
 - en: FP16 is a numeric representation that uses 16 bits to represent floating-point
     numbers. What is this numeric format also known as?
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP16 是一种使用 16 位表示浮点数的数值表示。这种数值格式也被称为什么？
 - en: Half-precision floating-point representation.
+  id: totrans-191
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 半精度浮点表示。
 - en: Single-precision floating-point representation.
+  id: totrans-192
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 单精度浮点表示。
 - en: Double-precision floating-point representation.
+  id: totrans-193
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 双精度浮点表示。
 - en: One quarter-precision floating-point representation.
+  id: totrans-194
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 四分之一精度浮点表示。
 - en: Which of the following is a numeric representation for floating-point numbers
     created by Google to attend to machine learning and artificial intelligence workloads?
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下哪种数值表示是由 Google 创建，用于处理机器学习和人工智能工作负载的？
 - en: GP16.
+  id: totrans-196
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: GP16。
 - en: GFP16.
+  id: totrans-197
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: GFP16。
 - en: FP16.
+  id: totrans-198
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP16。
 - en: BFP16.
+  id: totrans-199
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: BFP16。
 - en: NVIDIA created the TF32 data representation. Which of the following number of
     bits does it use to represent floating-point numbers?
+  id: totrans-200
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: NVIDIA 创建了 TF32 数据表示。以下哪种位数用于表示浮点数？
 - en: 32 bits.
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 32 位。
 - en: 19 bits.
+  id: totrans-202
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 19 位。
 - en: 16 bits.
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 16 位。
 - en: 20 bits.
+  id: totrans-204
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 20 位。
 - en: What is the default numeric representation that’s used by PyTorch to execute
     the operations for the training process?
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch 在执行训练过程的操作时使用的默认数值表示是什么？
 - en: FP32.
+  id: totrans-206
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP32。
 - en: FP8.
+  id: totrans-207
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP8。
 - en: FP64.
+  id: totrans-208
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: FP64。
 - en: INT32.
+  id: totrans-209
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: INT32。
 - en: What is the goal of the mixed precision approach?
+  id: totrans-210
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 混合精度方法的目标是什么？
 - en: Mixed precision tries to adopt lower-precision formats during the training process’
     execution.
+  id: totrans-211
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 混合精度试图在训练过程执行期间采用较低精度的格式。
 - en: Mixed precision tries to adopt higher-precision formats during the training
     process’ execution.
+  id: totrans-212
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 混合精度试图在训练过程执行期间采用较高精度的格式。
 - en: Mixed precision avoids the usage of lower-precision formats during the training
     process’ execution.
+  id: totrans-213
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 混合精度在训练过程执行期间避免了使用较低精度的格式。
 - en: Mixed precision avoids the usage of higher-precision formats during the training
     process’ execution.
+  id: totrans-214
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 混合精度在训练过程执行期间避免了使用更高精度的格式。
 - en: What are the main advantages of using an AMP approach rather than a manual implementation?
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用 AMP 方法而不是手动实现的主要优势是什么？
 - en: Simple usage and reduction of performance improvement.
+  id: totrans-216
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 简单使用和性能提升的减少。
 - en: Simple usage and reduction of power consumption.
+  id: totrans-217
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 简单使用和减少功耗。
 - en: Complex usage and avoidance of errors involving numeric representation.
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 复杂使用和避免涉及数值表示的错误。
 - en: Simple usage and avoidance of errors involving numeric representation.
+  id: totrans-219
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 简单使用和避免涉及数值表示的错误。
 - en: Besides the lack of lower-precision operations, which of the following options
     is another reason to not use a pure lower-precision approach in the training process?
+  id: totrans-220
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 除了缺少低精度操作外，以下哪个选项是不使用纯低精度方法进行训练过程的另一个原因？
 - en: Low performance improvement.
+  id: totrans-221
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 低性能提升。
 - en: High energy consumption.
+  id: totrans-222
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 高能耗。
 - en: Loss of information on the gradient.
+  id: totrans-223
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 梯度信息的丢失。
 - en: High usage of main memory.
+  id: totrans-224
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 高使用主存储器。
 - en: Summary
+  id: totrans-225
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: In this chapter, you learned that adopting a mixed-precision approach can accelerate
     the training process of our models.
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，您学习到采用混合精度方法可以加速我们模型的训练过程。
 - en: Although it is possible to implement the mixed precision strategy by hand, it
     is preferable to rely on the AMP solution provided by PyTorch since it is an elegant
     and seamless process that’s designed to avoid the occurrence of errors involving
     numeric representation. When this kind of error occurs, they are very hard to
     identify and solve.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管可以手动实现混合精度策略，但最好依赖于 PyTorch 提供的 AMP 解决方案，因为这是一个优雅且无缝的过程，旨在避免涉及数值表示的错误发生。当出现此类错误时，它们非常难以识别和解决。
 - en: Implementing AMP on PyTorch requires adding a few extra lines to the original
     code. Essentially, we must wrap the training loop with the AMP engine, enable
     four flags related to backend libraries, and instantiate a gradient scaler.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 PyTorch 上实施 AMP 需要在原始代码中添加几行额外的代码。基本上，我们必须将训练循环包装在 AMP 引擎中，启用与后端库相关的四个标志，并实例化梯度放大器。
 - en: Depending on the GPU architecture, library version, and the model itself, we
     can significantly improve the performance of the training process.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据 GPU 架构、库版本和模型本身，我们可以显著改善训练过程的性能。
 - en: This chapter closes the second part of this book. Next, in the third and last
     part, we will learn how to spread the training process among multiple GPUs and
     machines.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章结束了本书的第二部分。接下来，在第三部分中，我们将学习如何将训练过程分布在多个 GPU 和机器上。
