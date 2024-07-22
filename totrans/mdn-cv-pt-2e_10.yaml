@@ -1,11 +1,15 @@
 - en: '8'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '8'
 - en: Advanced Object Detection
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 高级目标检测
 - en: In the previous chapter, we learned about the R-CNN and Fast R-CNN techniques,
     which leverage region proposals to generate predictions of the locations of objects
     in an image along with the classes corresponding to objects in the image. Furthermore,
@@ -17,62 +21,91 @@
     class of the object and the bounding box in a single shot. We will start by learning
     about anchor boxes and then proceed to learn how each of the techniques works
     and how to implement them to detect objects in an image.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章节中，我们学习了 R-CNN 和 Fast R-CNN 技术，它们利用区域建议生成图像中对象位置的预测以及图像中对象对应的类别。此外，我们还了解到推断速度的瓶颈在于具有用于区域建议生成和对象检测的两种不同模型。在本章中，我们将学习不同的现代技术，如
+    Faster R-CNN、YOLO 和**单次检测器**（**SSD**），它们通过使用单一模型来为对象的类别和边界框进行预测，从而克服了慢推断时间的问题。我们将首先学习关于锚框的内容，然后继续学习每种技术的工作原理以及如何实现它们来检测图像中的对象。
 - en: 'We will cover the following topics in this chapter:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在本章节中讨论以下主题：
 - en: Components of modern object detection algorithms
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 现代目标检测算法的组成部分
 - en: Training Faster R-CNN on a custom dataset
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练 Faster R-CNN
 - en: Working details of YOLO
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: YOLO 的工作细节
 - en: Training YOLO on a custom dataset
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练 YOLO
 - en: Working details of SSD
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: SSD 的工作细节
 - en: Training SSD on a custom dataset
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练 SSD
 - en: 'In addition to the above, as a bonus, we have covered the following in the
     GitHub repository:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了上述内容外，作为额外的奖励，我们在 GitHub 仓库中还涵盖了以下内容：
 - en: Training YOLOv8
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练 YOLOv8
 - en: Training the EfficientDet architecture
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练 EfficientDet 架构
 - en: All code snippets within this chapter are available in the `Chapter08` folder
     of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-13
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 本章中的所有代码片段均可在 GitHub 仓库的 `Chapter08` 文件夹中找到：[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: As the field evolves, we will periodically add valuable supplements to the GitHub
     repository. Do check the `supplementary_sections` folder within each chapter’s
     directory for new and useful content.
+  id: totrans-14
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 随着领域的发展，我们将定期在 GitHub 仓库中添加有价值的补充内容。请查看每章节目录中的 `supplementary_sections` 文件夹获取新的和有用的内容。
 - en: Components of modern object detection algorithms
+  id: totrans-15
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 现代目标检测算法的组成部分
 - en: 'The drawback of the R-CNN and Fast R-CNN techniques is that they have two disjointed
     networks – one to identify the regions that likely contain an object and the other
     to make corrections to the bounding box where an object is identified. Furthermore,
@@ -80,33 +113,48 @@
     Modern object detection algorithms focus heavily on training a single neural network
     and have the capability to detect all objects in one forward pass. The various
     components of a typical modern object detection algorithm are:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: R-CNN 和 Fast R-CNN 技术的缺点在于它们有两个不相交的网络——一个用于识别可能包含对象的区域，另一个用于在识别到对象的地方对边界框进行修正。此外，这两个模型都需要与区域建议一样多的前向传播。现代目标检测算法主要集中在训练单个神经网络上，并且具备在一次前向传递中检测所有对象的能力。典型现代目标检测算法的各个组成部分包括：
 - en: Anchor boxes
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 锚框
 - en: Region proposal network (RPN)
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 区域建议网络（RPN）
 - en: Region of interest (RoI) pooling
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 区域兴趣（RoI）池化
 - en: Let’s discuss these in the following subsections (we’ll be focusing on anchor
     boxes and RPN as we discussed RoI pooling in the previous chapter).
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们在以下小节中讨论这些（我们将专注于锚框和 RPN，因为我们在前一章节中已经讨论了 RoI 池化）。
 - en: Anchor boxes
+  id: totrans-21
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 锚框
 - en: So far, we have had region proposals coming from the `selectivesearch` method.
     Anchor boxes come in as a handy replacement for selective search – we will learn
     how they replace `selectivesearch`-based region proposals in this section.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们使用了来自 `selectivesearch` 方法的区域建议。锚框作为 `selectivesearch` 的便捷替代品将在本节中学习它们如何替代基于
+    `selectivesearch` 的区域建议。
 - en: Typically, a majority of objects have a similar shape – for example, in a majority
     of cases, a bounding box corresponding to an image of a person will have a greater
     height than width, and a bounding box corresponding to the image of a truck will
@@ -114,111 +162,154 @@
     and width of the objects present in an image even before training the model (by
     inspecting the ground truths of bounding boxes corresponding to objects of various
     classes).
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，大多数对象具有类似的形状 - 例如，在大多数情况下，与人的图像对应的边界框将具有比宽度大的更大的高度，而与卡车图像对应的边界框将具有比高度大的更大的宽度。因此，我们在训练模型之前（通过检查与各种类别对象对应的边界框的真实值）将会对图像中存在的对象的高度和宽度有一个合理的了解。
 - en: Furthermore, in some images, the objects of interest might be scaled – resulting
     in a much smaller or much greater height and width than average – while still
     maintaining the aspect ratio (that is, height/weight).
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在某些图像中，感兴趣的对象可能会缩放 - 导致高度和宽度比平均值更小或更大 - 同时保持纵横比（即高度/宽度）。
 - en: Once we have a decent idea of the aspect ratio and the height and width of objects
     (which can be obtained from ground-truth values in the dataset) present in our
     images, we define the anchor boxes with heights and widths representing the majority
     of objects’ bounding boxes within our dataset. Typically, this is obtained by
     employing K-means clustering on top of the ground-truth bounding boxes of objects
     present in images.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们对图像中存在的对象的纵横比、高度和宽度有一个合理的了解（可以从数据集中的真实值获得），我们就会定义具有高度和宽度的锚框，这些锚框表示数据集中大多数对象的边界框。通常，这是通过在图像中存在的对象的地面真实边界框上使用K均值聚类来获得的。
 - en: 'Now that we understand how anchor boxes’ heights and widths are obtained, we
     will learn how to leverage them in the process:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了如何获取锚框的高度和宽度，我们将学习如何在流程中利用它们：
 - en: Slide each anchor box over an image from top left to bottom right.
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将每个锚框从图像的左上角滑动到右下角。
 - en: The anchor box that has a high **intersection over union** (**IoU**) with the
     object will have a label that mentions that it contains an object, and the others
     will be labeled `0`.
+  id: totrans-28
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 具有与对象高度重叠联合（**IoU**）的高的锚框将标记为包含对象，并且其他将标记为`0`。
 - en: We can modify the threshold of the IoU by mentioning that if the IoU is greater
     than a certain threshold, the object class is `1`; if it is less than another
     threshold, the object class is `0`, and it is unknown otherwise.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过提到IoU的阈值来修改IoU的阈值，如果IoU大于某个阈值，则对象类别为`1`；如果小于另一个阈值，则对象类别为`0`，否则未知。
 - en: 'Once we obtain the ground truths as defined here, we can build a model that
     can predict the location of an object and also the offset corresponding to the
     anchor box to match it with the ground truth. Let’s now understand how anchor
     boxes are represented in the following image:'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们按照这里定义的真实值获得了地面真实值，我们可以构建一个模型，该模型可以预测对象的位置，并预测与锚框相匹配的偏移量以与地面真实值匹配。现在让我们了解如何在以下图像中表示锚框：
 - en: '![](img/B18457_08_01.png)'
+  id: totrans-31
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_01.png)'
 - en: 'Figure 8.1: Sample anchor boxes'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.1：示例锚框
 - en: In the preceding image, we have two anchor boxes, one that has a greater height
     than width and the other with a greater width than height, to correspond to the
     objects (classes) in the image – a person and a car.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一张图片中，我们有两种锚框，一种高度大于宽度，另一种宽度大于高度，以对应图像中的对象（类别） - 一个人和一辆车。
 - en: We slide the two anchor boxes over the image and note the locations where the
     IoU of the anchor box with the ground truth is the highest and denote that this
     particular location contains an object while the rest of the locations do not
     contain an object.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将这两个锚框滑动到图像上，并注意IoU与真实标签的位置最高的地方，并指出该特定位置包含对象，而其余位置则不包含对象。
 - en: 'In addition to the preceding two anchor boxes, we would also create anchor
     boxes with varying scales so that we accommodate the differing scales at which
     an object can be presented within an image. An example of how the different scales
     of anchor boxes is as follows. Note that all the anchor boxes have the same center
     but different aspect ratios or scales:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了上述两种锚框外，我们还会创建具有不同尺度的锚框，以便适应图像中对象可能呈现的不同尺度。以下是不同尺度锚框的示例。请注意，所有锚框都具有相同的中心点，但具有不同的长宽比或尺度：
 - en: '![](img/B18457_08_02.png)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_02.png)'
 - en: 'Figure 8.2: Anchor boxes with different scale and aspect ratios'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.2：具有不同尺度和长宽比的锚框
 - en: Now that we understand anchor boxes, in the next section, we will learn about
     the RPN, which leverages anchor boxes to come up with predictions of regions that
     are likely to contain an object.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了锚框，接下来的部分中，我们将学习关于RPN的知识，RPN利用锚框来预测可能包含对象的区域。
 - en: Region proposal network
+  id: totrans-39
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 区域提议网络
 - en: Imagine a scenario where we have a 224 x 224 x 3 image. Furthermore, let’s say
     that the anchor box is of shape 8 x 8 for this example. If we have a stride of
     8 pixels, we are fetching 224/8 = 28 crops of a picture for every row – essentially
     28*28 = 576 crops from a picture. We then take each of these crops and pass them
     through an RPN that indicates whether the crop contains an object. Essentially,
     an RPN suggests the likelihood of a crop containing an object.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个场景，我们有一个 224 x 224 x 3 的图像。进一步假设这个例子中锚框的形状是 8 x 8。如果我们有一个步幅为 8 像素，那么我们每一行可以从图像中获取
+    224/8 = 28 个裁剪图像 —— 实际上从一张图像中总共可以获取 28*28 = 576 个裁剪图像。然后，我们将每一个裁剪图像通过RPN传递，该网络指示裁剪图像中是否包含对象。基本上，RPN提供了裁剪图像包含对象的可能性。
 - en: Let’s compare the output of `selectivesearch` and the output of an RPN.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们比较`selectivesearch`的输出和RPN的输出。
 - en: '`selectivesearch` gives us a region candidate based on a set of computations
     on top of pixel values. However, an RPN generates region candidates based on the
     anchor boxes and the strides with which anchor boxes are slid over the image.
     Once we obtain the region candidates using either of these two methods, we identify
     the candidates that are most likely to contain an object.'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '`selectivesearch` 根据像素值进行一组计算，为我们提供了一个区域候选。然而，RPN根据锚框和锚框滑过图像的步幅生成区域候选。我们使用这两种方法之一获取区域候选后，会识别最有可能包含对象的候选者。'
 - en: While region proposal generation based on `selectivesearch` is done outside
     of the neural network, we can build an RPN that is a part of the object detection
     network. Using an RPN, we are now in a position where we don’t have to perform
     unnecessary computations to calculate region proposals outside of the network.
     This way, we have a single model to identify regions, identify classes of objects
     in an image, and identify their corresponding bounding box locations.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然基于`selectivesearch`的区域提议生成是在神经网络之外完成的，但我们可以构建一个作为对象检测网络一部分的RPN。通过使用RPN，我们现在无需在网络之外执行不必要的计算来计算区域提议。这样，我们只需要一个单一模型来识别区域、图像中对象的类别以及它们对应的边界框位置。
 - en: Next, we will learn how an RPN identifies whether a region candidate (a crop
     obtained after sliding an anchor box) contains an object or not. In our training
     data, we would have the ground truth correspond to objects. We now take each region
@@ -229,387 +320,568 @@
     the IoU is less than a threshold (say, `0.1`), the region candidate does not contain
     an object and all the candidates that have an IoU between the two thresholds (`0.1`
     and `0.5`) are ignored while training.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将学习RPN如何确定一个区域候选（在滑动锚框后获得的裁剪图像）是否包含对象。在我们的训练数据中，我们会有与对象对应的真实边界框。现在，我们将每个区域候选与图像中对象的真实边界框进行比较，以确定区域候选与真实边界框之间的IoU是否大于某个阈值。如果IoU大于某个阈值（比如`0.5`），则区域候选包含对象；如果IoU小于某个阈值（比如`0.1`），则区域候选不包含对象，并且在训练过程中将忽略所有IoU介于两个阈值之间（`0.1`和`0.5`）的候选者。
 - en: Once we train a model to predict if the region candidate contains an object,
     we then perform non-max suppression, as multiple overlapping regions can contain
     an object.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们训练一个模型来预测区域候选是否包含对象，我们接着执行非极大值抑制，因为多个重叠的区域可能包含对象。
 - en: 'In summary, an RPN trains a model to enable it to identify region proposals
     with a high likelihood of containing an object by performing the following steps:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结一下，RPN通过以下步骤训练模型，使其能够识别高概率包含对象的区域提议：
 - en: Slide anchor boxes of different aspect ratios and sizes across the image to
     fetch crops of an image.
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 滑动不同长宽比和尺寸的锚框穿过图像，获取图像的裁剪图像。
 - en: Calculate the IoU between the ground-truth bounding boxes of objects in the
     image and the crops obtained in the previous step.
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算图像中对象的真实边界框与前一步中获得的裁剪图像之间的IoU。
 - en: Prepare the training dataset in such a way that crops with an IoU greater than
     a threshold contain an object and crops with an IoU less than a threshold do not
     contain an object.
+  id: totrans-49
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 准备训练数据集，使得IoU大于阈值的裁剪区域包含对象，而IoU小于阈值的裁剪区域不包含对象。
 - en: Train the model to identify regions that contain an object.
+  id: totrans-50
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型以识别包含对象的区域。
 - en: Perform non-max suppression to identify the region candidate that has the highest
     probability of containing an object and eliminate other region candidates that
     have a high overlap with it.
+  id: totrans-51
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行非最大抑制以识别概率最高的包含对象的区域候选项，并消除与其高度重叠的其他区域候选项。
 - en: We now pass the region candidates through an RoI pooling layer to get regions
     of the shape.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们通过一个RoI池化层将区域候选项传递，以获得形状的区域。
 - en: Classification and regression
+  id: totrans-53
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 分类和回归
 - en: 'So far, we have learned about the following steps in order to identify objects
     and perform offsets to bounding boxes:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了以下步骤，以便识别对象并执行边界框的偏移量：
 - en: Identify the regions that contain objects.
+  id: totrans-55
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 识别包含对象的区域。
 - en: Ensure that all the feature maps of regions, irrespective of the regions’ shape,
     are exactly the same using RoI pooling (which we learned about in the previous
     chapter).
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用RoI池化确保所有区域的特征图，无论区域的形状如何，都完全相同（我们在前一章学习过这一点）。
 - en: 'Two issues with these steps are as follows:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些步骤存在两个问题如下：
 - en: The region proposals do not correspond tightly over the object (`IoU>0.5` is
     the threshold we had in the RPN).
+  id: totrans-58
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 区域提议与物体的重叠不密切（在RPN中我们设定了`IoU>0.5`的阈值）。
 - en: We identified whether the region contains an object or not, but not the class
     of the object located in the region.
+  id: totrans-59
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们已经确定了区域是否包含对象，但没有确定区域中对象的类别。
 - en: We address these two issues in this section, where we take the uniformly shaped
     feature map obtained previously and pass it through a network. We expect the network
     to predict the class of the object contained within the region and also the offsets
     corresponding to the region to ensure that the bounding box is as tight as possible
     around the object in the image.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在本节中解决了这两个问题，我们将先前获得的均匀形状的特征图传递到网络中。我们期望网络能够预测区域内包含的对象的类别，并且预测区域的偏移量，以确保边界框尽可能紧密地围绕图像中的对象。
 - en: 'Let’s understand this through the following diagram:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下图表来理解这一点：
 - en: '![](img/B18457_08_03.png)'
+  id: totrans-62
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_03.png)'
 - en: 'Figure 8.3: Predicting the class of object and the offset to be done to the
     predicted bounding box'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.3：预测对象类别和预测边界框要进行的偏移量
 - en: 'In the preceding diagram, we are taking the output of RoI pooling as input
     (the 7 x 7 x 512 shape), flattening it, and connecting it to a dense layer before
     predicting two different aspects:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的图表中，我们将RoI池化的输出作为输入（形状为7 x 7 x 512），将其展平，并将其连接到一个密集层，然后预测两个不同的方面：
 - en: Class of object in the region
+  id: totrans-65
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 区域中的对象类别
 - en: Amount of offset to be done on the predicted bounding boxes of the region to
     maximize the IoU with the ground truth
+  id: totrans-66
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 预测边界框的偏移量的数量，以最大化与地面实况的IoU
 - en: Hence, if there are 20 classes in the data, the output of the neural network
     contains a total of 25 outputs – 21 classes (including the background class) and
     the 4 offsets to be applied to the height, width, and two center coordinates of
     the bounding box.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，如果数据中有20个类别，则神经网络的输出总共包含25个输出 – 21个类别（包括背景类别）和用于边界框高度、宽度以及两个中心坐标的4个偏移量。
 - en: 'Now that we have learned about the different components of an object detection
     pipeline, let’s summarize it with the following diagram:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了目标检测流水线的不同组成部分，让我们通过以下图表进行总结：
 - en: '![](img/B18457_08_04.png)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_04.png)'
 - en: 'Figure 8.4: Faster R-CNN workflow'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.4：Faster R-CNN工作流程
 - en: More details about Faster R-CNN can be found in the paper here – [https://arxiv.org/pdf/1506.01497.pdf](https://arxiv.org/pdf/1506.01497.pdf).
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 更多关于Faster R-CNN的细节可以在这篇论文中找到 – [https://arxiv.org/pdf/1506.01497.pdf](https://arxiv.org/pdf/1506.01497.pdf)。
 - en: With the working details of each of the components of Faster R-CNN in place,
     in the next section, we will code up object detection using the Faster R-CNN algorithm.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在Faster R-CNN的每个组件的工作细节都已经就位后，在下一节中，我们将编写使用Faster R-CNN算法进行目标检测的代码。
 - en: Training Faster R-CNN on a custom dataset
+  id: totrans-73
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练Faster R-CNN
 - en: 'In the following code, we will train the Faster R-CNN algorithm to detect the
     bounding boxes around objects present in images. For this, we will work on the
     same truck versus bus detection exercise from the previous chapter:'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 在以下代码中，我们将训练 Faster R-CNN 算法来检测图像中物体周围的边界框。为此，我们将继续上一章节中的相同卡车与公共汽车检测练习：
 - en: Find the following code in the `Training_Faster_RCNN.ipynb` file in the `Chapter08`
     folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 GitHub 的 `Chapter08` 文件夹中的 `Training_Faster_RCNN.ipynb` 文件中找到以下代码：[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Download the dataset:'
+  id: totrans-76
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集：
 - en: '[PRE0]'
+  id: totrans-77
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Read the DataFrame containing metadata of information about images and their
     bounding box, and classes:'
+  id: totrans-78
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 读取包含图像及其边界框和类信息的元数据的 DataFrame：
 - en: '[PRE1]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Define the indices corresponding to labels and targets:'
+  id: totrans-80
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义与标签和目标对应的索引：
 - en: '[PRE2]'
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Define the function to preprocess an image – `preprocess_image`:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义用于预处理图像的函数 – `preprocess_image`：
 - en: '[PRE3]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Define the dataset class – `OpenDataset`:'
+  id: totrans-84
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义数据集类 – `OpenDataset`：
 - en: 'Define an `__init__` method that takes the folder containing images and the
     DataFrame containing the metadata of the images as inputs:'
+  id: totrans-85
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个 `__init__` 方法，该方法接受包含图像的文件夹和包含图像元数据的 DataFrame 作为输入：
 - en: '[PRE4]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Define the `__getitem__` method, where we return the preprocessed image and
     the target values:'
+  id: totrans-87
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `__getitem__` 方法，在此方法中我们返回预处理的图像和目标值：
 - en: '[PRE5]'
+  id: totrans-88
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: Note that, for the first time, we are returning the output as a dictionary of
     tensors and not as a list of tensors. This is because the official PyTorch implementation
     of the `FRCNN` class expects the target to contain the absolute coordinates of
     bounding boxes and the label information.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这是我们第一次将输出作为张量字典而不是张量列表返回。这是因为 `FRCNN` 类的官方 PyTorch 实现期望目标包含边界框的绝对坐标和标签信息。
 - en: 'Define the `collate_fn` method (by default, `collate_fn` works only with tensors
     as inputs, but here, we are dealing with a list of dictionaries) and the `__len__`
     method:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `collate_fn` 方法（默认情况下，`collate_fn` 仅适用于张量作为输入，但在这里，我们处理的是字典列表）和 `__len__`
+    方法：
 - en: '[PRE6]'
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Create the training and validation dataloaders and datasets:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练和验证数据加载器及数据集：
 - en: '[PRE7]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Define the model:'
+  id: totrans-94
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型：
 - en: '[PRE8]'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'The model contains the following key submodules:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 模型包含以下关键子模块：
 - en: '![](img/B18457_08_05.png)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_05.png)'
 - en: 'Figure 8.5: Faster R-CNN architecture'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.5：Faster R-CNN 架构
 - en: 'In the preceding output, we notice the following elements:'
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述输出中，我们注意到以下元素：
 - en: '`GeneralizedRCNNTransform` is a simple resize followed by a normalize transformation:'
+  id: totrans-100
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`GeneralizedRCNNTransform` 是一个简单的调整大小后跟随标准化变换：'
 - en: '![](img/B18457_08_06.png)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_06.png)'
 - en: 'Figure 8.6: Transformation on input'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.6：输入上的转换
 - en: '`BackboneWithFPN` is a neural network that transforms input into a feature
     map.'
+  id: totrans-103
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`BackboneWithFPN` 是将输入转换为特征映射的神经网络。'
 - en: '`RegionProposalNetwork` generates the anchor boxes for the preceding feature
     map and predicts individual feature maps for classification and regression tasks:'
+  id: totrans-104
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`RegionProposalNetwork` 生成前述特征映射的锚框，并预测分类和回归任务的单独特征映射：'
 - en: '![](img/B18457_08_07.png)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_07.png)'
 - en: 'Figure 8.7: RPN architecture'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.7：RPN 架构
 - en: '`RoIHeads` takes the preceding maps, aligns them using ROI pooling, processes
     them, and returns classification probabilities for each proposal and the corresponding
     offsets:'
+  id: totrans-107
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`RoIHeads` 使用前述的映射，通过 ROI 池化对齐它们，处理它们，并为每个提议返回分类概率和相应的偏移量：'
 - en: '![](img/B18457_08_08.png)'
+  id: totrans-108
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_08.png)'
 - en: 'Figure 8.8: The roi_heads architecture'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.8：roi_heads 架构
 - en: 'Define functions to train on batches of data and calculate loss values on the
     validation data:'
+  id: totrans-110
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义在数据批次上训练并计算验证数据上的损失值的函数：
 - en: '[PRE9]'
+  id: totrans-111
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Train the model over increasing epochs:'
+  id: totrans-112
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加的时期训练模型：
 - en: 'Define the model:'
+  id: totrans-113
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型：
 - en: '[PRE10]'
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Train the model and calculate the loss values on the training and test datasets:'
+  id: totrans-115
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型并计算训练和测试数据集上的损失值：
 - en: '[PRE11]'
+  id: totrans-116
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Plot the variation of the various loss values over increasing epochs:'
+  id: totrans-117
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制各种损失值随时间增加的变化：
 - en: '[PRE12]'
+  id: totrans-118
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'This results in the following output:'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 这导致以下输出：
 - en: '![](img/B18457_08_09.png)'
+  id: totrans-120
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_09.png)'
 - en: 'Figure 8.9: Training and validation loss over increasing epochs'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.9：随着时期增加，训练和验证损失值
 - en: 'Predict on a new image:'
+  id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在新图像上进行预测：
 - en: 'The output of the trained model contains boxes, labels, and scores corresponding
     to classes. In the following code, we define a `decode_output` function that takes
     the model’s output and provides the list of boxes, scores, and classes after non-max
     suppression:'
+  id: totrans-123
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型的输出包含与类别对应的盒子、标签和分数。在下面的代码中，我们定义了一个`decode_output`函数，它接受模型的输出并在非极大值抑制后提供盒子、分数和类别的列表：
 - en: '[PRE13]'
+  id: totrans-124
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Fetch the predictions of the boxes and classes on test images:'
+  id: totrans-125
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取测试图像上的盒子和类别的预测结果：
 - en: '[PRE14]'
+  id: totrans-126
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'The preceding code provides the following output:'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码提供了以下输出：
 - en: '![](img/B18457_08_10.png)'
+  id: totrans-128
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_10.png)'
 - en: 'Figure 8.10: Predicted bounding boxes and classes'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.10：预测的边界框和类别
 - en: Note that it now takes ~400 ms to generate predictions for one image, compared
     to 1.5 seconds with Fast R-CNN.
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，现在生成一张图像的预测需要约400毫秒，而Fast R-CNN需要1.5秒。
 - en: In this section, we have trained a Faster R-CNN model using the `fasterrcnn_resnet50_fpn`
     model class provided in the PyTorch `models` package. In the next section, we
     will learn about YOLO, a modern object detection algorithm that performs both
     object class detection and region correction in a single shot without the need
     to have a separate RPN.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们使用PyTorch `models`包中提供的`fasterrcnn_resnet50_fpn`模型类训练了一个Faster R-CNN模型。在接下来的部分中，我们将了解YOLO，这是一种现代目标检测算法，它可以在一个步骤中执行目标类别检测和区域校正，无需单独的RPN。
 - en: Working details of YOLO
+  id: totrans-132
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: YOLO的工作细节
 - en: '**You Only Look Once** (**YOLO**) and its variants are one of the prominent
     object detection algorithms. In this section, we will understand at a high level
     how YOLO works and the potential limitations of R-CNN-based object detection frameworks
     that YOLO overcomes.'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: '**You Only Look Once** (**YOLO**)及其变体是显著的目标检测算法之一。在本节中，我们将高层次地了解YOLO的工作原理及其在克服基于R-CNN的目标检测框架的潜在限制方面的作用。'
 - en: 'First, let’s understand the possible limitations of R-CNN-based detection algorithms.
     In Faster R-CNN, we slide over the image using anchor boxes and identify regions
     likely to contain an object, and then make the bounding box corrections. However,
@@ -622,336 +894,493 @@
     corresponding to an image. Furthermore, Faster R-CNN is still slow, as we have
     two networks: the RPN and the final network that predicts classes and bounding
     boxes around objects.'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，让我们了解基于R-CNN的检测算法可能存在的限制。在Faster R-CNN中，我们使用锚框在图像上滑动并识别可能包含对象的区域，然后进行边界框修正。然而，在全连接层中，仅传递检测到的区域的RoI池化输出作为输入，在区域建议的边界框不能完全包含对象的情况下（对象超出了区域建议的边界框的边界），网络必须猜测对象的真实边界，因为它仅看到了部分图像（而不是整个图像）。在这种情况下，YOLO非常有用，因为它在预测图像对应的边界框时会查看整个图像。此外，Faster
+    R-CNN仍然较慢，因为我们有两个网络：RPN和最终预测围绕对象的类别和边界框的网络。
 - en: Let’s understand how YOLO overcomes the limitations of Faster R-CNN, both by
     looking at the whole image at once as well as by having a single network to make
     predictions. We will look at how data is prepared for YOLO through the following
     example.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们了解YOLO如何在整个图像一次性地检测以及使用单一网络进行预测的同时，克服Faster R-CNN的限制。我们将通过以下示例了解为YOLO准备数据。
 - en: 'First, we create a ground truth to train a model for a given image:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们为给定的图像创建一个地面真实值来训练模型：
 - en: 'Let’s consider an image with the given ground truth of bounding boxes in red:'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们考虑一张具有红色边界框的给定地面真实值图像：
 - en: '![](img/B18457_08_11.png)'
+  id: totrans-138
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_11.png)'
 - en: 'Figure 8.11: Input image with ground-truth bounding boxes'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.11：具有地面真实边界框的输入图像
 - en: 'Divide the image into *N* x *N* grid cells – for now, let’s say *N*=3:'
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像划分为*N* x *N*的网格单元格 – 暂时假定*N*=3：
 - en: '![](img/B18457_08_12.png)'
+  id: totrans-141
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_12.png)'
 - en: 'Figure 8.12: Dividing the input image into a 3 x 3 grid'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.12：将输入图像分成一个3 x 3的网格
 - en: Identify those grid cells that contain the center of at least one ground-truth
     bounding box. In our case, they are cells **b1** and **b3** of our 3 x 3 grid
     image.
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 识别包含至少一个地面真实边界框中心的网格单元格。在我们的3 x 3网格图像中，它们是单元格**b1**和**b3**。
 - en: The cell(s) where the middle point of the ground-truth bounding box falls is/are
     responsible for predicting the bounding box of the object. Let’s create the ground
     truth corresponding to each cell.
+  id: totrans-144
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 包围框中心点落在的单元格（或单元格）负责预测对象的边界框。让我们为每个单元格创建相应的真实值。
 - en: 'The output ground truth corresponding to each cell is as follows:'
+  id: totrans-145
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 每个单元格的输出真实值如下所示：
 - en: '![](img/B18457_08_13.png)'
+  id: totrans-146
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_13.png)'
 - en: 'Figure 8.13: Ground truth representation'
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.13：真实值表示
 - en: Here, **pc** (the objectness score) is the probability of the cell containing
     an object.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，**pc**（对象存在分数）是网格单元格包含对象的概率。
 - en: Let’s understand how to calculate **bx**, **by**, **bw**, and **bh**. First,
     we consider the grid cell (let’s consider the **b1** grid cell) as our universe,
     and normalize it to a scale between 0 and 1, as follows:![](img/B18457_08_14.png)
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们了解如何计算**bx**、**by**、**bw**和**bh**。首先，我们将网格单元格（假设我们考虑**b1**网格单元格）作为我们的宇宙，并将其归一化到0到1的比例，如下所示:![](img/B18457_08_14.png)
 - en: 'Figure 8.14: Step 1 of calculating bx, by, bw, and bh for each ground truth'
+  id: totrans-150
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 8.14：计算每个真实值的bx、by、bw和bh的步骤1
 - en: '**bx** and **by** are the locations of the midpoint of the ground-truth bounding
     box with respect to the image (of the grid cell), as defined previously. In our
     case, **bx** = 0.5, as the midpoint of the ground truth is at a distance of 0.5
     units from the origin. Similarly, **by** = 0.5:'
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: '**bx**和**by**是边界框中心相对于图像（网格单元格）的位置，如前所述定义。在我们的案例中，**bx** = 0.5，因为边界框的中心点距离原点0.5个单位。同样地，**by**
+    = 0.5：'
 - en: '![](img/B18457_08_15.png)'
+  id: totrans-152
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_15.png)'
 - en: 'Figure 8.15: Calculating bx and by'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.15：计算bx和by
 - en: 'So far, we have calculated offsets from the grid cell center to the ground
     truth center corresponding to the object in the image. Now, let’s understand how
     **bw** and **bh** are calculated:'
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经计算了从图像中对象的网格单元格中心到真实中心的偏移量。现在让我们了解如何计算**bw**和**bh**：
 - en: '**bw** is the ratio of the width of the bounding box with respect to the width
     of the grid cell.'
+  id: totrans-155
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**bw**是边界框相对于网格单元格宽度的比率。'
 - en: '**bh** is the ratio of the height of the bounding box with respect to the height
     of the grid cell.'
+  id: totrans-156
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**bh**是边界框相对于网格单元格高度的比率。'
 - en: Next, we will predict the class corresponding to the grid cell. If we have three
     classes (`c1` – `truck`, `c2` – `car`, and `c3` – `bus`), we will predict the
     probability of the cell containing an object among any of the three classes. Note
     that we do not need a background class here, as **pc** corresponds to whether
     the grid cell contains an object.
+  id: totrans-157
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们将预测与网格单元格对应的类别。如果我们有三个类别（`c1` – `truck`，`c2` – `car`和`c3` – `bus`），我们将预测网格单元格包含任何类别的对象的概率。请注意，这里我们不需要背景类别，因为**pc**对应于网格单元格是否包含对象。
 - en: 'Now that we understand how to represent the output layer of each cell, let’s
     understand how we construct the output of our 3 x 3 grid cells:'
+  id: totrans-158
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们了解了如何表示每个单元格的输出层之后，让我们了解如何构建我们的3 x 3网格单元的输出：
 - en: Let’s consider the output of the grid cell **a3**:![](img/B18457_08_16.png)
+  id: totrans-159
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们考虑网格单元格**a3**的输出:![](img/B18457_08_16.png)
 - en: 'Figure 8.16: Calculating the ground truth corresponding to cell a3'
+  id: totrans-160
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 8.16：计算与单元格a3对应的真实值
 - en: The output of cell **a3** is as shown in the preceding screenshot. As the grid
     cell does not contain an object, the first output (**pc** – objectness score)
     is `0` and the remaining values do not matter as the cell does not contain the
     center of any ground-truth bounding boxes of an object.
+  id: totrans-161
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 单元格**a3**的输出如前所示的截图。由于网格单元格不包含对象，第一个输出（**pc** – 对象存在分数）为`0`，其余值由于单元格不包含任何对象的中心而无关紧要。
 - en: Let’s consider the output corresponding to grid cell **b1**:![](img/B18457_08_17.png)
+  id: totrans-162
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们考虑与网格单元格**b1**对应的输出:![](img/B18457_08_17.png)
 - en: 'Figure 8.17: Ground truth values corresponding to cell b1'
+  id: totrans-163
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 图 8.17：与单元格b1对应的真实值
 - en: The preceding output is the way it is because the grid cell contains an object
     with the **bx**, **by**, **bw**, and **bh** values that were obtained in the same
     way as we went through earlier (in the bullet point before last), and finally,
     the class being `car` resulting in c2 being `1` while c1 and c3 are `0`.
+  id: totrans-164
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 之前的输出是因为网格单元格中包含有对象的**bx**、**by**、**bw**和**bh**值，这些值的获取方式与之前所述相同，最终类别为`car`，导致c2为`1`，而c1和c3为`0`。
 - en: Note that for each cell, we are able to fetch 8 outputs. Hence, for the 3 x
     3 grid of cells, we fetch 3 x 3 x 8 outputs.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，对于每个单元格，我们能够获取8个输出。因此，对于3 x 3网格单元，我们获取3 x 3 x 8个输出。
 - en: 'Let’s look at the next steps:'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看接下来的步骤：
 - en: 'Define a model where the input is an image and the output is 3 x 3 x 8 with
     the ground truth being as defined in the previous step:'
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个模型，其输入是图像，输出为3 x 3 x 8，并且根据前一步骤定义的真实值：
 - en: '![](img/B18457_08_18.png)'
+  id: totrans-168
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_18.png)'
 - en: 'Figure 8.18: Sample model architecture'
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.18：示例模型架构
 - en: Define the ground truth by considering the anchor boxes.
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过考虑锚框来定义真实值。
 - en: 'So far, we have been building for a scenario where the expectation is that
     there is only one object within a grid cell. However, in reality, there can be
     scenarios where there are multiple objects within the same grid cell. This would
     result in creating ground truths that are incorrect. Let’s understand this phenomenon
     through the following example image:'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们一直在为预期只有一个物体存在于网格单元格内的情景进行构建。然而，在现实中，可能存在一个网格单元格内有多个物体的情况。这会导致创建不正确的真实值。让我们通过以下示例图像来理解这一现象：
 - en: '![](img/B18457_08_19.png)'
+  id: totrans-172
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_19.png)'
 - en: 'Figure 8.19: Scenario where there can be multiple objects in the same grid
     cell'
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.19：同一个网格单元格中可能存在多个物体的情景
 - en: In the preceding example, the midpoint of the ground-truth bounding boxes for
     both the car and the person fall in the same cell – cell **b1**.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述示例中，汽车和人的真实边界框的中点都落在同一个单元格中 —— 单元格 **b1**。
 - en: 'One way to avoid such a scenario is by having a grid that has more rows and
     columns – for example, a 19 x 19 grid. However, there can still be a scenario
     where an increase in the number of grid cells does not help. Anchor boxes come
     in handy in such a scenario. Let’s say we have two anchor boxes – one that has
     a greater height than width (corresponding to the person) and another that has
     a greater width than height (corresponding to the car):'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 避免这种情况的一种方法是使用具有更多行和列的网格，例如一个19 x 19的网格。然而，仍然可能存在增加网格单元格数量并不起作用的情况。在这种情况下，锚框就显得特别有用。假设我们有两个锚框
+    —— 一个高度大于宽度（对应于人），另一个宽度大于高度（对应于汽车）：
 - en: '![](img/B18457_08_20.png)'
+  id: totrans-176
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_20.png)'
 - en: 'Figure 8.20: Leveraging anchor boxes'
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.20：利用锚框
 - en: 'Typically, the anchor boxes would have the grid cell center as their centers.
     The output for each cell in a scenario where we have two anchor boxes is represented
     as a concatenation of the output expected of the two anchor boxes:'
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，锚框会以网格单元格中心作为它们的中心。在存在两个锚框的情况下，每个单元格的输出表示为两个锚框期望输出的串联：
 - en: '![](img/B18457_08_21.png)'
+  id: totrans-179
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_21.png)'
 - en: 'Figure 8.21: Ground truth representation when there are two anchor boxes'
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.21：当存在两个锚框时的真实值表示
 - en: Here, **bx**, **by**, **bw**, and **bh** represent the offset from the anchor
     box (which is the universe in this scenario, as seen in the image instead of the
     grid cell).
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，**bx**，**by**，**bw** 和 **bh** 表示与锚框的偏移（在这种场景中，锚框是宇宙，如图像所示，而不是网格单元格）。
 - en: From the preceding screenshot, we see we have an output that is 3 x 3 x 16,
     as we have two anchors. The expected output is of the shape *N* x *N* x `num_classes`
     x `num_anchor_boxes`, where *N* x *N* is the number of cells in the grid, `num_classes`
     is the number of classes in the dataset, and `num_anchor_boxes` is the number
     of anchor boxes.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 从前面的截图中，我们看到输出为3 x 3 x 16，因为有两个锚框。期望输出的形状为 *N* x *N* x `num_classes` x `num_anchor_boxes`，其中
+    *N* x *N* 是网格中单元格的数量，`num_classes` 是数据集中的类别数，`num_anchor_boxes` 是锚框的数量。
 - en: Now we define the loss function to train the model.
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在我们定义损失函数来训练模型。
 - en: When calculating the loss associated with the model, we need to ensure that
     we do not calculate the regression loss and classification loss when the objectness
     score is less than a certain threshold (this corresponds to the cells that do
     not contain an object).
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 当计算与模型相关的损失时，我们需要确保在物体性分数低于某个阈值时不计算回归损失和分类损失（这对应于不包含物体的单元格）。
 - en: Next, if the cell contains an object, we need to ensure that the classification
     across different classes is as accurate as possible.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，如果单元格包含一个物体，我们需要确保跨不同类别的分类尽可能准确。
 - en: Finally, if the cell contains an object, the bounding box offsets should be
     as close to expected as possible. However, since the offsets of width and height
     can be much higher when compared to the offset of the center (as offsets of the
     center range between 0 and 1, while the offsets of width and height need not),
     we give a lower weightage to offsets of width and height by fetching a square
     root value.
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，如果单元格包含对象，则边界框偏移应尽可能接近预期。然而，由于宽度和高度的偏移可以比中心的偏移要大得多（因为中心的偏移范围在0到1之间，而宽度和高度的偏移则不需要），因此我们通过获取平方根值来给予宽度和高度偏移更低的权重。
 - en: 'Calculate the loss of localization and classification as follows:'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算定位和分类损失如下：
 - en: '![](img/B18457_08_001.png)'
+  id: totrans-188
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_001.png)'
 - en: '![](img/B18457_08_002.png)'
+  id: totrans-189
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_002.png)'
 - en: '![](img/B18457_08_003.png)'
+  id: totrans-190
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_003.png)'
 - en: 'Here, we observe the following:'
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此，我们观察到以下内容：
 - en: '![](img/B18457_08_004.png) is the weightage associated with regression loss'
+  id: totrans-192
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/B18457_08_004.png) 是与回归损失相关联的权重。'
 - en: '![](img/B18457_08_005.png) represents whether the cell contains an object'
+  id: totrans-193
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/B18457_08_005.png) 表示单元格是否包含对象'
 - en: '![](img/B18457_08_006.png) corresponds to the predicted class probability'
+  id: totrans-194
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/B18457_08_006.png) 对应于预测类别概率'
 - en: '![](img/B18457_08_007.png) represents the objectness score'
+  id: totrans-195
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/B18457_08_007.png) 表示物体性得分'
 - en: The overall loss is a sum of classification and regression loss values.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 总损失是分类损失和回归损失值的总和。
 - en: With this in place, we are now in a position to train a model to predict the
     bounding boxes around objects. However, for a stronger understanding of YOLO and
     its variants, we encourage you to go through the original paper at [https://arxiv.org/pdf/1506.02640](https://arxiv.org/pdf/1506.02640).
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们已经能够训练一个模型来预测物体周围的边界框。然而，为了更深入地了解YOLO及其变体，我们建议您阅读原始论文，网址为 [https://arxiv.org/pdf/1506.02640](https://arxiv.org/pdf/1506.02640)。
 - en: Now that we understand how YOLO predicts bounding boxes and classes of objects
     in a single shot, we will code it up in the next section.
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了YOLO如何在单次预测中预测物体的边界框和类别之后，我们将在下一节中编写代码。
 - en: Training YOLO on a custom dataset
+  id: totrans-199
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练YOLO
 - en: Building on top of others’ work is very important to becoming a successful practitioner
     in deep learning. For this implementation, we will use the official YOLOv4 implementation
     to identify the location of buses and trucks in images. We will clone the repository
     of the YOLO authors’ own implementation and customize it to our needs in the following
     code.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 在深度学习中，建立在他人工作的基础上是成为成功从业者的重要途径。对于这一实现，我们将使用官方YOLOv4实现来识别图像中公共汽车和卡车的位置。我们将克隆YOLO作者自己的存储库实现，并根据需要进行定制，如下所示。
 - en: To train the latest YOLO models, we strongly recommend you go through the following
     repos – [https://github.com/ultralytics/ultralytics](https://github.com/ultralytics/ultralytics)
     and [https://github.com/WongKinYiu/yolov7](https://github.com/WongKinYiu/yolov7).
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 要训练最新的YOLO模型，我们强烈建议您查阅以下存储库 – [https://github.com/ultralytics/ultralytics](https://github.com/ultralytics/ultralytics)
+    和 [https://github.com/WongKinYiu/yolov7](https://github.com/WongKinYiu/yolov7)。
 - en: We have provided the working implementation of YOLOv8 as `Training_YOLOv8.ipynb`
     within the `Chapter08` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经在GitHub的`Chapter08`文件夹中提供了YOLOv8的工作实现，文件名为`Training_YOLOv8.ipynb`，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: Installing Darknet
+  id: totrans-203
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 安装Darknet
 - en: 'First, pull the `darknet` repository from GitHub and compile it in the environment.
     The model is written in a separate language called Darknet, which is different
     from PyTorch. We will do so using the following code:'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，从GitHub拉取`darknet`存储库并在环境中编译它。该模型是用一种称为Darknet的独立语言编写的，与PyTorch不同。我们将使用以下代码进行操作：
 - en: The following code can be found in the `Training_YOLO.ipynb` file in the `Chapter08`
     folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 可在GitHub上的`Chapter08`文件夹中的`Training_YOLO.ipynb`文件中找到以下代码，网址为 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Pull the Git repo:'
+  id: totrans-206
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 拉取Git存储库：
 - en: '[PRE15]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Reconfigure the `Makefile` file:'
+  id: totrans-208
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 重新配置`Makefile`文件：
 - en: '[PRE16]'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: '`Makefile` is a configuration file needed for installing `darknet` in the environment
     (think of this process as similar to the selections you make when installing software
     on Windows). We are forcing `darknet` to be installed with the following flags:
@@ -961,117 +1390,175 @@
     command that can modify information in text files directly from Command Prompt.
     Specifically, here we are using its search-and-replace function to replace `OPENCV=0`
     with `OPENCV=1`, and so on. The syntax to understand here is `sed ''s/<search-string>/<replace-with>/''path/to/text/file`.'
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: '`Makefile` 是在环境中安装 `darknet` 所需的配置文件（可以将此过程视为在 Windows 上安装软件时所做的选择）。我们强制 `darknet`
+    使用以下标志进行安装：`OPENCV`、`GPU`、`CUDNN` 和 `CUDNN_HALF`。这些都是重要的优化措施，可加快训练速度。此外，在前面的代码中，有一个称为
+    `sed` 的奇特函数，它代表 **流编辑器**。它是一个强大的 Linux 命令，可以直接从命令提示符中修改文本文件中的信息。具体而言，在这里我们使用它的搜索和替换功能，将
+    `OPENCV=0` 替换为 `OPENCV=1`，以此类推。要理解的语法是 `sed ''s/<search-string>/<replace-with>/''path/to/text/file`。'
 - en: 'Compile the `darknet` source code:'
+  id: totrans-211
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编译 `darknet` 源代码：
 - en: '[PRE17]'
+  id: totrans-212
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Install the `torch_snippets` package:'
+  id: totrans-213
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装 `torch_snippets` 包：
 - en: '[PRE18]'
+  id: totrans-214
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Download and extract the dataset, and remove the ZIP file to save space:'
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载并解压数据集，并删除 ZIP 文件以节省空间：
 - en: '[PRE19]'
+  id: totrans-216
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Fetch the pre-trained weights to make a sample prediction:'
+  id: totrans-217
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取预训练权重以进行样本预测：
 - en: '[PRE20]'
+  id: totrans-218
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Test whether the installation is successful by running the following command:'
+  id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过运行以下命令测试安装是否成功：
 - en: '[PRE21]'
+  id: totrans-220
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: This would make a prediction on `data/person.jpg` using the network built from
     `cfg/yolov4.cfg` and pre-trained weights – `yolov4.weights`. Furthermore, it fetches
     the classes from `cfg/coco.data`, which is what the pre-trained weights were trained
     on.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将使用从 `cfg/yolov4.cfg` 构建的网络和预训练权重 `yolov4.weights` 对 `data/person.jpg` 进行预测。此外，它还从
+    `cfg/coco.data` 获取类别，这是预训练权重训练的内容。
 - en: 'The preceding code results in predictions on the sample image (`data/person.jpg`),
     as follows:'
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码将对样本图像 (`data/person.jpg`) 进行预测，如下所示：
 - en: '![](img/B18457_08_22.png)'
+  id: totrans-223
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_22.png)'
 - en: 'Figure 8.22: Prediction on a sample image'
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.22：对样本图像的预测
 - en: Now that we have learned about installing `darknet`, in the next section, we
     will learn about creating ground truths for our custom dataset to leverage `darknet`.
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何安装 `darknet`，在下一节中，我们将学习如何为自定义数据集创建真实数据，以利用 `darknet`。
 - en: Setting up the dataset format
+  id: totrans-226
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 设置数据集格式
 - en: YOLO uses a fixed format for training. Once we store the images and labels in
     the required format, we can train on the dataset with a single command. So, let’s
     learn about the files and folder structure needed for YOLO to train.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: YOLO 使用固定格式进行训练。一旦我们按要求格式存储图像和标签，就可以用单个命令对数据集进行训练。因此，让我们了解一下 YOLO 训练所需的文件和文件夹结构。
 - en: 'There are three important steps:'
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 有三个重要的步骤：
 - en: 'Create a text file at `data/obj.names` containing the names of classes, one
     class per line, by running the following line (`%%writefile` is a magic command
     that creates a text file at `data/obj.names` with whatever content is present
     in the notebook cell):'
+  id: totrans-229
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个文本文件 `data/obj.names`，其中包含一行一个类别名称，通过运行以下命令行来实现（`%%writefile` 是一个魔术命令，用于在笔记本单元格中创建一个包含内容的文本文件
+    `data/obj.names`）：
 - en: '[PRE22]'
+  id: totrans-230
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Create a text file at `data/obj.data` describing the parameters in the dataset
     and the locations of text files containing the train and test image paths and
     the location of the file containing object names and the folder where you want
     to save trained models:'
+  id: totrans-231
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `data/obj.data` 创建一个文本文件，描述数据集中的参数以及包含训练和测试图像路径的文本文件的位置，还有包含对象名称的文件位置和保存训练模型的文件夹位置：
 - en: '[PRE23]'
+  id: totrans-232
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: The extensions for the preceding text files are not `.txt`. YOLO uses hardcoded
     names and folders to identify where data is. Also, the magic `%%writefile` Jupyter
     function creates a file with the content mentioned in a cell, as shown previously.
     Treat each `%%writefile` `...` as a separate cell in Jupyter.
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述文本文件的扩展名不是 `.txt`。YOLO 使用硬编码的名称和文件夹来识别数据的位置。此外，魔术命令 `%%writefile` 在 Jupyter
+    中创建一个带有单元格中指定内容的文件，如前所示。将每个 `%%writefile` `...` 视为 Jupyter 中的一个单独单元格。
 - en: 'Move all images and ground-truth text files to the `data/obj` folder. We will
     copy images from the `bus-trucks` dataset to this folder along with the labels:'
+  id: totrans-234
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将所有图像和真实文本文件移动到 `data/obj` 文件夹中。我们将从 `bus-trucks` 数据集中将图像复制到此文件夹，并包含标签：
 - en: '[PRE24]'
+  id: totrans-235
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: Note that all the training and validation images are in the same `data/obj`
     folder. We also move a bunch of text files to the same folder. Each file that
     contains the ground truth for an image shares the same name as the image. For
@@ -1079,335 +1566,497 @@
     text file contains labels and bounding boxes for that image. If `data/train.txt`
     contains `1001.jpg` as one of its lines, then it is a training image. If it’s
     present in `val.txt`, then it is a validation image.
+  id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，所有的训练和验证图像都位于同一个`data/obj`文件夹中。我们还将一堆文本文件移动到同一个文件夹中。每个包含图像真实标签的文件与图像具有相同的名称。例如，文件夹可能包含`1001.jpg`和`1001.txt`，意味着文本文件包含该图像的标签和边界框。如果`data/train.txt`包含`1001.jpg`作为其行之一，则它是一个训练图像。如果它存在于`val.txt`中，则是一个验证图像。
 - en: 'The text file itself should contain information like so: `cls`, `xc`, `yc`,
     `w`, `h`, where `cls` is the class index of the object in the bounding box present
     at (`xc`, `yc`), which represents the centroid of the rectangle of width `w` and
     height `h`. Each of `xc`, `yc`, `w`, and `h` is a fraction of the image width
     and height. Store each object on a separate line.'
+  id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 文本文件本身应包含如下信息：`cls`、`xc`、`yc`、`w`、`h`，其中`cls`是边界框中物体的类索引，位于（`xc`，`yc`）处，表示矩形的中心点，宽度为`w`，高度为`h`。每个`xc`、`yc`、`w`和`h`都是图像宽度和高度的一部分。将每个对象存储在单独的行上。
 - en: 'For example, if an image of width (`800`) and height (`600`) contains one truck
     and one bus at centers (`500,300`) and (`100,400`) respectively, and has widths
     and heights of (`200,100`) and (`300,50`) respectively, then the text file would
     look as follows:'
+  id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果宽度（`800`）和高度（`600`）的图像包含一个卡车和一个公共汽车，中心分别为（`500,300`）和（`100,400`），宽度和高度分别为（`200,100`）和（`300,50`），则文本文件如下所示：
 - en: '[PRE25]'
+  id: totrans-239
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: Now that we have created the data, let’s configure the network architecture
     in the next section.
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经创建了数据，让我们在下一节中配置网络架构。
 - en: Configuring the architecture
+  id: totrans-241
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 配置架构
 - en: YOLO comes with a long list of architectures. Some are large and some are small,
     to train on large or small datasets. Configurations can have different backbones.
     There are pre-trained configurations for standard datasets. Each configuration
     is a `.cfg` file present in the `cfgs` folder of the same GitHub repo that we
     cloned.
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: YOLO提供了一长串的架构。有些大，有些小，适用于大或小的数据集。配置可以具有不同的主干。标准数据集有预训练的配置。每个配置都是GitHub仓库`cfgs`文件夹中的`.cfg`文件。
 - en: 'Each of them contains the architecture of the network as a text file (as opposed
     to how we were building it with the `nn.Module` class) along with a few hyperparameters,
     such as batch size and learning rate. We will take the smallest available architecture
     and configure it for our dataset:'
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个文件都包含网络架构的文本文件（与我们使用`nn.Module`类建立的方式不同），以及一些超参数，如批处理大小和学习率。我们将选择最小的可用架构，并为我们的数据集进行配置：
 - en: '[PRE26]'
+  id: totrans-244
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: This way, we have repurposed `yolov4-tiny` to be trainable on our dataset. The
     only remaining step is to load the pre-trained weights and train the model, which
     we will do in the next section.
+  id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样一来，我们已经重新配置了`yolov4-tiny`，使其可以在我们的数据集上进行训练。唯一剩下的步骤是加载预训练的权重并训练模型，这将在下一节中进行。
 - en: Training and testing the model
+  id: totrans-246
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 训练和测试模型
 - en: 'We will get the weights from the following GitHub location and store them in
     `build/darknet/x64`:'
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从以下GitHub位置获取权重，并将它们存储在`build/darknet/x64`中：
 - en: '[PRE27]'
+  id: totrans-248
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Finally, we will train the model using the following line:'
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将使用以下命令训练模型：
 - en: '[PRE28]'
+  id: totrans-250
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'The `-dont_show` flag skips showing intermediate prediction images and `-mapLastAt`
     will periodically print the mean average precision on the validation data. The
     whole of the training might take 1 or 2 hours with GPU. The weights are periodically
     stored in a backup folder and can be used after training for predictions such
     as the following code, which makes predictions on a new image:'
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: '`-dont_show`标志跳过显示中间预测图像，而`-mapLastAt`会定期打印验证数据上的平均精度。整个训练可能需要1到2小时与GPU。权重会定期存储在备份文件夹中，并可以在训练后用于预测，例如以下代码，该代码在新图像上进行预测：'
 - en: '[PRE29]'
+  id: totrans-252
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'The preceding code results in the following output:'
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的代码导致了以下输出：
 - en: '![](img/B18457_08_23.png)'
+  id: totrans-254
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_23.png)'
 - en: 'Figure 8.23: Predicted bounding box and class on input images'
+  id: totrans-255
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.23：输入图像上的预测边界框和类别
 - en: Now that we have learned about leveraging YOLO to perform object detection on
     our custom dataset, in the next section, we will learn about another object detection
     technique – **Single-Shot Detector** (**SSD**) to perform object detection.
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何利用YOLO在自定义数据集上执行目标检测，接下来，我们将学习另一种目标检测技术——**单阶段检测器（SSD）**。
 - en: Working details of SSD
+  id: totrans-257
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: SSD的工作细节
 - en: So far, we have seen a scenario where we made predictions after gradually convolving
     and pooling the output from the previous layer. However, we know that different
     layers have different receptive fields to the original image. For example, the
     initial layers have a smaller receptive field when compared to the final layers,
     which have a larger receptive field. Here, we will learn how SSD leverages this
     phenomenon to come up with a prediction of bounding boxes for images.
+  id: totrans-258
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经看到了一个场景，在这个场景中，我们在逐渐对前一层输出进行卷积和池化之后进行预测。然而，我们知道不同的层对原始图像有不同的感知域。例如，初始层的感知域比最终层的感知域要小。在这里，我们将学习SSD如何利用这一现象为图像的边界框进行预测。
 - en: 'The workings behind how SSD helps overcome the issue of detecting objects with
     different scales is as follows:'
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: SSD如何帮助解决检测不同尺度对象的问题的工作原理如下：
 - en: We leverage the pre-trained VGG network and extend it with a few additional
     layers until we obtain a 1 x 1 block.
+  id: totrans-260
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们利用预训练的VGG网络，并在其上添加一些额外的层，直到获得一个1 x 1的块。
 - en: Instead of leveraging only the final layer for bounding box and class predictions,
     we will leverage all of the last few layers to make class and bounding box predictions.
+  id: totrans-261
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 不仅仅利用最终层进行边界框和类别预测，我们将利用所有最后几层来进行类别和边界框的预测。
 - en: In place of anchor boxes, we will come up with default boxes that have a specific
     set of scale and aspect ratios.
+  id: totrans-262
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将使用具有特定比例和长宽比的默认框代替锚框。
 - en: Each of the default boxes should predict the object and bounding box offset,
     just like how anchor boxes are expected to predict classes and offsets in YOLO.
+  id: totrans-263
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 每个默认框都应该预测对象和边界框偏移量，就像锚框在YOLO中预测类别和偏移量一样。
 - en: 'Now that we understand the main ways in which SSD differs from YOLO (which
     is that default boxes in SSD replace anchor boxes in YOLO and multiple layers
     are connected to the final layer in SSD, instead of gradual convolution pooling
     in YOLO), let’s learn about the following:'
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了SSD与YOLO的主要不同之处（即SSD中的默认框取代了YOLO中的锚框，并且多个层连接到最终层，而不是YOLO中的逐步卷积池化），接下来我们将学习以下内容：
 - en: The network architecture of SSD
+  id: totrans-265
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: SSD的网络架构
 - en: How to leverage different layers for bounding box and class predictions
+  id: totrans-266
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何利用不同层进行边界框和类别预测
 - en: How to assign scale and aspect ratios for default boxes in different layers
+  id: totrans-267
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何为不同层的默认框分配比例和长宽比
 - en: 'The network architecture of SSD is as follows:'
+  id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: SSD的网络架构如下：
 - en: '![](img/B18457_08_24.png)'
+  id: totrans-269
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_24.png)'
 - en: 'Figure 8.24: SSD workflow'
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.24：SSD工作流程
 - en: As you can see in the preceding diagram, we are taking an image of size 300
     x 300 x 3 and passing it through a pre-trained VGG-16 network to obtain the `conv5_3`
     layer’s output. Furthermore, we are extending the network by adding a few more
     convolutions to the `conv5_3` output.
+  id: totrans-271
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您在前面的图中所看到的，我们正在获取一个大小为300 x 300 x 3的图像，并通过预训练的VGG-16网络来获得`conv5_3`层的输出。此外，我们通过在`conv5_3`输出上添加几个额外的卷积来扩展网络。
 - en: 'Next, we obtain a bounding box offset and class prediction for each cell and
     each default box (more on default boxes in the next section; for now, let’s imagine
     that this is similar to an anchor box). The total number of predictions coming
     from the `conv5_3` output is 38 x 38 x 4, where 38 x 38 is the output shape of
     the `conv5_3` layer and 4 is the number of default boxes operating on the `conv5_3`
     layer. Similarly, the total number of detections across the network is as follows:'
+  id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们为每个单元格和每个默认框获取边界框偏移量和类别预测（关于默认框的更多信息将在下一节详细介绍；现在，让我们想象这与锚框类似）。从`conv5_3`输出中得到的预测总数为38
+    x 38 x 4，其中38 x 38是`conv5_3`层的输出形状，4是在`conv5_3`层上操作的默认框数量。同样，网络中所有检测的总数如下：
 - en: '| **Layer** | **Number of detections per class** |'
+  id: totrans-273
   prefs: []
   type: TYPE_TB
+  zh: '| **层** | **每类的检测数** |'
 - en: '| `conv5_3` | 38 x 38 x 4 = 5,776 |'
+  id: totrans-274
   prefs: []
   type: TYPE_TB
+  zh: '| `conv5_3` | 38 x 38 x 4 = 5,776 |'
 - en: '| `FC6` | 19 x 19 x 6 = 2,166 |'
+  id: totrans-275
   prefs: []
   type: TYPE_TB
+  zh: '| `FC6` | 19 x 19 x 6 = 2,166 |'
 - en: '| `conv8_2` | 10 x 10 x 6 = 600 |'
+  id: totrans-276
   prefs: []
   type: TYPE_TB
+  zh: '| `conv8_2` | 10 x 10 x 6 = 600 |'
 - en: '| `conv9_2` | 5 x 5 x 6 = 150 |'
+  id: totrans-277
   prefs: []
   type: TYPE_TB
+  zh: '| `conv9_2` | 5 x 5 x 6 = 150 |'
 - en: '| `conv10_2` | 3 x 3 x 4 = 36 |'
+  id: totrans-278
   prefs: []
   type: TYPE_TB
+  zh: '| `conv10_2` | 3 x 3 x 4 = 36 |'
 - en: '| `conv11_2` | 1 x 1 x 4 = 4 |'
+  id: totrans-279
   prefs: []
   type: TYPE_TB
+  zh: '| `conv11_2` | 1 x 1 x 4 = 4 |'
 - en: '| **Total detections** | **8,732** |'
+  id: totrans-280
   prefs: []
   type: TYPE_TB
+  zh: '| **总检测数** | **8,732** |'
 - en: 'Table 8.1: Number of detections per class'
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 8.1：每类的检测数
 - en: Note that certain layers have a larger number of default boxes (6 and not 4)
     when compared to other layers in the architecture described in the original paper.
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在原始论文描述的架构中，某些层次的默认盒子数量较多（为6而不是4）。
 - en: Now, let’s learn about the different scales and aspect ratios of default boxes.
     We will start with scales and then proceed to aspect ratios.
+  id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们了解默认盒子的不同尺度和长宽比。我们将从尺度开始，然后继续到长宽比。
 - en: 'Let’s imagine a scenario where the minimum scale of an object is 20% of the
     height and 20% of the width of an image, and the maximum scale of the object is
     90% of the height and 90% of the width. In such a scenario, we gradually increase
     scale across layers (as we proceed toward later layers, the image size shrinks
     considerably), as follows:'
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们想象一种情况，其中对象的最小比例为图像高度和宽度的20%，对象的最大比例为图像高度和宽度的90%。在这种情况下，我们随着层次的增加逐渐增加尺度（随着向后层次，图像尺寸显著缩小），如下所示：
 - en: '![](img/B18457_08_25.png)'
+  id: totrans-285
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_25.png)'
 - en: 'Figure 8.25: Scale of box with respect to size of object across layers'
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.25：随着不同层次对象大小比例变化的盒子尺度
 - en: 'The formula that enables the gradual scaling of the image is as follows:'
+  id: totrans-287
   prefs: []
   type: TYPE_NORMAL
+  zh: 使图像逐步缩放的公式如下：
 - en: '![](img/B18457_08_008.png)'
+  id: totrans-288
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_008.png)'
 - en: '![](img/B18457_08_009.png)'
+  id: totrans-289
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_009.png)'
 - en: 'With that understanding of how to calculate scale across layers, let’s learn
     about coming up with boxes of different aspect ratios. The possible aspect ratios
     are as follows:'
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: 了解了如何在不同层次计算尺度之后，让我们学习如何生成不同长宽比的盒子。可能的长宽比如下所示：
 - en: '![](img/B18457_08_010.png)'
+  id: totrans-291
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_010.png)'
 - en: 'The centers of the box for different layers are as follows:'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
+  zh: 不同层次盒子的中心如下：
 - en: '![](img/B18457_08_011.png)'
+  id: totrans-293
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_011.png)'
 - en: 'Here, *i* and *j* together represent a cell in layer *l*. On the other hand,
     the width and height corresponding to different aspect ratios are calculated as
     follows:'
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，*i* 和 *j* 一起表示层 *l* 中的一个单元格。另一方面，根据不同长宽比计算的宽度和高度如下所示：
 - en: '![](img/B18457_08_012.png)'
+  id: totrans-295
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_012.png)'
 - en: '![](img/B18457_08_013.png)'
+  id: totrans-296
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_013.png)'
 - en: 'Note that we were considering four boxes in certain layers and six boxes in
     another layer. If we want to have four boxes, we remove the `{3,1/3}` aspect ratios,
     else we consider all of the six possible boxes (five boxes with the same scale
     and one box with a different scale). Let’s see how we obtain the sixth box:'
+  id: totrans-297
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在某些层次我们考虑了四个盒子，而在另一层次我们考虑了六个盒子。如果要保留四个盒子，则移除 `{3,1/3}` 长宽比，否则考虑所有六个可能的盒子（五个尺度相同的盒子和一个尺度不同的盒子）。让我们看看如何获得第六个盒子：
 - en: '![](img/B18457_08_014.png)'
+  id: totrans-298
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_014.png)'
 - en: With that, we have all the possible boxes. Let’s understand how we prepare the
     training dataset next.
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: 有了这些，我们已经得到了所有可能的盒子。接下来让我们了解如何准备训练数据集。
 - en: The default boxes that have an IoU greater than a threshold (say, `0.5`) with
     the ground truth are considered positive matches, and the rest are negative matches.
     In the output of SSD, we predict the probability of the box belonging to a class
     (where the 0^(th) class represents the background) and also the offset of the
     ground truth with respect to the default box.
+  id: totrans-300
   prefs: []
   type: TYPE_NORMAL
+  zh: 具有 IoU 大于阈值（例如 `0.5`）的默认盒子被视为正匹配，其余为负匹配。在 SSD 的输出中，我们预测盒子属于某一类的概率（其中第0类表示背景），还预测了相对于默认盒子的真实值偏移量。
 - en: 'Finally, we train the model by optimizing the following loss values:'
+  id: totrans-301
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，通过优化以下损失值来训练模型：
 - en: '**Classification loss**: This is represented using the following equation:'
+  id: totrans-302
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**分类损失**：使用以下方程表示：'
 - en: '![](img/B18457_08_015.png)'
+  id: totrans-303
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_015.png)'
 - en: In the preceding equation, *pos* represents the few default boxes that have
     a high overlap with the ground truth, while *neg* represents the misclassified
     boxes that were predicting a class but in fact did not contain an object. Finally,
     we ensure that the *pos:neg* ratio is at most 1:3, as if we do not perform this
     sampling, we would have a dominance of background class boxes.
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述方程中，*pos* 表示与真实值有较高重叠的少数默认盒子，而 *neg* 表示误分类的盒子，这些盒子预测为某一类别，但实际上未包含对象。最后，我们确保
+    *pos:neg* 比例最多为1:3，如果不进行这种采样，背景类盒子会占主导地位。
 - en: '**Localization loss:** For localization, we consider the loss values only when
     the objectness score is greater than a certain threshold. The localization loss
     is calculated as follows:'
+  id: totrans-305
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**定位损失：** 对于定位，我们仅在物体性得分大于某个阈值时考虑损失值。定位损失计算如下：'
 - en: '![](img/B18457_08_016.png)'
+  id: totrans-306
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_016.png)'
 - en: Here, *t* is the predicted offset and *d* is the actual offset.
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，*t*是预测的偏移量，*d*是实际偏移量。
 - en: For an in-depth discussion on the SSD workflow, you can refer to [https://arxiv.org/abs/1512.02325](https://arxiv.org/abs/1512.02325).
+  id: totrans-308
   prefs: []
   type: TYPE_NORMAL
+  zh: 欲深入了解SSD工作流程，请参阅[https://arxiv.org/abs/1512.02325](https://arxiv.org/abs/1512.02325)。
 - en: 'Now that we understand how to train SSD, let’s use it for our bus versus truck
     object detection exercise in the next section. The core utility functions for
     this section are present in the GitHub repo: [https://github.com/sizhky/ssd-utils/](https://github.com/sizhky/ssd-utils/).
     Let’s learn about them one by one before starting the training process.'
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了如何训练SSD，让我们在下一节将其用于我们的公共汽车与卡车目标检测练习中。本节的核心实用函数位于GitHub仓库：[https://github.com/sizhky/ssd-utils/](https://github.com/sizhky/ssd-utils/)。让我们在开始训练过程之前逐个了解它们。
 - en: Components in SSD code
+  id: totrans-310
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: SSD代码中的组件
 - en: There are three files in the GitHub repo. Let’s dig into them a little and understand
     them before training. **Note that this section is not part of the training process,
     but is instead for understanding the imports used during training.**
+  id: totrans-311
   prefs: []
   type: TYPE_NORMAL
+  zh: GitHub仓库中有三个文件。让我们稍微深入了解它们，并在训练之前理解它们使用的导入。**请注意，此部分不是训练过程的一部分，而是用于理解训练中使用的导入。**
 - en: We are importing the `SSD300` and `MultiBoxLoss` classes from the `model.py`
     file in the GitHub repository. Let’s learn about both of them.
+  id: totrans-312
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从GitHub仓库的`model.py`文件中导入`SSD300`和`MultiBoxLoss`类。让我们分别了解它们。
 - en: SSD300
+  id: totrans-313
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: SSD300
 - en: 'When you look at the `SSD300` function definition, it is evident that the model
     comprises three submodules:'
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你查看`SSD300`函数定义时，可以明显看到该模型由三个子模块组成：
 - en: '[PRE30]'
+  id: totrans-315
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: We send the input to `VGGBase` first, which returns two feature vectors of dimensions
     `(N, 512, 38, 38)` and `(N, 1024, 19, 19)`. The second output is going to be the
     input for `AuxiliaryConvolutions`, which returns more feature maps of dimensions
@@ -1415,35 +2064,49 @@
     Finally, the first output from `VGGBase` and these four feature maps are sent
     to `PredictionConvolutions`, which returns 8,732 anchor boxes, as we discussed
     previously.
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先我们将输入发送到`VGGBase`，它返回两个尺寸为`(N, 512, 38, 38)`和`(N, 1024, 19, 19)`的特征向量。第二个输出将成为`AuxiliaryConvolutions`的输入，它返回更多的特征映射，尺寸为`(N,
+    512, 10, 10)`、`(N, 256, 5, 5)`、`(N, 256, 3, 3)`和`(N, 256, 1, 1)`。最后，来自`VGGBase`的第一个输出和这四个特征映射被发送到`PredictionConvolutions`，它返回8,732个锚框，正如我们之前讨论的那样。
 - en: 'The other key aspect of the `SSD300` class is the `create_prior_boxes` method.
     For every feature map, there are three items associated with it: the size of the
     grid, the scale to shrink the grid cell by (this is the base anchor box for this
     feature map), and the aspect ratios for all anchors in a cell. Using these three
     configurations, the code uses a triple `for` loop and creates a list of `(cx,
     cy, w, h)` for all 8,732 anchor boxes.'
+  id: totrans-317
   prefs: []
   type: TYPE_NORMAL
+  zh: '`SSD300`类的另一个关键方面是`create_prior_boxes`方法。对于每个特征图，与之关联的有三个项目：网格的大小、用于缩小网格单元的比例（这是该特征图的基础锚框），以及单元格中所有锚框的长宽比。使用这三个配置，代码使用三重`for`循环并为所有8,732个锚框创建`(cx,
+    cy, w, h)`列表。'
 - en: Finally, the `detect_objects` method takes tensors of classification and regression
     values (of the predicted anchor boxes) and converts them to actual bounding box
     coordinates.
+  id: totrans-318
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，`detect_objects`方法接受模型预测的锚框分类和回归值张量，并将它们转换为实际边界框坐标。
 - en: MultiBoxLoss
+  id: totrans-319
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: MultiBoxLoss
 - en: As humans, we are only worried about a handful of bounding boxes. But for the
     way SSD works, we need to compare 8,732 bounding boxes from several feature maps
     and predict whether an anchor box contains valuable information or not. We assign
     this loss computation task to `MultiBoxLoss`.
+  id: totrans-320
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为人类，我们只关心少数边界框。但是对于SSD的工作方式，我们需要比较来自多个特征映射的8,732个边界框，并预测一个锚框是否包含有价值的信息。我们将此损失计算任务分配给`MultiBoxLoss`。
 - en: The input for the forward method is the anchor box predictions from the model
     and the ground-truth bounding boxes.
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
+  zh: forward方法的输入是模型的锚框预测和地面真实边界框。
 - en: First, we convert the ground-truth boxes into a list of 8,732 anchor boxes by
     comparing each anchor from the model with the bounding box. If the IoU is high
     enough, that particular anchor box will have non-zero regression coordinates and
@@ -1451,196 +2114,292 @@
     the computed anchor boxes will have their associated class as `background` because
     their IoU with the actual bounding box will be tiny or, in quite a few cases,
     `0`.
+  id: totrans-322
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将地面真值框转换为 8,732 个锚框的列表，方法是将模型中的每个锚点与边界框进行比较。如果 IoU（交并比）足够高，则特定的锚框将具有非零回归坐标，并将一个对象关联为分类的地面真值。自然地，大多数计算出的锚框将具有其关联类别为`background`，因为它们与实际边界框的
+    IoU 很小，或者在很多情况下为`0`。
 - en: Once the ground truths are converted to these 8,732 anchor box regression and
     classification tensors, it is easy to compare them with the model’s predictions
     since the shapes are now the same. We perform `MSE-Loss` on the regression tensor
     and `CrossEntropy-Loss` on the localization tensor and add them up to be returned
     as the final loss.
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦地面真实值转换为这些 8,732 个锚框回归和分类张量，就可以轻松地将它们与模型的预测进行比较，因为它们的形状现在是相同的。我们在回归张量上执行`MSE-Loss`，在定位张量上执行`CrossEntropy-Loss`，并将它们相加作为最终损失返回。
 - en: Training SSD on a custom dataset
+  id: totrans-324
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在自定义数据集上训练 SSD
 - en: 'In the following code, we will train the SSD algorithm to detect the bounding
     boxes around objects present in images. We will use the truck versus bus object
     detection task we have been working on:'
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下面的代码中，我们将训练 SSD 算法以检测图像中物体周围的边界框。我们将使用我们一直在进行的卡车与公共汽车物体检测任务：
 - en: Find the following code in the `Training_SSD.ipynb` file in the `Chapter08`
     folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). The code
     contains URLs to download data from and is moderately lengthy. We strongly recommend
     executing the notebook in GitHub to reproduce the results while following the
     steps and explanations of various code components from the text.
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 GitHub 的`Chapter08`文件夹中的`Training_SSD.ipynb`文件中找到以下代码，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。代码包含下载数据的
+    URL，并且相对较长。我们强烈建议在 GitHub 上执行笔记本以重现结果，同时按照文本中各种代码组件的步骤和解释进行操作。
 - en: 'Download the image dataset and clone the Git repository hosting the code for
     the model and the other utilities for processing the data:'
+  id: totrans-327
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载图像数据集并克隆托管代码模型和其他处理数据工具的 Git 仓库：
 - en: '[PRE31]'
+  id: totrans-328
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Preprocess the data, just like we did in the *Training Faster R-CNN on a custom
     dataset* section:'
+  id: totrans-329
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 预处理数据，就像我们在*在自定义数据集上训练 Faster R-CNN*部分中所做的一样：
 - en: '[PRE32]'
+  id: totrans-330
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Prepare a dataset class, just like we did in the *Training Faster R-CNN on
     a custom dataset* section:'
+  id: totrans-331
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 准备数据集类，就像我们在*在自定义数据集上训练 Faster R-CNN*部分中所做的一样：
 - en: '[PRE33]'
+  id: totrans-332
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Prepare the training and test datasets and the dataloaders:'
+  id: totrans-333
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 准备训练和测试数据集以及数据加载器：
 - en: '[PRE34]'
+  id: totrans-334
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Define functions to train on a batch of data and calculate the accuracy and
     loss values on the validation data:'
+  id: totrans-335
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义函数以在批量数据上进行训练，并计算验证数据的准确性和损失值：
 - en: '[PRE35]'
+  id: totrans-336
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Import the model:'
+  id: totrans-337
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入模型：
 - en: '[PRE36]'
+  id: totrans-338
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Initialize the model, optimizer, and loss function:'
+  id: totrans-339
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化模型、优化器和损失函数：
 - en: '[PRE37]'
+  id: totrans-340
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Train the model over increasing epochs:'
+  id: totrans-341
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加的 epochs 上训练模型：
 - en: '[PRE38]'
+  id: totrans-342
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'The variation of training and test loss values over epochs is as follows:'
+  id: totrans-343
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着 epoch 的增加，训练和测试损失值的变化如下：
 - en: '![](img/B18457_08_26.png)'
+  id: totrans-344
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_26.png)'
 - en: 'Figure 8.26: Training and validation loss over increasing epochs'
+  id: totrans-345
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.26：随着 epoch 增加的训练和验证损失
 - en: 'Fetch a prediction on a new image (fetch a random image):'
+  id: totrans-346
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取新图像的预测（获取随机图像）：
 - en: '[PRE39]'
+  id: totrans-347
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Fetch the bounding box, label, and score corresponding to the objects present
     in the image:'
+  id: totrans-348
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取与图像中存在的对象对应的边界框、标签和分数：
 - en: '[PRE40]'
+  id: totrans-349
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Overlay the obtained output on the image:'
+  id: totrans-350
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将获取的输出覆盖在图像上：
 - en: '[PRE41]'
+  id: totrans-351
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'The preceding code fetches a sample of outputs as follows (one image for each
     iteration of execution):'
+  id: totrans-352
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码获取执行迭代中每个输出的样本如下（每次执行都会有一个图像）：
 - en: '![](img/B18457_08_27.png)'
+  id: totrans-353
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_08_27.png)'
 - en: 'Figure 8.27: Predicted bounding box and class on input images'
+  id: totrans-354
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.27：输入图像上的预测边界框和类别
 - en: From this, we can see that we can detect objects in the image reasonably accurately.
+  id: totrans-355
   prefs: []
   type: TYPE_NORMAL
+  zh: 从中我们可以看出，我们可以相当准确地检测图像中的物体。
 - en: Summary
+  id: totrans-356
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: 'In this chapter, we have learned about the working details of modern object
     detection algorithms: Faster R-CNN, YOLO, and SSD. We learned how they overcome
     the limitation of having two separate models – one for fetching region proposals
     and the other for fetching class and bounding box offsets on region proposals.
     Furthermore, we implemented Faster R-CNN using PyTorch, YOLO using `darknet`,
     and SSD from scratch.'
+  id: totrans-357
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们了解了现代目标检测算法 Faster R-CNN、YOLO 和 SSD 的工作细节。我们学习了它们如何克服两个独立模型的限制 - 一个用于获取区域提议，另一个用于在区域提议上获取类别和边界框偏移量。此外，我们使用
+    PyTorch 实现了 Faster R-CNN，使用 `darknet` 实现了 YOLO，并从头开始实现了 SSD。
 - en: In the next chapter, we will learn about image segmentation, which goes one
     step beyond object localization by identifying the pixels that correspond to an
     object. Furthermore, in *Chapter 10*, *Applications of Object Detection and Segmentation*,
     we will learn about the Detectron2 framework, which helps in not only detecting
     objects but also segmenting them in a single shot.
+  id: totrans-358
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的章节中，我们将学习关于图像分割的内容，这一步进一步超越了仅仅识别对象位置的功能，它还能识别对应对象的像素。此外，在 *第10章*，*目标检测和分割的应用*
+    中，我们将学习 Detectron2 框架，它不仅有助于检测对象，还能在单次操作中对它们进行分割。
 - en: Questions
+  id: totrans-359
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: Why is Faster R-CNN faster when compared to Fast R-CNN?
+  id: totrans-360
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为什么 Faster R-CNN 相对于 Fast R-CNN 更快？
 - en: How are YOLO and SSD faster when compared to Faster R-CNN?
+  id: totrans-361
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在与 Faster R-CNN 相比时，YOLO 和 SSD 为何更快？
 - en: What makes YOLO and SSD single-shot detector algorithms?
+  id: totrans-362
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: YOLO 和 SSD 单次检测器算法有何特点？
 - en: What is the difference between the objectness score and class score?
+  id: totrans-363
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 目标性分数和类别分数之间有何区别？
 - en: Learn more on Discord
+  id: totrans-364
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Discord 上了解更多信息
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-365
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者进行讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-366
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-367
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
