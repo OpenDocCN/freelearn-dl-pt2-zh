@@ -3,17 +3,20 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '18'
 - en: Moving a Model to Production
   id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 将模型部署到生产环境
 - en: Moving a model to production is a step toward enabling the consumption of our
     model by an external party. We should expose our model to the world and start
     rendering predictions on real, unseen input.
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 将模型部署到生产环境是促使外部方使用我们模型的一步。我们应该向世界公开我们的模型，并开始对真实世界未见过的输入进行预测。
 - en: It is not sufficient to have a trained PyTorch model for deployment. We need
     additional server components to set up communication channels from the real world
     to the PyTorch model and back to the real world. It is important that we know
@@ -25,12 +28,15 @@
   id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 部署训练过的 PyTorch 模型并不足以实现部署。我们需要额外的服务器组件，以建立从现实世界到 PyTorch 模型的通信渠道，以及从模型返回到现实世界的通信渠道。重要的是，我们要知道如何创建
+    API（用户可以通过该接口与模型交互），将其封装为独立的应用程序（以便可以部署在任何计算机上），并将其部署到云端 - 这样任何具有必要 URL 和凭据的人都可以与模型交互。为了成功将模型移至生产环境，所有这些步骤都是必需的。
 - en: In addition, we will have to deal with constraints around the latency of predictions
     (the time taken to get a prediction) and the size of the model (when deploying
     on edge devices like mobiles/watches) without sacrificing accuracy.
   id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，我们还必须处理预测延迟（获取预测所需的时间）和模型大小（在部署在像移动设备/手表之类的边缘设备时）的限制，而不会影响准确性。
 - en: Furthermore, as part of production support, we will have to keep a tab on the
     inputs to the model once it is deployed, and then check if there is a considerable
     drift (deviation) between the images that were used to train the model and the
@@ -38,96 +44,115 @@
   id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，作为生产支持的一部分，我们将不断关注模型部署后输入的情况，然后检查在训练模型时使用的图像与在实际部署过程中输入的图像之间是否存在显著的漂移（偏差）。
 - en: In this chapter, we will deploy a simple application and build a mechanism to
     identify input drift.
   id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将部署一个简单的应用程序，并建立一个识别输入漂移的机制。
 - en: 'The following topics will be covered in this chapter:'
   id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Understanding the basics of an API
   id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解 API 的基础知识
 - en: Creating an API and making predictions on a local server
   id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在本地服务器上创建 API 并进行预测
 - en: Dockerizing and deploying the model on cloud
   id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将模型容器化并部署到云端
 - en: Identifying data drift
   id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 识别数据漂移
 - en: Building a vector store using **Facebook AI Similarity Search** (**FAISS**)
   id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用**Facebook AI Similarity Search**（**FAISS**）构建向量存储库
 - en: All code snippets within this chapter are available in the `Chapter18` folder
     of the Github repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
   id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中的所有代码片段均可在 GitHub 存储库的 `Chapter18` 文件夹中找到：[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'As a bonus, we also cover the following topic in our GitHub repository:'
   id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，我们的 GitHub 存储库中还涵盖以下主题：
 - en: Converting a model into the **Open Neural Network Exchange** (**ONNX)** format
   id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将模型转换为**Open Neural Network Exchange**（**ONNX**）格式
 - en: As the field evolves, we will periodically add valuable supplements to the GitHub
     repository. Do check the `supplementary_sections`folder within each chapter’s
     directory for new and useful content.
   id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着领域的发展，我们将定期向 GitHub 存储库添加有价值的补充内容。请查看每章节目录中的 `supplementary_sections` 文件夹，以获取新的和有用的内容。
 - en: 'It is important to note the typical workflow to deploy a model, which is as
     follows:'
   id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 需要注意的是部署模型的典型工作流程如下：
 - en: Create an API and make predictions on the local server
   id: totrans-18
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在本地服务器上创建 API 并进行预测
 - en: Containerize the application
   id: totrans-19
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将应用程序容器化
 - en: Deploy the Docker container on the cloud
   id: totrans-20
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在云端部署 Docker 容器
 - en: Build a vector store of training images
   id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 建立训练图像的向量存储库
 - en: Identify if there is a deviation (drift) in real-world images (so that we know
     if we need to fine-tune a model)
   id: totrans-22
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 识别现实世界图像中的偏差（漂移），以便我们知道是否需要对模型进行微调
 - en: Understanding the basics of an API
   id: totrans-23
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 了解 API 的基础知识
 - en: By now, we know how to create a deep learning model for various tasks. It accepts/returns
     tensors as input/output. But an outsider such as a client/end user would talk
     only in terms of images and classes. Furthermore, they would expect to send and
@@ -141,6 +166,8 @@
   id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们知道如何为各种任务创建深度学习模型。它接受/返回张量作为输入/输出。但是像客户/最终用户这样的外部人员只会用图像和类别来谈论。此外，他们希望通过可能与
+    Python 无关的渠道发送和接收输入/输出。互联网是最容易进行通信的渠道。因此，对于客户端来说，最佳部署场景是如果我们能够设置一个公开可用的 URL，并要求他们将他们的图像上传到那里。这种范例称为**应用程序编程接口**（**API**），它具有标准协议，接受输入并在互联网上传输输出，同时将用户从输入处理或输出生成的细节中抽象出来。
 - en: Some common protocols in APIs are `POST`, `GET`, `PUT`, and `DELETE`, which
     are sent as **requests** by the client to the host server along with relevant
     data. Based on the request and data, the server performs the relevant task and
@@ -151,11 +178,14 @@
   id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: API 中一些常见的协议包括 `POST`、`GET`、`PUT` 和 `DELETE`，这些协议由客户端作为请求发送到主机服务器，并附带相关数据。基于请求和数据，服务器执行相关任务，并以适当的数据形式返回**响应**，客户端可以在其下游任务中使用。在我们的案例中，客户端将发送一个带有图像作为文件附件的
+    POST 请求。我们应该保存文件，处理它，并返回适当的类作为请求的响应，这样我们的工作就完成了。
 - en: 'Requests are organized data packets sent over the internet to communicate with
     API servers. Typically, the components in a request are as follows:'
   id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 请求是通过互联网发送的组织数据包，用于与 API 服务器通信。通常，请求的组成部分如下：
 - en: '**An endpoint URL**: This would be the address of the API service. For example,
     [https://www.packtpub.com/](https://www.packtpub.com/) would be an endpoint to
     connect to the Packt Publishing service and browse through the catalog of their
@@ -164,6 +194,8 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**终端点 URL**：这是 API 服务的地址。例如，[https://www.packtpub.com/](https://www.packtpub.com/)
+    就是连接到 Packt Publishing 服务并浏览其最新图书目录的终端点。'
 - en: '**A collection of headers**: This information helps the API server return output;
     for instance, if the header contains information that the client is on a mobile,
     then the API can return an HTML page with a layout that is mobile-friendly.'
@@ -171,6 +203,7 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**一系列标头**：这些信息帮助 API 服务器返回输出；例如，如果标头包含客户端使用移动设备，则 API 可以返回一个移动友好的 HTML 页面布局。'
 - en: '**A collection of queries**: This ensures that only related items from the
     server database are fetched. For example, a search string of `PyTorch` will return
     only PyTorch-related books in the previous example. Note that, in this chapter,
@@ -180,34 +213,40 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**一系列查询**：这确保只从服务器数据库中获取相关的项目。例如，搜索字符串 `PyTorch` 将仅返回前面示例中与 PyTorch 相关的书籍。请注意，在本章中，我们不会处理查询，因为对图像的预测不需要查询，而是需要文件名。'
 - en: '**A list of files**: This could be uploaded to the server or, in our case,
     used to make deep learning predictions.'
   id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**一系列文件**：这些文件可以上传到服务器，或者在我们的情况下，用于进行深度学习预测。'
 - en: cURL is a computer software project that provides a library and command-line
     tool to transfer data using various network protocols. It is one of the most lightweight,
     commonly used, and simple applications to call API requests and get back responses.
   id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: cURL 是一个计算机软件项目，提供了一个库和命令行工具，用于使用各种网络协议传输数据。它是最轻量级、常用和简单的应用程序之一，用于调用 API 请求并获取响应。
 - en: 'To illustrate this, we will implement a readily available Python module called
     FastAPI in the following sections that will enable us to do the following:'
   id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明这一点，我们将在接下来的章节中实现一个名为 FastAPI 的现成 Python 模块，使我们能够做到以下几点：
 - en: Set up a communication URL.
   id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 设置通信 URL。
 - en: Accept input from a wide variety of environments/formats when it is sent to
     the URL.
   id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在发送到 URL 时，接受来自各种环境/格式的输入。
 - en: Convert every form of input into the exact format that the machine learning
     model needs as input.
   id: totrans-35
@@ -370,22 +409,26 @@
   id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 设置非常简单，如下所示：
 - en: The `files` folder is going to act as the download location for incoming requests.
   id: totrans-61
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`files`文件夹将作为传入请求的下载位置。'
 - en: '`sdd.weights.pth` contains the weights of our trained SDD model.'
   id: totrans-62
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`sdd.weights.pth`包含我们训练的SDD模型的权重。'
 - en: '`sdd.py` will contain logic to load the weights, accept incoming images, and
     preprocess, predict, and postprocess the predictions.'
   id: totrans-63
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`sdd.py`将包含加载权重、接受传入图像、预处理、预测和后处理预测的逻辑。'
 - en: '`server.py` will contain FastAPI functionalities that can set up a URL, accept
     client requests from the URL, send/receive input/output from `sdd.py`, and send
     the output as responses to the client requests.'
@@ -393,43 +436,52 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`server.py`将包含FastAPI功能，可以设置URL，从URL接受客户端请求，发送/接收来自`sdd.py`的输入/输出，并将输出作为响应发送给客户端请求。'
 - en: Note
   id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The `files` folder is empty and is only used to store uploaded files.
   id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: '`files`文件夹为空，仅用于存储上传的文件。'
 - en: We are assuming we have the weights of the trained model as `sdd.weights.pth`.
   id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们假设已经有了训练模型的权重作为`sdd.weights.pth`。
 - en: The training process is similar to how we trained for image classification in
     *Chapter 4*.
   id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练过程类似于我们在*第4章*中进行图像分类的训练。
 - en: The notebook associated with training the model is provided in the first section
     of the `vector_stores.ipynb` notebook, in the `Chapter18` folder of the book’s
     GitHub repository.
   id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 与训练模型相关联的笔记本位于书的GitHub存储库的`Chapter18`文件夹中的第一部分的`vector_stores.ipynb`笔记本中。
 - en: Let’s understand what `sdd.py` and `server.py` constitute and code them now.
   id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们理解`ssd.py`和`server.py`的构成并编写它们。
 - en: sdd.py
   id: totrans-71
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '`sdd.py`'
 - en: As discussed, the `sdd.py` file should have the logic to load the model and
     return predictions of a given image.
   id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前所述，`sdd.py`文件应该具有加载模型并返回给定图像的预测的逻辑。
 - en: 'We are already familiar with how to create a PyTorch model. The only additional
     component to the class is the `predict` method, which is there for doing any necessary
     preprocessing on the image and postprocessing on the results. You can follow these
@@ -437,17 +489,20 @@
   id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经熟悉如何创建PyTorch模型。类的唯一额外组件是`predict`方法，用于对图像进行必要的预处理和结果的后处理。您可以按照以下步骤操作：
 - en: The following code is available as `sdd.py` in the `Chapter18` folder of the
     book’s GitHub repository at `https://bit.ly/mcvp-2e`.
   id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码可在书的GitHub存储库的`Chapter18`文件夹中的`ssd.py`中找到，网址为`https://bit.ly/mcvp-2e`。
 - en: 'We first create the `model` class that constitutes the architecture of the
     model:'
   id: totrans-75
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们首先创建`model`类，该类构成了模型的架构：
 - en: '[PRE1]'
   id: totrans-76
   prefs:
@@ -459,6 +514,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以下代码块突出显示了前向方法：
 - en: '[PRE2]'
   id: totrans-78
   prefs:
@@ -470,11 +526,13 @@
   id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们首先重塑输入图像，通过模型，并获取与图像对应的预测类。
 - en: 'The following code block highlights the `predict` method to do the necessary
     preprocessing and postprocessing:'
   id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码块突出显示了`predict`方法，用于进行必要的预处理和后处理：
 - en: '[PRE3]'
   id: totrans-81
   prefs:
@@ -490,26 +548,31 @@
   id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，在前面的步骤中，在`__init__`方法中，我们初始化模型（其中在上一步中加载了预训练权重）。在`forward`方法中，我们通过模型传递图像并获取预测。在`predict`方法中，我们从预定义路径加载图像，预处理图像，然后通过模型的`forward`方法传递它，并在返回预测类时将输出包装在字典中。
 - en: server.py
   id: totrans-83
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: server.py
 - en: 'This is the portion of code in the API that connects the user’s request with
     the PyTorch model. Let’s create the file step by step:'
   id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是API中连接用户请求与PyTorch模型的代码部分。让我们逐步创建文件：
 - en: The following code is available as `server.py` in the `Chapter18` folder of
     the book’s GitHub repository at `https://bit.ly/mcvp-2e`.
   id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码可在书的GitHub存储库的`Chapter18`文件夹中的`server.py`中找到，网址为`https://bit.ly/mcvp-2e`。
 - en: 'Load the libraries:'
   id: totrans-86
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载库：
 - en: '[PRE4]'
   id: totrans-87
   prefs:
@@ -520,6 +583,7 @@
   id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: '`FastAPI`是基本的服务器类，用于创建API。'
 - en: '`Request`, `File`, and `UploadFile` are proxy placeholders for a client request
     and the files they will upload. For more details, you are encouraged to go through
     the official FastAPI documentation here: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/).'
@@ -718,6 +782,9 @@
   id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们宁愿安装一个具有所有内容的包，而不是安装多个单独的包（如运行应用程序所需的单独模块和代码），然后稍后再将它们连接起来。因此，我们需要学习如何使用 Docker，它本质上是一个带有代码的压缩操作系统。创建的
+    Docker 容器是轻量级的，将仅执行我们想要执行的任务。在我们的示例中，我们将创建的 Docker 镜像将运行用于预测 SDD 图像类别的 API。但首先，让我们了解一些
+    Docker 行话。
 - en: 'A **Docker image** is a standard unit of software that packages up code and
     all its dependencies. This way, the application runs quickly and reliably from
     one computing environment to another. A Docker image is a lightweight, standalone,
@@ -726,6 +793,7 @@
   id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: '**Docker 镜像** 是打包代码及其所有依赖关系的标准软件单元。这样，应用程序可以从一个计算环境快速可靠地运行到另一个计算环境。Docker 镜像是一个轻量级、独立运行的软件包，包含运行应用程序所需的一切：代码、运行时、系统工具、系统库和设置。'
 - en: A **Docker container** is a snapshot of the image that will be instantiated
     wherever it needs to be deployed. We can create any number of Docker containers
     from a single image, and they will perform the same task. Think of an image as
@@ -733,29 +801,35 @@
   id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: '**Docker 容器** 是镜像的快照，将在需要部署的地方实例化。我们可以从单个镜像创建任意数量的 Docker 容器，它们将执行相同的任务。可以将镜像视为蓝图，将容器视为从该蓝图创建的实例。'
 - en: 'At a high level, we will learn how to perform the following tasks:'
   id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 在高层次上，我们将学习如何执行以下任务：
 - en: Create a Docker image.
   id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 Docker 镜像。
 - en: Create a Docker container out of it and test it.
   id: totrans-123
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将其创建为 Docker 容器并进行测试。
 - en: Let’s start by creating a Docker container.
   id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从创建一个 Docker 容器开始。
 - en: Building a Docker image
   id: totrans-125
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 构建 Docker 镜像
 - en: In the previous section, we built an API that takes an image and returns the
     class of the image and the probability associated with that class of image on
     a local server. Now, it’s time to wrap our API in a package that can be shipped
@@ -763,50 +837,60 @@
   id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一节中，我们构建了一个 API，该 API 在本地服务器上接收图像并返回图像的类别及其概率。现在，是时候将我们的 API 封装成一个可以在任何地方部署的软件包了。
 - en: Ensure Docker is installed on your machine. You can refer to [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
     for instructions on the installation.
   id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 确保您的计算机安装了 Docker。您可以参考[https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)中的安装说明。
 - en: 'There are three steps to the process of creating a Docker container:'
   id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建 Docker 容器的过程包括三个步骤：
 - en: Create a `requirements.txt` file.
   id: totrans-129
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 `requirements.txt` 文件。
 - en: Create a Dockerfile.
   id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个 Dockerfile。
 - en: Build a Docker image and create a Docker container.
   id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 构建 Docker 镜像并创建 Docker 容器。
 - en: 'The code in the following sections is also summarized as a video walk-through
     here: [https://tinyurl.com/MCVP-2E-model2fastapi-docker](https://tinyurl.com/MCVP-2E-model2fastapi-docker).'
   id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下各节的代码还可以在这里进行视频演示：[https://tinyurl.com/MCVP-2E-model2fastapi-docker](https://tinyurl.com/MCVP-2E-model2fastapi-docker)。
 - en: We will go through and understand these four steps now, and in the next section,
     we will learn how to ship the image to AWS servers.
   id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将详细了解并理解这四个步骤，接下来，我们将学习如何将镜像发送到 AWS 服务器。
 - en: Creating the requirements.txt file
   id: totrans-134
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 创建 `requirements.txt` 文件
 - en: 'We need to tell the Docker image which Python modules to install to run the
     application. The `requirements.txt` file contains a list of all these Python modules:'
   id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要告诉 Docker 镜像安装哪些 Python 模块以运行应用程序。`requirements.txt` 文件包含所有这些 Python 模块的列表：
 - en: 'Open a terminal and go to the folder that contains `sdd.py`, `server.py`. Next,
     we will create a blank virtual environment and activate it in our local terminal
     in the `root` folder:'
@@ -1371,6 +1455,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如您之前所做的那样，在EC2实例中配置AWS，并重新启动机器：
 - en: '[PRE24]'
   id: totrans-223
   prefs:
@@ -1382,6 +1467,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用以下命令从本地终端重新登录到实例：
 - en: '[PRE25]'
   id: totrans-225
   prefs:
@@ -1394,6 +1480,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，从已登录（已安装Docker）的EC2控制台（其中已登录到AWS ECR），登录AWS ECR（根据以下命令中显示的粗体区域更改区域）：
 - en: '[PRE26]'
   id: totrans-227
   prefs:
@@ -1405,6 +1492,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从AWS ECR拉取Docker镜像：
 - en: '[PRE27]'
   id: totrans-229
   prefs:
@@ -1415,6 +1503,7 @@
   id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，在EC2机器上运行已拉取的Docker镜像：
 - en: '[PRE28]'
   id: totrans-231
   prefs:
@@ -1426,12 +1515,14 @@
   id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在EC2上运行我们的API。我们只需获取机器的公共IP地址，并用该地址替换`127.0.0.1`运行`curl`请求。
 - en: 'You can now call a `POST` request from any computer, and the EC2 instance will
     respond to it, giving us predictions for what type of clothing image we have uploaded:'
   id: totrans-233
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在您可以从任何计算机发起`POST`请求，EC2实例将对其进行响应，并为我们上传的衣物图像提供预测：
 - en: '[PRE29]'
   id: totrans-234
   prefs:
@@ -1442,6 +1533,7 @@
   id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码会产生以下输出：
 - en: '[PRE30]'
   id: totrans-236
   prefs:
@@ -1454,27 +1546,33 @@
   id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们已经能够为EC2安装依赖项，拉取Docker镜像，并运行Docker容器，以便任何具有URL的用户可以对新图像进行预测。
 - en: 'The whole process is summarized as a video walkthrough here: `https://tinyurl.com/MCVP-FastAPI2AWS`.'
   id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 整个过程的概述可以在此视频演示中查看：`https://tinyurl.com/MCVP-FastAPI2AWS`。
 - en: Step wise instructions with screenshots are available as a PDF file within the
     `Chapter18` folder of the associated GitHub repository as `Shipping and running
     the Docker container on cloud`.
   id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以在关联的GitHub存储库的`Chapter18`文件夹中的PDF文件中找到具有屏幕截图的逐步说明，标题为`Shipping and running
+    the Docker container on cloud`。
 - en: Now that we understand how to deploy a model, in the next section, we will learn
     about ways to identify scenarios where the input data (in the real world) is out
     of distribution when compared to the data used during training.
   id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了如何部署模型，接下来我们将学习如何识别在实际输入数据（在真实世界中）与训练时使用的数据相比时处于分布之外的场景。
 - en: Identifying data drift
   id: totrans-241
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 识别数据漂移
 - en: In a typical tabular dataset, it is relatively easy to understand if the incoming
     data point is an outlier by looking at the summary statistics of the dataset on
     which the model is trained. However, computer vision models are not as straightforward
@@ -1488,76 +1586,90 @@
   id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 在典型的表格数据集中，通过查看模型训练的数据集的摘要统计信息，可以相对容易地理解传入数据点是否为异常值。然而，计算机视觉模型并不那么直接 - 我们已经在*第四章*中看到它们的怪癖，在那里，仅仅通过将像素平移几个像素，预测的类别就发生了变化。然而，在图像的情况下，这并不是唯一的数据漂移场景。进入生产模型的数据与模型训练所用的数据有很多不同之处。这些可能是显而易见的事情，比如图像的照明不对或者图像中预期的主题错误，也可能是人眼看不见的微妙之处。
 - en: In this section, we will understand ways of measuring drift between the input
     images in real time (real-world images for prediction) and the images that were
     used during the training of the model.
   id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将了解如何实时测量输入图像（用于预测的真实世界图像）与模型训练期间使用的图像之间的漂移方式。
 - en: 'The reasons we are measuring drift are as follows:'
   id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们测量漂移的原因如下：
 - en: If the input images in the real world are not like the images that were used
     during training, then we potentially would be predicting incorrectly.
   id: totrans-245
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果真实世界的输入图像不像训练时使用的图像，那么我们可能会错误地进行预测。
 - en: Furthermore, we want to get feedback after implementing the model as early as
     possible so that we can retrain/fine-tune the model.
   id: totrans-246
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 此外，我们希望在尽早实施模型后尽快获得反馈，以便我们可以重新训练/微调模型。
 - en: 'We’ll adopt the following strategy to identify if a new image is out of distribution:'
   id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将采用以下策略来确定新图像是否为分布之外：
 - en: Extract the embedding from an intermediate layer (for example, an `avgpool`
     layer).
   id: totrans-248
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从中间层提取嵌入（例如，`avgpool`层）。
 - en: Perform the above step for both training images as well as any new image from
     the real world.
   id: totrans-249
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对训练图像和来自真实世界的任何新图像执行上述步骤：
 - en: Compare the embeddings of the new image with the embeddings of all the training
     images.
   id: totrans-250
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 比较新图像的嵌入与所有训练图像的嵌入：
 - en: You can also experiment with the embeddings of only those training images that
     belong to the same class as that of the new image.
   id: totrans-251
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 您还可以尝试仅使用与新图像同一类别的训练图像的嵌入进行实验。
 - en: If the distance between the embeddings of the new image and the embeddings of
     training images is high, then the new image is out of distribution.
   id: totrans-252
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果新图像的嵌入与训练图像的嵌入之间的距离较大，则新图像属于分布之外。
 - en: 'We’ll implement the above in code as follows:'
   id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在代码中实现上述内容如下：
 - en: The following code is available as `measuring_drift.ipynb` in the `Chapter18`
     folder of the book’s GitHub repository at `https://bit.ly/mcvp-2e`.
   id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码位于书籍GitHub存储库的`Chapter18`文件夹中的`measuring_drift.ipynb`中，网址为`https://bit.ly/mcvp-2e`。
 - en: 'Fetch the repo that contains the code to train the model:'
   id: totrans-255
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取包含训练模型代码的存储库：
 - en: '[PRE31]'
   id: totrans-256
   prefs:
@@ -1569,6 +1681,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型：
 - en: '[PRE32]'
   id: totrans-258
   prefs:
@@ -1580,6 +1693,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取训练集、验证集以及数据加载器：
 - en: '[PRE33]'
   id: totrans-260
   prefs:
@@ -1591,6 +1705,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载模型：
 - en: '[PRE34]'
   id: totrans-262
   prefs:
@@ -1602,6 +1717,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取训练过程中使用的图像的嵌入：
 - en: '[PRE35]'
   id: totrans-264
   prefs:
@@ -1614,6 +1730,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取样本验证图像的嵌入，并计算与训练图像的嵌入之间的距离：
 - en: '[PRE36]'
   id: totrans-266
   prefs:
@@ -1625,6 +1742,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，让我们使用一个完全无关的图像进行相同的练习：
 - en: '[PRE37]'
   id: totrans-268
   prefs:
@@ -1637,6 +1755,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们绘制训练图像与验证图像以及无关（随机）图像之间距离分布：
 - en: '[PRE38]'
   id: totrans-270
   prefs:
@@ -1647,11 +1766,13 @@
   id: totrans-271
   prefs: []
   type: TYPE_IMG
+  zh: '![一个图表的图解](img/B18457_18_08.png)'
 - en: 'Figure 18.6: Distance distribution between the training images and the validation
     and random images'
   id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 图18.6：训练图像与验证图像以及随机图像之间的距离分布
 - en: From the above, we can see that the distance range of the random image is extremely
     different when compared to the distance of an image taken from within the distribution.
     This way, we can understand whether the image that we are predicting on falls
@@ -1661,23 +1782,27 @@
   id: totrans-273
   prefs: []
   type: TYPE_NORMAL
+  zh: 从上述内容可以看出，与来自分布内部的图像的距离范围相比，随机图像的距离范围差异极大。通过这种方式，我们可以了解我们正在预测的图像是否落在训练图像的分布范围内。此外，当超过阈值的现实世界图像数量（或百分比）超出分布时，考虑重新训练模型是值得的。
 - en: In this section, we have calculated the distance between the embeddings of the
     predicted image and all the images used for training. In this case, it was easier,
     given that the number of training images is limited (a few hundred).
   id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们计算了预测图像与所有训练图像之间的距离。在这种情况下，由于训练图像的数量有限（几百个），这变得更加容易。
 - en: What if the number of training images is ~one million? How do we perform the
     distance calculation relatively quickly? In the next section, we will learn about
     how vector stores help to solve this problem.
   id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果训练图像数量达到约一百万？我们如何快速执行距离计算？在接下来的部分中，我们将学习向量存储是如何帮助解决这个问题的。
 - en: Using vector stores
   id: totrans-276
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用向量存储
 - en: 'The intuition of vector stores is as follows: if we can group all the vectors
     into a certain number of clusters, for a new vector, we can first identify the
     cluster that it is likely to belong to, and then we can calculate the distance
@@ -1685,11 +1810,13 @@
   id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: 向量存储的直觉是：如果我们可以将所有向量分组到某些簇中，对于新向量，我们可以首先确定它可能属于的簇，然后计算新向量与属于同一簇的图像之间的距离。
 - en: This process helps to avoid computation across all images, thereby reducing
     the computation time considerably.
   id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个过程有助于避免跨所有图像的计算，从而大大减少计算时间。
 - en: FAISS is an open-source library built by Meta to perform fast approximate similarity
     search between vectors. There is a wide range of both open-source and proprietary
     vector store libraries. We strongly recommend you review those once you understand
