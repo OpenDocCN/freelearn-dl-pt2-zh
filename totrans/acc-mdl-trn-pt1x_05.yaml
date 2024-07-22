@@ -1,50 +1,62 @@
 - en: '3'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Compiling the Model
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'Paraphrasing one of the famous presenters: “It’s time!” After completing our
     initial steps toward performance improvement, it is time to learn a new capability
     of PyTorch 2.0 to accelerate the training and inference of deep learning models.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
 - en: We are talking about the Compile API, which was presented in PyTorch 2.0 as
     one of the most exciting capabilities of this new version. In this chapter, we
     will learn how to use this API to build a faster model to optimize the execution
     of its training phase.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
 - en: 'Here is what you will learn as part of this chapter:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
 - en: The benefits of graph mode over eager mode
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: How to use the API to compile a model
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: The components, workflow, and backends used by the API
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: You can find the complete code for the examples mentioned in this chapter in
     this book’s GitHub repository at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
 - en: You can access your favorite environment to execute this notebook, such as Google
     Collab or Kaggle.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
 - en: What do you mean by compiling?
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -56,21 +68,26 @@
     process in the context of this book since we are talking about Python. After all,
     Python is not a compiled language; it is an interpreted language, and thus, no
     compiling is involved.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
 - en: It is important to clarify that Python uses compiled functions for performance
     purposes, though it is primarily an interpreted language.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
 - en: That said, what is the meaning of compiling a model? Before answering this question,
     we must understand the two execution modes of machine learning frameworks. Follow
     me to the next section.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
 - en: Execution modes
+  id: totrans-16
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -79,355 +96,519 @@
     is exactly what we expect to see in an interpreted language. The interpreter –
     Python, in this case – executes the operation as soon as it comes to light. So,
     there is no evaluation of what comes next when the operation is executed:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 3.1 – Eager execution mode](img/B20959_03_1.jpg)'
+  id: totrans-18
   prefs: []
   type: TYPE_IMG
 - en: Figure 3.1 – Eager execution mode
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
 - en: As shown in *Figure 3**.1*, the interpreter executes the three operations one
     after another in instants of t1, t2, and t3\. The term “eager” stands for doing
     things instantly without taking a breath to evaluate the whole scenario before
     making the next step.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
 - en: 'Besides eager mode, there is another approach named **graph mode**, which is
     similar to the traditional compiling process. Graph mode evaluates the complete
     set of operations to seek optimization opportunities. To perform this process,
     the program must evaluate the task as a whole, as shown in *Figure 3**.2*:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了急切模式外，还有一种名为**图模式**的方法，类似于传统的编译过程。图模式评估完整的操作集以寻找优化机会。为了执行此过程，程序必须整体评估任务，如*图
+    3**.2*所示：
 - en: '![Figure 3.2 – Graph execution mode](img/B20959_03_2.jpg)'
+  id: totrans-22
   prefs: []
   type: TYPE_IMG
+  zh: '![图 3.2 - 图执行模式](img/B20959_03_2.jpg)'
 - en: Figure 3.2 – Graph execution mode
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 3.2 - 图执行模式
 - en: '*Figure 3**.2* shows the program uses t1 and t2 to execute the compiling process
     instead of eagerly running operations, as done before. The set of operations is
     executed only at t3 when the compiled code is executed.'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 3**.2*显示程序使用 t1 和 t2 执行编译过程，而不是像之前那样急切地运行操作。一组操作只在 t3 时执行编译后的代码。'
 - en: The term “graph” refers to the directed graph created by this execution mode
     to represent operations and operands of a task. As this graph represents the processing
     flow of the task, the execution mode evaluates this representation to find ways
     to fuse, condense, and optimize operations.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 术语“图”指的是由此执行模式创建的有向图，用于表示任务的操作和操作数。由于此图表示任务的处理流程，执行模式评估此表示以查找融合、压缩和优化操作的方法。
 - en: 'For example, consider the case illustrated in *Figure 3**.3*, which represents
     a task comprised of three operations. Op1 and Op2 receive operands I1 and I2,
     respectively. The results of these computations are used as input to Op3\. Here,
     Op3 takes these two operands and, together with operand I3, outputs a result of
     O1:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑*图 3**.3*中的案例，该图表示由三个操作组成的任务。Op1 和 Op2 分别接收操作数 I1 和 I2。这些计算的结果作为 Op3 的输入，与操作数
+    I3 一起输出结果 O1：
 - en: '![Figure 3.3 – Example of operations represented in a directed graph](img/B20959_03_3.jpg)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![图 3.3 - 表示在有向图中的操作示例](img/B20959_03_3.jpg)'
 - en: Figure 3.3 – Example of operations represented in a directed graph
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 3.3 - 表示在有向图中的操作示例
 - en: 'After evaluating this graph, the program could decide to fuse all three operations
     in a single compiled code. As shown in *Figure 3**.4*, this piece of code receives
     all three operands and outputs a value of O1:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在评估了这个图表之后，程序可以决定将所有三个操作融合到一个编译后的代码中。如*图 3**.4*所示，这段代码接收三个操作数并输出一个值 O1：
 - en: '![Figure 3.4 – Example of compiled operations](img/B20959_03_4.jpg)'
+  id: totrans-30
   prefs: []
   type: TYPE_IMG
+  zh: '![图 3.4 - 编译操作示例](img/B20959_03_4.jpg)'
 - en: Figure 3.4 – Example of compiled operations
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 3.4 - 编译操作示例
 - en: Besides fusing and reducing operations, the compiled model – the resultant of
     graph mode – can be created specifically for some hardware architecture to harness
     all resources and capabilities provided by that device. This is one of the reasons
     graph mode can perform better than eager mode.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了融合和减少操作外，编译模型 - 图模式的结果 - 可以专门针对某些硬件架构进行创建，以利用设备提供的所有资源和功能。这也是图模式比急切模式表现更好的原因之一。
 - en: As with everything in life, each mode has advantages and drawbacks. In short,
     eager mode is simpler to understand and hack, besides not having any delay in
     starting to run operations. On the other hand, graph mode is much faster to execute,
     though it is more complex to comprehend and requires extra initial time to create
     the compiled piece of code.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 和生活中的一切一样，每种模式都有其优点和缺点。简而言之，急切模式更容易理解和调试，并且在开始运行操作时没有任何延迟。另一方面，图模式执行速度更快，尽管更复杂，需要额外的初始时间来创建编译后的代码。
 - en: Model compiling
+  id: totrans-34
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 模型编译
 - en: 'Now that you’ve been introduced to eager and graph modes, we can go back to
     the question that was posed at the beginning of this section: what is the meaning
     of compiling a model?'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在您已经了解了急切模式和图模式，我们可以回到本节开头提出的问题：编译模型的含义是什么？
 - en: Compiling a model means *changing the execution mode of forward and backward
     phases from eager to graph mode*. In doing this, the machine learning framework
     evaluates all operations and operands involved in these phases in advance to compile
     them into a single piece of code. Therefore, notice that when we use the term
     “compiling a model,” we are referring to compiling the processing flow that’s
     executed in the forward and backward phases.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译模型意味着*将前向和后向阶段的执行模式从急切模式改变为图模式*。在执行此操作时，机器学习框架提前评估所有涉及这些阶段的操作和操作数，以将它们编译成单一的代码片段。因此，请注意，当我们使用术语“编译模型”时，我们指的是编译在前向和后向阶段执行的处理流程。
 - en: But why would we want to do that? We compile a model to accelerate its training
     time since the compiled code tends to **run faster** than the code that’s executed
     in eager mode. As we will see in the next few sections, performance improvement
     depends on diverse factors, such as the computational capability of the GPU used
     to train the model.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 但为什么我们要这样做呢？我们编译模型是为了加速其训练时间，因为编译后的代码往往比在急切模式下执行的代码**运行速度更快**。正如我们将在接下来的几节中看到的，性能提升取决于各种因素，如用于训练模型的
+    GPU 的计算能力。
 - en: Remark, however, that performance improvement is not guaranteed for all hardware
     platforms and models. On many occasions, the performance of graph mode can be
     the same as eager mode or even worse because of the extra time needed to compile
     the model. Even so, we should always consider compiling the model to verify the
     resultant performance improvement, especially when using novel GPU devices.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而需要注意的是，并非所有硬件平台和模型都能保证性能提升。在许多情况下，由于需要额外的编译时间，图模式的性能可能与急切模式相同甚至更差。尽管如此，我们应始终考虑编译模型以验证最终的性能提升，尤其是在使用新型
+    GPU 设备时。
 - en: At this point, you may be wondering what execution mode is supported by PyTorch.
     The default execution mode of PyTorch is eager mode since it is “easier to use
     and more suitable for machine learning researchers,” as stated on PyTorch’s website.
     Nevertheless, PyTorch also supports graph mode! After version 2.0, PyTorch natively
     supports graph execution mode through the **Compile API**.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，你可能会想知道 PyTorch 支持哪种执行模式。PyTorch 的默认执行模式是急切模式，因为它“更易于使用并且更适合机器学习研究人员”，正如
+    PyTorch 网站上所述。然而，PyTorch 也支持图模式！在2.0版本之后，PyTorch 通过**编译 API**本地支持图执行模式。
 - en: Before this new version, we needed to use third-party tools and libraries to
     enable graph mode on PyTorch. However, with the launch of the Compile API, we
     can now easily compile a model. Let’s learn how to use this API to accelerate
     the training phase of our models.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个新版本之前，我们需要使用第三方工具和库来启用 PyTorch 上的图模式。然而，随着编译 API 的推出，现在我们可以轻松地编译模型。让我们学习如何使用这个
+    API 来加速我们模型的训练阶段。
 - en: Using the Compile API
+  id: totrans-41
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 Compile API
 - en: We will start learning the basic usage of the Compile API by applying it to
     our well-known CNN model and Fashion-MNIST dataset. After that, we will accelerate
     a heavier model that’s used to classify images from the CIFAR-10 dataset.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从将 Compile API 应用于我们广为人知的 CNN 模型和 Fashion-MNIST 数据集的基本用法开始学习。之后，我们将加速一个更重的用于分类
+    CIFAR-10 数据集中图像的模型。
 - en: Basic usage
+  id: totrans-43
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基本用法
 - en: 'Instead of describing the API’s components and explaining a bunch of optional
     parameters, let’s dive into a simple example to show the basic usage of this capability.
     The following piece of code uses the Compile API to compile the CNN model presented
     in previous chapters:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 不是描述 API 的组件并解释一堆可选参数，我们来看一个简单的例子，展示这个能力的基本用法。以下代码片段使用 Compile API 来编译在前几章中介绍的
+    CNN 模型：
 - en: '[PRE0]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Note
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/cnn-graph_mode.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/cnn-graph_mode.ipynb).
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 此部分展示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/cnn-graph_mode.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/cnn-graph_mode.ipynb)处获取。
 - en: To compile a model, we need to call a function named `compile`, passing the
     model as a parameter. Nothing else is necessary for the basic usage of this API.
     `compile` returns an object that will be compiled the first time it is called.
     The rest of the code remains exactly as before.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 要编译一个模型，我们需要调用一个名为`compile`的函数，并将模型作为参数传递进去。对于这个 API 的基本用法，没有其他必要的内容了。`compile`函数返回一个对象，在第一次调用时将被编译。其余代码保持和以前完全一样。
 - en: 'We can set the following environment variable to see whether the compiling
     process occurs:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以设置以下环境变量来查看编译过程是否发生：
 - en: '[PRE1]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'If so, we will see a lot of messages, as shown here:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果是这样，我们将会看到很多消息，如下所示：
 - en: '[PRE2]'
+  id: totrans-52
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Another way to certify that we compiled the model successfully is by profiling
     the forward phase by using the PyTorch Profiler API:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种验证我们成功编译模型的方法是使用 PyTorch Profiler API 来分析前向阶段：
 - en: '[PRE3]'
+  id: totrans-54
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'If the model was compiled successfully, the profiling would show a task labeled
     as `CompiledFunction`, as shown in the first line of the following output:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果模型成功编译，分析结果将显示一个标记为`CompiledFunction`的任务，如以下输出的第一行所示：
 - en: '[PRE4]'
+  id: totrans-56
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'The preceding output shows that `CompiledFunction` and `aten::mkldnn_convolution`
     took almost 86% of the time required to execute the forward phase. If we profile
     the model when it’s executed in eager mode, we can easily identify which operations
     were fused and transformed into `CompiledFunction`:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述输出显示，`CompiledFunction`和`aten::mkldnn_convolution`几乎占据了执行前向阶段所需时间的 86%。如果我们在急切模式下分析模型，可以轻松识别哪些操作已被融合并转换为`CompiledFunction`。
 - en: '[PRE5]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'By evaluating the profiling output of eager and graph modes, we can see that
     the compiling process fused nine operations into the `CompiledFunction` operation,
     as illustrated in *Figure 3**.5*. As shown in this example, there are situations
     where the compiling process cannot compile all operations involved in the forward
     phase. This happens due to many reasons, such as data dependence:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过评估急切和图模式的分析输出，我们可以看到编译过程将九个操作融合到`CompiledFunction`操作中，如*图 3**.5*所示。正如本例所示，编译过程无法编译所有涉及前向阶段的操作。这是由于诸如数据依赖等多种原因造成的：
 - en: '![Figure 3.5 – A set of operations incorporated in a compiled function](img/B20959_03_5.jpg)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![图 3.5 – 编译函数中包含的一组操作](img/B20959_03_5.jpg)'
 - en: Figure 3.5 – A set of operations incorporated in a compiled function
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 3.5 – 编译函数中包含的一组操作
 - en: You may be wondering about performance improvement. After all, this is what
     we came for! Do you remember what we discussed at the beginning of this chapter
     about not achieving performance improvement in all situations? Well, this is one
     of those cases.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可能会对性能改进感到好奇。毕竟，这就是我们来的目的！您还记得我们在本章开头讨论的并非在所有情况下都能实现性能改进的内容吗？嗯，这就是其中之一。
 - en: '*Figure 3**.6* shows the execution time of each training epoch of the CNN model
     running in both eager and graph modes. As we can see, the execution time of all
     epochs is higher in graph mode than in eager mode. Furthermore, the first epoch
     of graph mode is significantly slower than the others because the compiling process
     is executed at that moment:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 3**.6*显示了在急切模式和图模式下运行的 CNN 模型每个训练时期的执行时间。正如我们所见，所有时期的执行时间在图模式下都比急切模式高。此外，图模式的第一个时期明显比其他时期慢，因为在那一刻执行了编译过程：'
 - en: '![Figure 3.6 – Execution time of each training epoch of the CNN model in eager
     and graph modes](img/B20959_03_6.jpg)'
+  id: totrans-64
   prefs: []
   type: TYPE_IMG
+  zh: '![图 3.6 – 急切模式和图模式下 CNN 模型每个训练时期的执行时间](img/B20959_03_6.jpg)'
 - en: Figure 3.6 – Execution time of each training epoch of the CNN model in eager
     and graph modes
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 3.6 – 急切模式和图模式下 CNN 模型每个训练时期的执行时间
 - en: The overall time of model training executed on eager and graph modes was equal
     to 118 and 140 seconds, respectively. Thus, the compiled model was 18% slower
     than the default execution mode.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 急切和图模式下模型训练的总时间分别为 118 和 140 秒。因此，编译模型比默认执行模式慢了 18%。
 - en: Frustrating, right? Yes, it is. However, remember that our CNN is just a toy
     model, thus there is not much space to truly improve performance. In addition,
     these experiments were executed in a non-GPU environment, though the compiling
     process tends to yield better results on GPU devices.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 令人沮丧，对吧？是的，确实如此。然而，请记住我们的 CNN 只是一个玩具模型，因此真正改善性能的空间并不大。此外，这些实验是在非 GPU 环境中执行的，尽管编译过程往往在
+    GPU 设备上能够产生更好的结果。
 - en: That said, let’s go to the next section to see a significant performance improvement
     through the Compile API.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 话虽如此，让我们进入下一节，看看通过编译 API 实现显著的性能改进。
 - en: Give me a real fight – training a heavier model!
+  id: totrans-69
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 给我一个真正的挑战——训练一个更重的模型！
 - en: To see all the power of this capability in action, we will apply it to a more
     complex case. Our guinea pig for this is the `torchvision` module.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了看到这种能力的全部效果，我们将其应用于一个更复杂的案例。我们这次的实验对象是`torchvision`模块。
 - en: Note
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/densenet121_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/densenet121_cifar10.ipynb)
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中显示的完整代码可在 [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/densenet121_cifar10.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/densenet121_cifar10.ipynb)
+    获取。
 - en: CIFAR-10 is a classic image classification dataset comprising 60,000 32x32 colored
     images. These images belong to 10 distinct categories, which explains the suffix
     “10” in the dataset’s name.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: CIFAR-10 是一个经典的图像分类数据集，包含 60,000 张大小为 32x32 的彩色图像。这些图像属于 10 个不同的类别，这也解释了数据集名称中的后缀“10”。
 - en: Although each dataset image is 32x32 in size, it is a good practice to resize
     them to achieve better results on model training. Thus, we resized each image
     to 224x224 but kept the original three channels to represent the RGB color codification.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管每个数据集图像的尺寸为32x32，但将它们调整大小以在模型训练中取得更好的结果是一种好方法。因此，我们将每个图像调整为224x224，但保留原始的三个通道以表示RGB颜色编码。
 - en: 'We conducted this experiment with the DenseNet121 model by using the following
     hyperparameters:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用以下超参数在DenseNet121模型上进行了这个实验：
 - en: '**Batch** **size**: 64'
+  id: totrans-76
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Batch** **size**：64'
 - en: '**Epochs**: 50'
+  id: totrans-77
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Epochs**：50'
 - en: '**Learning** **rate**: 0.0001'
+  id: totrans-78
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Learning** **rate**：0.0001'
 - en: '**Weight** **decay**: 0.005'
+  id: totrans-79
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Weight** **decay**：0.005'
 - en: '**Criterion**: Cross entropy'
+  id: totrans-80
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Criterion**：交叉熵'
 - en: '**Optimizer**: Adam'
+  id: totrans-81
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**Optimizer**：Adam'
 - en: Unlike previous experiments with the CNN model, this test was executed on an
     environment with the novel Nvidia A100 GPU. This GPU has a compute capability
     equal to 8.0, satisfying the requirement informed by PyTorch to achieve better
     results with the Compile API.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 与以前在CNN模型上进行的实验不同，这次测试是在具有新型Nvidia A100 GPU的环境中执行的。该GPU的计算能力等于8.0，满足了PyTorch要求的利用编译API获得更好结果的条件。
 - en: Note
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Compute capability is a score assigned by NVIDIA to its GPUs. The higher the
     compute capability, the higher the computing power that GPU provides. PyTorch’s
     official documentation states that the Compile API yields better results on GPUs
     with compute capability equal to or higher than 8.0.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算能力是NVIDIA分配给其GPU的评分。计算能力越高，GPU提供的计算能力就越高。PyTorch的官方文档表示，编译API在具有等于或高于8.0的计算能力的GPU上产生更好的结果。
 - en: 'The following piece of code shows how to load and enable the DenseNet121 model
     for training:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码片段显示了如何加载和启用DenseNet121模型进行训练：
 - en: '[PRE6]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'The usage of the Compile API, in this case, is almost the same as before, except
     for one slight change in the compile line:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这种情况下，使用编译API的用法几乎与之前一样，只有编译行中有一个轻微的变化：
 - en: '[PRE7]'
+  id: totrans-88
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: As you can see, we are invoking a different compiling mode than the one used
     in the previous example. We did not use the “mode” parameter on the **CNNxFashion-MNIST**
     case, so the compile function employed the default compiling mode. The compiling
     mode changes the entire workflow’s behavior, allowing us to adjust the generated
     code so that it fits a particular scenario or requirement.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您所见，我们调用的是与前一个例子中使用的不同的编译模式。我们在**CNNxFashion-MNIST**案例中没有使用“mode”参数，因此编译函数采用了默认的编译模式。编译模式改变了整个工作流的行为，使我们能够调整生成的代码，以使其适应特定的情景或需求。
 - en: '*Figure 3**.7* shows the three possible compiling modes:'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图3**.7*显示了三种可能的编译模式：'
 - en: '![Figure 3.7 – Compiling modes](img/B20959_03_7.jpg)'
+  id: totrans-91
   prefs: []
   type: TYPE_IMG
+  zh: '![图3.7 - 编译模式](img/B20959_03_7.jpg)'
 - en: Figure 3.7 – Compiling modes
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 图3.7 - 编译模式
 - en: 'Here’s a breakdown:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个详细解释：
 - en: '`default`: A balance between compiling time and model performance. As its name
     suggests, this is the default compiling mode of the function. This option is likely
     to provide good results in many cases.'
+  id: totrans-94
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`default`：在编译时间和模型性能之间取得平衡。顾名思义，这是该函数的默认编译模式。在许多情况下，此选项可能提供良好的结果。'
 - en: '`reduce-overhead`: This is suitable for small batches – which is our present
     case. This mode reduces the overhead of loading the batch sample to memory and
     further executes the forward and backward phases on the computing device.'
+  id: totrans-95
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`reduce-overhead`：这适用于小批量 - 这是我们目前的情况。此模式减少了将批量样本加载到内存并在计算设备上执行前向和后向阶段的开销。'
 - en: '`max-autotune`: The most optimized code possible. The compiler takes all the
     time it needs to yield the best-optimized code to run on the target machine or
     device. Consequently, the time required to compile the model is longer than other
@@ -435,34 +616,52 @@
     this mode is still interesting for experimental purposes since we can evaluate
     and understand which characteristics make this model better than others generated
     with default and reduce-overhead modes.'
+  id: totrans-96
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`max-autotune`：可能的最优化代码。编译器需要尽可能多的时间来生成在目标机器或设备上运行的最佳优化代码。因此，与其他模式相比，编译模型所需的时间较长，这可能在许多实际情况下使此选项不可行。即便如此，该模式仍然对实验目的很有趣，因为我们可以评估并理解使该模型比使用默认和reduce-overhead模式生成的其他模型更好的特征。'
 - en: 'After running the training phase of the eager and compiled models, we got the
     results listed in *Table 3.1*:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 在运行热切和已编译模型的训练阶段后，我们得到了列在*表3.1*中的结果：
 - en: '|  | **Eager Model** | **Compiled Model** |'
+  id: totrans-98
   prefs: []
   type: TYPE_TB
+  zh: '|  | **Eager模型** | **已编译模型** |'
 - en: '| --- | --- | --- |'
+  id: totrans-99
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| **Overall training** **time (s)** | 2,264 | 1,443 |'
+  id: totrans-100
   prefs: []
   type: TYPE_TB
+  zh: '| **总体训练时间（s）** | 2,264 | 1,443 |'
 - en: '| **First epoch execution** **time (s)** | 47 | 146 |'
+  id: totrans-101
   prefs: []
   type: TYPE_TB
+  zh: '| **第一轮执行时间 (s)** | 47 | 146 |'
 - en: '| **Median epoch execution** **time (s)** | 45 | 26 |'
+  id: totrans-102
   prefs: []
   type: TYPE_TB
+  zh: '| **中位数轮次执行时间 (s)** | 45 | 26 |'
 - en: '| **Accuracy (%)** | 74.26 | 74.38 |'
+  id: totrans-103
   prefs: []
   type: TYPE_TB
+  zh: '| **准确率 (%)** | 74.26 | 74.38 |'
 - en: Table 3.1 – Results of training the eager and compiled models
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 3.1 – 急切和编译模型训练结果
 - en: The results show that we trained the compiled model 57% faster than its eager
     version. As expected, the first epoch took much more time to execute on the compiled
     version than eager mode because the compiling process is performed at that instant.
@@ -470,14 +669,20 @@
     26 in the median, representing an execution around 1.73 times faster. Notice that
     we got this performance improvement without sacrificing the model’s quality since
     both models achieved the same accuracy.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果显示，我们训练编译模型比其急切版本快了 57%。预期地，第一轮执行编译版本花费的时间要比急切模式多得多，因为编译过程是在那时进行的。另一方面，剩余轮次的执行时间中位数从
+    45 降至 26，大约快了 1.73 倍。请注意，我们在不牺牲模型质量的情况下获得了这种性能改进，因为两个模型都达到了相同的准确率。
 - en: 'The Compile API accelerated the training phase of the DenseNet121xCIFAR-10
     case by almost 60%. But why couldn’t this capability do the same for the CNNxFashion-MNIST
     example? Essentially, the answer lies in two issues: computational burden and
     computing resources. Let’s go over each:'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译 API 将 DenseNet121xCIFAR-10 案例的训练阶段加速了近 60%。但为什么这种能力不能同样适用于 CNNxFashion-MNIST
+    示例呢？实质上，答案在于两个问题：计算负担和计算资源。让我们逐一来看：
 - en: '**Computational burden**: The DenseNet121 model has 7,978,856 parameters. Compared
     to the 1,630,090 weights of our CNN model, the former is nearly four times greater
     than the latter. In addition, the dimension of one resized sample of the CIFAR-10
@@ -487,44 +692,61 @@
     burden of the training phase. With a high computational burden, we have a more
     robust opportunity to accelerate the training phase. Otherwise, it is like removing
     a speck of dust from a shining surface; there is nothing to do.'
+  id: totrans-107
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**计算负担**: DenseNet121 模型有 7,978,856 个参数。与我们的 CNN 模型的 1,630,090 个权重相比，前者几乎是后者的四倍。此外，CIFAR-10
+    数据集的一个调整大小样本的维度为 244x244x3，远高于 Fashion-MNIST 样本的维度。正如在 [*第 1 章*](B20959_01.xhtml#_idTextAnchor016)
+    中讨论的那样，拆解训练过程中的模型复杂性直接与训练阶段的计算负担有关。有了如此高的计算负担，我们有更多加速训练阶段的机会。否则，这就像从光亮表面上除去一粒灰尘一样；没有什么可做的。'
 - en: '**Computing resources**: We executed our previous experiment in a CPU environment.
     However, as stated in PyTorch’s official documentation, the Compile API tends
     to provide better results when executed in GPU devices endowed with compute capability
     higher than 8.0\. This is precisely what we did in the DenseNet121xCIFAR-10 case
     – that is, the training process was executed in a GPU Nvidia A100.'
+  id: totrans-108
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**计算资源**: 我们在 CPU 环境中执行了之前的实验。然而，正如 PyTorch 官方文档所述，当在 GPU 设备上执行时，Compile API
+    倾向于在具有高于 8.0 的计算能力的 GPU 设备上提供更好的结果。这正是我们在 DenseNet121xCIFAR-10 案例中所做的，即训练过程在 GPU
+    Nvidia A100 上执行。'
 - en: In short, the DenseNet121xCIFAR-10 case, when trained with A100, is a perfect
     match between computational burden and computing resources. Such a good fit is
     the key to improving performance through the Compile API.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，当使用 A100 训练 DenseNet121xCIFAR-10 案例时，计算负担与计算资源完美匹配。这种良好的匹配是通过编译 API 改善性能的关键。
 - en: Now that you’re convinced it is a good idea to incorporate this resource in
     your performance acceleration toolkit, let’s understand how the Compile API works
     behind the scenes.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，您已经确信将这一资源纳入性能加速工具包是一个好主意，让我们来了解编译 API 在幕后是如何工作的。
 - en: How does the Compile API work under the hood?
+  id: totrans-111
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 编译 API 在幕后是如何工作的？
 - en: 'The Compile API is exactly what its name suggests: it is an entry point to
     access a set of functionalities PyTorch provides to move from eager to graph execution
     mode. Besides intermediary components and processes, we also have the compiler,
     which is an entity that’s responsible for getting the final work done. There are
     half a dozen compilers available, each one specialized in generating optimized
     code for a given architecture or device.'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
 - en: The following sections describe the steps that are involved in the compiling
     process and the components that make all this possible.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
 - en: Compiling workflow and components
+  id: totrans-114
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -532,44 +754,54 @@
     than calling a single line in our code. To transform an eager model into a compiled
     model, the Compile API executes three steps, namely graph acquisition, graph lowering,
     and graph compilation, as depicted in *Figure 3**.8*:'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 3.8 – Compiling workflow](img/B20959_03_8.jpg)'
+  id: totrans-116
   prefs: []
   type: TYPE_IMG
 - en: Figure 3.8 – Compiling workflow
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s discuss each step:'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
 - en: '**Graph acquisition**: The first step of the compiling workflow, graph acquisition
     is responsible for capturing model definition and transforming it into a representative
     graph of primitive operations that are executed on forward and backward phases.'
+  id: totrans-119
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '**Graph lowering**: With the graph representation at hand, it is time to simplify
     and optimize the process by fusing, combining, and reducing operations. The simpler
     the graph is, the lower the time to execute it.'
+  id: totrans-120
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '**Graph compilation**: The last step consists of generating code for a given
     target device, such as the CPUs and GPUs of different vendors and architectures,
     or even for another kind of device, such as a **tensor processing** **unit** (**TPU**).'
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'PyTorch relies on two main components to execute these steps. **TorchDynamo**
     executes graph acquisition, whereas the **backend compiler** does graph lowering
     and compilation, as shown in *Figure 3**.9*:'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 3.9 – Components of a compiling workflow](img/B20959_03_9.jpg)'
+  id: totrans-123
   prefs: []
   type: TYPE_IMG
 - en: Figure 3.9 – Components of a compiling workflow
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
 - en: TorchDynamo performs graph acquisition by using a new functionality implemented
@@ -577,14 +809,17 @@
     on the **PEP 523**. In short, TorchDynamo captures Python bytecode right before
     its execution to create a graph representation of operations that are executed
     by that function or model.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
 - en: Note
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
 - en: '**PEP** stands for **Python Enhancement Proposal**. This document informs the
     Python community about new features, relevant changes, and general guidance for
     writing Python code.'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
 - en: After that, TorchDynamo calls the compiler backend, which is the component that’s
@@ -592,9 +827,11 @@
     run on the hardware platform. The compiler backend executes the graph lowering
     and graph compilation steps of the compiling workflow. We’ll cover this component
     in more detail in the next subsection.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
 - en: Backends
+  id: totrans-129
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -602,311 +839,446 @@
     The default backend compiler of PyTorch is **TorchInductor**, which generates
     optimized code for the CPU and GPU through the OpenMP framework and Triton compiler,
     respectively.
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: Compile API支持使用半打后端编译器。 PyTorch的默认后端编译器是**TorchInductor**，它通过OpenMP框架和Triton编译器分别为CPU和GPU生成优化代码。
 - en: Note
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The complete code shown in this section is available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/backends.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/backends.ipynb)
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中显示的完整代码可在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/backends.ipynb](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/code/chapter03/backends.ipynb)找到。
 - en: 'To specify the compiler backend, we must set the parameter backend in the `torch.compile`
     function. If that parameter is suppressed, the Compile API will use TorchInductor.
     The following line selects `cudagraphs` as the compiler backend:'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 要指定编译器后端，我们必须在`torch.compile`函数中设置参数backend。如果该参数被省略，Compile API将使用TorchInductor。以下一行选择`cudagraphs`作为编译器后端：
 - en: '[PRE8]'
+  id: totrans-134
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'We can easily discover the supported backends of a given environment by running
     the following command:'
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过运行以下命令，我们可以轻松发现给定环境支持的后端：
 - en: '[PRE9]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: This list shows seven available backends in the environment that’s used in our
     experiments. Remark that backends returned by `list_backends()`, though supported
     by the current PyTorch installation, are not necessarily ready to be used. This
     happens because some backends could require additional modules, packages, and
     libraries to execute.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 此列表显示在我们实验中使用的环境中有七个可用的后端。请注意，通过`list_backends()`返回的后端，尽管受当前PyTorch安装支持，但不一定准备好使用。这是因为一些后端可能需要额外的模块、包和库来执行。
 - en: 'Of the seven backends available in our environment, only three of them were
     promptly able to run. *Table 3.2* shows the results that were achieved when we
     tested the DenseNet121xCIFAR-10 case and compiled it with `aot_ts_nvfuser`, `cudagraphs`,
     and `inductor`:'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的环境中可用的七个后端中，只有三个能够及时运行。*表3.2*显示了我们测试DenseNet121xCIFAR-10案例并使用`aot_ts_nvfuser`、`cudagraphs`和`inductor`进行编译时取得的结果：
 - en: '|  | **aot_ts_nvfuser** | **cudagraphs** | **inductor** |'
+  id: totrans-139
   prefs: []
   type: TYPE_TB
+  zh: '|  | **aot_ts_nvfuser** | **cudagraphs** | **inductor** |'
 - en: '| **Overall training** **time (s)** | 2,474 | 2,290 | 1,407 |'
+  id: totrans-140
   prefs: []
   type: TYPE_TB
+  zh: '| **整体训练时间 (s)** | 2,474 | 2,290 | 1,407 |'
 - en: '| **First epoch execution** **time (s)** | 142 | 86 | 140 |'
+  id: totrans-141
   prefs: []
   type: TYPE_TB
+  zh: '| **第一个epoch执行时间 (s)** | 142 | 86 | 140 |'
 - en: '| **Median epoch execution** **time (s)** | 46 | 44 | 25 |'
+  id: totrans-142
   prefs: []
   type: TYPE_TB
+  zh: '| **中位数epoch执行时间 (s)** | 46 | 44 | 25 |'
 - en: '| **Accuracy (%)** | 74.68 | 77.57 | 79.90 |'
+  id: totrans-143
   prefs: []
   type: TYPE_TB
+  zh: '| **准确率 (%)** | 74.68 | 77.57 | 79.90 |'
 - en: Table 3.2 – Results of the different backend compilers
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 表3.2 - 不同后端编译器的结果
 - en: The results show that TorchInductor overcame other backends since it executed
     the training phase 63% faster. Although TorchInductor presented the best result
     for this case and scenario, it is always interesting to test all the backends
     that are available in the environment. Furthermore, some backends, such as `onnxrt`
     and `tvm`, specialize in generating models that are suitable for inference.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果显示，TorchInductor比其他后端效果更好，因为它使训练阶段快了63%。尽管TorchInductor在这种情况和场景下呈现出最佳结果，但测试所有环境中可用的后端始终是有意义的。此外，一些后端，如`onnxrt`和`tvm`，专门用于生成适合推理的模型。
 - en: The next section provides a couple of questions to help you retain what you
     have learned in this chapter.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一节提供了一些问题，帮助您巩固本章学到的内容。
 - en: Quiz time!
+  id: totrans-147
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测验时间开始！
 - en: Let’s review what we have learned in this chapter by answering a few questions.
     Initially, try to answer these questions without consulting the material.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过回答一些问题来回顾本章学到的知识。最初，请尝试回答这些问题而不参考资料。
 - en: Note
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The answers to all these questions are available at [https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter03-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter03-answers.md).
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些问题的答案都可以在[https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter03-answers.md](https://github.com/PacktPublishing/Accelerate-Model-Training-with-PyTorch-2.X/blob/main/quiz/chapter03-answers.md)找到。
 - en: Before starting this quiz, remember that this is not a test! This section aims
     to complement your learning process by revising and consolidating the content
     covered in this chapter.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开始本次测验之前，请记住这不是一个测试！本节旨在通过复习和巩固本章内容来补充您的学习过程。
 - en: 'Choose the correct options for the following questions:'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择以下问题的正确选项：
 - en: Which are the two execution modes of PyTorch?
+  id: totrans-153
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch的两种执行模式是什么？
 - en: Horizontal and vertical modes.
+  id: totrans-154
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 水平和垂直模式。
 - en: Eager and graph modes.
+  id: totrans-155
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 急切和图模式。
 - en: Eager and distributed modes.
+  id: totrans-156
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 急切和分布模式。
 - en: Eager and auto modes.
+  id: totrans-157
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 急切和自动模式。
 - en: In which execution mode does PyTorch execute operations as soon as they appear
     in the code?
+  id: totrans-158
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch在哪种执行模式下会立即执行代码中出现的操作？
 - en: Graph mode.
+  id: totrans-159
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图模式。
 - en: Eager mode.
+  id: totrans-160
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 急切模式。
 - en: Distributed mode.
+  id: totrans-161
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 分布模式。
 - en: Auto mode.
+  id: totrans-162
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 自动模式。
 - en: In which execution mode does PyTorch evaluate the complete set of operations
     seeking optimization opportunities?
+  id: totrans-163
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: PyTorch在哪种执行模式下评估完整的操作集，寻找优化机会？
 - en: Graph mode.
+  id: totrans-164
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图模式。
 - en: Eager mode.
+  id: totrans-165
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 急切模式。
 - en: Distributed mode.
+  id: totrans-166
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 分布模式。
 - en: Auto mode.
+  id: totrans-167
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 自动模式。
 - en: Compiling a model with PyTorch means changing from eager to graph mode when
     executing in which of the following phases of the training process?
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用PyTorch编译模型意味着在训练过程的哪个阶段从急切模式切换到图模式执行？
 - en: Forward and optimization.
+  id: totrans-169
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前向和优化。
 - en: Forward and loss calculation.
+  id: totrans-170
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前向和损失计算。
 - en: Forward and backward.
+  id: totrans-171
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前向和后向。
 - en: Forward and training.
+  id: totrans-172
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前向和训练。
 - en: Concerning the time to execute the first training epoch in both eager and graph
     modes, what can we assert?
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 关于在急切模式和图模式下执行第一个训练时期的时间，我们可以做出什么断言？
 - en: The time to execute the first training epoch is always the same in both eager
     and graph modes.
+  id: totrans-174
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在急切模式和图模式下执行第一个训练时期的时间总是相同的。
 - en: The time to execute the first training epoch in graph mode is always smaller
     than executing in the eager mode.
+  id: totrans-175
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在图模式下执行第一个训练时期的时间总是小于在急切模式下执行。
 - en: The time to execute the first training epoch in graph mode is likely to be higher
     than executing in the eager mode.
+  id: totrans-176
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在图模式下执行第一个训练时期的时间可能高于在急切模式下执行。
 - en: The time to execute the first training epoch in eager mode is likely to be higher
     than executing in the eager mode.
+  id: totrans-177
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在急切模式下执行第一个训练时期的时间可能高于在图模式下执行。
 - en: Which phases comprise the compiling workflow that’s executed by the Compile
     API?
+  id: totrans-178
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编译API执行的编译工作流程包括哪些阶段？
 - en: Graph forward, graph backward, and graph compilation.
+  id: totrans-179
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图前向、图后向和图编译。
 - en: Graph acquisition, graph backward, and graph compilation.
+  id: totrans-180
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图获取、图后向和图编译。
 - en: Graph acquisition, graph lowering, and graph optimization.
+  id: totrans-181
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图获取、图降低和图优化。
 - en: Graph acquisition, graph lowering, and graph compilation.
+  id: totrans-182
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图获取、图降低和图编译。
 - en: TorchDynamo is a component of the Compile API that executes which phase?
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: TorchDynamo是Compile API的一个组件，执行哪个阶段？
 - en: Graph backward.
+  id: totrans-184
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图后向。
 - en: Graph acquisition.
+  id: totrans-185
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图获取。
 - en: Graph lowering.
+  id: totrans-186
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图降低。
 - en: Graph optimization.
+  id: totrans-187
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 图优化。
 - en: TorchInductor is the default compiler backend of PyTorch’s Compile API. Which
     are the other compiler backends?
+  id: totrans-188
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: TorchInductor是PyTorch Compile API的默认编译器后端。其他编译器后端是哪些？
 - en: OpenMP and NCCL.
+  id: totrans-189
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: OpenMP和NCCL。
 - en: OpenMP and Triton.
+  id: totrans-190
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: OpenMP和Triton。
 - en: Cudagraphs and IPEX.
+  id: totrans-191
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: Cudagraphs和IPEX。
 - en: TorchDynamo and Cudagraphs.
+  id: totrans-192
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: TorchDynamo和Cudagraphs。
 - en: Now, let’s summarize the key takeaways from this chapter.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们总结本章的要点。
 - en: Summary
+  id: totrans-194
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结。
 - en: In this chapter, you learned about the Compile API, a novel capability that
     was launched in PyTorch 2.0 and is useful to compile a model – that is, changing
     the operating mode from eager to graph mode. Models that execute in graph mode
     tend to train faster, especially in certain hardware platforms. To use the Compile
     API, we just need to add a single line to our original code. So, it is a simple
     and powerful technique to accelerate the training process of our models.
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，您了解了Compile API，这是在PyTorch 2.0中推出的一项新功能，用于编译模型 - 即从急切模式切换到图模式的操作模式。在某些硬件平台上，执行图模式的模型往往训练速度更快。要使用Compile
+    API，我们只需在原始代码中添加一行代码。因此，这是加速我们模型训练过程的简单而强大的技术。
 - en: In the following chapter, you will learn how to install and configure specialized
     libraries such as OpenMP and IPEX to speed up the training process of our models.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章节中，您将学习如何安装和配置特定库，如OpenMP和IPEX，以加快我们模型的训练过程。
