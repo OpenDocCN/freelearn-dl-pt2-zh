@@ -1,19 +1,25 @@
 - en: '7'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '7'
 - en: Basics of Object Detection
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 物体检测基础
 - en: In the previous chapters, we learned about performing image classification.
     Imagine a scenario where we leverage computer vision for a self-driving car. It
     is not only necessary to detect whether the image of a road contains images of
     vehicles, a sidewalk, and pedestrians, but it is also important to identify *where*
     those objects are located. The various techniques of object detection that we
     will study in this chapter and the next will come in handy in such a scenario.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前几章中，我们学习了如何执行图像分类。想象一下利用计算机视觉进行自动驾驶汽车的场景。不仅需要检测图像中是否包含车辆、人行道和行人等物体，还需要准确识别这些物体的*位置*。在这种场景下，我们将在本章和下一章中学习的各种物体检测技术将非常有用。
 - en: In this chapter and the next, we will learn about some of the techniques for
     performing object detection. We will start by learning the fundamentals – labeling
     the ground truth bounding-box of objects within an image using a tool named `ybat`,
@@ -23,44 +29,65 @@
     two region proposal-based networks – R-CNN and Fast R-CNN – by first learning
     about their working details and then implementing them on a dataset that contains
     images belonging to trucks and buses.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章和下一章中，我们将学习一些执行物体检测的技术。我们将从学习基础知识开始 - 使用名为`ybat`的工具对图像中对象的地面实况边界框进行标记，使用`selectivesearch`方法提取区域提议，并通过**交并比**（**IoU**）和均值平均精度度量来定义边界框预测的准确性。之后，我们将学习两个基于区域提议的网络
+    - R-CNN 和 Fast R-CNN - 首先了解它们的工作细节，然后在包含卡车和公共汽车图像的数据集上实施它们。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Introducing object detection
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 引入物体检测
 - en: Creating a bounding-box ground truth for training
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 创建用于训练的边界框地面实况
 - en: Understanding region proposals
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解区域提议
 - en: Understanding IoU, non-max suppression, and mean average precision
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解 IoU、非极大值抑制和均值平均精度
 - en: Training R-CNN-based custom object detectors
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练基于 R-CNN 的自定义物体检测器
 - en: Training Fast R-CNN-based custom object detectors
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练基于 Fast R-CNN 的自定义物体检测器
 - en: All code snippets within this chapter are available in the `Chapter07` folder
     of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-11
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 本章中的所有代码片段都可以在GitHub存储库的`Chapter07`文件夹中找到，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: Introducing object detection
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入物体检测
 - en: With the rise of autonomous cars, facial detection, smart video surveillance,
     and people-counting solutions, fast and accurate object detection systems are
     in great demand. These systems include not only object classification from an
@@ -68,8 +95,10 @@
     bounding boxes around them. This (drawing bounding boxes and classification) makes
     object detection a harder task than its traditional computer vision predecessor,
     image classification.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着自动驾驶汽车、面部检测、智能视频监控和人数统计解决方案的兴起，快速准确的物体检测系统需求量大增。这些系统不仅包括从图像中对物体进行分类，还包括在每个物体周围绘制适当边界框以定位它们。这（绘制边界框和分类）使得物体检测比其传统的计算机视觉前辈图像分类更为复杂。
 - en: Before we explore the broad use cases of object detection, let’s understand
     how it adds to the object classification task that we covered in the previous
     chapter. Imagine a scenario where you have multiple objects in an image. I ask
@@ -78,182 +107,261 @@
     Object detection comes in handy in such a scenario, where it not only predicts
     the location of objects (bounding box) present in it but also predicts the class
     of the objects present within the individual bounding boxes.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 在探索物体检测的广泛用例之前，让我们了解它如何增强我们在上一章中介绍的物体分类任务。想象一下图像中有多个物体的情况。我让你预测图像中存在的物体类别。例如，假设图像中既有猫又有狗。你会如何对这样的图像进行分类？物体检测在这种场景中非常有用，它不仅预测物体的位置（边界框），还预测各个边界框内存在的物体类别。
 - en: 'To understand what the output of object detection looks like, let’s go through
     the following figure:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 要理解物体检测的输出是什么样的，请查看以下图表：
 - en: '![](img/B18457_07_01.png)'
+  id: totrans-16
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_01.png)'
 - en: 'Figure 7.1: Distinction between object classification and detection'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.1：对象分类与检测之间的区别
 - en: In the preceding figure, we can see that, while a typical object classification
     merely mentions the class of object present in the image, object localization
     draws a bounding box around the objects present in the image. Object detection,
     on the other hand, would involve drawing the bounding boxes around individual
     objects in the image, along with identifying the class of object within a bounding
     box across the multiple objects present in the image.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述图中，我们可以看到，典型的对象分类仅仅提到图像中存在的对象类别，而对象定位则在图像中的对象周围绘制边界框。另一方面，对象检测涉及绘制边界框以及识别图像中多个对象的边界框中对象的类别。
 - en: 'Some of the various use cases leveraging object detection include the following:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 利用对象检测的一些不同用例包括以下内容：
 - en: '**Security**: This can be useful for recognizing intruders.'
+  id: totrans-20
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**安全性**：这对识别入侵者很有用。'
 - en: '**Autonomous cars**: This can be helpful in recognizing the various objects
     present in the image of a road.'
+  id: totrans-21
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**自动驾驶汽车**：这对识别道路图像中各种对象很有帮助。'
 - en: '**Image searching**: This can help identify the images containing an object
     (or a person) of interest.'
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**图像搜索**：这有助于识别包含感兴趣对象（或人员）的图像。'
 - en: '**Automotives**: This can help in identifying a number plate within the image
     of a car.'
+  id: totrans-23
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**汽车**: 这可以帮助识别汽车图像中的车牌号码。'
 - en: In all the preceding cases, object detection is leveraged to draw bounding boxes
     around a variety of objects present within the image.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 在所有前述情况下，对象检测被利用来在图像中的各种对象周围绘制边界框。
 - en: In this chapter, we will learn about predicting the class of the object and
     having a tight bounding box around the object in the image, which is the localization
     task. We will also learn about detecting the class corresponding to multiple objects
     in the picture, along with a bounding box around each object, which is the object
     detection task.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将学习预测对象的类别，并在图像中围绕对象创建一个紧密的边界框，这是定位任务。我们还将学习检测图像中多个对象对应的类别，以及围绕每个对象的边界框，这是对象检测任务。
 - en: 'Training a typical object detection model involves the following steps:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练典型对象检测模型包括以下步骤：
 - en: Creating ground-truth data that contains labels of the bounding box and class
     corresponding to various objects present in the image
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建包含图像中各种对象的边界框标签和类别的真值数据
 - en: Coming up with mechanisms that scan through the image to identify regions (region
     proposals) that are likely to contain objects
+  id: totrans-28
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提出扫描图像以识别可能包含对象的区域（区域建议）的机制
 - en: In this chapter, we will learn about leveraging region proposals generated by
     a method named `SelectiveSearch`. In the next chapter, we will learn about leveraging
     anchor boxes to identify regions containing objects.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将学习利用名为`SelectiveSearch`的方法生成的区域建议。在下一章中，我们将学习如何利用锚框来识别包含对象的区域。
 - en: Creating the target class variable by using the IoU metric
+  id: totrans-30
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过使用IoU指标创建目标类别变量
 - en: Creating the target bounding-box offset variable to make corrections to the
     location of the region proposal in *step 2*
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建目标边界框偏移变量，以纠正区域建议在*步骤2*中的位置
 - en: Building a model that can predict the class of object along with the target
     bounding-box offset corresponding to the region proposal
+  id: totrans-32
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 构建一个模型，可以预测对象的类别，同时还能预测与区域建议对应的目标边界框偏移量
 - en: Measuring the accuracy of object detection using **mean average precision**
     (**mAP**)
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用**均值平均精度**（**mAP**）来衡量对象检测的准确性
 - en: Now that we have a high-level overview of what is to be done to train an object
     detection model, we will learn about creating the dataset for a bounding box (which
     is the first step in building an object detection model) in the next section.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经对训练对象检测模型要做的事情有了高层次的概述，我们将在下一节学习为边界框创建数据集（这是构建对象检测模型的第一步）。
 - en: Creating a bounding-box ground truth for training
+  id: totrans-35
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 创建用于训练的边界框真值
 - en: We have learned that object detection gives us output in the form of a bounding
     box surrounding the object of interest in an image. For us to build an algorithm
     that detects this bounding box, we would have to create input-output combinations,
     where the input is the image and the output is the bounding boxes and the object
     classes.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经了解到目标检测以边界框的形式给出感兴趣对象的输出图像。为了构建能够检测这些边界框的算法，我们需要创建输入输出组合，其中输入是图像，输出是边界框和物体类别。
 - en: Note that when we detect the bounding box, we are detecting the pixel locations
     of the four corners of the bounding box surrounding the image.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，当我们检测到边界框时，我们实际上是检测到围绕图像的边界框的四个角的像素位置。
 - en: To train a model that provides the bounding box, we need the image and the corresponding
     bounding-box coordinates of all the objects in the image. In this section, we
     will learn one way to create the training dataset, where the image is the input
     and the corresponding bounding boxes and classes of objects are stored in an XML
     file as output.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 要训练一个提供边界框的模型，我们需要图像及其图像中所有物体的对应边界框坐标。在本节中，我们将学习创建训练数据集的一种方法，其中图像是输入，而对应的边界框和物体类别存储在XML文件中作为输出。
 - en: Here, we will install and use `ybat` to create (annotate) bounding boxes around
     objects in the image. We will also inspect the XML files that contain the annotated
     class and bounding-box information.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们将安装并使用`ybat`来创建（标注）图像中物体周围的边界框。我们还将检查包含注释类和边界框信息的XML文件。
 - en: Note that there are alternative image annotation tools like CVAT and Label Studio.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，还有像CVAT和Label Studio这样的替代图像标注工具。
 - en: Let’s start by downloading `ybat-master.zip` from GitHub ([https://github.com/drainingsun/ybat](https://github.com/drainingsun/ybat))
     and unzipping it. Then, open `ybat.html` using a browser of your choice.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从GitHub下载`ybat-master.zip`（[https://github.com/drainingsun/ybat](https://github.com/drainingsun/ybat)），然后解压缩它。然后，使用您选择的浏览器打开`ybat.html`。
 - en: 'Before we start creating the ground truth corresponding to an image, let’s
     specify all the possible classes that we want to label across images and store
     in the `classes.txt` file, as follows:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们开始创建与图像对应的真实标签之前，让我们指定我们想要跨图像标记的所有可能类，并将其存储在`classes.txt`文件中，如下所示：
 - en: '![Graphical user interface, text, application  Description automatically generated](img/B18457_07_02.png)'
+  id: totrans-43
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的图形用户界面、文本、应用程序描述](img/B18457_07_02.png)'
 - en: 'Figure 7.2: Providing class names'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.2：提供类名
 - en: 'Now, let’s prepare the ground truth corresponding to an image. This involves
     drawing a bounding box around objects (the persons in the following figure) and
     assigning labels/classes to the objects present in the image, as seen in the following
     steps:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们准备与图像对应的真实标签。这涉及到在物体周围绘制边界框（如以下步骤中所见的人物），并为图像中存在的对象分配标签/类别：
 - en: Upload all the images you want to annotate.
+  id: totrans-46
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 上传您想要标注的所有图像。
 - en: Upload the `classes.txt` file.
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 上传`classes.txt`文件。
 - en: Label each image by first selecting the filename and then drawing a crosshair
     around each object you want to label. Before drawing a crosshair, ensure you select
     the correct class in the `classes` region (the `classes` pane can be seen below
     *step 2* in the following image).
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过首先选择文件名，然后在要标记的每个对象周围绘制十字线来为每个图像进行标记。在绘制十字线之前，请确保在以下图像中*步骤 2*下正确选择`classes`区域中的类别（`classes`窗格可以看到以下图像中*步骤
+    2*之下）。
 - en: Save the data dump in the desired format. Each format was independently developed
     by a different research team, and all are equally valid. Based on their popularity
     and convenience, every implementation prefers a different format.
+  id: totrans-49
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将数据转储保存为所需格式。每种格式都是由不同的研究团队独立开发的，它们都同样有效。基于它们的流行度和便利性，每个实现都更喜欢不同的格式。
 - en: 'As you can see, the preceding steps are represented in the following figure:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所看到的，在下图中表示了前述步骤：
 - en: '![](img/B18457_07_03.png)'
+  id: totrans-51
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_03.png)'
 - en: 'Figure 7.3: Annotation steps'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.3：标注步骤
 - en: For example, when we download the PascalVOC format, it downloads a zip of XML
     files. A snapshot of the XML file after drawing the rectangular bounding box is
     available on GitHub as `sample_xml_file. xml`. There, you will observe that the
@@ -261,32 +369,43 @@
     *x* and *y* coordinates, corresponding to the objects of interest in the image.
     We should also be able to extract the classes corresponding to the objects in
     the image using the `name` field.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，当我们下载PascalVOC格式时，它会下载一个XML文件的压缩包。在GitHub上，可以看到绘制矩形边界框后XML文件的快照，文件名为`sample_xml_file.
+    xml`。在那里，您将观察到`bndbox`字段包含感兴趣图像中对象的*x*和*y*坐标的最小和最大值。我们还应该能够使用`name`字段提取图像中对象对应的类别。
 - en: Now that we understand how to create a ground truth of objects (a class label
     and bounding box) present in an image, let’s dive into the building blocks of
     recognizing objects in an image. First, we will go through region proposals that
     help to highlight the portions of the image that are most likely to contain an
     object.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了如何创建图像中存在对象的真实对象（类别标签和边界框），让我们深入了解识别图像中对象的基本构建块。首先，我们将介绍有助于突出显示最可能包含对象部分的区域建议。
 - en: Understanding region proposals
+  id: totrans-55
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解区域建议
 - en: Imagine a hypothetical scenario where the image of interest contains a person
     and sky in the background. Let’s assume there is little change in the pixel intensity
     of the background (sky) and a considerable change in the pixel intensity of the
     foreground (the person).
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个假设情景，感兴趣图像中包含一个人和背景的天空。假设背景（天空）的像素强度变化很小，而前景（人物）的像素强度变化很大。
 - en: Just from the preceding description itself, we can conclude that there are two
     primary regions here – the person and the sky. Furthermore, within the region
     of the image of a person, the pixels corresponding to hair will have a different
     intensity to the pixels corresponding to the face, establishing that there can
     be multiple sub-regions within a region.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 仅从上述描述本身，我们可以得出这里有两个主要区域 - 人物和天空。此外，在人物图像的区域内，对应头发的像素与对应脸部的像素强度不同，建立了区域内可能存在多个子区域的事实。
 - en: '**Region proposal** is a technique that helps identify islands of regions where
     the pixels are similar to one another. Generating a region proposal comes in handy
     for object detection where we must identify the locations of objects present in
@@ -296,175 +415,253 @@
     in object localization and detection in a later section, *Training R-CNN-based
     custom object detectors*, but let’s first understand how to generate region proposals
     from an image.'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: '**区域建议** 是一种技术，有助于识别区域岛，其中像素彼此相似。生成区域建议对于目标检测非常有用，其中我们必须识别图像中存在的对象的位置。此外，由于区域建议生成了一个区域的建议，它有助于目标定位，其中的任务是识别一个完全适合对象周围的边界框。我们将在稍后的部分，*基于训练R-CNN的自定义对象检测器*中学习区域建议如何协助对象的定位和检测，但首先让我们了解如何从图像中生成区域建议。'
 - en: Leveraging SelectiveSearch to generate region proposals
+  id: totrans-59
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 利用SelectiveSearch生成区域建议
 - en: SelectiveSearch is a region proposal algorithm used for object localization,
     where it generates proposals of regions that are likely to be grouped together
     based on their pixel intensities. SelectiveSearch groups pixels based on the hierarchical
     grouping of similar pixels, which, in turn, leverages the color, texture, size,
     and shape compatibility of content within an image.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: SelectiveSearch是用于目标定位的区域建议算法，它根据像素强度生成可能被一起分组的区域建议。SelectiveSearch根据类似像素的层次分组像素，进而利用图像中内容的颜色、纹理、大小和形状的兼容性进行分组。
 - en: Initially, SelectiveSearch over-segments an image by grouping pixels based on
     the preceding attributes. Then, it iterates through these over-segmented groups
     and groups them based on similarity. At each iteration, it combines smaller regions
     to form a larger region.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，SelectiveSearch通过根据前述属性分组像素来过度分割图像。然后，它遍历这些过度分割的群组，并根据相似性将它们分组。在每次迭代中，它将较小的区域组合成较大的区域。
 - en: 'Let’s understand the `selectivesearch` process through the following example:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下示例了解`selectivesearch`的过程：
 - en: Find the full code for this exercise at `Understanding_selectivesearch.ipynb`
     in the `Chapter07` folder of this book’s GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本书的GitHub仓库`Chapter07`文件夹中的`Understanding_selectivesearch.ipynb`中找到此练习的完整代码，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Install the required packages:'
+  id: totrans-64
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包：
 - en: '[PRE0]'
+  id: totrans-65
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Fetch and load the required image:'
+  id: totrans-66
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取并加载所需的图像：
 - en: '[PRE1]'
+  id: totrans-67
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Extract the `felzenszwalb` segments (which are obtained based on the color,
     texture, size, and shape compatibility of content within an image) from the image:'
+  id: totrans-68
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从图像中提取基于颜色、纹理、大小和形状兼容性的`felzenszwalb`分段：
 - en: '[PRE2]'
+  id: totrans-69
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Note that in the `felzenszwalb` method, `scale` represents the number of clusters
     that can be formed within the segments of the image. The higher the value of `scale`,
     the greater the detail of the original image that is preserved.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在`felzenszwalb`方法中，`scale`表示可以在图像段内形成的簇的数量。`scale`值越高，保留的原始图像细节就越多。
 - en: 'Plot the original image and the image with segmentation:'
+  id: totrans-71
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制原始图像和带有分割的图像：
 - en: '[PRE3]'
+  id: totrans-72
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: '![](img/B18457_07_04.png)'
+  id: totrans-73
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_04.png)'
 - en: 'Figure 7.4: Original image and its corresponding segmentation'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.4：原始图像及其相应的分割
 - en: From the preceding output, note that the pixels belonging to the same group
     have similar pixel values.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 从前述输出中，请注意属于同一组的像素具有相似的像素值。
 - en: Pixels that have similar values form a region proposal. This helps in object
     detection, as we now pass each region proposal to a network and ask it to predict
     whether the region proposal is a background or an object. Furthermore, if it is
     an object, it helps us to identify the offset to fetch the tight bounding box
     corresponding to the object and the class corresponding to the content within
     the region proposal.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 具有相似值的像素形成区域提议。这有助于目标检测，因为我们现在将每个区域提议传递给网络，并要求它预测区域提议是背景还是对象。此外，如果它是对象，它还帮助我们识别获取与对象对应的紧凑边界框的偏移量，以及区域提议内内容对应的类别。
 - en: Now that we understand what SelectiveSearch does, let’s implement the `selectivesearch`
     function to fetch region proposals for the given image.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了SelectiveSearch的作用，让我们实现`selectivesearch`函数来获取给定图像的区域提议。
 - en: Implementing SelectiveSearch to generate region proposals
+  id: totrans-78
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实施SelectiveSearch来生成区域提议
 - en: 'In this section, we will define the `extract_candidates` function using `selectivesearch`
     so that it can be leveraged in the subsequent sections on training R-CNN- and
     Fast R-CNN-based custom object detectors:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将定义`extract_candidates`函数，使用`selectivesearch`来在后续关于训练基于R-CNN和Fast R-CNN的自定义目标检测器的部分中使用它：
 - en: 'Import the relevant packages and fetch an image:'
+  id: totrans-80
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入相关包并获取图像：
 - en: '[PRE4]'
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Define the `extract_candidates` function, which fetches the region proposals
     from an image:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`extract_candidates`函数，从图像中获取区域提议：
 - en: 'Define the function that takes an image as the input parameter:'
+  id: totrans-83
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义以图像作为输入参数的函数：
 - en: '[PRE5]'
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Fetch the candidate regions within the image using the `selective_search` method,
     available in the `selectivesearch` package:'
+  id: totrans-85
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`selective_search`方法在图像内获取候选区域：
 - en: '[PRE6]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Calculate the image area and initialize a list of candidates that we will use
     to store the candidates that pass a defined threshold:'
+  id: totrans-87
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算图像面积并初始化一个候选列表，用于存储通过定义的阈值的候选者：
 - en: '[PRE7]'
+  id: totrans-88
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Fetch only those candidates (regions) that are over 5% of the total image area
     and less than or equal to 100% of the image area, and then return them:'
+  id: totrans-89
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 仅获取那些超过总图像面积的5%并且小于或等于图像面积的100%的候选者（区域），然后返回它们：
 - en: '[PRE8]'
+  id: totrans-90
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Extract the candidates and plot them on top of an image:'
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取候选区域并在图像顶部绘制它们：
 - en: '[PRE9]'
+  id: totrans-92
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: '![A dog in a cage  Description automatically generated with medium confidence](img/B18457_07_05.png)'
+  id: totrans-93
   prefs: []
   type: TYPE_IMG
+  zh: '![A dog in a cage  Description automatically generated with medium confidence](img/B18457_07_05.png)'
 - en: 'Figure 7.5: Region proposals within an image'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.5：图像中的区域提议
 - en: The grids in the preceding figure represent the candidate regions (region proposals)
     coming from the `selective_search` method.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 前图中的网格代表来自`selective_search`方法的候选区域（区域提议）。
 - en: Now that we understand region proposal generation, one question remains unanswered.
     How do we leverage region proposals for object detection and localization?
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了区域提议生成，还有一个问题没有解答。我们如何利用区域提议进行目标检测和定位？
 - en: A region proposal that has a high intersection with the location (ground truth)
     of an object in the image of interest is labeled as the one that contains the
     object, and a region proposal with a low intersection is labeled as the background.
@@ -472,185 +669,263 @@
     proposal candidate with a ground-truth bounding box in our journey to understanding
     the various techniques that form the backbone of building an object detection
     model.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 在感兴趣图像中，与对象位置（地面真实位置）具有高交集的区域提议被标记为包含对象的区域，而交集较低的区域提议被标记为背景。在接下来的部分，我们将学习如何计算区域提议候选与地面真实边界框的交集，在我们理解构建物体检测模型背后的各种技术的旅程中。
 - en: Understanding IoU
+  id: totrans-98
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解IoU
 - en: Imagine a scenario where we came up with a prediction of a bounding box for
     an object. How do we measure the accuracy of our prediction? The concept IoU comes
     in handy in such a scenario.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情况，我们为对象提出了一个边界框的预测。我们如何衡量我们预测的准确性？在这种情况下，IoU的概念非常有用。
 - en: The word *intersection* within the term *intersection over union* refers to
     measuring how much the predicted and actual bounding boxes overlap, while *union*
     refers to measuring the overall space possible for overlap. IoU is the ratio of
     the overlapping region between the two bounding boxes over the combined region
     of both bounding boxes.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 在术语“交并比”中，“交集”一词指的是预测边界框与实际边界框重叠的程度，而“并集”则指的是用于重叠的总体空间。 IoU是两个边界框之间重叠区域与两个边界框组合区域的比率。
 - en: 'This can be represented in a diagram, as follows:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可以用下图表示：
 - en: '![Shape  Description automatically generated](img/B18457_07_06.png)'
+  id: totrans-102
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成形状说明](img/B18457_07_06.png)'
 - en: 'Figure 7.6: Visualizing IoU'
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.6：可视化IoU
 - en: 'In the preceding diagram of two bounding boxes (rectangles), let’s consider
     the left bounding box as the ground truth and the right bounding box as the predicted
     location of the object. IoU as a metric is the ratio of the overlapping region
     over the combined region between the two bounding boxes. In the following diagram,
     you can observe the variation in the IoU metric as the overlap between bounding
     boxes varies:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述两个边界框（矩形）的图示中，让我们将左边界框视为地面真实位置，右边界框视为对象的预测位置。作为度量标准的IoU是两个边界框之间重叠区域与组合区域的比率。在下图中，您可以观察IoU度量标准随着边界框重叠变化的情况：
 - en: '![Shape, polygon  Description automatically generated](img/B18457_07_07.png)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成形状、多边形说明](img/B18457_07_07.png)'
 - en: 'Figure 7.7: Variation of the IoU value in different scenarios'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.7：不同情况下IoU值的变化
 - en: We can see that as the overlap decreases, IoU decreases, and in the final diagram,
     where there is no overlap, the IoU metric is 0.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到随着重叠减少，IoU也会减少，在最后一个图中，当没有重叠时，IoU度量为0。
 - en: Now that we understand how to measure IoU, let’s implement it in code and create
     a function to calculate IoU as we will leverage it in the sections on training
     R-CNN and training Fast R-CNN.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了如何测量IoU，让我们在代码中实现它，并创建一个计算IoU的函数，因为我们将在训练R-CNN和训练Fast R-CNN的部分中利用它。
 - en: Find the following code in the `Calculating_Intersection_Over_Union.ipynb` file
     in the `Chapter07` folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GitHub的`Chapter07`文件夹中的`Calculating_Intersection_Over_Union.ipynb`文件中查找以下代码：[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Let’s define a function that takes two bounding boxes as input and returns
     IoU as the output:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们定义一个函数，该函数以两个边界框作为输入，并返回IoU作为输出：
 - en: 'Specify the `get_iou` function, which takes `boxA` and `boxB` as inputs, where
     `boxA` and `boxB` are two different bounding boxes (you can consider `boxA` as
     the ground-truth bounding box and `boxB` as the region proposal):'
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定`get_iou`函数，该函数以`boxA`和`boxB`作为输入，其中`boxA`和`boxB`是两个不同的边界框（可以将`boxA`视为地面真实边界框，`boxB`视为区域提议）：
 - en: '[PRE10]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: We define the `epsilon` parameter to address the rare scenario where the union
     between the two boxes is 0, resulting in a division-by-zero error. Note that in
     each of the bounding boxes, there will be four values corresponding to the four
     corners of the bounding box.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们定义了`epsilon`参数来处理罕见的情况，即两个框之间的并集为0，导致除零错误。请注意，在每个边界框中，将有四个值对应于边界框的四个角。
 - en: 'Calculate the coordinates of the intersection box:'
+  id: totrans-114
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算交集框的坐标：
 - en: '[PRE11]'
+  id: totrans-115
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Note that `x1` stores the maximum value of the left-most x value between the
     two bounding boxes. Similarly, `y1` stores the top-most y value, and `x2` and
     `y2` store the right-most x value and bottom-most y value, respectively, corresponding
     to the intersection part.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，`x1`存储两个边界框之间最左侧x值的最大值。类似地，`y1`存储最上面的y值，`x2`和`y2`分别存储交集部分的最右x值和最下y值。
 - en: 'Calculate `width` and `height` corresponding to the intersection area (overlapping
     region):'
+  id: totrans-117
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算交集区域的宽度和高度（`width`和`height`）：
 - en: '[PRE12]'
+  id: totrans-118
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Calculate the area of overlap (`area_overlap`):'
+  id: totrans-119
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算重叠区域的面积（`area_overlap`）：
 - en: '[PRE13]'
+  id: totrans-120
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: Note that, in the preceding code, we specify that if the width or height corresponding
     to the overlapping region is less than 0, the area of intersection is 0\. Otherwise,
     we calculate the area of overlap (intersection) similar to the way a rectangle’s
     area is calculated – width multiplied by height.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在前面的代码中，如果与重叠区域对应的宽度或高度小于0，则交集的面积为0。否则，我们计算重叠（交集）的面积类似于计算矩形面积的方式 - 宽度乘以高度。
 - en: 'Calculate the combined area corresponding to the two bounding boxes:'
+  id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算对应于两个边界框的组合面积：
 - en: '[PRE14]'
+  id: totrans-123
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: In the preceding code, we calculated the combined area of the two bounding boxes
     – `area_a` and `area_b` – and then subtracted the overlapping area while calculating
     `area_combined`, since `area_overlap` is counted twice – once when calculating
     `area_a` and then when calculating `area_b`.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码中，我们计算两个边界框的组合面积 - `area_a` 和 `area_b` - 然后在计算`area_combined`时减去重叠的区域，因为在计算`area_a`和`area_b`时，`area_overlap`被计算了两次。
 - en: 'Calculate the IoU value and return it:'
+  id: totrans-125
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算IoU值并返回它：
 - en: '[PRE15]'
+  id: totrans-126
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: In the preceding code, we calculated `iou` as the ratio of the area of overlap
     (`area_overlap`) over the area of the combined region (`area_combined`) and returned
     the result.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码中，我们计算`iou`作为重叠区域的面积（`area_overlap`）与两个边界框组合区域的面积（`area_combined`）之比，并返回结果。
 - en: So far, we have learned how to create the ground truth and calculate IoU, which
     helps prepare training data.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了如何创建地面实况并计算IoU，这有助于准备训练数据。
 - en: We will hold off on building a model until later sections, as training a model
     is more involved, and we would also have to learn a few more components before
     we train it. In the next section, we will learn about non-max suppression, which
     helps in narrowing down the different possible predicted bounding boxes around
     an object when inferring, using the trained model on a new image.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 在后续部分，我们将推迟构建模型，因为训练模型涉及更多的步骤，并且在训练模型之前，我们还需要学习更多组件。在下一节中，我们将学习非极大值抑制，它有助于在推断时缩小围绕对象的不同可能预测边界框。
 - en: Non-max suppression
+  id: totrans-130
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '**非极大值抑制**'
 - en: 'Imagine a scenario where multiple region proposals are generated and significantly
     overlap one another. Essentially, all the predicted bounding-box coordinates (offsets
     to region proposals) significantly overlap one another. For example, let’s consider
     the following image, where multiple region proposals are generated for the person
     in the image:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，其中生成了多个区域建议，并且彼此显著重叠。基本上，所有预测的边界框坐标（对于区域建议的偏移量）彼此显著重叠。例如，让我们考虑以下图像，在图像中为人生成了多个区域建议：
 - en: '![](img/B18457_07_08.png)'
+  id: totrans-132
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_08.png)'
 - en: 'Figure 7.8: Image and the possible bounding boxes'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.8：图像和可能的边界框
 - en: How do we identify the box, among the many region proposals, that we will consider
     as the one containing an object and the boxes that we will discard? **Non-max
     suppression** comes in handy in such a scenario. Let’s unpack that term.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们如何确定在许多区域建议中，我们将考虑作为包含对象的边界框以及我们将放弃的边界框？在这种情况下，**非极大值抑制**非常有用。让我们解释一下这个术语。
 - en: '**Non-max** refers to the boxes that don’t have the highest probability of
     containing an object, and **suppression** refers to us discarding those boxes.
     In non-max suppression, we identify the bounding box that has the highest probability
     of containing the object and discard all the other bounding boxes that have an
     IoU below a certain threshold with the box showing the highest probability of
     containing an object.'
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: '**非极大值**指的是那些概率最高但不包含对象的边界框，**抑制**指的是我们放弃这些边界框。在非极大值抑制中，我们确定具有最高概率包含对象的边界框，并且丢弃所有IoU低于某个阈值的其他边界框，这些边界框显示具有最高概率包含对象。'
 - en: In PyTorch, non-max suppression is performed using the `nms` function in the
     `torchvision.ops` module. The `nms` function takes the bounding-box coordinates,
     the confidence of the object in the bounding box, and the threshold of IoU across
@@ -658,29 +933,43 @@
     the `nms` function when predicting object classes and the bounding boxes of objects
     in a new image in both the *Training R-CNN-based custom object detectors* and
     *Training Fast R-CNN-based custom object detectors* sections.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 PyTorch 中，使用 `torchvision.ops` 模块中的 `nms` 函数执行非极大值抑制。`nms` 函数接受边界框坐标、边界框中对象的置信度以及跨边界框的
+    IoU 阈值，从而确定要保留的边界框。在预测新图像中对象类别和边界框时，您将利用 `nms` 函数，同时涵盖*训练基于 R-CNN 的自定义对象检测器*和*训练基于
+    Fast R-CNN 的自定义对象检测器*部分。
 - en: Mean average precision
+  id: totrans-137
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 平均精确度
 - en: 'So far, we have looked at getting an output that comprises a bounding box around
     each object within an image and the class corresponding to the object within the
     bounding box. Now comes the next question: how do we quantify the accuracy of
     the predictions coming from our model? mAP comes to the rescue in such a scenario.'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经看到得到的输出包括图像中每个对象周围的边界框和边界框内对象对应的类别。接下来的问题是：如何量化模型预测的准确性？mAP 在这种情况下派上了用场。
 - en: 'Before we try to understand mAP, let’s first understand precision, then average
     precision, and finally, mAP:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们尝试理解 mAP 之前，让我们首先理解精确度，然后是平均精确度，最后是 mAP：
 - en: '**Precision**: Typically, we calculate precision as:'
+  id: totrans-140
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**精确度**: 通常，我们计算精确度如下：'
 - en: '![](img/B18457_07_001.png)'
+  id: totrans-141
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_001.png)'
 - en: A true positive refers to the bounding boxes that predicted the correct class
     of objects and have an IoU with a ground truth that is greater than a certain
     threshold. A false positive refers to the bounding boxes that predicted the class
@@ -688,92 +977,131 @@
     ground truth. Furthermore, if there are multiple bounding boxes that are identified
     for the same ground-truth bounding box, only one box can be a true positive, and
     everything else is a false positive.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 真正的正样本是指预测正确对象类别的边界框，并且其与真实值之间的 IoU 大于某个阈值。错误的正样本是指预测类别错误或与真实值之间的重叠小于定义的阈值的边界框。此外，如果为同一真实边界框识别出多个边界框，则只能有一个边界框是真正的正样本，其他都是错误的正样本。
 - en: '**Average precision:** Average precision is the average of precision values
     calculated at various IoU thresholds.'
+  id: totrans-143
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**平均精确度:** 平均精确度是在各种 IoU 阈值上计算得出的精确度值的平均值。'
 - en: '**mAP:** mAP is the average of precision values calculated at various IoU threshold
     values across all the classes of objects present within a dataset.'
+  id: totrans-144
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**mAP:** mAP 是在数据集中所有对象类别上，通过各种 IoU 阈值计算得出的精确度值的平均值。'
 - en: So far, we have looked at preparing a training dataset for our model, performing
     non-max suppression on the model’s predictions, and calculating its accuracies.
     In the following sections, we will learn about training a model (R-CNN-based and
     Fast R-CNN-based) to detect objects in new images.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经看到为模型准备训练数据集，对模型预测执行非极大值抑制，并计算其准确性。在接下来的几节中，我们将学习如何训练一个（基于 R-CNN 和
+    Fast R-CNN 的）模型来检测新图像中的对象。
 - en: Training R-CNN-based custom object detectors
+  id: totrans-146
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 训练基于 R-CNN 的自定义对象检测器
 - en: R-CNN stands for **region-based convolutional neural network**. **Region-based**
     within R-CNN refers to the region proposals used to identify objects within an
     image. Note that R-CNN assists in identifying both the objects present in the
     image and their location within it.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: R-CNN 代表**基于区域的卷积神经网络**。在 R-CNN 中，**基于区域**指的是用于识别图像中对象的区域提议。请注意，R-CNN 协助识别图像中存在的对象及其位置。
 - en: In the following sections, we will learn about the working details of R-CNN
     before training it on our custom dataset.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的几节中，我们将学习关于 R-CNN 的工作细节，然后在我们的自定义数据集上对其进行训练。
 - en: Working details of R-CNN
+  id: totrans-149
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: R-CNN 的工作细节
 - en: 'Let’s get an idea of R-CNN-based object detection at a high level using the
     following diagram:'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过下面的图表来对基于 R-CNN 的对象检测有一个高层次的理解：
 - en: '![Diagram  Description automatically generated](img/B18457_07_09.png)'
+  id: totrans-151
   prefs: []
   type: TYPE_IMG
+  zh: '![Diagram  Description automatically generated](img/B18457_07_09.png)'
 - en: 'Figure 7.9: Sequence of steps for R-CNN (image source: `https://arxiv.org/pdf/1311.2524.pdf`)'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.9：R-CNN 步骤序列（图片来源：`https://arxiv.org/pdf/1311.2524.pdf`）
 - en: 'We perform the following steps when leveraging the R-CNN technique for object
     detection:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 在利用 R-CNN 技术进行对象检测时，我们执行以下步骤：
 - en: Extract region proposals from an image. We need to ensure that we extract a
     high number of proposals to not miss out on any potential object within the image.
+  id: totrans-154
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从图像中提取区域提案。我们需要确保提取出大量的提案，以免错过图像中的任何潜在对象。
 - en: Resize (warp) all the extracted regions to get regions of the same size.
+  id: totrans-155
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整（变形）所有提取的区域以获得相同大小的区域。
 - en: Pass the resized region proposals through a network. Typically, we pass the
     resized region proposals through a pretrained model, such as VGG16 or ResNet50,
     and extract the features in a fully connected layer.
+  id: totrans-156
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将调整大小后的区域提案通过网络传递。通常情况下，我们会通过预训练模型（如VGG16或ResNet50）传递调整大小后的区域提案，并在全连接层中提取特征。
 - en: Create data for model training, where the input is features extracted by passing
     the region proposals through a pretrained model. The outputs are the class corresponding
     to each region proposal and the offset of the region proposal from the ground
     truth corresponding to the image.
+  id: totrans-157
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建用于模型训练的数据，其中输入是通过预训练模型传递区域提案提取的特征。输出是每个区域提案对应的类别以及与图像对应的地面实况边界框的区域提案偏移量。
 - en: 'If a region proposal has an IoU greater than a specific threshold with the
     object, we create training data. In this scenario, the region is tasked with predicting
     both the class of the object it overlaps with and the offset of the region proposal
     related to the ground-truth bounding box that encompasses the object of interest.
     A sample image, region proposal, and ground-truth bounding box are shown as follows:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果一个区域提案与对象的IoU大于特定阈值，则创建训练数据。在这种情况下，该区域任务是预测其重叠对象的类别以及与包含感兴趣对象的地面实况边界框相关的区域提案的偏移量。以下展示了样本图像、区域提案和地面实况边界框：
 - en: '![](img/B18457_07_10.png)'
+  id: totrans-159
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_10.png)'
 - en: 'Figure 7.10: Sample image with the region proposal and ground-truth bounding
     box'
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.10：带有区域提案和地面实况边界框的样本图像
 - en: In the preceding image, `o` (in red) represents the center of the region proposal
     (dotted bounding box) and `x` represents the center of the ground-truth bounding
     box (solid bounding box) corresponding to the `cat` class. We calculate the offset
@@ -781,104 +1109,149 @@
     the difference between the center coordinates of the two bounding boxes (`dx`,
     `dy`), and the difference between the height and width of the bounding boxes (`dw`,
     `dh`).
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述图像中，`o`（红色）表示区域提案的中心（虚线边界框），`x`表示与`cat`类别对应的地面实况边界框的中心（实线边界框）。我们计算区域提案边界框与地面实况边界框之间的偏移量，作为两个边界框中心坐标之间的差异（`dx`，`dy`）及边界框高度和宽度之间的差异（`dw`，`dh`）。
 - en: Connect two output heads, one corresponding to the class of image and the other
     corresponding to the offset of region proposal with the ground-truth bounding
     box, to extract the fine bounding box on the object.
+  id: totrans-162
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 连接两个输出头，一个对应图像类别，另一个对应区域提案与地面实况边界框的偏移量，以提取对象的精细边界框。
 - en: This exercise would be like the use case where we predicted gender (a categorical
     variable, analogous to the class of object in this case study) and age (a continuous
     variable, analogous to the offsets to be done on top of region proposals) based
     on the image of the face of a person in *Chapter 5*.
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个练习类似于预测性别（一个类别变量，类似于本案例研究中的对象类别）和年龄（一个连续变量，类似于对区域提案进行的偏移量），基于*第5章*中一个人脸图像的用例。
 - en: Train the model after writing a custom loss function that minimizes both the
     object classification error and the bounding-box offset error.
+  id: totrans-164
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编写自定义损失函数来训练模型，该函数将最小化对象分类误差和边界框偏移误差。
 - en: Note that the loss function we will minimize differs from the loss function
     that is optimized in the original paper ([https://arxiv.org/pdf/1311.2524.pdf](https://arxiv.org/pdf/1311.2524.pdf)).
     We are doing this to reduce the complexity associated with building R-CNN and
     Fast R-CNN from scratch. Once you are familiar with how the model works and can
     build a model using the code in the next two sections, we highly encourage you
     to implement the model in original paper from scratch.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们要最小化的损失函数与原始论文中优化的损失函数不同（[https://arxiv.org/pdf/1311.2524.pdf](https://arxiv.org/pdf/1311.2524.pdf)）。我们这样做是为了减少从头开始构建R-CNN和Fast
+    R-CNN所带来的复杂性。一旦您熟悉了模型的工作原理，并能够使用接下来两节中的代码构建模型，我们强烈建议您从头开始实现原始论文中的模型。
 - en: In the next section, we will learn about fetching datasets and creating data
     for training. In the section after that, we will learn about designing a model
     and training it, before predicting the class of objects present and their bounding
     boxes in a new image.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的部分，我们将学习获取数据集和为训练创建数据。在此之后的部分中，我们将学习设计模型并对其进行训练，然后在新图像中预测存在的对象类别及其边界框。
 - en: Implementing R-CNN for object detection on a custom dataset
+  id: totrans-167
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在自定义数据集上实现物体检测的R-CNN。
 - en: 'So far, we have a theoretical understanding of how R-CNN works. We will now
     learn how to go about creating data for training. This process involves the following
     steps:'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经理解了R-CNN的工作原理。现在我们将学习如何为训练创建数据。该过程涉及以下步骤：
 - en: Downloading the dataset
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集。
 - en: Preparing the dataset
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 准备数据集。
 - en: Defining the region proposal extraction and IoU calculation functions
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义区域提议提取和IoU计算函数。
 - en: Creating the training data
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练数据。
 - en: Creating input data for the model
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为模型创建输入数据。
 - en: Resizing the region proposals
+  id: totrans-174
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整区域提议的大小。
 - en: Passing them through a pretrained model to fetch the fully connected layer values
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过预训练模型将它们传递以获取完全连接层的值。
 - en: Creating output data for the model
+  id: totrans-176
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为模型创建输出数据。
 - en: Labeling each region proposal with a class or background label
+  id: totrans-177
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为每个区域提议标记类别或背景标签。
 - en: Defining the offset of the region proposal from the ground truth if the region
     proposal corresponds to an object and not a background
+  id: totrans-178
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义区域提议相对于地面真值的偏移量（如果区域提议对应于对象而不是背景）。
 - en: Defining and training the model
+  id: totrans-179
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义并训练模型。
 - en: Predicting on new images
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在新图像上进行预测。
 - en: Let’s get started with coding in the following sections.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们开始编码以下各节。
 - en: Downloading the dataset
+  id: totrans-182
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 下载数据集。
 - en: 'For the scenario of object detection, we will download the data from the Google
     Open Images v6 dataset (available at [https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv](https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv)).
     However, in code, we will work on only those images that are of a bus or truck
@@ -886,798 +1259,1140 @@
     associated with using `selectivesearch`). We will expand the number of classes
     (more classes in addition to bus and truck) we will train on in *Chapter 10*,
     *Applications of Object Detection and Segmentation*:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于物体检测的情况，我们将从Google Open Images v6数据集中下载数据（网址为[https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv](https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv)）。然而，在代码中，我们将仅处理公交车或卡车的图像，以确保我们可以训练图像（正如您很快会注意到使用`selectivesearch`时的内存问题）。在*第10章*，*目标检测和分割的应用*中，我们将扩展我们将在其中训练的类别数量（除了公交车和卡车之外还有更多类别）：
 - en: Find the following code in the `Training_RCNN.ipynb` file in the `Chapter07`
     folder on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). The code
     contains URLs to download data from and is moderately lengthy. We strongly recommend
     that you execute the notebook in GitHub to help you reproduce results and understand
     the steps and the various code components in the text.
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GitHub的`Chapter07`文件夹中的`Training_RCNN.ipynb`文件中找到以下代码，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。该代码包含用于下载数据的URL，并且长度适中。我们强烈建议您在GitHub上执行笔记本，以帮助您重现结果并理解文本中的步骤和各种代码组件。
 - en: 'Import the relevant packages to download the files that contain images and
     their ground truths:'
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 导入相关包以下载包含图像及其地面真实值的文件：
 - en: '[PRE16]'
+  id: totrans-186
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: Once we execute the preceding code, we should have the images and their corresponding
     ground truths stored in an available CSV file.
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦执行上述代码，我们应该将图像及其相应的地面真实值存储在可用的CSV文件中。
 - en: Preparing the dataset
+  id: totrans-188
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 准备数据集。
 - en: 'Now that we have downloaded the dataset, we will prepare the dataset. This
     involves the following steps:'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经下载了数据集，我们将准备数据集。该过程涉及以下步骤：
 - en: Fetching each image and its corresponding class and bounding-box values
+  id: totrans-190
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取每个图像及其相应的类别和边界框值。
 - en: Fetching the region proposals within each image, their corresponding IoU, and
     the delta by which the region proposal will be corrected with respect to the ground
     truth
+  id: totrans-191
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取每个图像中的区域提议，它们对应的IoU值，以及区域提议相对于地面真值将被校正的增量。
 - en: Assigning numeric labels for each class (where we have an additional background
     class, besides the bus and truck classes, where IoU with the ground-truth bounding
     box is below a threshold)
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为每个类别分配数字标签（除了公交车和卡车类别之外，我们还有一个额外的背景类别，其中IoU与地面真实边界框低于阈值）。
 - en: Resizing each region proposal to a common size in order to pass them to a network
+  id: totrans-193
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将每个区域建议调整为一个公共大小，以便将它们传递给网络
 - en: 'By the end of this exercise, we will have resized the crops of region proposals,
     assigned the ground-truth class to each region proposal, and calculated the offset
     of the region proposal in relation to the ground-truth bounding box. We will continue
     coding from where we left off in the preceding section:'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此练习结束时，我们将已经调整了区域建议的裁剪大小，为每个区域建议分配了真实的类别，并计算了区域建议相对于真实边界框的偏移量。我们将从上一节结束的地方继续编码：
 - en: 'Specify the location of images, and read the ground truths present in the CSV
     file that we downloaded:'
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定图像的位置，并读取我们下载的 CSV 文件中存在的真实值：
 - en: '[PRE17]'
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: '![Table  Description automatically generated](img/B18457_07_11.png)'
+  id: totrans-197
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的表说明](img/B18457_07_11.png)'
 - en: 'Figure 7.11: Sample data'
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.11：样本数据
 - en: Note that `XMin`, `XMax`, `YMin`, and `YMax` correspond to the ground truth
     of the bounding box of the image. Furthermore, `LabelName` provides the class
     of image.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，`XMin`、`XMax`、`YMin` 和 `YMax` 对应于图像边界框的真实值。此外，`LabelName` 提供了图像的类别。
 - en: 'Define a class that returns the image and its corresponding class and ground
     truth along with the file path of the image:'
+  id: totrans-200
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个类，返回图像及其对应的类和真实值，以及图像的文件路径：
 - en: 'Pass the dataframe (`df`) and the path to the folder containing images (`image_folder`)
     as input to the `__init__` method, and fetch the unique `ImageID` values present
     in the data frame (`self.unique_images`). We do this because an image can contain
     multiple objects, and so multiple rows can correspond to the same `ImageID` value:'
+  id: totrans-201
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将数据框（`df`）和包含图像的文件夹路径（`image_folder`）作为输入传递给 `__init__` 方法，并获取数据框中存在的唯一 `ImageID`
+    值（`self.unique_images`）。我们这样做是因为一张图像可能包含多个对象，因此多行可以对应相同的 `ImageID` 值：
 - en: '[PRE18]'
+  id: totrans-202
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Define the `__getitem__` method, where we fetch the image (`image_id`) corresponding
     to an index (`ix`), `fetch` its bounding-box coordinates (`boxes`), and classes
     and return the image, bounding box, class, and image path:'
+  id: totrans-203
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `__getitem__` 方法，在此方法中，我们获取索引（`ix`）对应的图像（`image_id`），获取其边界框坐标（`boxes`）和类别，并返回图像、边界框、类别和图像路径：
 - en: '[PRE19]'
+  id: totrans-204
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Inspect a sample image and its corresponding class and bounding-box ground
     truth:'
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 检查一个样本图像及其对应的类和边界框真实值：
 - en: '[PRE20]'
+  id: totrans-206
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: '![](img/B18457_07_12.png)'
+  id: totrans-207
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_07_12.png)'
 - en: 'Figure 7.12: Sample image with the ground-truth bounding box and class of object'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.12：带有真实边界框和对象类别的样本图像
 - en: 'Define the `extract_iou` and `extract_candidates` functions:'
+  id: totrans-209
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `extract_iou` 和 `extract_candidates` 函数：
 - en: '[PRE21]'
+  id: totrans-210
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: With that, we have now defined all the functions necessary to prepare data and
     initialize data loaders. Next, we will fetch region proposals (input regions to
     the model) and the ground truth of the bounding box offset, along with the class
     of object (expected output).
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们已经定义了准备数据和初始化数据加载器所需的所有函数。接下来，我们将获取区域建议（模型的输入区域）及其与边界框偏移量的真实值，以及对象的类别（预期输出）。
 - en: Fetching region proposals and the ground truth of offset
+  id: totrans-212
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 获取区域建议及其偏移量的真实值
 - en: In this section, we will learn to create the input and output values corresponding
     to our model. The input constitutes the candidates that are extracted using the
     `selectivesearch` method, and the output constitutes the class corresponding to
     candidates and the offset of the candidate with respect to the bounding box it
     overlaps the most with if the candidate contains an object.
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将学习如何创建与我们模型对应的输入和输出值。输入由使用 `selectivesearch` 方法提取的候选区域组成，输出包括与候选区域相对应的类别以及如果候选区域包含对象时其相对于最大重叠边界框的偏移量。
 - en: 'We will continue coding from where we ended in the preceding section:'
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从上一节结束的地方继续编码：
 - en: 'Initialize empty lists to store file paths (`FPATHS`), ground truth bounding
     boxes (`GTBBS`), classes (`CLSS`) of objects, the delta offset of a bounding box
     with region proposals (`DELTAS`), region proposal locations (`ROIS`), and the
     IoU of region proposals with ground truths (`IOUS`):'
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化空列表来存储文件路径（`FPATHS`），真实边界框（`GTBBS`），对象类别（`CLSS`），边界框与区域建议的偏移量（`DELTAS`），区域建议位置（`ROIS`）以及区域建议与真实值的
+    IoU（`IOUS`）：
 - en: '[PRE22]'
+  id: totrans-216
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Loop through the dataset and populate the lists initialized in *step 1*:'
+  id: totrans-217
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 遍历数据集并填充在*步骤 1*中初始化的列表：
 - en: 'For this exercise, we can use all the data points for training or illustrate
     with just the first 500 data points. You can choose between either of the two,
     which dictates the training time and training accuracy (the greater the data points,
     the greater the training time and accuracy):'
+  id: totrans-218
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对于这个练习，我们可以使用所有数据点进行训练，或者只使用前500个数据点进行演示。您可以在两者之间选择，这将决定训练时间和训练准确度（数据点越多，训练时间和准确度越高）：
 - en: '[PRE23]'
+  id: totrans-219
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: In the preceding code, we specify that we will work on 500 images.
+  id: totrans-220
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们指定将处理500张图像：
 - en: 'Extract candidates from each image (`im`) in absolute pixel values (note that
     `XMin`, `Xmax`, `YMin`, and `YMax` are available as a proportion of the shape
     of images in the downloaded data frame) using the `extract_candidates` function
     and convert the extracted regions coordinates from an (x,y,w,h) system to an (x,y,x+w,y+h)
     system:'
+  id: totrans-221
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用`extract_candidates`函数从每个图像（`im`）中提取候选项的绝对像素值（注意，`XMin`、`Xmax`、`YMin`和`YMax`是作为已下载数据帧中图像形状的比例提供的），并将提取的区域坐标从（x，y，w，h）系统转换为（x，y，x+w，y+h）系统：
 - en: '[PRE24]'
+  id: totrans-222
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'Initialize `ious`, `rois`, `deltas`, and `clss` as lists that store `iou` for
     each candidate, region proposal location, bounding box offset, and class corresponding
     to every candidate for each image. We will go through all the proposals from SelectiveSearch
     and store those with a high IOU as bus/truck proposals (whichever is the class
     in labels) and the rest as background proposals:'
+  id: totrans-223
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 初始化`ious`、`rois`、`deltas`和`clss`，作为存储每个图像中每个候选项的IoU、区域提议位置、边界框偏移和对应类别的列表。我们将浏览所有选择性搜索中的提议，并将具有高IoU的提议存储为公共汽车/卡车提议（标签中的任意一种类别），其余提议存储为背景提议：
 - en: '[PRE25]'
+  id: totrans-224
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Store the IoU of all candidates with respect to all ground truths for an image
     where `bbs` is the ground truth bounding box of different objects present in the
     image, and `candidates` consists of the region proposal candidates obtained in
     the previous step:'
+  id: totrans-225
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将所有候选项相对于图像中的所有地面真实边界框的IoU存储起来，其中`bbs`是图像中不同对象的地面真实边界框，而`candidates`包括在前一步骤中获取的区域提议候选项：
 - en: '[PRE26]'
+  id: totrans-226
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'Loop through each candidate and store the XMin (`cx`), YMin (`cy`), XMax (`cX`),
     and YMax (`cY`) values of a candidate:'
+  id: totrans-227
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 循环遍历每个候选项并存储候选项的XMin（`cx`）、YMin（`cy`）、XMax（`cX`）和YMax（`cY`）值：
 - en: '[PRE27]'
+  id: totrans-228
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Extract the IoU corresponding to the candidate with respect to all the ground
     truth bounding boxes that were already calculated when fetching the list of lists
     of IoUs:'
+  id: totrans-229
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取与获取了IoU列表的所有地面真实边界框相关的候选项对应的IoU时：
 - en: '[PRE28]'
+  id: totrans-230
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Find the index of a candidate (`best_iou_at`) that has the highest IoU and
     the corresponding ground truth (`best_bb`):'
+  id: totrans-231
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 找到具有最高IoU的候选项的索引（`best_iou_at`）及其相应的地面真实边界框（`best_bb`）：
 - en: '[PRE29]'
+  id: totrans-232
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'If IoU (`best_iou`) is greater than a threshold (0.3), we assign the label
     of the class corresponding to the candidate, and the background otherwise:'
+  id: totrans-233
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果IoU（`best_iou`）大于阈值（0.3），我们将为与候选项对应的类分配标签，否则分配背景：
 - en: '[PRE30]'
+  id: totrans-234
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Fetch the offsets needed (`delta`) to transform the current proposal into the
     candidate that is the best region proposal (which is the ground truth bounding
     box) – `best_bb` – in other words, how much the left, right, top, and bottom margins
     of the current proposal should be adjusted so that it aligns exactly with `best_bb`
     from the ground truth:'
+  id: totrans-235
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取所需的偏移量（`delta`），将当前提议转换为最佳区域提议（即地面真实边界框）`best_bb`所需的偏移量，换句话说，调整当前提议的左、右、上和下边缘多少，使其与来自地面真实边界框的`best_bb`完全对齐：
 - en: '[PRE31]'
+  id: totrans-236
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Append the file paths, IoU, RoI, class delta, and ground truth bounding boxes:'
+  id: totrans-237
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将文件路径、IoU、RoI、类偏移和地面真实边界框追加到列表中：
 - en: '[PRE32]'
+  id: totrans-238
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Fetch the image path names and store all the information obtained, `FPATHS`,
     `IOUS`, `ROIS`, `CLSS`, `DELTAS`, and `GTBBS`, in a list of lists:'
+  id: totrans-239
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取图像路径名并将获取的所有信息`FPATHS`、`IOUS`、`ROIS`、`CLSS`、`DELTAS`和`GTBBS`存储在一个列表的列表中：
 - en: '[PRE33]'
+  id: totrans-240
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: Note that, so far, classes are available as the name of the class. Now, we will
     convert them into their corresponding indices so that a background class has a
     class index of 0, a bus class has a class index of 1, and a truck class has a
     class index of 2.
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，到目前为止，类别作为类别名称可用。现在，我们将把它们转换为相应的索引，使得背景类别的类索引为0，公共汽车类的类索引为1，卡车类的类索引为2。
 - en: 'Assign indices to each class:'
+  id: totrans-242
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为每个类别分配索引：
 - en: '[PRE34]'
+  id: totrans-243
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: With that, we have assigned a class to each region proposal and also created
     the other ground truth of the bounding box offset. Next, we will fetch the dataset
     and the data loaders corresponding to the information obtained (`FPATHS`, `IOUS`,
     `ROIS`, `CLSS`, `DELTAS`, and `GTBBS`).
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经为每个区域提议分配了一个类别，并创建了边界框偏移量的其他地面真值。接下来，我们将获取与获取的信息（`FPATHS`、`IOUS`、`ROIS`、`CLSS`、`DELTAS`和`GTBBS`）对应的数据集和数据加载器。
 - en: Creating the training data
+  id: totrans-245
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 创建训练数据
 - en: So far, we have fetched data, fetched region proposals across all images, prepared
     the ground truths of the class of object present within each region proposal,
     and the offset corresponding to each region proposal that has a high overlap (IoU)
     with the object in the corresponding image.
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经获取了数据，在所有图像中获取了区域提议，准备了每个区域提议中对象的类别的地面真值，并获取了与相应图像中对象具有高重叠（IoU）的每个区域提议相对应的偏移量。
 - en: 'In this section, we will prepare a dataset class based on the ground truth
     of region proposals that were obtained at the end of *step 3 in the previous section*,
     creating data loaders from it. Then, we will normalize each region proposal by
     resizing them to the same shape and scaling them. We will continue coding from
     where we left off in the preceding section:'
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将基于前一节结尾处获得的区域提议的地面真值准备一个数据集类，从中创建数据加载器。然后，我们将通过将每个区域提议调整为相同形状并缩放它们来标准化每个区域提议。我们将继续从前一节结束的地方编码：
 - en: 'Define the function to normalize an image before passing through a pretrained
     model like VGG16\. The standard normalization practice for VGG16 is as follows:'
+  id: totrans-248
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数来在通过类似VGG16的预训练模型之前对图像进行标准化处理。对于VGG16的标准化实践如下：
 - en: '[PRE35]'
+  id: totrans-249
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Define a function (`preprocess_image`) to preprocess the image (`img`), where
     we switch channels, normalize the image, and register it with the device:'
+  id: totrans-250
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数（`preprocess_image`）来预处理图像（`img`），其中我们会切换通道、标准化图像，并将其注册到设备上：
 - en: '[PRE36]'
+  id: totrans-251
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Define the function to `decode` prediction:'
+  id: totrans-252
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义解码预测的函数`decode`：
 - en: '[PRE37]'
+  id: totrans-253
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Define the dataset (`RCNNDataset`) using the preprocessed region proposals,
     along with the ground truths obtained in the previous step (*step 2 of the previous
     section*):'
+  id: totrans-254
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用前面步骤中获取的预处理区域提议和地面真值（*前一节的第2步*）来定义数据集（`RCNNDataset`）：
 - en: '[PRE38]'
+  id: totrans-255
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Fetch the crops as per the region proposals, along with the other ground truths
     related to the class and bounding box offset:'
+  id: totrans-256
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 根据区域提议获取裁剪图像以及与类别和边界框偏移量相关的其他地面真值：
 - en: '[PRE39]'
+  id: totrans-257
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Define `collate_fn`, which performs the resizing and normalizing (`preprocess_image`)
     of an image of a crop:'
+  id: totrans-258
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`collate_fn`函数，该函数执行对裁剪图像进行大小调整和标准化（`preprocess_image`）：
 - en: '[PRE40]'
+  id: totrans-259
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Create the training and validation datasets and the data loaders:'
+  id: totrans-260
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练和验证数据集以及数据加载器：
 - en: '[PRE41]'
+  id: totrans-261
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: So far, we have learned about preparing data for training. Next, we will learn
     about defining and training a model that predicts the class and offset to be made
     to a region proposal, to fit a tight bounding box around objects in an image.
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经了解了为训练准备数据的相关信息。接下来，我们将学习如何定义和训练一个模型，该模型能够预测区域提议的类别和偏移量，以便在图像中绘制紧密的边界框。
 - en: R-CNN network architecture
+  id: totrans-263
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: R-CNN网络架构
 - en: 'Now that we have prepared the data, in this section, we will learn about building
     a model that can predict both the class of a region proposal and the offset corresponding
     to it, in order to draw a tight bounding box around the object in an image. The
     strategy we adopt is as follows:'
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经准备好数据，在本节中，我们将学习如何构建一个模型，该模型能够预测区域提议的类别和相应的偏移量，以便在图像中绘制紧密的边界框。我们采用的策略如下：
 - en: Define a VGG backbone.
+  id: totrans-265
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个VGG主干。
 - en: Fetch the features after passing the normalized crop through a pretrained model.
+  id: totrans-266
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过预训练模型后获取标准化裁剪后的特征。
 - en: Attach a linear layer with sigmoid activation to the VGG backbone to predict
     the class corresponding to the region proposal.
+  id: totrans-267
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将带有sigmoid激活的线性层附加到VGG主干上，以预测区域提议对应的类别。
 - en: Attach an additional linear layer to predict the four bounding-box offsets.
+  id: totrans-268
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 附加一个额外的线性层来预测四个边界框偏移量。
 - en: Define the loss calculations for each of the two outputs (one to predict the
     class and the other to predict the four bounding-box offsets).
+  id: totrans-269
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义用于两个输出（一个用于预测类别，另一个用于预测四个边界框偏移量）的损失计算方法。
 - en: Train the model that predicts both the class of region proposal and the four
     bounding-box offsets.
+  id: totrans-270
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型，该模型预测区域提议的类别和四个边界框偏移量。
 - en: 'Execute the following code. We will continue coding from where we ended in
     the preceding section:'
+  id: totrans-271
   prefs: []
   type: TYPE_NORMAL
+  zh: 执行以下代码。我们将继续从前一节结束的地方编码：
 - en: 'Define a VGG backbone:'
+  id: totrans-272
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义VGG骨干网：
 - en: '[PRE42]'
+  id: totrans-273
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Define the `RCNN` network module:'
+  id: totrans-274
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`RCNN`网络模块：
 - en: 'Define the class:'
+  id: totrans-275
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义类别：
 - en: '[PRE43]'
+  id: totrans-276
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Define the backbone (`self.backbone`) and how we calculate the class score
     (`self.cls_score`) and the bounding-box offset values (`self.bbox`):'
+  id: totrans-277
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义骨干网 (`self.backbone`) 和如何计算类别分数 (`self.cls_score`) 和边界框偏移值 (`self.bbox`)：
 - en: '[PRE44]'
+  id: totrans-278
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'Define the loss functions corresponding to class prediction (`self.cel`) and
     bounding-box offset regression (`self.sl1`):'
+  id: totrans-279
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义损失函数，对应类别预测 (`self.cel`) 和边界框偏移回归 (`self.sl1`)：
 - en: '[PRE45]'
+  id: totrans-280
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'Define the feed-forward method where we pass the image through a VGG backbone
     (`self.backbone`) to fetch features (`feat`), which are further passed through
     the methods corresponding to classification and bounding-box regression to fetch
     the probabilities across classes (`cls_score`) and the bounding-box offsets (`bbox`):'
+  id: totrans-281
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义前向传播方法，通过VGG骨干网 (`self.backbone`) 传递图像以获取特征 (`feat`)，进一步通过分类和边界框回归方法获取跨类别的概率
+    (`cls_score`) 和边界框偏移量 (`bbox`)：
 - en: '[PRE46]'
+  id: totrans-282
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'Define the function to calculate loss (`calc_loss`), where we return the sum
     of detection and regression loss. Note that we do not calculate regression loss
     corresponding to offsets if the actual class is the background class:'
+  id: totrans-283
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义计算损失的函数 (`calc_loss`)，其中我们返回检测和回归损失的总和。请注意，如果实际类别是背景类别，则不计算与偏移相对应的回归损失：
 - en: '[PRE47]'
+  id: totrans-284
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'With the model class in place, we now define the functions to train on a batch
     of data and predict on validation data:'
+  id: totrans-285
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 有了模型类别后，我们现在定义批量数据训练和验证数据预测的功能：
 - en: 'Define the `train_batch` function:'
+  id: totrans-286
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`train_batch`函数：
 - en: '[PRE48]'
+  id: totrans-287
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'Define the `validate_batch` function:'
+  id: totrans-288
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`validate_batch`函数：
 - en: '[PRE49]'
+  id: totrans-289
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'Now, let’s create an object of the model, fetch the loss criterion, and then
     define the optimizer and the number of epochs:'
+  id: totrans-290
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，让我们创建一个模型对象，获取损失标准，然后定义优化器和时期数：
 - en: '[PRE50]'
+  id: totrans-291
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'We now train the model over increasing epochs:'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们在增加的时期内训练模型：
 - en: '[PRE51]'
+  id: totrans-293
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'The plot of overall loss across training and validation data is as follows:'
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练和验证数据的总体损失图如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_07_13.png)'
+  id: totrans-295
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图  自动生成描述](img/B18457_07_13.png)'
 - en: 'Figure 7.13: Training and validation loss over increasing epochs'
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.13：增加时期内的训练和验证损失
 - en: Now that we have trained a model, we will use it to predict on a new image in
     the next section.
+  id: totrans-297
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经训练了一个模型，我们将在下一节中使用它来预测新图像。
 - en: Predicting on a new image
+  id: totrans-298
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 预测新图像
 - en: 'Let’s leverage the model trained so far to predict and draw bounding boxes
     around objects and the corresponding class of an object, within the predicted
     bounding box on new images. The strategy we adopt is as follows:'
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们利用到目前为止训练的模型来预测并在新图像上绘制对象周围的边界框及其对应的对象类别，在预测的边界框内。
 - en: Extract region proposals from the new image.
+  id: totrans-300
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从新图像中提取区域建议。
 - en: Resize and normalize each crop.
+  id: totrans-301
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整和规范化每个裁剪。
 - en: Feed-forward the processed crops to predict the class and the offsets.
+  id: totrans-302
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将处理后的裁剪图像前向传递以预测类别和偏移量。
 - en: Perform non-max suppression to fetch only those boxes that have the highest
     confidence of containing an object.
+  id: totrans-303
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行非最大抑制以仅获取置信度最高的包含对象的框。
 - en: We execute the preceding strategy through a function that takes an image as
     input and a ground-truth bounding box (this is used only so that we compare the
     ground truth and the predicted bounding box).
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们通过一个函数执行上述策略，该函数以图像作为输入，并提供地面实况边界框（仅用于比较地面实况和预测的边界框）。
 - en: 'We will continue coding from where we left off in the preceding section:'
+  id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将继续从前一节结束的地方进行编码：
 - en: 'Define the `test_predictions` function to predict on a new image:'
+  id: totrans-306
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`test_predictions`函数以预测新图像：
 - en: 'The function takes `filename` as input, reads the image, and extracts the candidates:'
+  id: totrans-307
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 该函数以`filename`为输入，读取图像，并提取候选对象：
 - en: '[PRE52]'
+  id: totrans-308
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Loop through the candidates to resize and preprocess the image:'
+  id: totrans-309
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 遍历候选者以调整大小和预处理图像：
 - en: '[PRE53]'
+  id: totrans-310
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'Predict the class and offset:'
+  id: totrans-311
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 预测类别和偏移量：
 - en: '[PRE54]'
+  id: totrans-312
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Extract the candidates that do not belong to the background class and sum up
     the candidates’ bounding box with the predicted bounding-box offset values:'
+  id: totrans-313
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取不属于背景类别的候选对象，并将候选对象的边界框与预测的边界框偏移值相加：
 - en: '[PRE55]'
+  id: totrans-314
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: 'Use non-max suppression (`nms`) to eliminate near-duplicate bounding boxes
     (pairs of boxes that have an IoU greater than 0.05 are considered duplicates in
     this case). Among the duplicated boxes, we pick the box with the highest confidence
     and discard the rest:'
+  id: totrans-315
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用非最大抑制（`nms`）消除近似重复的边界框（在此情况下，具有IoU大于0.05的两个框被视为重复）。在重复的框中，我们选择置信度最高的框并丢弃其余的框：
 - en: '[PRE56]'
+  id: totrans-316
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'Fetch the bounding box with the highest confidence:'
+  id: totrans-317
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取置信度最高的边界框：
 - en: '[PRE57]'
+  id: totrans-318
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'Plot the image along with the predicted bounding box:'
+  id: totrans-319
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制图像以及预测的边界框：
 - en: '[PRE58]'
+  id: totrans-320
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'Execute the preceding function on a new image:'
+  id: totrans-321
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在新图像上执行上述函数：
 - en: '[PRE59]'
+  id: totrans-322
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'The preceding code generates the following images:'
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码生成以下图像：
 - en: '![](img/B18457_07_14.png)'
+  id: totrans-324
   prefs: []
   type: TYPE_IMG
+  zh: '![img/B18457_07_14.png](img/B18457_07_14.png)'
 - en: 'Figure 7.14: Original image and the predicted bounding box and class'
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.14：原始图像和预测的边界框与类别
 - en: From the preceding figure, we can see that the prediction of the class of an
     image is accurate and the bounding-box prediction is decent, too. Note that it
     took ~1.5 seconds to generate a prediction for the preceding image.
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据上图，我们可以看到图像类别的预测准确，边界框的预测也还不错。请注意，生成上述图像的预测大约需要~1.5秒。
 - en: All of this time is spent generating region proposals, resizing each region
     proposal, passing them through a VGG backbone, and generating predictions using
     the defined model. The most time spent is in passing each proposal through a VGG
     backbone. In the next section, we will learn about getting around this *passing
     each proposal to VGG* problem by using the Fast R-CNN architecture-based model.
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些时间都花在生成区域建议、调整每个区域建议、通过VGG骨干网络传递它们以及使用定义的模型生成预测上。其中大部分时间都花在通过VGG骨干网络传递每个建议上。在接下来的部分，我们将学习如何通过使用基于Fast
+    R-CNN架构的模型来解决*将每个建议传递给VGG*的问题。
 - en: Training Fast R-CNN-based custom object detectors
+  id: totrans-328
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 训练基于Fast R-CNN的自定义对象检测器
 - en: One of the major drawbacks of R-CNN is that it takes considerable time to generate
     predictions. This is because generating region proposals for each image, resizing
     the crops of regions, and extracting features corresponding to **each crop** (region
     proposal) create a bottleneck.
+  id: totrans-329
   prefs: []
   type: TYPE_NORMAL
+  zh: R-CNN的一个主要缺点是生成预测需要相当长的时间。这是因为为每个图像生成区域建议，调整区域的裁剪，以及提取与**每个裁剪**（区域建议）对应的特征会造成瓶颈。
 - en: Fast R-CNN gets around this problem by passing the **entire image** through
     the pretrained model to extract features, and then it fetches the region of features
     that correspond to the region proposals (which are obtained from `selectivesearch`)
     of the original image. In the following sections, we will learn about the working
     details of Fast R-CNN before training it on our custom dataset.
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
+  zh: Fast R-CNN通过将**整个图像**通过预训练模型以提取特征，然后获取与原始图像中来自`selectivesearch`的区域建议相对应的特征区域，解决了这个问题。在接下来的部分，我们将学习在自定义数据集上训练之前了解Fast
+    R-CNN的工作细节。
 - en: Working details of Fast R-CNN
+  id: totrans-331
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Fast R-CNN的工作细节
 - en: 'Let’s understand Fast R-CNN through the following diagram:'
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下图表理解Fast R-CNN：
 - en: '![A picture containing diagram  Description automatically generated](img/B18457_07_15.png)'
+  id: totrans-333
   prefs: []
   type: TYPE_IMG
+  zh: '![img/B18457_07_15.png](img/B18457_07_15.png)'
 - en: 'Figure 7.15: Working details of Fast R-CNN'
+  id: totrans-334
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7.15：Fast R-CNN的工作细节
 - en: 'Let’s understand the preceding diagram through the following steps:'
+  id: totrans-335
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下步骤理解上述图表：
 - en: Pass the image through a pretrained model to extract features prior to the flattening
     layer; let’s call them output feature maps.
+  id: totrans-336
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像通过预训练模型传递以在扁平化层之前提取特征；我们称它们为输出特征图。
 - en: Extract region proposals corresponding to the image.
+  id: totrans-337
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取与图像对应的区域建议。
 - en: Extract the feature map area corresponding to the region proposals (note that
     when an image is passed through a VGG16 architecture, the image is downscaled
     by 32 at the output, as five pooling operations are performed. Thus, if a region
     exists with a bounding box of (32,64,160,128) in the original image, the feature
     map corresponding to the bounding box of (1,2,5,4) would correspond to the exact
     same region).
+  id: totrans-338
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取与区域建议对应的特征图区域（请注意，当图像通过VGG16架构传递时，输出时图像会缩小32倍，因为进行了五次池化操作。因此，如果原始图像中存在边界框(32,64,160,128)，则对应于边界框(1,2,5,4)的特征图将对应于完全相同的区域）。
 - en: Pass the feature maps corresponding to region proposals through the **region
     of interest** (**RoI**) pooling layer one at a time so that all feature maps of
     region proposals have a similar shape. This is a replacement for the warping that
     was executed in the R-CNN technique.
+  id: totrans-339
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 逐个将对应于区域提议的特征图通过**感兴趣区域（RoI）**池化层，使所有区域提议的特征图具有相似的形状。这是对 R-CNN 技术中执行的扭曲的替代。
 - en: Pass the RoI pooling layer output value through a fully connected layer.
+  id: totrans-340
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将 RoI 池化层的输出值通过全连接层传递。
 - en: Train the model to predict the class and offsets corresponding to each region
     proposal.
+  id: totrans-341
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型以预测每个区域提议对应的类别和偏移量。
 - en: Note that the big difference between R-CNN and Fast R-CNN is that, in R-CNN,
     we pass the crops (resized region proposals) through the pretrained model one
     at a time, while in Fast R-CNN, we crop the feature map (which is obtained by
     passing the whole image through a pretrained model) corresponding to each region
     proposal, thereby avoiding the need to pass each resized region proposal through
     the pretrained model.
+  id: totrans-342
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，R-CNN 和快速 R-CNN 之间的主要区别在于，在 R-CNN 中，我们逐个通过预训练模型传递裁剪图像（调整大小的区域提议），而在快速 R-CNN
+    中，我们裁剪对应于每个区域提议的特征图（通过通过整个图像传递预训练模型获得），从而避免需要通过预训练模型传递每个调整大小的区域提议的需求。
 - en: Now armed with an understanding of how Fast R-CNN works, in the next section,
     we will build a model using the same dataset that we leveraged in the R-CNN section.
+  id: totrans-343
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在了解了快速 R-CNN 的工作原理，下一节我们将使用在 R-CNN 部分中利用的相同数据集构建一个模型。
 - en: Implementing Fast R-CNN for object detection on a custom dataset
+  id: totrans-344
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用自定义数据集实现快速 R-CNN 进行目标检测
 - en: 'In this section, we will work toward training our custom object detector using
     Fast R-CNN. To remain succinct, we provide only the additional or changed code
     in this section (you should run all the code until *step 2* in the *Creating the
     training data* subsection in the previous section about R-CNN):'
+  id: totrans-345
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将致力于使用快速 R-CNN 训练我们的自定义对象检测器。为了保持简洁，本节仅提供此部分中的附加或更改代码（应在关于 R-CNN 的先前章节中的“创建训练数据”小节中运行所有代码直至*步骤
+    2*）：
 - en: Here, we only provide the additional code to train Fast R-CNN. Find the full
     code in the `Training_Fast_R_CNN.ipynb` file in the `Chapter07` folder on GitHub
     at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-346
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们仅提供用于训练快速 R-CNN 的附加代码。在 GitHub 的 `Chapter07` 文件夹中的 `Training_Fast_R_CNN.ipynb`
+    文件中找到完整的代码：[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'Create an `FRCNNDataset` class that returns images, labels, ground truths,
     region proposals, and the delta corresponding to each region proposal:'
+  id: totrans-347
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个`FRCNNDataset`类，返回图像、标签、地面实况、区域提议及每个区域提议对应的增量：
 - en: '[PRE60]'
+  id: totrans-348
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: Note that the preceding code is very similar to what we have learned in the
     R-CNN section, with the only change being that we are returning more information
     (`rois` and `rixs`).
+  id: totrans-349
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，上述代码与我们在 R-CNN 部分学到的非常相似，唯一的变化是我们返回了更多信息（`rois` 和 `rixs`）。
 - en: The `rois` matrix holds information regarding which RoI belongs to which image
     in the batch. Note that `input` contains multiple images, whereas `rois` is a
     single list of boxes. We wouldn’t know how many RoIs belong to the first image,
@@ -1687,326 +2402,474 @@
     is `[0,0,0,1,1,2,3,3,3]`, then we know that the first three bounding boxes belong
     to the first image in the batch, and the next two belong to the second image in
     the batch.
+  id: totrans-350
   prefs: []
   type: TYPE_NORMAL
+  zh: '`rois` 矩阵包含关于批处理中的哪个 RoI 属于哪个图像的信息。注意，`input` 包含多个图像，而 `rois` 是一个单独的框列表。我们不会知道第一张图像有多少个
+    RoI 属于它，第二张图像有多少个 RoI 属于它，依此类推。这就是 `rixs` 起作用的地方。它是一个索引列表。列表中的每个整数将相应的边界框与适当的图像关联起来；例如，如果
+    `rixs` 是 `[0,0,0,1,1,2,3,3,3]`，则我们知道前三个边界框属于批处理中的第一个图像，接下来的两个属于第二个图像，依此类推。'
 - en: 'Create training and test datasets:'
+  id: totrans-351
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练和测试数据集：
 - en: '[PRE61]'
+  id: totrans-352
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'Define a model to train on the dataset:'
+  id: totrans-353
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个用于训练数据集的模型：
 - en: 'First, import the `RoIPool` method present in the `torchvision.ops` class:'
+  id: totrans-354
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，导入 `torchvision.ops` 类中存在的 `RoIPool` 方法：
 - en: '[PRE62]'
+  id: totrans-355
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: 'Define the `FRCNN` network module:'
+  id: totrans-356
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `FRCNN` 网络模块：
 - en: '[PRE63]'
+  id: totrans-357
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: 'Load the pretrained model and freeze the parameters:'
+  id: totrans-358
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 载入预训练模型并冻结参数：
 - en: '[PRE64]'
+  id: totrans-359
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Extract features until the last layer:'
+  id: totrans-360
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取直至最后一层的特征：
 - en: '[PRE65]'
+  id: totrans-361
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: 'Specify that `RoIPool` is to extract a 7 x 7 output. Here, `spatial_scale`
     is the factor by which proposals (which come from the original image) need to
     be shrunk so that every output has the same shape before passing through the flatten
     layer. Images are 224 x 224 in size, while the feature map is 14 x 14 in size:'
+  id: totrans-362
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定 `RoIPool` 要提取 7 x 7 的输出。这里，`spatial_scale` 是建议（来自原始图像）需要缩小的因子，以便在通过展平层之前，每个输出都具有相同的形状。图像大小为
+    224 x 224，而特征图大小为 14 x 14：
 - en: '[PRE66]'
+  id: totrans-363
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: 'Define the output heads – `cls_score` and `bbox`:'
+  id: totrans-364
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义输出头部 – `cls_score` 和 `bbox`：
 - en: '[PRE67]'
+  id: totrans-365
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: 'Define the loss functions:'
+  id: totrans-366
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义损失函数：
 - en: '[PRE68]'
+  id: totrans-367
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: 'Define the `forward` method, which takes the image, region proposals, and the
     index of region proposals as input for the network defined earlier:'
+  id: totrans-368
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `forward` 方法，该方法将图像、区域建议和区域建议的索引作为网络的输入：
 - en: '[PRE69]'
+  id: totrans-369
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: 'Pass the `input` image through the pretrained model:'
+  id: totrans-370
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将 `input` 图像通过预训练模型传递：
 - en: '[PRE70]'
+  id: totrans-371
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: 'Create a matrix of `rois` as input for `self.roipool`, first by concatenating
     `ridx` as the first column and the next four columns being the absolute values
     of the region proposal bounding boxes:'
+  id: totrans-372
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建 `rois` 的矩阵作为 `self.roipool` 的输入，首先通过将 `ridx` 连接为第一列，接下来四列为区域建议边界框的绝对值来实现：
 - en: '[PRE71]'
+  id: totrans-373
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: 'Define the loss value calculation (`calc_loss`), just like we did in the *R-CNN*
     section:'
+  id: totrans-374
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义损失值计算 (`calc_loss`)，就像我们在 *R-CNN* 部分所做的那样：
 - en: '[PRE72]'
+  id: totrans-375
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: 'Define the functions to train and validate on a batch, just like we did in
     the *Training* *R-CNN-based custom object detectors* section:'
+  id: totrans-376
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义在批处理中训练和验证的函数，就像我们在 *训练* *基于自定义目标检测器的 R-CNN* 部分所做的那样：
 - en: '[PRE73]'
+  id: totrans-377
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: 'Define and train the model over increasing epochs:'
+  id: totrans-378
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义并训练模型以增加 epochs：
 - en: '[PRE74]'
+  id: totrans-379
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: 'The variation in overall loss is as follows:'
+  id: totrans-380
   prefs: []
   type: TYPE_NORMAL
+  zh: 总损失的变化如下：
 - en: '![Chart, line chart  Description automatically generated](img/B18457_07_16.png)'
+  id: totrans-381
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，线图 自动产生描述](img/B18457_07_16.png)'
 - en: 'Figure 7.16: Training and validation loss over increasing epochs'
+  id: totrans-382
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 7.16: 增加 epochs 时的训练和验证损失'
 - en: 'Define a function to predict on test images:'
+  id: totrans-383
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数来对测试图像进行预测：
 - en: 'Define the function that takes a filename as input and then reads the file
     and resizes it to 224 x 224:'
+  id: totrans-384
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数，该函数以文件名作为输入，然后读取文件并将其调整大小为 224 x 224：
 - en: '[PRE75]'
+  id: totrans-385
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: 'Obtain the region proposals, convert them to the `(x1,y1,x2,y2)` format (top-left
     pixel and bottom-right pixel coordinates), and then convert these values to the
     ratio of width and height that they are present in, in proportion to the image:'
+  id: totrans-386
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取区域建议，将它们转换为 `(x1, y1, x2, y2)` 格式（左上角像素和右下角像素的坐标），然后将这些值转换为它们所在的宽度和高度的比例：
 - en: '[PRE76]'
+  id: totrans-387
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: 'Preprocess the image and scale the RoIs (`rois`):'
+  id: totrans-388
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 预处理图像并缩放 RoIs (`rois`)：
 - en: '[PRE77]'
+  id: totrans-389
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: 'As all proposals belong to the same image, `rixs` will be a list of zeros (as
     many as the number of proposals):'
+  id: totrans-390
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 由于所有建议都属于同一图像，`rixs` 将是一个零列表（与建议数量相同）：
 - en: '[PRE78]'
+  id: totrans-391
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: 'Forward-propagate the input, RoIs through the trained model, and get the confidence
     and class scores for each proposal:'
+  id: totrans-392
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将输入、RoIs 通过训练模型前向传播，并为每个建议获取置信度和类别分数：
 - en: '[PRE79]'
+  id: totrans-393
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: 'Filter out the background class:'
+  id: totrans-394
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 过滤掉背景类：
 - en: '[PRE80]'
+  id: totrans-395
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: 'Remove near-duplicate bounding boxes with `nms`, and get indices of those proposals
     in which the highly confident models are objects:'
+  id: totrans-396
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用 `nms` 移除近似重复的边界框，并获取高置信度模型为对象的那些建议的索引：
 - en: '[PRE81]'
+  id: totrans-397
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: 'Plot the bounding boxes obtained:'
+  id: totrans-398
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 绘制获得的边界框：
 - en: '[PRE82]'
+  id: totrans-399
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: 'Predict on a test image:'
+  id: totrans-400
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对测试图像进行预测：
 - en: '[PRE83]'
+  id: totrans-401
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: 'The preceding code results in the following:'
+  id: totrans-402
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码导致如下结果：
 - en: '![](img/B18457_07_17.png)'
+  id: totrans-403
   prefs: []
   type: TYPE_IMG
+  zh: '![图表，折线图 自动生成描述](img/B18457_07_17.png)'
 - en: 'Figure 7.17: Original image and the predicted bounding box and classes'
+  id: totrans-404
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 7.17: 原始图像及其预测的边界框和类别'
 - en: The preceding code executes in 1.5 seconds. This is primarily because we are
     still using two different models, one to generate region proposals and another
     to make predictions of class and corrections. In the next chapter, we will learn
     about having a single model to make predictions so that inference is quick in
     a real-time scenario.
+  id: totrans-405
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码在 1.5 秒内执行。这主要是因为我们仍在使用两个不同的模型，一个用于生成区域建议，另一个用于进行类别预测和修正。在下一章中，我们将学习如何使用单个模型进行预测，以便在实时场景中进行快速推断。
 - en: Summary
+  id: totrans-406
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we began by learning about creating a training dataset for
     the process of object localization and detection. Then, we learned about SelectiveSearch,
     a region proposal technique that recommends regions based on the similarity of
     pixels in proximity. We also learned about calculating the IoU metric to understand
     the goodness of the predicted bounding box around the objects present in the image.
+  id: totrans-407
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们首先学习了为目标定位和检测过程创建训练数据集。然后，我们了解了SelectiveSearch，一种基于相邻像素相似性推荐区域的区域建议技术。我们还学习了计算IoU指标以理解围绕图像中对象的预测边界框的好坏程度。
 - en: In addition, we looked at performing non-max suppression to fetch one bounding
     box per object within an image, before learning about building R-CNN and Fast
     R-CNN models from scratch. We also explored why R-CNN is slow and how Fast R-CNN
     leverages RoI pooling and fetches region proposals from feature maps to make inference
     faster. Finally, we understood that having region proposals coming from a separate
     model results in more time taken to predict on new images.
+  id: totrans-408
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，我们研究了执行非极大值抑制以在图像中获取每个对象的一个边界框，然后学习了如何从头构建R-CNN和Fast R-CNN模型。我们还探讨了为什么R-CNN速度慢，以及Fast
+    R-CNN如何利用RoI池化从特征图获取区域建议以加快推理速度。最后，我们了解到，来自单独模型的区域建议导致在新图像上预测需要更多时间。
 - en: In the next chapter, we will learn about some of the modern object detection
     techniques that are used to make inferences on a more real-time basis.
+  id: totrans-409
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将学习一些现代目标检测技术，这些技术用于更实时地进行推断。
 - en: Questions
+  id: totrans-410
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: How does the region proposal technique generate proposals?
+  id: totrans-411
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 区域建议技术如何生成建议？
 - en: How is IoU calculated if there are multiple objects in an image?
+  id: totrans-412
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果图像中存在多个对象，如何计算IoU？
 - en: Why is Fast R-CNN faster than R-CNN?
+  id: totrans-413
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为什么Fast R-CNN比R-CNN更快？
 - en: How does RoI pooling work?
+  id: totrans-414
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: RoI池化是如何工作的？
 - en: What is the impact of not having multiple layers after obtaining a feature map
     when predicting bounding-box corrections?
+  id: totrans-415
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在预测边界框修正时，如果没有获取特征图后的多个层，会有什么影响？
 - en: Why do we have to assign a higher weight to regression loss when calculating
     overall loss?
+  id: totrans-416
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为什么在计算总体损失时必须给回归损失分配更高的权重？
 - en: How does non-max suppression work?
+  id: totrans-417
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 非极大值抑制是如何工作的？
 - en: Learn more on Discord
+  id: totrans-418
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 加入Discord以获取更多信息
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-419
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们的Discord社区空间，与作者和其他读者进行讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-420
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-421
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'

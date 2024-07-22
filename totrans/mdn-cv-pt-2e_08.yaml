@@ -1,11 +1,15 @@
 - en: '6'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '6'
 - en: Practical Aspects of Image Classification
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 图像分类的实际方面
 - en: In previous chapters, we learned about leveraging **convolutional neural networks**
     (**CNNs**) along with pre-trained models to perform image classification. This
     chapter will further solidify our understanding of CNNs and the various practical
@@ -16,60 +20,88 @@
     Finally, we will learn about the various instances where models could go wrong
     in the real world and highlight the aspects that should be taken care of in such
     scenarios to avoid pitfalls.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前几章中，我们学习了如何利用**卷积神经网络**（**CNNs**）和预训练模型进行图像分类。本章将进一步巩固我们对CNN的理解，并在实际应用中考虑使用它们时需要考虑的各种实际方面。我们将首先通过使用**类激活映射**（**CAMs**）来理解CNN为何预测特定类别。接下来，我们将学习各种可以改善模型准确性的数据增强方法。最后，我们将了解在真实世界中模型可能出现问题的各种情况，并强调在这些情况下应该注意的方面，以避免陷阱。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下主题将在本章中涵盖：
 - en: Generating CAMs
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 生成CAMs
 - en: Understanding the impact of batch normalization and data augmentation
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解批量归一化和数据增强的影响
 - en: Practical aspects to take care of during model implementation
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在模型实施期间需要注意的实际方面
 - en: 'Further, you will learn about the preceding topics by implementing models to:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，通过实现以下模型，你将了解到前述主题：
 - en: Predict whether a cell image indicates malaria
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 预测细胞图像是否指示疟疾
 - en: Classify road signals
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 分类道路信号
 - en: Generating CAMs
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 生成CAMs
 - en: Imagine a scenario where you have built a model that is able to make good predictions.
     However, the stakeholder that you are presenting the model to wants to understand
     the reason why the model predictions are as they are. A CAM comes in handy in
     this scenario.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情境，你建立了一个能够进行良好预测的模型。然而，你向模型的利益相关者展示时，他们希望理解模型预测的原因。在这种情况下，CAM非常有用。
 - en: 'An example CAM is as follows, where we have the input image on the left and
     the pixels that were used to come up with the class prediction highlighted on
     the right:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，CAM如下所示，左侧为输入图像，右侧突出显示用于生成类预测的像素：
 - en: '![](img/B18457_06_01.png)'
+  id: totrans-13
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_01.png)'
 - en: 'Figure 6.1: Image (left) and corresponding CAM (right)'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 图6.1：图像（左）和相应的CAM（右）
 - en: This way, if one wants to debug or understand model predictions, one can leverage
     CAMs to learn about the pixels that are influencing the output predictions the
     most.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样，如果想要调试或理解模型预测，可以利用CAM来了解影响输出预测最多的像素。
 - en: Let’s understand how CAMs can be generated once a model is trained. Feature
     maps are intermediate activations that come after a convolution operation. Typically,
     the shape of these activation maps is `n-channels x height x width`. If we take
@@ -79,171 +111,253 @@
     among `n-channels` that are responsible for that class. For the convolution layer
     that generated these feature maps, we can compute its gradients with respect to
     the `cat` class.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们了解一下在模型训练后如何生成CAM。特征图是卷积操作后产生的中间激活。通常，这些激活图的形状是`n通道 x 高度 x 宽度`。如果我们取所有这些激活的均值，它们会显示图像中所有类别的热点位置。但是，如果我们只关心对于特定类别（比如`猫`）而言真正重要的位置，我们需要找出在`n通道`中只负责该类别的那些特征图。对于生成这些特征图的卷积层，我们可以计算其相对于`猫`类别的梯度。
 - en: Note that only those channels that are responsible for predicting `cat` will
     have a high gradient. This means that we can use the gradient information to give
     weightage to each of `n-channels` and obtain an activation map exclusively for
     `cat`.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，只有那些负责预测`猫`的通道才会有很高的梯度。这意味着我们可以利用梯度信息来赋予`n通道`中的每一个权重，并获得一个专门用于`猫`类的激活图。
 - en: 'Now that we understand the high-level strategy of how to generate CAMs, let’s
     put it into practice step by step:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了生成CAM的高级策略，让我们一步步实践：
 - en: Decide for which class you want to calculate the CAM and for which convolutional
     layer in the neural network you want to compute the CAM.
+  id: totrans-19
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 决定要计算CAM的类别以及要在神经网络中哪个卷积层计算CAM。
 - en: 'Calculate the activations arising from any convolutional layer: let’s say the
     feature shape at a random convolution layer is 512 x 7 x 7.'
+  id: totrans-20
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算任意卷积层的激活：假设随机卷积层的特征形状为 512 x 7 x 7。
 - en: '![](img/B18457_06_02.png)'
+  id: totrans-21
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_02.png)'
 - en: 'Figure 6.2: Calculating activations at a layer'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.2: 计算某层的激活'
 - en: 'Fetch the gradient values arising from this layer with respect to the class
     of interest. The output gradient shape is 256 x 512 x 3 x 3 (which is the shape
     of the convolutional tensor: that is, `in-channels x out-channels x kernel-size
     x kernel-size`).'
+  id: totrans-23
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取与感兴趣类别相关的梯度值。输出梯度形状为 256 x 512 x 3 x 3（即卷积张量的形状：即`输入通道 x 输出通道 x 卷积核大小 x 卷积核大小`）。
 - en: '![](img/B18457_06_03.png)'
+  id: totrans-24
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_03.png)'
 - en: 'Figure 6.3: Fetching the gradient values'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.3: 获取梯度值'
 - en: Compute the mean of the gradients within each output channel. The output shape
     is 512\. In the following picture, we are calculating the mean in such a way that
     we have an output shape of 512 from an input shape of 256 x 512 x 3 x 3.
+  id: totrans-26
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算每个输出通道内梯度的均值。输出形状为 512。在下图中，我们计算的均值使我们从输入形状为 256 x 512 x 3 x 3 中得到了形状为 512
+    的输出。
 - en: '![](img/B18457_06_04.png)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_04.png)'
 - en: 'Figure 6.4: Computing the mean of gradients'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.4: 计算梯度均值'
 - en: Calculate the weighted activation map, which is the multiplication of the 512
     gradient means by the 512 activation channels. The output shape is 512 x 7 x 7.
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算加权激活图，即将 512 个梯度均值乘以 512 个激活通道。输出形状为 512 x 7 x 7。
 - en: '![](img/B18457_06_05.png)'
+  id: totrans-30
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_05.png)'
 - en: 'Figure 6.5: Calculating the weighted activation map'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.5: 计算加权激活图'
 - en: Compute the mean (across 512 channels) of the weighted activation map to fetch
     an output of the shape 7 x 7.
+  id: totrans-32
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算加权激活图的均值（跨 512 个通道），以获取形状为 7 x 7 的输出。
 - en: '![](img/B18457_06_06.png)'
+  id: totrans-33
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_06.png)'
 - en: 'Figure 6.6: Computing the mean of weighted activation map'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.6: 计算加权激活图的均值'
 - en: Resize (upscale) the weighted activation map outputs to fetch an image of a
     size that is of the same size as the input. This is done so that we have an activation
     map that resembles the original image.
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整（放大）加权激活图输出，以获取与输入大小相同的图像。这样做是为了得到一个类似原始图像的激活图。
 - en: '![](img/B18457_06_07.png)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_07.png)'
 - en: 'Figure 6.7: Upscaling the weighted activation map'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.7: 放大加权激活图'
 - en: Overlay the weighted activation map onto the input image.
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将加权激活图叠加到输入图像上。
 - en: 'The following diagram from the paper *Grad-CAM: Visual Explanations from Deep
     Networks via Gradient-based Localization* ([https://arxiv.org/abs/1610.02391](https://arxiv.org/abs/1610.02391))
     pictorially describes the preceding steps:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: '下图来自论文*Grad-CAM: 基于梯度定位的深度网络视觉解释* ([https://arxiv.org/abs/1610.02391](https://arxiv.org/abs/1610.02391))，生动地描述了前述步骤：'
 - en: '![](img/B18457_06_08.png)'
+  id: totrans-40
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_08.png)'
 - en: 'Figure 6.8: Overview of calculating CAMs'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: '图 6.8: 计算 CAMs 概述'
 - en: 'The key to the entire process lies in *Step 5*. We consider two aspects of
     the step:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 整个过程的关键在于*步骤 5*。我们考虑步骤的两个方面：
 - en: If a certain pixel is important, then the CNN will have a large activation at
     those pixels.
+  id: totrans-43
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果某个像素很重要，则 CNN 在这些像素上的激活会很大。
 - en: If a certain convolutional channel is important with respect to the required
     class, the gradients at that channel will be very large.
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果某个卷积通道对所需类别很重要，那么该通道的梯度会非常大。
 - en: On multiplying these two, we indeed end up with a map of importance across all
     the pixels.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这两者的乘积，我们确实得到一个跨所有像素重要性的地图。
 - en: 'The preceding strategy is implemented in code to understand the reason why
     the CNN model predicts that an image indicates the likelihood of an incident of
     malaria, as follows:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述策略在代码中实现，以理解 CNN 模型预测图像显示疟疾事件可能性的原因如下：
 - en: The following code is available as `Class_activation_maps.ipynb` in the `Chapter06`
     folder of this book’s GitHub repository ([https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)).
     The code contains URLs to download data from and is moderately lengthy. We strongly
     recommend you execute the notebook in GitHub to reproduce the results while you
     understand the steps to perform and the explanation of various code components
     in the text.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 本书的 GitHub 仓库中`Chapter06`文件夹中提供了 `Class_activation_maps.ipynb` 代码 ([https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e))。代码包含从中下载数据的
+    URL，并且长度适中。我们强烈建议您在 GitHub 上执行该笔记本，以重现结果，同时理解文本中执行和各种代码组件的解释步骤。
 - en: 'Download the dataset and import the relevant packages (make sure to provide
     your respective Kaggle username and key):'
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集并导入相关包（确保提供您的 Kaggle 用户名和密钥）：
 - en: '[PRE0]'
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'A sample of input images is as follows:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 输入图像的样本如下所示：
 - en: '![A close up of a baby  Description automatically generated](img/B18457_06_09.png)Figure
     6.9: Parasitized image (left) and uninfected image (right)'
+  id: totrans-51
   prefs: []
   type: TYPE_IMG
+  zh: '![一个宝宝的特写图  自动生成的描述](img/B18457_06_09.png)图 6.9：寄生图像（左）和未感染图像（右）'
 - en: 'Specify the indices corresponding to the output classes:'
+  id: totrans-52
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定与输出类相对应的索引：
 - en: '[PRE1]'
+  id: totrans-53
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Perform the transformations to be done on top of the images:'
+  id: totrans-54
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行在图像顶部要执行的转换：
 - en: '[PRE2]'
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: In the preceding code, we have a pipeline of transformations on top of the input
     image, which is a pipeline of resizing the image (which ensures that the minimum
     size of one of the dimensions is `128`, in this case) and then cropping it from
@@ -251,122 +365,182 @@
     Next, we are scaling an image using the `.ToTensor` method to have a value between
     `0` and `1`, and finally, we are normalizing the image. As discussed in *Chapter
     4*, we can also use the `imgaug` library.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述代码中，我们对输入图像进行了一系列转换，即对图像进行了调整大小的流水线（以确保其中一个维度的最小尺寸为 `128`，在本例中），然后从中心裁剪。此外，我们进行了随机颜色抖动和仿射变换。接下来，我们使用
+    `.ToTensor` 方法对图像进行缩放，使其值介于 `0` 和 `1` 之间，最后对图像进行了归一化。正如在 *第四章* 中讨论的那样，我们也可以使用
+    `imgaug` 库。
 - en: 'Specify the transformations to be done on the validation images:'
+  id: totrans-57
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定在验证图像上要执行的转换：
 - en: '[PRE3]'
+  id: totrans-58
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Define the `MalariaImages` dataset class:'
+  id: totrans-59
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `MalariaImages` 数据集类：
 - en: '[PRE4]'
+  id: totrans-60
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Fetch the training and validation datasets and data loaders:'
+  id: totrans-61
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取训练和验证数据集以及数据加载器：
 - en: '[PRE5]'
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Define the `MalariaClassifier` model:'
+  id: totrans-63
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `MalariaClassifier` 模型：
 - en: '[PRE6]'
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Define the functions to train and validate a batch of data:'
+  id: totrans-65
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义用于训练和验证数据批次的函数：
 - en: '[PRE7]'
+  id: totrans-66
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Train the model over increasing epochs:'
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在增加的 epochs 上训练模型：
 - en: '[PRE8]'
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Fetch the convolution layer in the fifth `convBlock` in the model:'
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在模型中的第五个 `convBlock` 中提取卷积层：
 - en: '[PRE9]'
+  id: totrans-70
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: In the preceding line of code, we are fetching the fourth layer of the model
     and also the first two layers within `convBlock`, which happens to be the `Conv2D`
     layer.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码行中，我们正在获取模型的第四层以及 `convBlock` 中的前两层，这恰好是 `Conv2D` 层。
 - en: 'Define the `im2gradCAM` function, which takes an input image and fetches the
     heatmap corresponding to activations of the image:'
+  id: totrans-72
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `im2gradCAM` 函数，该函数接受输入图像并获取与图像激活对应的热图：
 - en: '[PRE10]'
+  id: totrans-73
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Define the `upsampleHeatmap` function to upsample the heatmap to a shape that
     corresponds to the shape of the image:'
+  id: totrans-74
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义 `upsampleHeatmap` 函数以将热图上采样到与图像形状对应的形状：
 - en: '[PRE11]'
+  id: totrans-75
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: In the preceding lines of code, we are de-normalizing the image and overlaying
     the heatmap on top of the image.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码行中，我们正在对图像进行反归一化，并将热图叠加在图像顶部。
 - en: 'Run the preceding functions on a set of images:'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在一组图像上运行上述函数：
 - en: '[PRE12]'
+  id: totrans-78
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'The output of the preceding code is as follows:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的输出如下：
 - en: '![A picture containing colorfulness  Description automatically generated](img/B18457_06_10.png)'
+  id: totrans-80
   prefs: []
   type: TYPE_IMG
+  zh: '![一个包含色彩的图片  自动生成的描述](img/B18457_06_10.png)'
 - en: 'Figure 6.10: Original parasitized images and the corresponding CAMs'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 6.10：原始寄生图像及其对应的 CAM
 - en: From this, we can see that the prediction is as it is because of the content
     that is highlighted in red (which has the highest CAM value).
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 从中可以看出，预测之所以如此，是因为突出显示的内容具有最高的 CAM 值。
 - en: Now that we have learned about generating class activation heatmaps for images
     using a trained model, we are able to explain what makes a certain classification
     so. In the next section, let’s learn about additional tricks around data augmentation
     that can help when building models.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何使用训练模型为图像生成类激活热图，我们能够解释某个分类之所以如此的原因。在接下来的部分，让我们学习一些关于数据增强的额外技巧，这些技巧在构建模型时能够提供帮助。
 - en: Understanding the impact of data augmentation and batch normalization
+  id: totrans-84
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解数据增强和批量归一化的影响
 - en: 'One clever way of improving the accuracy of models is by leveraging data augmentation.
     As already mentioned in *Chapter 4,* we have provided a great deal of extra detail
     about data augmentation in the GitHub repository. In the real world, you would
@@ -376,198 +550,286 @@
     how the usage of data augmentation can help in improving the accuracy of a model.
     Furthermore, we will learn about how data augmentation can practically be a pseudo-regularizer
     for our models.'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过利用数据增强的聪明方式来提高模型的准确性。正如在*第4章*中已经提到的那样，我们在GitHub仓库中提供了关于数据增强的大量额外细节。在现实世界中，你会遇到具有不同属性的图像：例如，一些图像可能更亮，一些可能在边缘附近包含感兴趣的对象，而一些图像可能比其他图像更加抖动。在本节中，我们将了解如何利用数据增强来帮助提高模型的准确性。此外，我们将了解数据增强如何在实践中成为模型的伪正则化器。
 - en: 'To understand the impact of data augmentation and batch normalization, we will
     go through a dataset of recognizing traffic signs. We will evaluate three scenarios:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解数据增强和批标准化的影响，我们将通过一个识别交通标志的数据集进行评估。我们将评估三种情况：
 - en: No batch normalization/data augmentation
+  id: totrans-87
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 没有批标准化/数据增强
 - en: Only batch normalization, but no data augmentation
+  id: totrans-88
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 仅批标准化，但没有数据增强
 - en: Both batch normalization and data augmentation
+  id: totrans-89
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 既有批标准化又有数据增强
 - en: Note that given that the dataset and processing remain the same across the three
     scenarios, and only the data augmentation and model (the addition of the batch
     normalization layer) differ, we will only provide the following code for the first
     scenario, but the other two scenarios are available in the notebook on GitHub.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，由于数据集和处理在三种情况下保持不变，只有数据增强和模型（批标准化层的添加）有所不同，因此我们只提供第一个情景的以下代码，但其他两种情况在GitHub笔记本中可用。
 - en: Coding up road sign detection
+  id: totrans-91
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编写道路标志检测代码
 - en: 'Let’s code up for road sign detection without data augmentation and batch normalization,
     as follows:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们编写道路标志检测的代码，没有数据增强和批标准化，如下所示：
 - en: Note that we are not explaining the code here, as it is very much in line with
     the code that we have gone through in previous chapters; only the lines with bold
     font are different across the three scenarios. The following code is available
     in the `road_sign_detection.ipynb` file in the `Chapter06` folder of this book’s
     GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们在这里不解释代码，因为它与我们在先前章节中讨论过的代码非常一致；只有粗体字体的行在三种情况下有所不同。以下代码在本书的GitHub库的`Chapter06`文件夹中的`road_sign_detection.ipynb`文件中以[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)链接提供。
 - en: 'Download the dataset and import the relevant packages:'
+  id: totrans-94
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载数据集并导入相关包：
 - en: '[PRE13]'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Assign the class IDs to possible output classes:'
+  id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为可能的输出类分配类ID：
 - en: '[PRE14]'
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Define the transformation pipeline on top of the images without any augmentation:'
+  id: totrans-98
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义在没有任何增强的图像上的转换流水线：
 - en: '[PRE15]'
+  id: totrans-99
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: In the preceding code, we are specifying that we convert each image into a PIL
     image and resize and crop the image from the center. Furthermore, we are scaling
     the image to have pixel values that are between `0` and `1` using the `.ToTensor`
     method; as we learned in *Chapter 3*, it is better for training models on scaled
     datasets. Finally, we are normalizing the input image so that a pre-trained model
     can be leveraged.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们指定将每个图像转换为PIL图像，并从中心调整和裁剪图像。此外，我们使用`.ToTensor`方法将图像缩放到像素值在`0`和`1`之间；正如我们在*第3章*中学到的那样，这对于在缩放数据集上训练模型更好。最后，我们对输入图像进行归一化，以便利用预训练模型。
 - en: The commented part of the preceding code is what you should uncomment and re-run
     to understand the scenario of performing data augmentation. Furthermore, we are
     not performing augmentations on `val_tfms` as those images are not used during
     the training of the model. However, the `val_tfms` images should go through the
     remaining transformation pipeline as `trn_tfms`.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述代码的注释部分是你应该取消注释并重新运行的内容，以理解执行数据增强的情况。此外，我们不对`val_tfms`上的图像执行增强，因为这些图像在模型训练期间不使用。然而，`val_tfms`图像应该通过剩余的转换流水线作为`trn_tfms`。
 - en: 'Define the `GTSRB` dataset class:'
+  id: totrans-102
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义`GTSRB`数据集类：
 - en: '[PRE16]'
+  id: totrans-103
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Create the training and validation datasets and data loaders:'
+  id: totrans-104
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练和验证数据集以及数据加载器：
 - en: '[PRE17]'
+  id: totrans-105
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: Make sure to uncomment the line with the `convBlock` definition in the preceding
     code when you are testing the model with the `BatchNormalization` scenario.
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 当您测试具有`BatchNormalization`情景的模型时，请确保取消`convBlock`定义行的注释。
 - en: 'Define the functions to train and validate on a batch of data, respectively:'
+  id: totrans-107
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 分别定义在数据批次上训练和验证的函数：
 - en: '[PRE18]'
+  id: totrans-108
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Define the model and train it over increasing epochs:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型并在逐步增加的时代训练它：
 - en: '[PRE19]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'The lines of code that are commented in *step 3* (for data augmentation) and
     *step 5* (for batch normalization) are the ones that you would change in the three
     scenarios. The results of the three scenarios in terms of training and validation
     accuracy are as follows:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*步骤3*（数据增强）和*步骤5*（批量归一化）中被注释掉的代码行是在三种情况下需要更改的代码。在训练和验证精度方面，三种情况的结果如下：
 - en: '![](img/B18457_06_11.png)'
+  id: totrans-112
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_11.png)'
 - en: 'Table 6.1: Ablation study of the model with/without image augmentation and
     batch normalization'
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 表6.1：模型在有/无图像增强和批量归一化的消融研究
 - en: 'Note that, in the preceding three scenarios, we see the following:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在前述三种情况中，我们看到以下情况：
 - en: The model did not have as high accuracy when there was no batch normalization.
+  id: totrans-115
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当没有批量归一化时，模型的准确性不如此高。
 - en: The accuracy of the model increased considerably but also the model overfitted
     on training data when we had batch normalization only but no data augmentation.
+  id: totrans-116
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当我们只有批量归一化而没有数据增强时，模型的准确性显著提高，但模型也在训练数据上过拟合。
 - en: The model with both batch normalization and data augmentation had high accuracy
     and minimal overfitting (as the training and validation loss values are very similar).
+  id: totrans-117
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 既有批量归一化又有数据增强的模型在准确性和过拟合方面表现出色（因为训练和验证损失值非常相似）。
 - en: With the importance of batch normalization and data augmentation in place, in
     the next section, we will learn about some key aspects to take care of when training/implementing
     our image classification models.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 在批量归一化和数据增强的重要性存在的情况下，在下一节中，我们将学习在训练/实施我们的图像分类模型时需要注意的一些关键方面。
 - en: Practical aspects to take care of during model implementation
+  id: totrans-119
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在模型实施过程中需要注意的实际因素
 - en: 'So far, we have seen the various ways of building an image classification model.
     In this section, we will learn about some of the practical considerations that
     need to be taken care of when building models in real-world applications. The
     ones we will discuss in this section are as follows:'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经看到了在构建图像分类模型时的各种方法。在本节中，我们将学习一些在实际应用中构建模型时需要注意的实际考虑因素。本节将讨论以下内容：
 - en: Imbalanced data
+  id: totrans-121
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不平衡数据
 - en: The size of an object within an image when performing classification
+  id: totrans-122
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在分类时执行图像中对象的大小
 - en: The difference between training and validation images
+  id: totrans-123
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练和验证图像之间的差异
 - en: The number of convolutional and pooling layers in a network
+  id: totrans-124
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 网络中卷积和池化层的数量
 - en: Image sizes to train on GPUs
+  id: totrans-125
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在GPU上训练的图像尺寸
 - en: OpenCV utilities
+  id: totrans-126
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OpenCV实用程序
 - en: Imbalanced data
+  id: totrans-127
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 不平衡数据
 - en: 'Imagine a scenario where you are trying to predict an object that occurs very
     rarely within our dataset: let’s say in 1% of the total images. For example, this
     can be the task of predicting whether an X-ray image suggests a rare lung infection.'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情况，您试图预测一个在我们的数据集中非常罕见的对象：比如说在总图像中只占1%。例如，这可以是预测X光图像是否显示罕见肺部感染的任务。
 - en: How do we measure the accuracy of the model that is trained to predict the rare
     lung infection? If we simply predict a class of no infection for all images, the
     accuracy of classification is 99%, while still being useless. A confusion matrix
@@ -575,63 +837,87 @@
     of times the model predicted the rare object class correctly comes in handy in
     this scenario. Thus, the right set of metrics to look at in this scenario is the
     metrics related to the confusion matrix.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何衡量训练用于预测罕见肺部感染的模型的准确性？如果我们简单地预测所有图像的无感染类别，分类的准确率为99%，但仍然毫无用处。在这种情况下，展示罕见对象类别发生次数和模型正确预测罕见对象类别次数的混淆矩阵在这种情况下非常有用。因此，在这种情况下关注的正确指标集是与混淆矩阵相关的指标。
 - en: 'A typical confusion matrix looks as follows:'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 典型混淆矩阵如下所示：
 - en: '![](img/B18457_06_12.png)'
+  id: totrans-131
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B18457_06_12.png)'
 - en: 'Figure 6.11: Typical confusion matrix'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 图6.11：典型混淆矩阵
 - en: In the preceding confusion matrix, `0` stands for no infection and `1` stands
     for infection. Typically, we would fill up the matrix to understand how accurate
     our model is.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的混淆矩阵中，`0`表示无感染，`1`表示感染。通常，我们会填充该矩阵以了解我们的模型有多准确。
 - en: Next comes the question of ensuring that the model gets trained. Typically,
     the loss function (binary or categorical cross-entropy) takes care of ensuring
     that the loss values are high when the amount of misclassification is high. However,
     in addition to the loss function, we can also assign a higher weight to the rarely
     occurring class, thereby ensuring that we explicitly mention to the model that
     we want to correctly classify the rare class images.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来是确保模型进行训练的问题。通常情况下，损失函数（二元或分类交叉熵）会确保在误分类量高时损失值也很高。然而，除了损失函数外，我们还可以给稀有类别分配更高的权重，从而明确告诉模型我们希望正确分类稀有类别的图像。
 - en: In addition to assigning class weights, we have already seen that image augmentation
     and/or transfer learning help considerably in improving the accuracy of the model.
     Furthermore, when augmenting an image, we can over-sample the rare class images
     to increase their mix in the overall population.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了分配类别权重之外，我们已经看到图像增强和/或迁移学习在显著提高模型准确率方面帮助很大。此外，在增强图像时，我们可以过采样稀有类别的图像，以增加它们在整体人口中的比例。
 - en: The size of the object within an image
+  id: totrans-136
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 图像中对象的大小
 - en: 'Imagine a scenario where the presence of a small patch within a large image
     dictates the class of the image: for example, lung infection identification where
     the presence of certain tiny nodules indicates an incident of the disease. In
     such a scenario, image classification is likely to result in inaccurate results,
     as the object occupies a smaller portion of the entire image. Object detection
     comes in handy in this scenario (which we will study in the next chapter).'
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，即大图像中的小块区域决定了图像的类别：例如，肺部感染识别，其中某些小结节的存在表示疾病的发生。在这种情况下，图像分类可能会导致不准确的结果，因为对象只占整个图像的一小部分。在这种情况下，目标检测非常有用（我们将在下一章节中学习）。
 - en: A high-level intuition to solve these problems would be to first divide the
     input images into smaller grid cells (let’s say a 10 x 10 grid) and then identify
     whether a grid cell contains the object of interest.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决这些问题的一个高级直觉方法是首先将输入图像分成更小的网格单元（比如一个 10 x 10 的网格），然后识别网格单元是否包含感兴趣的对象。
 - en: In addition to this, you might also want to consider a scenario where the model
     is trained (and also inferred) on images with high resolution. This ensures that
     the tiny nodules in the previous example are represented by a sufficient number
     of pixels so that the model can be trained.
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 除此之外，您可能还想考虑这样一种情况：模型在高分辨率图像上进行训练（也进行推断）。这确保了前面例子中的小结节由足够数量的像素表示，以便进行模型训练。
 - en: The difference between training and validation data
+  id: totrans-140
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 训练数据与验证数据之间的差异
 - en: 'Imagine a scenario where you have built a model to predict whether the image
     of an eye indicates that the person is likely to be suffering from diabetic retinopathy.
     To build the model, you have collected data, curated it, cropped it, normalized
@@ -639,186 +925,260 @@
     However, hypothetically, when the model is used in a real setting (let’s say by
     a doctor/nurse), the model is not able to predict well. Let’s understand a few
     possible reasons why:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象这样一种情景：您建立了一个模型来预测眼睛图像是否表明患者可能患有糖尿病视网膜病变。为了建立模型，您收集了数据，筛选了数据，进行了裁剪和归一化，最终构建了在验证图像上具有非常高准确率的模型。然而，假设在实际环境中（例如由医生/护士使用）使用模型时，模型无法进行良好的预测。让我们了解一些可能的原因：
 - en: Are the images taken at the doctor’s office similar to the images used to train
     the model?
+  id: totrans-142
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 医生办公室中的图像是否与用于训练模型的图像相似？
 - en: Images used when training and images used during prediction (real-world images)
     could be very different if you built a model on a curated set of data that has
     all the preprocessing done, while the images taken at the doctor’s end are non-curated.
+  id: totrans-143
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在训练时使用的图像和预测时使用的图像（现实世界中的图像）可能会有很大的不同，特别是如果您在经过所有预处理的筛选数据集上构建了模型，而在医生端使用的图像则没有经过筛选。
 - en: Images could be different if the device used to capture images at the doctor’s
     office has a different resolution of capturing images when compared to the device
     used to collect images that are used for training.
+  id: totrans-144
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果医生办公室用于捕捉图像的设备与用于收集训练图像的设备的图像捕获分辨率不同，图像可能会有所不同。
 - en: Images can be different if there are different lighting conditions at which
     the images are captured in both places.
+  id: totrans-145
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 图像可能会因为两个地方拍摄时的不同光照条件而不同。
 - en: Are the subjects (images) representative enough of the overall population?
+  id: totrans-146
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 图像主体是否足够代表整体人口？
 - en: Images are representative if they are trained on images of the male population
     but are tested on the female population, or if, in general, the training and real-world
     images correspond to different demographics.
+  id: totrans-147
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果在男性人群的图像上进行训练，但在女性人群上进行测试，或者如果在一般情况下，训练和现实世界的图像对应不同的人口统计学特征，则图像是具有代表性的。
 - en: Is the training and validation split done methodically?
+  id: totrans-148
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 训练和验证的拆分是否系统地完成了？
 - en: Imagine a scenario where there are 10,000 images and the first 5,000 images
     belong to one class and the last 5,000 images belong to another class. When building
     a model, if we do not randomize but split the dataset into training and validation
     with consecutive indices (without random indices), we are likely to see a higher
     representation of one class while training and of the other class during validation.
+  id: totrans-149
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 想象一种情况，有 10,000 张图像，前 5,000 张属于一类，后 5,000 张属于另一类。在构建模型时，如果我们不随机分割数据集，而是按顺序分割为训练和验证集（没有随机索引），我们可能会在训练时看到一类的高比例，在验证时看到另一类的高比例。
 - en: In general, we need to ensure that the training, validation, and real-world
     images all have similar data distribution before an end user leverages the system.
     We will learn about the concept of data drift in *Chapter 18*, which is a technique
     to identify whether the validation/test data is different from the training data.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般而言，在最终用户利用系统之前，我们需要确保训练、验证和现实世界的图像具有相似的数据分布。我们将在 *第18章* 中学习数据漂移的概念，这是一种识别验证/测试数据是否与训练数据不同的技术。
 - en: The number of nodes in the flatten layer
+  id: totrans-151
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: flatten 层中的节点数
 - en: Consider a scenario where you are working on images that are 300 x 300 in dimensions.
     Technically, we can perform more than five convolutional pooling operations to
     get the final layer that has as many features as possible. Furthermore, we can
     have as many channels as we want in this scenario within a CNN. Practically, though,
     in general, we would design a network so that it has 500–5,000 nodes in the flatten
     layer.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑一种情况，您正在处理尺寸为 300 x 300 的图像。从技术上讲，我们可以执行超过五次卷积池化操作，以获得具有尽可能多特征的最终层。此外，在 CNN
+    中，我们在这种情况下可以拥有任意多的通道。然而，在实际中，一般会设计一个网络，使其在 flatten 层中具有 500 到 5,000 个节点。
 - en: As we saw in *Chapter 4*, if we have a greater number of nodes in the flatten
     layer, we would have a very high number of parameters when the flatten layer is
     connected to the subsequent dense layer before connecting to the final classification
     layer.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在 *第4章* 中看到的，如果在 flatten 层中有更多节点，那么在连接到最终分类层之前，当 flatten 层连接到后续的密集层时，参数数量将非常高。
 - en: In general, it is good practice to have a pre-trained model that obtains the
     flatten layer so that relevant filters are activated as appropriate. Furthermore,
     when leveraging pre-trained models, make sure to freeze the parameters of the
     pre-trained model.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常情况下，最好有一个预训练模型，以获取 flatten 层，从而在适当时激活相关的过滤器。此外，在利用预训练模型时，请确保冻结预训练模型的参数。
 - en: Generally, the number of trainable parameters in a CNN can be anywhere between
     1 million and 10 million in a less complex classification exercise.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般来说，在较简单的分类任务中，CNN 中可训练参数的数量可以在 1 百万到 1 千万之间。
 - en: Image size
+  id: totrans-156
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 图像大小
 - en: 'Let’s say we are working on images that are of very high dimensions: for example,
     2,000 x 1,000 in shape. When working on such large images, we need to consider
     the following possibilities:'
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们正在处理非常高维度的图像，例如形状为 2,000 x 1,000。在处理这样大的图像时，我们需要考虑以下可能性：
 - en: Can the images be resized to lower dimensions? Images of objects might not lose
     information if resized; however, images of text documents might lose considerable
     information if resized to a smaller size.
+  id: totrans-158
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 图像可以调整到较低的尺寸吗？物体的图像在调整大小后可能不会丢失信息；然而，文档图像如果调整到较小的尺寸可能会丢失相当多的信息。
 - en: Can we have a lower batch size so that the batch fits into GPU memory? Typically,
     if we are working with large images, there is a good chance that, for the given
     batch size, the GPU memory will not be sufficient to perform computations on the
     batch of images.
+  id: totrans-159
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以减小批量大小，以便批量适合 GPU 内存吗？通常，如果我们处理大图像，给定批量大小的情况下，GPU 内存可能不足以对图像批量执行计算。
 - en: Do certain portions of the image contain the majority of the information, and
     hence can the rest of the image be cropped?
+  id: totrans-160
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 图像的某些部分是否包含大部分信息，因此是否可以裁剪图像的其余部分？
 - en: OpenCV utilities
+  id: totrans-161
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: OpenCV 实用工具
 - en: OpenCV is an open-source package that has extensive modules that help in fetching
     information from images (more details on OpenCV utilities can be found in the
     GitHub repository). It was one of the most prominent libraries used prior to the
     deep learning revolution in computer vision. Traditionally, it has been built
     on top of multiple hand-engineered features, and at the time of writing this book,
     OpenCV has a few packages that integrate deep learning models’ outputs.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenCV 是一个开源包，拥有广泛的模块，可以从图像中提取信息（关于 OpenCV 实用工具的更多详细信息可以在 GitHub 仓库中找到）。在深度学习革命之前，它是计算机视觉领域使用最广泛的库之一。传统上，它是基于多个手工特征构建的，截至本书撰写时，OpenCV
+    具有几个集成深度学习模型输出的包。
 - en: 'Imagine a scenario where you have to move a model to production; less complexity
     is generally preferable in such a scenario: sometimes even at the cost of accuracy.
     If any OpenCV module solves the problem that you are already trying to solve,
     in general, it should be preferred over building a model (unless building a model
     from scratch gives a considerable boost in accuracy than leveraging off-the-shelf
     modules).'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，你必须将模型部署到生产环境中；在这种情况下，通常情况下简化问题会更可取：有时甚至可以以牺牲准确性为代价。如果任何 OpenCV 模块可以解决你已经尝试解决的问题，一般来说，它应该优先于构建模型（除非从头开始构建模型比利用现成模块带来显著的准确性提升更合适）。
 - en: Summary
+  id: totrans-164
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: 'In this chapter, we learned about multiple practical aspects that we need to
     take into consideration when building CNN models: batch normalization, data augmentation,
     explaining the outcomes using CAMs, and some scenarios that you need to be aware
     of when moving a model to production.'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了构建 CNN 模型时需要考虑的多个实际因素：批量归一化、数据增强、使用 CAMs 解释结果以及在将模型部署到生产环境时需要注意的一些场景。
 - en: 'In the next chapter, we will switch gears and learn about the fundamentals
     of object detection: where we will not only identify the classes corresponding
     to objects in an image but also draw a bounding box around the location of the
     object.'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将转向学习目标检测的基础知识：不仅识别图像中对象对应的类别，还将在对象位置周围绘制边界框。
 - en: Questions
+  id: totrans-167
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: How are class activation maps obtained?
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如何获取类激活映射？
 - en: How do batch normalization and data augmentation help when training a model?
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在训练模型时，批量归一化和数据增强如何帮助？
 - en: What are the common reasons why a CNN model overfits?
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: CNN 模型过拟合的常见原因是什么？
 - en: What are the various scenarios where the CNN model works with training and validation
     data at the data scientists’ end but not in the real world?
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: CNN 模型在训练和验证数据集上有效，但在实际世界中失败的各种场景是什么？
 - en: What are the various scenarios where we leverage OpenCV packages and when it
     is advantageous to use OpenCV over deep learning?
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们何时利用 OpenCV 包，以及何时优先使用 OpenCV 而不是深度学习的优势场景是什么？
 - en: Learn more on Discord
+  id: totrans-173
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Discord 上了解更多
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-176
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
