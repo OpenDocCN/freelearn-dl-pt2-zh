@@ -1,11 +1,15 @@
 - en: '6'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '6'
 - en: Efficient Model Training
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 高效模型训练
 - en: 'Similar to how we scaled up data processing pipelines in the previous chapter,
     we can reduce the time it takes to train **deep learning** (**DL**) models by
     allocating more computational resources. In this chapter, we will learn how to
@@ -15,47 +19,69 @@
     will describe how to utilize SageMaker, since it is built to handle the DL pipeline
     on the cloud from end to end. Lastly, we will look at tools that have been developed
     specifically for distributed training: Horovod, Ray, and Kubeflow.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 与我们在前一章中扩展数据处理流水线的方式类似，我们可以通过分配更多计算资源来缩短训练**深度学习**（**DL**）模型所需的时间。在本章中，我们将学习如何配置**TensorFlow**（**TF**）和**PyTorch**的训练逻辑，以利用不同机器上多个CPU和GPU设备。首先，我们将学习TF和PyTorch如何支持分布式训练，无需任何外部工具。接下来，我们将描述如何利用SageMaker，因为它专为从云端到端处理DL管道而构建。最后，我们将看看专为分布式训练开发的工具：Horovod、Ray和Kubeflow。
 - en: 'In this chapter, we’re going to cover the following main topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将讨论以下主要主题：
 - en: Training a model on a single machine
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在单台机器上训练模型
 - en: Training a model on a cluster
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在集群上训练模型
 - en: Training a model using SageMaker
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用SageMaker训练模型
 - en: Training a model using Horovod
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用Horovod训练模型
 - en: Training a model using Ray
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用Ray训练模型
 - en: Training a model using Kubeflow
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用Kubeflow训练模型
 - en: Technical requirements
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'You can download the supplemental material for this chapter from this book’s
     GitHub repository: https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_6.'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以从本书的GitHub存储库下载本章的补充材料：https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_6。
 - en: Training a model on a single machine
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在单台机器上训练模型
 - en: As described in [*Chapter 3*](B18522_03.xhtml#_idTextAnchor062), *Developing
     a Powerful Deep Learning Model*, training a DL model involves extracting meaningful
     patterns from a dataset. When the size of the dataset is small and the model has
@@ -64,12 +90,16 @@
     are trained with a larger training set and consist of a greater number of neurons.
     Therefore, training using a **graphics processing unit** (**GPU**) has become
     the standard since you can exploit its massive parallelism in matrix multiplication.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 如[*第三章*](B18522_03.xhtml#_idTextAnchor062)中所述，*开发强大的深度学习模型*，训练DL模型涉及从数据集中提取有意义的模式。当数据集大小较小且模型参数较少时，使用**中央处理单元**（**CPU**）可能足以训练模型。然而，当使用更大的训练集并且模型包含更多神经元时，DL模型表现出更好的性能。因此，使用**图形处理单元**（**GPU**）进行训练已成为标准，因为您可以利用其在矩阵乘法中的大规模并行性。
 - en: Utilizing multiple devices for training in TensorFlow
+  id: totrans-14
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在TensorFlow中利用多个设备进行训练
 - en: 'TF provides the `tf.distribute.Strategy` module, which allows you to use multiple
     GPU or CPU devices for training with very simple code modifi[cations (https://www.tensorflow.org/guide/distributed](https://www.tensorflow.org/guide/distributed_training)_training).
     `tf.distribute.Strategy` is fully compatible with `tf.keras.Model.fit`, as well
@@ -81,26 +111,33 @@
     distributed training as simple as possible. Let’s have a look at how the `tf.distribute.Strategy`
     module allows you to quickly modify a set of code designed for a single device
     to multiple devices on a single machine:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: TF 提供了`tf.distribute.Strategy`模块，允许您使用多个GPU或CPU设备进行训练，只需非常简单的代码修改，详见[分布式训练](https://www.tensorflow.org/guide/distributed_training)。`tf.distribute.Strategy`与`tf.keras.Model.fit`完全兼容，以及自定义训练循环，如[*第三章*](B18522_03.xhtml#_idTextAnchor062)中的*在TensorFlow中实现和训练模型*部分描述的那样，*开发强大的深度学习模型*。Keras的各个组件，包括变量、层、模型、优化器、度量、摘要和检查点，均设计为支持各种`tf.distribute.Strategy`类，以尽可能简化转向分布式训练。让我们看看`tf.distribute.Strategy`模块如何使您能够快速修改为多设备上的单机代码集合：
 - en: '[PRE0]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Once the model has been saved, it can be loaded with or without the `tf.distribute.Strategy`
     scope. To achieve distributed training with a custom training loop, you can follow
     the example p[resented at https://www.tensorflow.org/tutorials/distribute/cus](https://www.tensorflow.org/tutorials/distribute/custom_training)tom_training.
     Having said that, let’s review the most used strategies. We will cover the most
     common approaches, some of which go beyond training a single instance. They will
     be used in the next few sections, which cover training on multiple machines:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
 - en: 'Strategies that provide full support for `tf.keras.Model.fit` and custom training
     loops:'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`MirroredStrategy`: Synchronous distributed training using multiple GPUs on
     a single machine'
+  id: totrans-19
   prefs:
   - PREF_IND
   - PREF_UL
@@ -109,29 +146,34 @@
     machines (potentially using multiple GPUs per machine). This strategy class requires
     a TF cluster that’s been configured using the `TF_CONFIG` environment variable
     ([https://www.tensorflow.org/guide/distributed_training#TF_CONFIG](https://www.tensorflow.org/guide/distributed_training#TF_CONFIG))'
+  id: totrans-20
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`TPUStrategy`: Training on multiple **tensor processing units** (**TPUs**)'
+  id: totrans-21
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'Strategies with experimental features (meaning that classes and methods are
     still in the development stage) for `tf.keras.Model.fit` and custom training loops:'
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`ParameterServerStrategy`: Model parameters are shared across multiple workers
     (the cluster consists of workers and parameter servers). Workers read and update
     the variables that are created on parameter servers after each iteration.'
+  id: totrans-23
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`CentralStorageStrategy`: Variables are stored in central storage and replicated
     across each GPU.'
+  id: totrans-24
   prefs:
   - PREF_IND
   - PREF_UL
@@ -139,31 +181,40 @@
 - en: 'The last strategy that we want to mention is `tf.distribute.OneDev`[`iceStrategy` 
     (https://www.tensorflow.org/api_docs/python/tf/distribute/One](https://www.tensorflow.org/api_docs/python/tf/distribute/OneDeviceStrategy)DeviceStrategy).
     It runs the training code on a single GPU device as follows:'
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '[PRE1]'
+  id: totrans-26
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: In the preceding example, we have selected the first GPU (`"/gpu:0"`).
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
 - en: 'It is also worth mentioning that the `tf.distribute.get_strategy` function
     can be used to get the current `tf.distribute.Strategy` object. You can use this
     function to change the `tf.distribute.Strategy` object dynamically for your training
     code, as shown in the following code snippet:'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE2]'
+  id: totrans-29
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: In the preceding code, we are using `tf.distribute.MirroredStrategy` when GPU
     devices are available and fall back to the default strategy when GPU devices are
     not available. Next, let’s look at the features provided by PyTorch.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
 - en: Utilizing multiple devices for training in PyTorch
+  id: totrans-31
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -171,78 +222,111 @@
     configured for the same device. If you want to use a GPU device, they need to
     be loaded on the target GPU device explicitly before training, using either the
     `to(device=torch.device(''cuda''))` or `cuda()` function:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE3]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The preceding example shows some of the key operations you should be aware
     of when using a GPU device. This is a subset of what is presented in the official
     PyTorch documentation: https://pytorch.org/docs/stable/notes/cuda.html.'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述示例展示了在使用GPU设备时需要注意的一些关键操作。这是官方PyTorch文档中介绍的一部分内容：https://pytorch.org/docs/stable/notes/cuda.html。
 - en: 'However, setting up individual components for training can be tiresome. Therefore,
     `gpus` parameter of `Trainer`:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，为了进行训练设置各个组件可能会很繁琐。因此，`Trainer`的`gpus`参数：
 - en: '[PRE4]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'In the preceding example, we are describing various training setups for a single
     machine: training only using CPU devices, training using a set of GPU devices,
     and training using all GPU devices.'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述示例中，我们描述了单台机器上的各种训练设置：仅使用CPU设备进行训练，使用一组GPU设备进行训练以及使用所有GPU设备进行训练。
 - en: Things to remember
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 需要记住的事情
 - en: a. TF and PyTorch provide built-in support for training a model using both CPU
     and GPU devices.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: a. TF和PyTorch都内置了使用CPU和GPU设备训练模型的支持。
 - en: b. Training can be controlled using the `tf.distribute.Strategy` class in TF.
     When training a model with a single machine, you can use `MirroredStrategy` or
     `OneDeviceStrategy`.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: b. 使用TF的`tf.distribute.Strategy`类可以控制训练过程。在单台机器上训练模型时，可以使用`MirroredStrategy`或`OneDeviceStrategy`。
 - en: c. To train a PyTorch model using GPU devices, the model and relevant tensors
     need to be loaded on the same GPU device manually. PL hides most of the boilerplate
     code by handling the placements as part of the `Trainer` class.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: c. 使用GPU设备训练PyTorch模型时，需要手动将模型和相关张量加载到同一GPU设备上。PL通过`Trainer`类处理放置操作，隐藏了大部分样板代码。
 - en: In this section, we learned how to utilize multiple devices on a single machine.
     However, there have been many efforts to utilize a cluster of machines for training
     as there is a limit on the computational power that a single machine can have.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们学习了如何在单台机器上利用多个设备。然而，随着单台机器计算能力的限制，已经有很多努力将集群用于训练。
 - en: Training a model on a cluster
+  id: totrans-43
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在集群上训练模型
 - en: 'Even though using multiple GPUs on a single machine has reduced the training
     time a lot, some models are extremely huge and still require multiple days for
     training. Adding more GPUs is still an option but physical limitations often exist,
     preventing you from utilizing the full potential of the multi-GPU setting: motherboards
     can support a limited number of GPU devices.'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管在单台机器上使用多个GPU已经大大减少了训练时间，但有些模型仍然非常庞大，需要多天的时间进行训练。增加更多的GPU仍然是一种选择，但通常存在物理限制，阻止您充分利用多GPU设置的潜力：主板可能仅支持有限数量的GPU设备。
 - en: 'Fortunately, many DL frameworks already support training a model on a distributed
     system. While there are minor differences in the actual implementation, most frameworks
     adopt the idea of **model parallelism** and **data parallelism**. As shown in
     the following diagram, model parallelism distributes components of the model to
     multiple machines, while data parallelism distributes the samples of the training
     set:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，许多深度学习框架已经支持在分布式系统上训练模型。尽管在实际实施中存在一些细微差异，但大多数框架都采纳了**模型并行**和**数据并行**的理念。如下图所示，模型并行将模型的组件分布到多台机器上，而数据并行则将训练集的样本分布到多个设备上：
 - en: '![Figure 6.1 – The difference between model parallelism and data parallelism'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 6.1 – 模型并行和数据并行之间的区别'
 - en: '](img/B18522_06_01.jpg)'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/B18522_06_01.jpg)'
 - en: Figure 6.1 – The difference between model parallelism and data parallelism
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 6.1 – 模型并行和数据并行之间的区别
 - en: There are a couple of details that you must be aware of when setting up a distributed
     system for model training. First, the machines in the cluster need to have a stable
     connection to the internet since they communicate over the network. If stability
@@ -253,13 +337,16 @@
     dynamically, achieving the model training in the most cost-efficient way. AWS
     provides the aforementioned functionalities out of the box through **Elastic MapReduce**
     (**EMR**) and **Elastic Container Service** (**ECS**).
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
 - en: In the next two sections, we will take a deeper look into model parallelism
     and data parallelism.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
 - en: Model parallelism
+  id: totrans-51
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -270,9 +357,11 @@
     memory to fit the model, and it is quite complex to set it up. In this section,
     we are going to describe the two most basic approaches of model parallelism: **model
     sharding** and **model pipelining**.'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
 - en: Model sharding
+  id: totrans-53
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -284,39 +373,49 @@
     with the first subgraph. Each device will pass the computed values to the device
     of the next subgraph. Until the necessary data arrives, the devices will stay
     idle. In this example, we have four subgraphs:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 6.2 – A sample distribution of a model in model sharding; each arrow
     indicates a mini-batch'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
 - en: '](img/B18522_06_02.jpg)'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
 - en: Figure 6.2 – A sample distribution of a model in model sharding; each arrow
     indicates a mini-batch
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
 - en: As you can see, model sharding does not utilize the full computational resources;
     a device is waiting for the other device to process its subgraph. To solve this
     problem, the pipelining approach is proposed.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
 - en: Model pipelining
+  id: totrans-59
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: 'In the case of model pipelining, a mini-batch is split into micro-batches and
     provided to the system in chains, as shown in the following diagram:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 6.3 – A diagram of model pipeline logic; each arrow indicates a mini-batch'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
 - en: '](img/B18522_06_03.jpg)'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
 - en: Figure 6.3 – A diagram of model pipeline logic; each arrow indicates a mini-batch
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
 - en: 'However, model pipelining requires a modified version of backward propagation.
@@ -324,52 +423,67 @@
     a model pipelining setting. At some point, each device needs to perform not only
     forward computations for its subgraph but also gradient computations. A single
     forward and backward propagation can be achieved like so:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 6.4 – A single forward and backward propagation in model pipelining'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
 - en: '](img/B18522_06_04.jpg)'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
 - en: Figure 6.4 – A single forward and backward propagation in model pipelining
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
 - en: 'In the preceding diagram, we can see that each device runs forward propagation
     one by one and backward propagation in reverse order, passing the computed values
     to the next device. Putting everything together, we get the following diagram,
     which summarizes the logic of model pipelining:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
 - en: '![Figure 6.5 – Model parallelism based on model pipelining'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
 - en: '](img/B18522_06_05.jpg)'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
 - en: Figure 6.5 – Model parallelism based on model pipelining
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
 - en: To further improve the training time, each device stores the values it computed
     previously and utilizes them in the following computations.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
 - en: Model parallelism in TensorFlow
+  id: totrans-73
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: 'The following code snippet shows how to assign a set of layers to a specific
     device in TF as you define the model architecture:'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE5]'
+  id: totrans-75
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: If you want to explore model parallelism in TF even more, we r[ecommend checking
     out the Mesh TF](https://github.com/tensorflow/mesh) repository (https://github.com/tensorflow/mesh).
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
 - en: Model parallelism in PyTorch
+  id: totrans-77
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -383,9 +497,11 @@
     across the machine boundaries (distributed gradients update). We delegate [the
     details to the official docum](https://pytorch.org/docs/stable/rpc.html)entation:
     https://pytorch.org/docs/stable/rpc.html.'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
 - en: Data parallelism
+  id: totrans-79
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -394,135 +510,190 @@
     of the model and computes the gradients with the dataset it has been assigned
     to. Then, the gradients are aggregated and the models are updated globally at
     once.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
 - en: Data parallelism in TensorFlow
+  id: totrans-81
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: Data parallelism can be realized in TF by leveraging `tf.distribute.MultiWorkerMirroredStrategy`,
     `tf.distribute.ParameterServerStrategy`, and `tf.distribute.CentralStorageStrategy`.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
 - en: We introduced these strategies in the *Utilizing multiple devices for training
     in TensorFlow* section since specific `tf.distributed` strategies are also used
     to set up training on multiple devices within a single machine.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在 *TensorFlow 中利用多个设备进行训练* 部分介绍了这些策略，因为特定的 `tf.distributed` 策略也用于在单个机器内多设备上设置训练。
 - en: To use these strategies, you need to set up a TF cluster where each machine
     can communicate with the other.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用这些策略，您需要设置一个 TF 集群，其中每台机器可以与其他机器通信。
 - en: 'Typically, a TF cluster is defined using a `TF_CONFIG` environment variable.
     `TF_CONFIG` is just a `JSON` string that specifies cluster configuration by defining
     two components: `cluster` and `task`. The following Python code shows how to generate
     a `.json` file for `TF_CONFIG` from a Python dictionary:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，TF 集群使用 `TF_CONFIG` 环境变量定义。 `TF_CONFIG` 只是一个 `JSON` 字符串，通过定义两个组件来指定集群配置：`cluster`
+    和 `task`。以下 Python 代码展示了如何从 Python 字典生成 `TF_CONFIG` 的 `.json` 文件：
 - en: '[PRE6]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: '[The `TF_CONFIG` fields and formats are described at https://cloud.google.com](https://cloud.google.com/ai-platform/training/docs/distributed-training-details)/ai-platform/training/docs/distributed-training-details.'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: '[关于 `TF_CONFIG` 的字段和格式，请参阅 https://cloud.google.com/ai-platform/training/docs/distributed-training-details](https://cloud.google.com/ai-platform/training/docs/distributed-training-details)。'
 - en: As demonstrated in the *Utilizing multiple devices for training in TensorFlow*
     section, you need to put the training code under the `tf.distribute.Strategy`
     scope. In the following example, we will show a sample usage for `tf.distribute.MultiWorkerMirroredStrategy`
     class.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如在 *TensorFlow 中利用多个设备进行训练* 部分演示的，您需要将训练代码放在 `tf.distribute.Strategy` 范围内。在下面的示例中，我们将展示
+    `tf.distribute.MultiWorkerMirroredStrategy` 类的样例用法。
 - en: 'First of all, you must put your model instance under the scope of `tf.distribute.MultiWorkerMirroredStrategy`,
     as shown in the following code snippet:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，您必须将您的模型实例放在 `tf.distribute.MultiWorkerMirroredStrategy` 的范围内，如下所示：
 - en: '[PRE7]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Next, you need to make sure the `TF_CONFIG` environment variables have been
     set up correctly for each machine in the cluster and run the training script,
     as follows:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，您需要确保每台机器的 `TF_CONFIG` 环境变量已正确设置，并运行训练脚本，如下所示：
 - en: '[PRE8]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'To correctly save your [model, please take a look at the official documentation:
     https://www.t](https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras)ensorflow.org/tutorials/distribute/multi_worker_with_keras.'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 要正确保存您的[模型，请查看官方文档：https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras](https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras)。
 - en: In the case of a [custom training loop, you can follow the instructions at https://ww](https://www.tensorflow.org/tutorials/distribute/multi_worker_with_ctl)w.tensorflow.org/tutorials/distribute/multi_worker_with_ctl.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果使用[自定义训练循环，可以按照 https://www.tensorflow.org/tutorials/distribute/multi_worker_with_ctl](https://www.tensorflow.org/tutorials/distribute/multi_worker_with_ctl)
+    中的说明操作。
 - en: Data parallelism in PyTorch
+  id: totrans-95
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: PyTorch 中的数据并行
 - en: Unlike model parallelism, data parallelism is available for both PyTorch and
     PL. Among the various implementations, the most standard feature is `torch.nn.parallel.DistributedDataParallel`
     (DDP). In this section, we will mainly discuss PL as its main advantage comes
     from the simplicity of the training models that use data parallelism.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 与模型并行不同，数据并行在 PyTorch 和 PL 中都可用。在各种实现中，最标准的功能是 `torch.nn.parallel.DistributedDataParallel`（DDP）。本节中，我们将主要讨论
+    PL，因为其主要优势来自于使用数据并行的训练模型的简易性。
 - en: To train a model using data parallelism, you need to modify the training code
     to utilize the underlying distributed system and spawn a process with the `torch.distributed.run`
     module on each machine ([https://pytorch.org/docs/stable/distributed.html](https://pytorch.org/docs/stable/distributed.html)).
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用数据并行训练模型，您需要修改训练代码以利用底层分布式系统，并使用 `torch.distributed.run` 模块在每台机器上生成一个进程（[https://pytorch.org/docs/stable/distributed.html](https://pytorch.org/docs/stable/distributed.html)）。
 - en: 'The following code snippet describes what you need to change for ddp. You simply
     need to provide `ddp` for the `accelerator` parameter of `Trainer`. `num_nodes`
     is the parameter to adjust when there is more than one machine in the cluster:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码片段描述了您需要为 ddp 更改的内容。您只需为 `Trainer` 的 `accelerator` 参数提供 `ddp`。当集群中有多台机器时，需要调整
+    `num_nodes` 参数：
 - en: '[PRE9]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Once the script has been set up, you need to run the following command on each
     machine. Please keep in mind that `MASTER_ADDR` and `MASTER_PORT` must be consistent
     as they are used by each processor to communicate. On the other hand, `NODE_RANK`
     indicates the index of the machine. In other words, it must be different for each
     machine, and it must start from zero:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE10]'
+  id: totrans-101
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Based on the official documentation, DDP works as follows:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
 - en: Each GPU across each node spins up a process.
+  id: totrans-103
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Each process gets a subset of the training set.
+  id: totrans-104
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Each process initializes the model.
+  id: totrans-105
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Each process performs both forward and backward propagation in parallel.
+  id: totrans-106
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: The gradients are synchronized and averaged across all processes.
+  id: totrans-107
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Each process updates the weights of the model it has.
+  id: totrans-108
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Things to remember
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
 - en: a. TF and PyTorch provide options for training DL models across multiple machines
     using model parallelism and data parallelism.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
 - en: b. Model parallelism splits the model into multiple components and distributes
     them across machines. To set up model parallelism in TF and PyTorch, you can use
     the `Mesh TensorFlow` library and the `torch.distributed.rpc` package, respectively.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
 - en: c. Data parallelism copies the model to each machine and distributes mini-batches
@@ -530,19 +701,23 @@
     `MultiWorkerMirroredStrategy`, `ParameterServerStrategy`, or `CentralStorageStrategy`.
     The main package that’s been designed for data parallelism in PyTorch is called
     `torch.nn.parallel.DistributedDataParallel`.
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
 - en: In this section, we learned how to achieve model training where the lifetime
     of the cluster is explicitly managed. However, some tools manage the clusters
     for model training as well. Since each of them has different advantages, you should
     understand the difference to select the right tool for your development.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
 - en: First, we will look at the built-in features of SageMaker that train a DL model
     in a distributed fashion.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
 - en: Training a model using SageMaker
+  id: totrans-115
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -553,6 +728,7 @@
     resources for you, allowing you to utilize a distributed system for model training
     with minimal effort. In addition, SageMaker supports streaming data to your models
     for inferencing, hyperparameter tuning, and tracking experiments and artifacts.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
 - en: SageMaker Studio is the place where you define the logic for your model. The
@@ -562,92 +738,125 @@
     can be efficiently achieved by making a few modifications to the infrastructure’s
     configuration. Furthermore, SageMaker supports hyperparameter tuning on a distributed
     system to exploit parallelism.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: SageMaker Studio是您定义模型逻辑的地方。SageMaker Studio笔记本允许您快速探索可用数据并设置模型训练逻辑。当模型训练时间过长时，通过对基础架构配置进行少量修改，可以有效地实现扩展使用多个计算资源和找到最佳超参数集。此外，SageMaker支持在分布式系统上进行超参数调整以利用并行性。
 - en: Even though SageMaker sounds like a magic key for a DL pipeline, there are disadvantages
     as well. The first is its cost. Instances that have been allocated to SageMaker
     are around 40% more expensive than equivalent EC2 instances. Next, you may find
     that not all the libraries are available in the notebook. In other words, you
     may need to spend some additional time building and installing the library you
     need.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管SageMaker听起来像深度学习流水线的魔法钥匙，但也有其不足之处。首先是其成本。分配给SageMaker的实例比等效的EC2实例贵约40%。其次，您可能会发现并非所有库都在笔记本中可用。换句话说，您可能需要额外的时间来构建和安装所需的库。
 - en: Setting up model training for SageMaker
+  id: totrans-119
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 设置SageMaker的模型训练
 - en: 'By now, you should be able to start a notebook and select a predefined development
     environment for your project since we covered these in the *Utilizing SageMaker
     for ETL* section of [*Chapter 5*](B18522_05.xhtml#_idTextAnchor106), *Data Preparation
     in the Cloud*. Assuming that you have already processed raw data and stored the
     processed data in a data storage, we will focus on model training in this section.
     Model training with SageMaker can be summarized into the following three steps:'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，你应该能够启动一个笔记本并选择一个预定义的开发环境，因为我们在[*第5章*](B18522_05.xhtml#_idTextAnchor106)的*利用SageMaker进行ETL*部分已经涵盖了这些内容。假设您已经处理了原始数据并将处理后的数据存储在数据存储中，我们将在本节中专注于模型训练。使用SageMaker进行模型训练可以总结为以下三个步骤：
 - en: If the processed data in the storage hasn’t been split into training, validation,
     and test sets yet, you must split them first.
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果存储中的处理数据尚未分割为训练、验证和测试集，则必须首先对其进行分割。
 - en: You need to define the model training logic and specify the cluster configuration.
+  id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 您需要定义模型训练逻辑并指定集群配置。
 - en: Lastly, you need to train your model and save the artifacts back in data storage.
     When training is completed, the allocated instances will be terminated automatically.
+  id: totrans-123
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，您需要训练您的模型并将生成的结果保存回数据存储中。当训练完成时，分配的实例将自动终止。
 - en: 'The key for model training with SageMaker is `sagemaker.estimator.Estimator`.
     It allows you to configure the training settings, including i[nfrastructure setup,
     type of Docker images to use, and hyperparameters](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)
     ([https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)).
     The following are the main parameters that you would typically configure:'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用SageMaker进行模型训练的关键是`sagemaker.estimator.Estimator`。它允许您配置训练设置，包括基础架构设置、要使用的Docker镜像类型和超参数。以下是您通常会配置的主要参数：
 - en: '`role` (`str`): An AWS IAM role'
+  id: totrans-125
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`role` (`str`): AWS IAM角色'
 - en: '`instance_count` (`int`): The number of SageMaker EC2 instances to use for
     training'
+  id: totrans-126
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`instance_count` (`int`): 用于训练的SageMaker EC2实例数量'
 - en: '`instance_type` (`str`): The type of SageMaker EC2 instance to use for training'
+  id: totrans-127
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`instance_type` (`str`): 用于训练的SageMaker EC2实例类型'
 - en: '`volume_size` (`int`): The size of the Amazon **Elastic Block Store** (**EBS**)
     volume (in gigabytes) that will be used to download input data temporarily for
     training'
+  id: totrans-128
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`volume_size` (`int`): 用于临时下载训练输入数据的Amazon **弹性块存储**（**EBS**）卷的大小（以GB为单位）'
 - en: '`output_path` (`str`): An S3 object where the training result will be stored'
+  id: totrans-129
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`output_path` (`str`): 训练结果将存储在的S3对象'
 - en: '`use_spot_instances` (`bool`): A flag specifying whether to use SageMaker-managed
     AWS Spot instances for training'
+  id: totrans-130
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`use_spot_instances` (`bool`): 指定是否使用SageMaker管理的AWS Spot实例进行训练的标志'
 - en: '`checkpoint_s3_uri` (`str`): An S3 URI where the checkpoints will be stored
     during training'
+  id: totrans-131
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`checkpoint_s3_uri` (`str`): 训练期间将检查点存储在的S3 URI'
 - en: '`hyperparameters` (`dict`): A dictionary containing the initial set of hyperparameters'
+  id: totrans-132
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`entry_point` (`str`): The path to the Python file to run'
+  id: totrans-133
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '`dependencies` (`list[str]`): A list of directories that will be loaded into
     the job'
+  id: totrans-134
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -655,19 +864,23 @@
     (**ECR**), you can set up any training configuration for SageMaker. Containers
     with variou[s configurations for CPU and GPU devices also exist. You can find
     these at http](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)s://github.com/aws/deep-learning-containers/blob/master/available_images.md.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
 - en: 'In addition, there exist repositories of open sourced toolkits designed to
     help TF and PyTorch model training on Amazon SageMaker. These repositories also
     contain Docker files that already have the necessary libraries installed, such
     as TF, PyTo[rch, and other dependencies necessary to build SageMaker ima](https://github.com/aws/sagemaker-tensorflow-training-toolkit)ges:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
 - en: 'TF[: https://github.com/aws/sagemaker-tensorflow-traini](https://github.com/aws/sagemaker-pytorch-training-toolkit)ng-toolkit'
+  id: totrans-137
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: 'PyTorch: https://github.com/aws/sagemaker-pytorch-training-toolkit'
+  id: totrans-138
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -675,119 +888,169 @@
     your local machine. You can also update the installed libraries if you need to.
     If any modification is made, you need to upload the modified container to Amazon
     ECR before you can use it with `sagemaker.estimator.Estimator`.
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
 - en: In the following two sections, we will describe a set of changes that are required
     to train TF and PyTorch models.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
 - en: Training a TensorFlow model using SageMaker
+  id: totrans-141
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'SageMaker provides a `sagemaker.estimator.Estimator` class built for TF: `sagemaker.tensorflow.estimator.TensorFlow`
     ([https://sagemaker.readthedocs.io/en/stable/frameworks/tensorflow/sagemaker.tensorflow.html](https://sagemaker.readthedocs.io/en/stable/frameworks/tensorflow/sagemaker.tensorflow.html)).'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
 - en: 'The following example shows the wrapper script that you need to write using the
     `sagemaker.tensorflow.estimator.TensorFlow` class to train a TF model on SageMaker:'
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE11]'
+  id: totrans-144
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Please keep in mind that every key in the `hyperparameters` parameter must
     have a corresponding entry defined in `ArgumentParser` of the training script
     (`train_script.py`). In the preceding example, we only have epochs defined (`''epochs'':
     30`).'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
 - en: 'To trigger the training, you need to call the `fit` function. You will need
     to provide datasets for training and validation. If you have them on an S3 bucket,
     the `fit` function will look as follows:'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE12]'
+  id: totrans-147
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: The preceding example will run `training_script.py`, specified in the `entry_point`
     parameter, by locating it in the directory provided by `source_dir`. The details
     of the instance can be found in the `instance_count` and `instance_type` parameters.
     The training script will run with the parameters defined for `hyperparameters`
     of `tf_estimator` on the training and validation datasets defined in the `fit`
     function.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的示例将在由 `source_dir` 提供的目录中运行 `entry_point` 参数指定的 `training_script.py`。实例的详细信息可以在
+    `instance_count` 和 `instance_type` 参数中找到。训练脚本将在 `fit` 函数中定义的训练和验证数据集上使用 `tf_estimator`
+    的 `hyperparameters` 进行运行。
 - en: Training a PyTorch model using SageMaker
+  id: totrans-149
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用SageMaker训练PyTorch模型
 - en: 'Similar [to `sagemaker.tensorflow.estimator.TensorFlow`, there’s `sagemaker.pytorch.PyTorch`
     (](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/sagemaker.pytorch.html)).
     You can set up the training for your PyTorch (or PL) model, as described in the
     *Implementing and training a model in PyTorch* section of , *Data Preparation
     in the Cloud*, and integrate `sagemaker.pytorch.PyTorch`, as shown in the following
     code snippet:'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似于 `sagemaker.tensorflow.estimator.TensorFlow`，存在 `sagemaker.pytorch.PyTorch`（[链接](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/sagemaker.pytorch.html)）。您可以按照《在PyTorch中实现和训练模型》一节中的描述设置PyTorch（或PL）模型的训练，并集成
+    `sagemaker.pytorch.PyTorch`，如下面的代码片段所示：
 - en: '[PRE13]'
+  id: totrans-151
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: The usage of a PyTorch estimator is identical to a TF estimator described in
     the previous section.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用PyTorch估算器的方法与前一节描述的TF估算器相同。
 - en: This concludes the basic usage of SageMaker for model training. Next, we will
     learn how to scale up training jobs in SageMaker. We will discuss distributed
     training using a distribution strategy. We will also cover how you can speed up
     the training by utilizing other data storage services that have lower latency.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就完成了使用SageMaker进行模型训练的基本用法。接下来，我们将学习如何在SageMaker中扩展训练作业。我们将讨论使用分布策略进行分布式训练。我们还将介绍如何通过使用具有更低延迟的其他数据存储服务来加快训练速度。
 - en: Training a model in a distributed fashion using SageMaker
+  id: totrans-154
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用SageMaker以分布方式训练模型
 - en: Da[ta parallelism in SageMaker can be achieved using a distributed data paralle](https://sagemaker.readthedocs.io/en/stable/api/training/smd_data_parallel.html)l
     library (https://sagemaker.readthedocs.io/en/stable/api/training/smd_data_parallel.html).
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 在SageMaker中可以通过使用分布式数据并行库（[链接](https://sagemaker.readthedocs.io/en/stable/api/training/smd_data_parallel.html)）实现数据并行。
 - en: 'All you need to do is to enable `dataparallel` as you create the `sagemaker.estimator.Estimator`
     instance, as follows:'
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 您所需做的就是在创建 `sagemaker.estimator.Estimator` 实例时启用 `dataparallel`，如下所示：
 - en: '[PRE14]'
+  id: totrans-157
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'The following code snippet sho[ws a TF estimator that’s been created with `dataparallel`.
     The full details can b](https://docs.aws.amazon.com/en_jp/sagemaker/latest/dg/data-parallel-use-api.html)e
     found at https://docs.aws.amazon.com/en_jp/sagemaker/latest/dg/data-parallel-use-api.html:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码片段展示了使用 `dataparallel` 创建的TF估算器。详细信息可以在 https://docs.aws.amazon.com/en_jp/sagemaker/latest/dg/data-parallel-use-api.html
+    找到：
 - en: '[PRE15]'
+  id: totrans-159
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: The same modifications are necessary for a PyTorch estimator.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于PyTorch估算器，需要进行相同的修改。
 - en: 'SageMaker supports two different mechanisms for transferring input data to
     the underlying algorithm: file mode and pipe mode. By default, SageMaker uses
     file mode, which downloads the input data to an EBS volume for training. However,
     if the amount of data is huge, this can slow down the training. In this case,
     you can use pipe mode, which streams data from S3 (using Linux FIFO) without making
     extra copies.'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: SageMaker支持两种不同的机制来将输入数据传输给底层算法：文件模式和管道模式。默认情况下，SageMaker使用文件模式，将输入数据下载到用于训练的EBS卷中。但是，如果数据量很大，这可能会减慢训练速度。在这种情况下，您可以使用管道模式，它会从S3（使用Linux
+    FIFO）流式传输数据，而无需进行额外的复制。
 - en: 'In [the case of TF, you can simply use `PipeModeDataset` fr](https://github.com/aws/sagemaker-tensorflow-extensions)om
     the `sagemaker-tensorflow` extension (https://github.com/aws/sagemaker-tensorflow-extensions)
     as follows:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 在TF的情况下，您可以简单地从 `sagemaker-tensorflow` 扩展中使用 `PipeModeDataset`，如 https://github.com/aws/sagemaker-tensorflow-extensions
+    所示：
 - en: '[PRE16]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'However, training a PyTorch model using pipe mode requires a bit more engineering
     e[ffort. Therefore, we will point you to a notebook example that describes each
     step in depth: https://github.com/aws/amazon-sage](https://github.com/aws/amazon-sagemaker-examples/blob/main/advanced_functionality/pipe_bring_your_own/pipe_bring_your_own.ipynb)maker-examples/blob/main/advanced_functionality/pipe_bring_your_own/pipe_bring_your_own.ipynb.'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
 - en: 'The distributed strategy and pipe mode should speed up the training by scaling
@@ -798,9 +1061,11 @@
     [was built for the Lustre f](https://aws.amazon.com/efs/)ilesy[stem. For more
     details, you can re](https://aws.amazon.com/fsx/lustre/)fer to their official
     pages at https://aws.amazon.com/efs/ and https://aws.amazon.com/fsx/lustre/, respectively.'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
 - en: SageMaker with Horovod
+  id: totrans-166
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -811,16 +1076,20 @@
     MPI is available for worker discovery and reduction coordination. Horovod can
     also utilize Gloo instead of MPI, an open source collective communications library.
     Here is an example of the distribution parameter configured for Horovod:'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE17]'
+  id: totrans-168
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: In the preceding code snippet, we are achieving coordination among the machines
     using MPI. `processes_per_host` defines the number of processes to run on each
     instance. This is equivalent to defining the number of processes using the `-H`
     parameter in the `mpirun` or `horovodrun` command, which controls the program’s
     execution in MPI and Horovod, respectively.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
 - en: 'In the following code snippet, we are selecting the number of parallel processes
@@ -829,36 +1098,46 @@
     `-H` parameter. With the following commands, each machine will run `train.py`
     twice. This would be a typical setting when you have four machines with two GPUs
     each. The sum of assigned `-H` processes cannot exceed the `-np` value:'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE18]'
+  id: totrans-171
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: We will discuss Horovod in depth in the following section as we cover how to
     train a DL model on a standalone Horovod cluster composed of EC2 instances.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
 - en: Things to remember
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
 - en: a. SageMaker provides an excellent tool, SageMaker Studio, which allows you
     to quickly perform initial data exploration and train baseline models.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
 - en: b. The `sagemaker.estimator.Estimator` object is an important component for
     training a model using SageMaker. It also supports distributed training on a set
     of machines with various CPU and GPU configurations.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
 - en: c. Utilizing SageMaker for TF and PyTorch model training can be achieved estimators
     that are specifically designed for each framework.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
 - en: Now, let’s look at how to use Horovod without SageMaker for distributed model
     training.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
 - en: Training a model using Horovod
+  id: totrans-178
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -866,81 +1145,98 @@
     to support distributed training alone (https://horovod.ai/). It aims to provide
     a simple way to train models in a distributed fashion by providing nice integrations
     for popular DL frameworks, including TensorFlow and PyTorch.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
 - en: As mentioned previously in the *SageMaker with Horovod* section, the core principles
     of Horovod a[re based on MPI concepts such as size, rank, local ra](https://horovod.readthedocs.io/en/stable/concepts.html)nk,
     allreduce, allgather, broadcast, and alltoall (https://horovod.readthedocs.io/en/stable/concepts.html).
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
 - en: In this section, we will learn about how to set up a Horovod cluster using EC2
     instances. Then, we will describe the modifications you need to make in TF and
     PyTorch scripts to train your model on the Horovod cluster.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
 - en: Setting up a Horovod cluster
+  id: totrans-182
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'To set up a Horovod cluster using EC2 instances, you must follow these steps:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
 - en: 'Go to the EC2 instance console: https://console.aws.amazon.com/ec2/.'
+  id: totrans-184
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Click the **Launch Instances** button in the top-right corner.
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Select **Deep Learning AMI** (the abbreviation for Amazon Machine Image) with
     TF, PyTorch, and Horovod installed. Click the **Next …** button at the bottom
     right.
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Select the right **Instance Type** for your training. You can select CPU or
     GPU instance types that fit your needs. Click the **Next …** button at the bottom
     right:'
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '![Figure 6.6 – Instance type selection in the EC2 Instance console'
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
 - en: '](img/B18522_06_06.jpg)'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
 - en: Figure 6.6 – Instance type selection in the EC2 Instance console
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
 - en: Select the desired number of instances that will make up your Horovod cluster.
     Here, you can also request AWS Spot instances (cheaper instances based on the
     sparse EC2 capacity that can be interrupted, making them only feasible for fault-tolerant
     tasks). However, let’s use on-demand resources for simplicity.
+  id: totrans-191
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Select the right network and subnet settings. In real life, this type of information
     will be provided by the DevOps department.
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: On the same page, select **Add instance to placement group** and **Add to a
     new placement group**, type the name that you want to use for the group, and select
     **cluster** for **placement group strategy**.
+  id: totrans-193
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: On the same page, provide your **Identity and Access Management** (**IAM**)
     role so that you can access S3 buckets. Click the **Next …** button at the bottom
     right.
+  id: totrans-194
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Select the ri[ght storage size for your instances. Click the **Next …** button
     a](https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html)t the bottom
     right.
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
@@ -948,17 +1244,20 @@
     for your instances. In real life, these might be used as additional security measures,
     such as terminating instances with specific tags. Click the **Next …** button
     at the bottom right.
+  id: totrans-196
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Create a security group or choose an existing one. Again, you must talk to the
     DevOps department to get the proper information. Click the **Next …** button at
     the bottom right.
+  id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Review all the information and launch. You will be asked to provide a **Privacy
     Enhanced Mail** (**PEM**) key for authentication.
+  id: totrans-198
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
@@ -968,43 +1267,55 @@
     manually. At t[he time of writing, you can request static IPv4 addresses called
     Elastic IPs and](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html)
     assign them to your instances (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html).
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
 - en: Finally, you need to ensure that the instances can communicate with each other
     without an issue. You should check the **Security Groups** settings and add inbound
     rules for SSH and other traffic if necessary.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
 - en: 'At this point, you just need to copy your PEM key from your local machine to
     the master EC2 instance. For an Ubuntu AMI, you can run the following command:'
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE19]'
+  id: totrans-202
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Now, you can use SSH to connect to the master EC2 instance. What you need to
     do next is to set the passwordless connections between EC2 instances by providing
     your PEM key in the SSH command using the following commands:'
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE20]'
+  id: totrans-204
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: In the preceding code snippet, the `eval` command sets the environment variables
     provided by the `ssh-agent` command, while `ssh-add` command adds a PEM identity
     to the authentication agent.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
 - en: Now, the cluster is ready to support Horovod! When you are finished, you must
     stop or terminate your cluster on the web console. Otherwise, it will continuously
     charge you for the resources.
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
 - en: In the next two sections, we will learn how to change the TF and PyTorch training
     scripts for Horovod.
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
 - en: Configuring a TensorFlow training script for Horovod
+  id: totrans-208
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1012,11 +1323,14 @@
     module. First of all, you need to import the `tensorflow` and `horovod.tensorflow.keras`
     modules. We will refer to `horovod.tensorflow.keras` as `hvd`. Then, you need
     to initialize the Horovod cluster as follows:'
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE21]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: At this point, you can check the size of the cluster using the `hvd.size` function.
     Each process in Horovod will be assigned a rank (a number from 0 to the size of
     the cluster in terms of the processes you want to run or devices you want to use),
@@ -1025,74 +1339,99 @@
     known as the local rank (the unique numbers per instance but duplicated across
     instances). The local rank for the current process can be accessed using the `hvd.local_rank`
     function.
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
 - en: 'You can pin a specific GPU device for each process using local rank as follows.
     This example also shows how to set memory growth for your GPUs using `tf.config.experimental.set_memory_growth`:'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE22]'
+  id: totrans-213
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'In the following code, we are splitting the data based on rank so that each
     process trains on a different set of examples:'
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE23]'
+  id: totrans-215
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'For the model architecture, you can follow the instructions in the *Implementing
     and training a model in TensorFlow* section of [*Chapter 3*](B18522_03.xhtml#_idTextAnchor062),
     *Developing a Powerful Deep Learning Model*:'
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE24]'
+  id: totrans-217
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'Next, you need to configure the optimizer. In the following example, the learning
     rate is scaled by the Horovod size. Also, the optimizer needs to be wrapped with
     a Horovod optimizer:'
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE25]'
+  id: totrans-219
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'The next step is to compile your model and put the network architecture definition
     and optimizer together. When you are calling the `compile` function with a version
     of TF that’s older than v2.2, you need to disable `experimental_run_tf_function`
     so that TF uses `hvd.DistributedOptimizer` to compute gradients:'
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE26]'
+  id: totrans-221
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'Another component you need to configure is the callback function. You need
     to add `hvd.callbacks.BroadcastGlobalVariablesCallback(0)`. This will broadcast
     the initial values of the weights and biases from rank 0 to all other machines
     and processes. This is necessary to ensure consistent initialization or to correctly
     restore training from a checkpoint:'
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE27]'
+  id: totrans-223
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'You can use `rank` to perform a particular operation on a specific instance.
     For example, logging and saving artifacts on a master node can be achieved by
     checking whether `rank` is 0 (`hvd.rank()==0`), as shown in the following code
     snippet:'
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE28]'
+  id: totrans-225
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Now, you are ready to trigger the `fit` function. The following example shows
     how to scale the number of steps per epoch using the size of the Horovod cluster.
     Messages from the `fit` function will be only visible on the master node:'
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE29]'
+  id: totrans-227
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'This is [all you need to change to train a TF model in a distr](https://horovod.readthedocs.io/en/stable/tensorflow.html)ibuted
     fashion using Horovod. You c[an find the complete example at https://horovod.rea](https://horovod.readthedocs.io/en/stable/keras.html)dthedocs.io/en/stable/tensorflow.html.
     The Keras version can be found at https://horovod.rea[dthedocs.io/en/stable/keras.html.
@@ -1100,9 +1439,11 @@
     your training script so that it runs in a fault-tolerant way: https://horovod.readthedocs.io/en/stable/elastic_include.html.
     With this change, you should be able to use AWS Spot instances and significantly
     decrease the cost of training.'
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
 - en: Configuring a PyTorch training script for Horovod
+  id: totrans-229
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1112,142 +1453,184 @@
     for the PyTorch training script. For PyTorch, you need the `horovod.torch` module,
     which we will refer to as `hvd` again. In the following code snippet, we are importing
     the necessary modules and initializing the cluster:'
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE30]'
+  id: totrans-231
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'As described in the TF example, you need to bind a GPU device for the current
     process using the local rank:'
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE31]'
+  id: totrans-233
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'The other parts of the training script require similar modifications. The dataset
     needs to be distributed across the instances using `torch.utils.data.distributed.DistributedSampler`
     and the optimizers must be wrapped around `hvd.DistributedOptimizer`. The major
     difference comes from `hvd.broadcast_parameters(model.state_dict(), root_rank=0)`,
     which broadcasts the model weights. You can find the details in the following
     code snippet:'
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE32]'
+  id: totrans-235
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Now, you are ready to train the model. The training loop does not require any
     modifications. You can just pass the input tensor to the model and trigger backward
     propagation by triggering the `backward` function on the `loss` and `step` function
     of `optimizer`. The following code snippet describes the main part of the training
     logic:'
+  id: totrans-236
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE33]'
+  id: totrans-237
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: '[The c](https://horovod.readthedocs.io/en/stable/pytorch.html)omplete description
     can be found on the official Horovod documentation page: https://horovod.readthedocs.io/en/stable/pytorch.html.'
+  id: totrans-238
   prefs: []
   type: TYPE_NORMAL
 - en: As the last piece of content for the *Training model using Horovod* section,
     the next section explains how to use the `horovodrun` and `mpirun` commands to
     initiate the model training process.
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
 - en: Training a DL model on a Horovod cluster
+  id: totrans-240
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'Horovod uses MPI principles to coordinate work between processes. To run four
     processes on a single machine, you can use one of the following commands:'
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE34]'
+  id: totrans-242
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: In both cases, the `-np` parameter defines the number of times the `train.py`
     script runs in parallel. The `-H` parameter can be used to define the number of
     processes per machine (see the `horovodrun` command in the preceding example).
     As we learn how to run on a single machine, `-H` can be dropped, as presented
     in the `mpirun` command. Other `mpirun` parameters are described at https://www.open-mpi.org/doc/v4.0/man1/mpirun.1.php#sect6.
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
 - en: 'If you do not have MPI installed, you can run the `horovodrun` command using
     Gloo. To run the same script to `localhost` four times (four processes) using
     Gloo, you just need to add the `--gloo` flag:'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE35]'
+  id: totrans-245
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Scaling up to multiple instances is quite simple. The following command shows
     how to run the training script on four machines using `horovodrun`:'
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE36]'
+  id: totrans-247
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'The following command shows how to run the training script on four machines
     using `mpirun`:'
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE37]'
+  id: totrans-249
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: Once one of the preceding commands is triggered from the master node, you will
     see that each instance runs one process for training.
+  id: totrans-250
   prefs: []
   type: TYPE_NORMAL
 - en: Things to remember
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
 - en: a. To use Horovod, you need a cluster with open cross-communication among the
     nodes.
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
 - en: b. Horovod provides a simple and effective way to achieve data parallelism for
     TF and PyTorch.
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
 - en: c. The training scripts can be executed on a Horovod cluster using the `horovodrun`
     or `mpirun` commands.
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
 - en: In the next section, we will describe Ray, another popular framework for [distributed
     train](https://www.ray.io/)ing.
+  id: totrans-255
   prefs: []
   type: TYPE_NORMAL
 - en: Training a model using Ray
+  id: totrans-256
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'Ray is an open source execution framework for scaling Python workloads across
     machines (https://www.ray.io). The following Python workloads are supported by
     Ray:'
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
 - en: DL model training implemented with PyTorch or TF
+  id: totrans-258
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Hyperparameter tuning via Ray Tune (https://docs.ray.io/en/latest/tune/index.html)
+  id: totrans-259
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Reinforcement learning** (**RL**) via RLlib (https://docs.ray.io/en/latest/rllib/index.html),
     an open source library for RL'
+  id: totrans-260
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Data processing leveraging Ray Datasets ([https://docs.ray.io/en/latest/data/dataset.html](https://docs.ray.io/en/latest/data/dataset.html))
+  id: totrans-261
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Model serving via Ray Serve ([https://docs.ray.io/en/latest/serve/index.html](https://docs.ray.io/en/latest/serve/index.html))
+  id: totrans-262
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: A general Python application leveraging Ray Core ([https://docs.ray.io/en/latest/ray-core/walkthrough.html](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
+  id: totrans-263
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -1259,25 +1642,31 @@
     CPU and GPU configurations. Ray simplifies both cluster creation and integration
     with DL frameworks, making it an effective tool for distributed DL model training
     processes.
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
 - en: First, we will learn how to set up a Ray cluster.
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
 - en: Setting up a Ray cluster
+  id: totrans-266
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'You can set up a Ray cluster in two ways:'
+  id: totrans-267
   prefs: []
   type: TYPE_NORMAL
 - en: '**Ray Cluster Launcher**: A tool provided by Ray to help build clusters using
     instances on cloud services, including AWS, GCP, and Azure'
+  id: totrans-268
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Manual cluster construction**: All the nodes need to be connected to the
     Ray cluster manually'
+  id: totrans-269
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -1287,9 +1676,11 @@
     Protocol** (**TCP**) connection, and you must have the corresponding ports open.
     In the next two sections, we will take a closer look at Ray Cluster Launcher and
     manual cluster construction.
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
 - en: Setting up a Ray cluster using Ray Cluster Launcher
+  id: totrans-271
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1297,113 +1688,154 @@
     You can](https://github.com/ray-project/ray/tree/master/python/ray/autoscaler)
     find many sample `YAML` files for different configurations on Ray’s GitHub repository:
     [https://github.com/ray-project/ray/tree/master/python/ray/autoscaler](https://github.com/ray-project/ray/tree/master/python/ray/autoscaler).'
+  id: totrans-272
   prefs: []
   type: TYPE_NORMAL
 - en: 'We will introduce the most basic one in this section. The `YAML` file starts
     with some basic information about the cluster, such as the name of the cluster,
     number of maximum workers, and upscaling speed, as follows:'
+  id: totrans-273
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE38]'
+  id: totrans-274
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Next, it configures the cloud service providers:'
+  id: totrans-275
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE39]'
+  id: totrans-276
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'In the preceding example, we specify the provider type (`type: aws`) and select
     the Region and Availability Zone where instances will be provided (`region: us-east-1`
     and `availability_zone: us-east-1c, us-east-1b, us-east-1a`). Then, we define
     whether nodes can be reused in the future (`cache_stopped_nodes: True`). The last
     configurations are for user authentication (`ssh_user:ubuntu` and `ssh_private_key:/Users/BookDL/.ssh/BookDL.pem`).'
+  id: totrans-277
   prefs: []
   type: TYPE_NORMAL
 - en: 'Next, the node configuration needs to be specified. First of all, we will start
     with the head node:'
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE40]'
+  id: totrans-279
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Next, we must set up the security settings. The detailed settings must be consulted
     with DevOps, which monitors and secures the instances:'
+  id: totrans-280
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE41]'
+  id: totrans-281
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'The following configurations are for the instance type and AMI that should
     be used:'
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE42]'
+  id: totrans-283
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'In the following code snippet, we are providing configurations for storage:'
+  id: totrans-284
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE43]'
+  id: totrans-285
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'You can easily define `Tags` as follows:'
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE44]'
+  id: totrans-287
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'If needed, you can provide an IAM instance profile for accessing particular
     S3 buckets:'
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE45]'
+  id: totrans-289
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'In the next section of the `YAML` file, we need to provide a configuration
     for worker nodes:'
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE46]'
+  id: totrans-291
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'First of all, we must specify the number of workers (`min_workers` and `max_workers`).
     Then, we can define the node configuration similar to how we defined the master
     node configuration:'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE47]'
+  id: totrans-293
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'In addition, you can specify a list of shell commands to run on each node in
     the `YAML` file:'
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE48]'
+  id: totrans-295
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: In this example, we will add `tensorflow2_p38` for the `conda` environment to
     the path, activate the environment, and install a few other modules using `pip`.
     If you want to run some other commands just on the head or worker nodes, you can
     specify them in `head_setup_commands` and `worker_setup_commands`, respectively.
     They will be executed after the commands defined in `setup_commands` are executed.
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
 - en: 'Finally, the `YAML` file ends with commands for starting the Ray cluster:'
+  id: totrans-297
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE49]'
+  id: totrans-298
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: At first, setting up a Ray cluster with a `YAML` file may look complex. However,
     once you are used to it, you will notice that adjusting cluster settings for future
     projects becomes rather simple. In addition, it reduces the time needed to spin
     up correctly defined clusters significantly as you may reuse information about
     security groups, subnets, tags, and IAM profiles from previous projects.
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
 - en: 'If you need other details, we recommend you spend some time looking at the
     official documentation: https://docs.ray.io/en/latest/cluster/config.html#cluster-config.'
+  id: totrans-300
   prefs: []
   type: TYPE_NORMAL
 - en: It is worth mentioning that Ray Cluster Launcher supports both autoscaling and
@@ -1411,13 +1843,16 @@
     example, but you can also provide a specific Docker image for your instances.
     By exploiting the flexibility of the YAML configuration file, you can construct
     any cluster configurations using a single file.
+  id: totrans-301
   prefs: []
   type: TYPE_NORMAL
 - en: As we mentioned at the beginning of this section, you can also set up a Ray
     cluster by manually adding individual instances. We’ll look at this option next.
+  id: totrans-302
   prefs: []
   type: TYPE_NORMAL
 - en: Manually setting up a Ray cluster
+  id: totrans-303
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1425,24 +1860,32 @@
     step is to install Ray on each machine. Next, you need to change the security
     settings of each machine so that the machines can communicate with each other.
     After that, you need to select one node as a head node and run the following command:'
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE50]'
+  id: totrans-305
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: The preceding command establishes the Ray cluster; the Redis server (used for
     the centralized control plane) is started, and its IP address gets printed on
     the terminal (for example, `123.45.67.89:6379`).
+  id: totrans-306
   prefs: []
   type: TYPE_NORMAL
 - en: 'Next, you need to run the following command on all the other nodes:'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE51]'
+  id: totrans-308
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: The address you need to provide is the one that is printed from the command
     on the head node.
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
 - en: 'Now, your machines are ready to support Ray applications. In the manual setting
@@ -1450,32 +1893,44 @@
     to a head node terminal, copying training files to all nodes, and stopping machines.
     Let’s have a look at how Ray Cluster Launcher can be utilized to help with those
     tasks.'
+  id: totrans-310
   prefs: []
   type: TYPE_NORMAL
 - en: 'At this stage, you should be able to specify the desired Ray cluster settings
     using a YAML file. Whenever you are ready, you can launch your first Ray cluster
     using the following command:'
+  id: totrans-311
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE52]'
+  id: totrans-312
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'To get a remote terminal on the head node, you can run the following command:'
+  id: totrans-313
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE53]'
+  id: totrans-314
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'To terminate the cluster, the following command can be used:'
+  id: totrans-315
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE54]'
+  id: totrans-316
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: Now, it’s time to learn how to perform DL model training on a Ray cluster.
+  id: totrans-317
   prefs: []
   type: TYPE_NORMAL
 - en: Training a model in a distributed fashion using Ray
+  id: totrans-318
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1485,35 +1940,45 @@
     Ray Datasets exists, which provides distributed data loading through distributed
     data transformations. Finally, Ray provides hyperparameter tuning through the
     Ray Tune library.
+  id: totrans-319
   prefs: []
   type: TYPE_NORMAL
 - en: Adjusting TF training logic for Ray is similar to what we described in the *Data
     parallelism in TensorFlow* section. The main difference comes from the Ray Train
     library, which helps us set `TF_CONFIG`.
+  id: totrans-320
   prefs: []
   type: TYPE_NORMAL
 - en: 'The adjusted training logic looks as follows:'
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE55]'
+  id: totrans-322
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: 'Then, you can run the training with Ray Trainer, as follows:'
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE56]'
+  id: totrans-324
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'In the preceding example, the model definition is similar to a single device
     case, except that it should be compiled with a specific strategy: `MultiWorkerMirroredStrategy`.
     The dataset gets split inside the `dataset` function, providing a different set
     of samples for each worker node. Finally, the `Trainer` [instance handles the
     distributed training.](https://docs.ray.io/en/latest/train/examples.html)'
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
 - en: '[Trai](https://docs.ray.io/en/latest/train/examples.html)ning PyTorch models
     using Ray can be achieved with a minimal set of changes as well. A few examples
     are presented at [https://docs.ray.io/en/latest/train/examples.html#pytorch](https://docs.ray.io/en/latest/train/examples.html#pytorch).'
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
 - en: In addition, you can use Ray with Horovod, where you can leverage Elastic Horovod
@@ -1521,26 +1986,33 @@
     simplifying the discovery and orc](https://docs.ray.io/en/latest/train/examples/horovod/horovod_example.html)hestration
     of hosts. We will not cover the details, but a good starting point can be found
     at [https://docs.ray.io/en/latest/train/examples/horovod/horovod_example.html](https://docs.ray.io/en/latest/train/examples/horovod/horovod_example.html).
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
 - en: Things to remember
+  id: totrans-328
   prefs: []
   type: TYPE_NORMAL
 - en: a. The key advantage of Ray comes from its simplicity of cluster definition.
+  id: totrans-329
   prefs: []
   type: TYPE_NORMAL
 - en: b. A Ray cluster can be created manually by connecting each machine or using
     a built-in tool called Ray Cluster Launcher.
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
 - en: c. Ray provides a nice support for autoscaling the training process. It simplifies
     the discovery and orchestration of hosts.
+  id: totrans-331
   prefs: []
   type: TYPE_NORMAL
 - en: Finally, let’s learn how to use Kubeflow for distributed training.
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
 - en: Training a model using Kubeflow
+  id: totrans-333
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1550,26 +2022,32 @@
     allows you to easily scale from a local development environment to production
     clusters by leveraging containers and Kubernetes, a management system for containerized
     applications.
+  id: totrans-334
   prefs: []
   type: TYPE_NORMAL
 - en: Kubeflow might be your first choice for distributed training if your organization
     is already [using the Kubernetes](https://kubernetes.io) ecosystem.
+  id: totrans-335
   prefs: []
   type: TYPE_NORMAL
 - en: Introducing Kubernetes
+  id: totrans-336
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'Kubernetes is an open source orchestration platform that’s used to manage containerized
     workloads and services ([https://kubernetes.io](https://kubernetes.io)):'
+  id: totrans-337
   prefs: []
   type: TYPE_NORMAL
 - en: Kubernetes helps with continuous delivery, integration, and deployment.
+  id: totrans-338
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: It separates development environments from deployment environments. You can
     construct a container image and develop the application in parallel.
+  id: totrans-339
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -1577,6 +2055,7 @@
     development, testing, as well as production. The environment will be consistent
     on a desktop computer or in the cloud, which minimizes the modifications necessary
     from one step to the other.
+  id: totrans-340
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -1587,9 +2066,11 @@
     or a cluster of many nodes. This is the beauty of containerized workloads and
     services. The local Minikube installation steps can be found online at [https://minikube.sigs.k8s.io/docs/start/](https://minikube.sigs.k8s.io/docs/start/). For
     EKS, we direct you to the AWS user guide: [https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html).'
+  id: totrans-341
   prefs: []
   type: TYPE_NORMAL
 - en: Setting up model training for Kubeflow
+  id: totrans-342
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1600,110 +2081,144 @@
     or PyTorch at](https://hub.docker.com/r/tensorflow/tensorflow/) https://docs.nv[idia.com/deeplearning/frameworks/pytorch](https://hub.docker.com/r/pytorch/pytorch)-release-notes/index.html)
     or containers directly from DL frameworks (TF at https://hub.docker.com/r/tensorflow/tensorflow
     or PyTorch at https://hub.docker.com/r/pytorch/pytorch).
+  id: totrans-343
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s have a look at an example TF docker file (`kubeflow/tf_example_job`):'
+  id: totrans-344
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE57]'
+  id: totrans-345
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: In the preceding Docker definition, the `train.py` script is a typical TF training
     script.
+  id: totrans-346
   prefs: []
   type: TYPE_NORMAL
 - en: 'For now, we assume that a single machine will be used for training. In other
     words, it will be a single container job. Given that you have a Docker file and
     a training script prepared, you can build your container and push it to the repository
     using the following commands:'
+  id: totrans-347
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE58]'
+  id: totrans-348
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'We will use `TFJob`, a custom component of Kubeflow that contains a `TFJob`
     is represented as a YAML file that describes the container image, the script for
     training, and execution parameters. Let’s have a look at a YAML file, `tf_example_job.yaml`,
     which contains a Kubeflow model training job running on a single machine:'
+  id: totrans-349
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE59]'
+  id: totrans-350
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'The API version is defined in the first line. Then, the type of your custom
     resource is listed, `kind: "TFJob"`. The `metadata` field is used to identify
     your job by giving it a custom name. The cluster is defined in the `tfReplicaSpecs`
     field. As shown in the preceding example, the script (`tf_example_job:1.0)` will
     be executed just once (`replicas: 1`).'
+  id: totrans-351
   prefs: []
   type: TYPE_NORMAL
 - en: 'To deploy the defined `TFJob` to your cluster, you can use the `kubectl` command,
     as follows:'
+  id: totrans-352
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE60]'
+  id: totrans-353
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: 'You can monitor your job with the following command (using the name defined
     in the metadata):'
+  id: totrans-354
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE61]'
+  id: totrans-355
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: To perform distributed training, you can use TF code with a specific `tf.distribute.Strategy`,
     create a new container, and modify `TFJob`. We will have a look at the necessary
     changes for `TFJob` in the next session.
+  id: totrans-356
   prefs: []
   type: TYPE_NORMAL
 - en: Training a TensorFlow model in a distributed fashion using Kubeflow
+  id: totrans-357
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'Let’s assume that we already have the TF training code from `MultiWorkerMirroredStrategy`.
     For `TFJob` to support this strategy, you need to adjust `tfReplicaSpecs` in the
     `spec` field. We can define replicas of the following types through the YAML file:'
+  id: totrans-358
   prefs: []
   type: TYPE_NORMAL
 - en: '**Chief (master)**: Orchestrates computational tasks'
+  id: totrans-359
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Worker**: Runs computations'
+  id: totrans-360
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Parameter server**: Manages storage for model parameters'
+  id: totrans-361
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: '**Evaluator**: Runs evaluations during model training'
+  id: totrans-362
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: As the simplest example, we will define a worker as one of those that can act
     as a chief node. Parameter `server` and `evaluator` are not obligatory.
+  id: totrans-363
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let''s look at the adjusted YAML file, `tf_example_job_dist.yaml`, for the
     distributed TF training:'
+  id: totrans-364
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE62]'
+  id: totrans-365
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: 'The preceding `YAML` file will run the training job based on `MultiWorkerMirroredStrategy`
     on a new container, `kubeflow/tf_example_job:1.1`. We can deploy `TFJob` to the
     cluster with the same command:'
+  id: totrans-366
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE63]'
+  id: totrans-367
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: In the next section, we will learn how to use PyTorch with Ray.
+  id: totrans-368
   prefs: []
   type: TYPE_NORMAL
 - en: Training a PyTorch model in a distributed fashion using Kubeflow
+  id: totrans-369
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1711,31 +2226,40 @@
     training script. For the training script itself, please refer to the *Data parallelism
     in PyTorch* section. The YAML file requires the same set of modifications, as
     shown in the following code snippet:'
+  id: totrans-370
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE64]'
+  id: totrans-371
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: In this example, we have one master node and five replicas of worker nodes.
     The complete details can be found at [https://www.kubeflow.org/docs/components/training/pytorch](https://www.kubeflow.org/docs/components/training/pytorch).
+  id: totrans-372
   prefs: []
   type: TYPE_NORMAL
 - en: Things to remember
+  id: totrans-373
   prefs: []
   type: TYPE_NORMAL
 - en: a. Kubeflow allows you to easily scale from a local development environment
     to large clusters leveraging containers and Kubernetes.
+  id: totrans-374
   prefs: []
   type: TYPE_NORMAL
 - en: b. `TFJob` and `PyTorchJob` allow you to run TF and PyTorch training jobs in
     a distributed fashion using Kubeflow, respectively.
+  id: totrans-375
   prefs: []
   type: TYPE_NORMAL
 - en: In this section, we described how to utilize Kubeflow for training TF and PyTorch
     models in a distributed fashion.
+  id: totrans-376
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-377
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1747,10 +2271,12 @@
     After that, we learned how to use SageMaker for distributed training and scaling
     up. Finally, the last three sections described frameworks that are designed for
     distributed training: Horovod, Ray, and Kubeflow.'
+  id: totrans-378
   prefs: []
   type: TYPE_NORMAL
 - en: In the next chapter, we will cover model understanding. We will learn about
     popular techniques for model understanding that provide some insights into what
     is happening within the model throughout the training process.
+  id: totrans-379
   prefs: []
   type: TYPE_NORMAL
