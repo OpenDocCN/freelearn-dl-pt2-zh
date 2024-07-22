@@ -1,8 +1,10 @@
 - en: '16'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Foundation Models in Computer Vision
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -16,27 +18,33 @@
     models for different applications involving object detection, segmentation, and
     text-to-image generation out of the box without any fine-tuning? This forms the
     bedrock of foundation models.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
 - en: 'In this chapter, we will learn about:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
 - en: Leveraging image and text embeddings to identify the most relevant image for
     a given text and vice versa
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Leveraging image and text encodings to perform zero-shot image object detection
     and segmentation
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Building a diffusion model from scratch, using which we’ll generate images both
     conditionally (with text prompting) and unconditionally
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Prompt engineering to generate better images
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -47,18 +55,22 @@
     **Segment Anything Model** (**SAM**) to perform zero-shot segmentation ~50X faster
     than transformer-based zero-shot segmentation. We will also learn about the fundamentals
     of **Stable Diffusion** models and the XL variant.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
 - en: All code snippets within this chapter are available in the `Chapter16` folder
     of the GitHub repository at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
 - en: As the field evolves, we will periodically add valuable supplements to the GitHub
     repository. Do check the `supplementary_sections` folder within each chapter’s
     directory for new and useful content.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
 - en: Introducing CLIP
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -66,6 +78,7 @@
     the labels corresponding to each image in the dataset. However, you have the information
     in the form of an exhaustive list of all the unique labels present in the image
     dataset. How would you assign the probable label for a given image?
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
 - en: CLIP comes to the rescue in such a scenario. CLIP provides an embedding corresponding
@@ -74,198 +87,283 @@
     the most probable label – where the similarity of image embeddings and the text
     embeddings of all the unique labels are calculated and the label with the highest
     similarity to the image embeddings is the most probable label.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
 - en: In the next section, let us get an understanding of CLIP and build a CLIP model
     from scratch before we use a pre-trained one.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，让我们先了解一下CLIP，然后从头构建一个CLIP模型，再使用一个预训练模型。
 - en: How CLIP works
+  id: totrans-15
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: CLIP的工作原理
 - en: 'To understand how CLIP works, let us de-construct the acronym **CLIP** (**Contrastive
     Language-Image Pre-training**):'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 要了解CLIP如何工作，让我们拆解首字母缩写**CLIP**（**对比语言-图像预训练**）：
 - en: 'Pre-training: The model is trained on a huge corpus of data.'
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 预训练：模型在一个庞大的数据语料库上进行训练。
 - en: 'Language-Image Pre-training: The model is trained on a huge corpus of data
     that contains both images and the text corresponding to them – for example, the
     alt-text corresponding to an image.'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 语言-图像预训练：该模型在包含图片及其对应文本（例如图片的alt-text）的大量数据语料库上进行训练。
 - en: 'Contrastive Language-Image Pre-training: The language-image pre-training is
     done in such a way that the image and text embeddings of similar images will be
     similar while the image embedding of one object and the text embedding corresponding
     to another object is as dissimilar as possible.'
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对比语言-图像预训练：语言-图像预训练是这样进行的，即相似图片的图像和文本嵌入将是相似的，而一个对象的图像嵌入与另一个对象对应的文本嵌入将尽可能不相似。
 - en: 'Let us understand this with the following diagram:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下图表来理解这一点：
 - en: '![A diagram of a machine  Description automatically generated](img/B18457_16_01.png)'
+  id: totrans-21
   prefs: []
   type: TYPE_IMG
+  zh: '![一个机器的图解  自动生成的描述](img/B18457_16_01.png)'
 - en: 'Figure 16.1: Overview of CLIP'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.1：CLIP概述
 - en: In the preceding diagram, we have a set of images and texts. Further, we have
     the embeddings (i[1], i[2]…i[N]) that are obtained once these images are passed
     through the image encoder and a set of corresponding text embeddings (t[1], t[2]…t[N])
     that are obtained once the texts are passed through the text encoder.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述图中，我们有一组图片和文字。此外，我们还有一组嵌入（i[1]、i[2]...i[N]），这些嵌入是通过将这些图片传递到图像编码器后获得的，以及一组对应的文本嵌入（t[1]、t[2]...t[N]），这些嵌入是通过将文本传递到文本编码器后获得的。
 - en: We now need to train the model in such a way that i[N] has a high similarity
     with t[N] and has very low similarity with text embeddings corresponding to other
     images.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们需要以一种方式训练模型，使得i[N]与t[N]有很高的相似度，并且与对应其他图片的文本嵌入的相似度非常低。
 - en: In the next section, let us go ahead and train the CLIP model from scratch.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，让我们继续从头训练CLIP模型。
 - en: Building a CLIP model from scratch
+  id: totrans-26
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 从头构建一个CLIP模型
 - en: 'To build a CLIP model from scratch, we will leverage the FLICKR-8K dataset
     as it contains both the images and the associated captions:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 要从头构建一个CLIP模型，我们将利用FLICKR-8K数据集，因为它包含了图片和相关的标题：
 - en: The following code is available in the `CLIP_from_scratch.ipynb` file in the
     `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Do be sure to run the code from the notebook and refer to the explanations provided
     here to understand the different steps. You will need a Kaggle account to download
     the data.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码可以在GitHub仓库的`Chapter16`文件夹中的`CLIP_from_scratch.ipynb`文件中找到，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。确保从笔记本中运行代码，并参考这里提供的解释以理解不同的步骤。你需要一个Kaggle账户来下载数据。
 - en: 'Install the required packages and import the required modules:'
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包并导入所需的模块：
 - en: '[PRE0]'
+  id: totrans-30
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Import the required packages:'
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的包：
 - en: '[PRE1]'
+  id: totrans-32
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Provide your Kaggle credentials:'
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提供你的Kaggle凭证：
 - en: '[PRE2]'
+  id: totrans-34
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Download the Flickr dataset. Before running the next line of code, ensure you
     agree to Kaggle’s terms on the webpage at [https://www.kaggle.com/datasets/adityajn105/flickr8k](https://www.kaggle.com/datasets/adityajn105/flickr8k),
     otherwise, the download won’t happen.
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载Flickr数据集。在运行下一行代码之前，请确保你同意Kaggle网页上的条款[https://www.kaggle.com/datasets/adityajn105/flickr8k](https://www.kaggle.com/datasets/adityajn105/flickr8k)，否则无法下载。
 - en: '![A white rectangle with black text  Description automatically generated](img/B18457_16_02.png)'
+  id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![一个白色矩形带黑色文本  自动生成的描述](img/B18457_16_02.png)'
 - en: '[PRE3]'
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Set up your training configuration:'
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 设置你的训练配置：
 - en: '[PRE4]'
+  id: totrans-39
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: You are advised to go through the full `ClipConfig` class in the notebook on
     GitHub and understand the individual parameters – the learning rates of the image
     encoder and text encoder, epochs, the backend model name, the image and text embeddings,
     the maximum sequence length of text, and the dimensions of the projection layer
     (as the embedding dimensions of images and text are different). For now, we are
     simply pointing to the right dataset paths and setting the number of epochs.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 建议您查看GitHub笔记本中的完整`ClipConfig`类，并了解各个参数 - 图像编码器和文本编码器的学习率、周期数、后端模型名称、图像和文本嵌入、文本的最大序列长度以及投影层的维度（因为图像和文本的嵌入维度不同）。现在，我们只是指向正确的数据集路径并设置周期数。
 - en: Create the training and validation datasets.
+  id: totrans-41
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建训练和验证数据集。
 - en: The key components of the dataset are given below (the code is imported from
     the `dataset.py` script).
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据集的关键组件如下（代码从`dataset.py`脚本导入）。
 - en: '[PRE5]'
+  id: totrans-43
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: All text is tokenized using the DistilBert tokenizer. All the images are transformed
     to a fixed size and are normalized using the `get_transforms` method. We’ve omitted
     the explanation of the other methods used in the `Dataset` class for brevity.
     But be sure to inspect the class and understand the different methods defined
     in the `dataset.py` script.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有文本都使用DistilBert分词器进行标记化。所有图像都被转换为固定大小，并使用`get_transforms`方法进行归一化。我们已经因简洁起见省略了`Dataset`类中使用的其他方法的解释。但是，请务必检查类并理解`dataset.py`脚本中定义的不同方法。
 - en: 'Use the following snippet to create the training and validation datasets:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用以下代码片段创建训练和验证数据集：
 - en: '[PRE6]'
+  id: totrans-46
   prefs:
   - PREF_OL
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Load the model:'
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载模型：
 - en: '[PRE7]'
+  id: totrans-48
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Let’s look at the key components of the model:'
+  id: totrans-49
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们看看模型的关键组件：
 - en: 'The `ImageEncoder` class: Using the `ImageEncoder` class, we fetch embeddings
     of the image, which are obtained by passing the image through a resnet-50 pre-trained
     model:'
+  id: totrans-50
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`ImageEncoder`类：使用`ImageEncoder`类，我们获取图像的嵌入，该嵌入是通过经过预训练的resnet-50模型传递图像得到的：'
 - en: '[PRE8]'
+  id: totrans-51
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: '`TextEncoder` converts the tokens into an embedding by passing the text (tokens)
     through a BERT model.'
+  id: totrans-52
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`TextEncoder`通过将文本（标记）通过BERT模型来将标记转换为嵌入。'
 - en: '[PRE9]'
+  id: totrans-53
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: '`ProjectionHead`: This is needed as the text encoder output is 768-dimensional
     while the image encoder is 2048-dimensional. We need to bring them to the same
     dimensionality to perform a comparison.'
+  id: totrans-54
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`ProjectionHead`：由于文本编码器输出为768维，而图像编码器为2048维，我们需要将它们调整到相同的维度以进行比较。'
 - en: '[PRE10]'
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Build the `CLIPModel`. To do this, we obtain `image_embedding` and `text_embedding`
     of the same dimensionality. Next, we calculate logits to understand the similarity
     between text and image embeddings. Then, we calculate the similarity between the
@@ -273,85 +371,123 @@
     for text). Finally, we calculate the overall loss with the intuition that similar
     images will have similar embeddings and dissimilar images will have embeddings
     that are far away:'
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 构建`CLIPModel`。为此，我们获得相同维度的`image_embedding`和`text_embedding`。接下来，我们计算logits来理解文本和图像嵌入之间的相似性。然后，我们计算给定图像的嵌入与其余图像的嵌入之间的相似性（文本同理）。最后，根据相似图像具有相似嵌入和不相似图像具有远离的嵌入的直觉，计算总体损失：
 - en: '[PRE11]'
+  id: totrans-57
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The loss function used in the preceding code is as follows:'
+  id: totrans-58
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在上述代码中使用的损失函数如下：
 - en: '[PRE12]'
+  id: totrans-59
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: We return the output as a dictionary with the `loss` key to keep it compatible
     with Hugging Face.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将输出作为一个字典返回，其中包含`loss`键，以保持与Hugging Face的兼容性。
 - en: Load the optimizer and define the learning rate for the image encoder and text
     encoder.
+  id: totrans-61
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载优化器并定义图像编码器和文本编码器的学习率。
 - en: '[PRE13]'
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Train with the Hugging Face API:'
+  id: totrans-63
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用Hugging Face API进行训练：
 - en: '[PRE14]'
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '**Note**'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: '**注意**'
 - en: Similar to the detectron trainer, mmaction2 runner, we have a Hugging Face trainer
     that is a wrapper around `opt.zero_grad()`, `loss.backward()`, etc., steps to
     keep the training code concise for the end user. Studying the actual trainer class
     in depth is left as an exercise for you.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似于detectron训练器、mmaction2运行器，我们有一个Hugging Face训练器，它是围绕`opt.zero_grad()`、`loss.backward()`等步骤的封装，以使训练代码对最终用户简洁。深入研究实际的训练器类留作你的练习。
 - en: 'Once the training is done, we can fetch embeddings corresponding to all the
     images:'
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练完成后，我们可以获取与所有图像对应的嵌入：
 - en: '[PRE15]'
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Find matches to a given query (user input text):'
+  id: totrans-69
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 查找与给定查询（用户输入文本）的匹配项：
 - en: '[PRE16]'
+  id: totrans-70
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The preceding code results in an output, as follows:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出如下：
 - en: '![A collage of dogs running  Description automatically generated](img/B18457_16_03.png)'
+  id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![一幅奔跑狗的拼贴图  自动生成的描述](img/B18457_16_03.png)'
 - en: 'Figure 16.2: Images matching the query “dogs on the grass”'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
 - en: With this, we are now able to provide a matching image for a given query.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
 - en: Now that we understand how CLIP is trained from scratch, we will learn about
     leveraging the OpenAI API to get embeddings corresponding to images and texts.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
 - en: Leveraging OpenAI CLIP
+  id: totrans-76
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -359,78 +495,102 @@
     resources – both compute as well as the data required to train the model. **OpenAI
     CLIP** is already trained on a dataset of 400 million image text pairs. It is
     queried using the following steps:'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
 - en: The following code is available in the `OpenAI_CLIP.ipynb` file in the `Chapter16`
     folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Do be sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
 - en: 'Install the required packages:'
+  id: totrans-79
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE17]'
+  id: totrans-80
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'Clone the GitHub repository:'
+  id: totrans-81
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE18]'
+  id: totrans-82
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Load the pre-trained CLIP model:'
+  id: totrans-83
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE19]'
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Provide an image and text and pre-process them:'
+  id: totrans-85
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE20]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: In the preceding code, we provide an image of a diagram and the labels that
     possibly correspond to the image.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
 - en: 'The image we provided is:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
 - en: '![CLIP](img/B18457_16_04.png)'
+  id: totrans-89
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 16.3: Input image'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
 - en: 'Pass the image and the text embeddings through the feed-forward network:'
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: '[PRE21]'
+  id: totrans-92
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: With the above, we can get the corresponding label, given an image and the set
     of possible labels.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
 - en: Now that we understand how to get a label in a zero-shot setting with the constraint
     that the set of possible labels is provided, in the next section, we will learn
     about segmenting an image and fetching the relevant content (only the mask corresponding
     to the label) by specifying the label.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
 - en: Introducing SAM
+  id: totrans-95
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -438,225 +598,310 @@
     mask corresponding to a given text (let’s say a dog in an image where there are
     multiple objects, like a dog, cat, person, and so on). How would you go about
     solving this problem?
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
 - en: In a traditional setting, this is an object detection problem where we need
     data to perform fine-tuning on a given dataset or leverage a pre-trained model.
     We are unable to leverage CLIP as it classifies the overall picture and not individual
     objects within it.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
 - en: Further, in this scenario, we want to do all of this without even training a
     model. Here is where **Segment Anything Model** (**SAM**) - [https://arxiv.org/pdf/2304.02643](https://arxiv.org/pdf/2304.02643)
     from Meta helps in solving the problem.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
 - en: How SAM works
+  id: totrans-99
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: 'SAM is trained on a corpus of 1 billion masks generated from 11 million images.
     These 1 billion images (SAM 1B dataset) are from the data engine that Meta developed
     in the following stages:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
 - en: Assisted manual – SAM assists annotators in annotating masks
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Semi-automatic – SAM generates masks for a subset of objects present in an image,
     while annotators mask the remaining objects present in the image
+  id: totrans-102
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Fully automatic – Humans prompt SAM with a grid of points and SAM automatically
     generates masks corresponding to the points
+  id: totrans-103
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Using these three steps, one can generate a greater number of masks per image
     (as SAM prompts for small objects that humans might miss).
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这三个步骤，可以生成更多的蒙版（因为 SAM 提示小物体，人类可能会错过）。
 - en: 'The preceding steps result in a considerably high number of masks per image,
     as follows:'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述步骤导致每个图像生成相当多的蒙版，具体如下：
 - en: '![A collage of images of various objects  Description automatically generated](img/B18457_16_05.png)'
+  id: totrans-106
   prefs: []
   type: TYPE_IMG
+  zh: '![各种物体图像拼贴的图 自动生成描述](img/B18457_16_05.png)'
 - en: 'Figure 16.4: Masks generated using SAM'
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.4：使用 SAM 生成的蒙版
 - en: 'The architecture of SAM is as follows:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: SAM 的架构如下所示：
 - en: '![A diagram of a computer program  Description automatically generated](img/B18457_16_06.png)'
+  id: totrans-109
   prefs: []
   type: TYPE_IMG
+  zh: '![一个计算机程序图示的图表 自动生成描述](img/B18457_16_06.png)'
 - en: 'Figure 16.5: SAM architecture'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.5：SAM 架构
 - en: 'In the preceding image, the following steps are being performed:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述图像中，正在执行以下步骤：
 - en: An image is passed through an image encoder (which is a pre-trained vision transformer)
     to get the corresponding image embeddings.
+  id: totrans-112
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 一个图像通过图像编码器（即预训练的视觉转换器）传入，以获得相应的图像嵌入。
 - en: Once we have the image embeddings, we can query for specific masks in the overall
     image by providing the dense mask (mask in the above figure) or sparse masks (points,
     boxes, and text).
+  id: totrans-113
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 一旦我们有了图像嵌入，我们可以通过提供密集蒙版（上图中的蒙版）或稀疏蒙版（点、框和文本）在整体图像中查询特定蒙版。
 - en: 'The prompt encoder is responsible for taking in points, boxes, and masks, and
     returning dense and sparse embeddings. Point and box embeddings are constructed
     in a manner similar to how we calculated embeddings in LayoutLM. Let’s look at
     the differences between different types of masks:'
+  id: totrans-114
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提示编码器负责接收点、框和蒙版，并返回密集和稀疏嵌入。点和框嵌入的构造方式类似于我们在 LayoutLM 中计算嵌入的方式。让我们看看不同类型蒙版之间的区别：
 - en: Dense masks are useful in scenarios where we want to segment the hair of a person
     or leaves in a tree, where we provide the rough contour of the mask that we want
     to extract, and SAM does the job of extracting the mask.
+  id: totrans-115
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在需要对人的头发或树叶等部分进行分割的场景中，密集蒙版非常有用，我们提供所需提取蒙版的粗略轮廓，SAM 负责提取蒙版。
 - en: Sparse masks are useful when we want to specify the text/bounding box/point
     corresponding to the image.
+  id: totrans-116
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当我们要指定与图像对应的文本/边界框/点时，稀疏蒙版非常有用。
 - en: If we don’t provide any mask, text, or point input, the model will auto-generate
     1,024 points uniformly across the input image for the point encoder.
+  id: totrans-117
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们没有提供任何蒙版、文本或点输入，模型将自动生成 1,024 个点均匀分布在输入图像上给点编码器。
 - en: 'At a high level, the `forward` method for the prompt encoder looks like so:'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 在较高级别上，提示编码器的 `forward` 方法如下所示：
 - en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_07.png)'
+  id: totrans-119
   prefs: []
   type: TYPE_IMG
+  zh: '![一个程序代码的计算机屏幕截图 参考 ](img/B18457_16_07.png)'
 - en: 'Figure 16.6: Forward pass of the prompt encoder'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.6：提示编码器的正向传播
 - en: 'The sample inputs and outputs look like so:'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例输入和输出如下所示：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_08.png)'
+  id: totrans-122
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成描述的带数字和符号的计算机屏幕 参考 ](img/B18457_16_08.png)'
 - en: 'Figure 16.7: Sample inputs and outputs of the prompt encoder'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.7：提示编码器的示例输入和输出
 - en: In the above example, we have sent 64 points to the encoder (64 x and y coordinates,
     hence the shape of [64,2]) and obtained sparse and dense embeddings. In the case
     of a text prompt, it is passed through CLIP embeddings to get the embedding corresponding
     to the text when passed through the prompt encoder. In the case of points/bounding
     boxes, they are represented by positional embeddings corresponding to the points.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上面的示例中，我们将 64 个点发送到编码器（64 个 x 和 y 坐标，因此形状为 [64,2]），并获得稀疏和密集嵌入。对于文本提示，它通过 CLIP
+    嵌入来获得与文本对应的嵌入，当通过提示编码器时。对于点/边界框，它们由与点对应的位置嵌入表示。
 - en: The embeddings are then passed through a mask decoder that calculates the attention
     between prompt encoding and the image encoder and then outputs a set of masks.
+  id: totrans-125
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，嵌入传递到蒙版解码器，该解码器计算提示编码器和图像编码器之间的注意力，然后输出一组蒙版。
 - en: 'The mask decoder architecture is as follows:'
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 蒙版解码器的架构如下所示：
 - en: '![Uploaded image](img/B18457_16_09.png)'
+  id: totrans-127
   prefs: []
   type: TYPE_IMG
+  zh: '![上传的图像](img/B18457_16_09.png)'
 - en: 'Figure 16.8: Mask decoder architecture'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.8：蒙版解码器架构
 - en: 'Here’s a step-by-step explanation of the components and what they are doing:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面逐步解释各组件及其功能：
 - en: '**Image embedding**: The process begins with an image embedding, which is a
     representation of the input image transformed into a set of feature vectors (output
     from the vision transformer where each feature vector corresponds to a different
     patch).'
+  id: totrans-130
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Image embedding**: 这个过程始于图像嵌入，它是将输入图像转换为一组特征向量的表示（从视觉变压器输出，其中每个特征向量对应于不同的补丁）。'
 - en: '**Output tokens + prompt tokens**: A prompt (any point or bounding box/text)
     is represented as an embedding. Output tokens are similar to the CLS token in
     transformers. They are learnable embeddings that contain information for an effective
     segmentation exercise (where we output three possible masks corresponding to a
     prompt).'
+  id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Output tokens + prompt tokens**: 提示（任何点或边界框/文本）表示为嵌入。输出令牌类似于变压器中的CLS令牌。它们是可学习的嵌入，包含有效分割练习的信息（其中我们输出三个可能的与提示对应的掩码）。'
 - en: '**Attention blocks**: These blocks are similar to the blocks in a transformer
     decoder block where we have self-attention (within the decoder output) and cross
     attention between the encoder and decoder.'
+  id: totrans-132
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Attention blocks**: 这些块类似于变压器解码器块中的块，其中包括自注意力（在解码器输出内部）和编码器与解码器之间的交叉注意力。'
 - en: '**Image to token attention**: This block helps the model to focus on specific
     features within the image embedding that are relevant to the tokens. It’s a form
     of cross-attention where image features inform the processing of the tokens.'
+  id: totrans-133
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Image to token attention**: 这个块帮助模型集中在图像嵌入中与令牌相关的特征。这是一种跨注意力形式，其中图像特征信息影响令牌的处理。'
 - en: '**Token to image attention**: This does the reverse, allowing the tokens to
     influence the processing of the image features.'
+  id: totrans-134
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Token to image attention**: 这相反，允许令牌影响图像特征的处理。'
 - en: '**Self-attention**: This mechanism allows the tokens to interact with each
     other, helping the model to integrate information across the different tokens.'
+  id: totrans-135
   prefs:
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Self-attention**: 这种机制允许令牌相互作用，帮助模型在不同令牌之间集成信息。'
 - en: '**Multilayer perceptron (MLP)**: This is a neural network layer that processes
     the features from the attention mechanisms to transform and combine information
     further.'
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Multilayer perceptron (MLP)**: 这是一个神经网络层，处理注意机制中的特征，以进一步转换和组合信息。'
 - en: '**Iterations**: The attention blocks and MLPs are stacked in layers (as indicated
     by x2), allowing the model to refine its understanding of the image and prompt
     with each iteration.'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Iterations**: 注意块和MLP堆叠在层中（如x2所示），允许模型在每次迭代中优化其对图像的理解和提示。'
 - en: '**2x convolutional transpose**: This is an up-sampling operation that increases
     the spatial resolution of the feature maps. It’s also known as deconvolution.
     This operation is used to go from a lower-resolution embedding back to the higher-resolution
     space of the original image, which is necessary for creating detailed masks.'
+  id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**2x convolutional transpose**: 这是一种上采样操作，用于增加特征图的空间分辨率。也称为反卷积。此操作用于从较低分辨率的嵌入返回到原始图像的高分辨率空间，这对于创建详细的遮罩是必要的。'
 - en: '**Dot product per mask**: This step involves computing the dot product between
     the refined features and each potential mask. It’s a way of scoring how well each
     feature corresponds to each mask, effectively aligning the feature vectors with
     the predicted masks.'
+  id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Dot product per mask**: 这一步涉及计算精炼特征与每个潜在掩码之间的点积。这是一种评分方式，用于评估每个特征与预测掩码的对应程度，有效地将特征向量与预测掩码对齐。'
 - en: '**Masks**: The result of the dot product per mask is used to generate the final
     segmentation masks. Each mask corresponds to a particular region or object in
     the image as defined by the prompt.'
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Masks**: 每个掩码的点积结果用于生成最终的分割掩码。每个掩码对应于图像中由提示定义的特定区域或对象。'
 - en: '**Intersection over union (IoU) scores**: Alongside the mask generation, the
     model also outputs IoU scores. IoU measures the overlap between the predicted
     segmentation mask and the ground truth mask.'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '**Intersection over union (IoU) scores**: 除了生成掩码之外，模型还输出IoU分数。IoU度量预测分割掩码与地面实况掩码之间的重叠。'
 - en: The mask decoder is essentially responsible for taking the combined information
     from the image and the prompts (points, boxes, text, etc.) and decoding it into
     a set of segmentation masks that correspond to the objects or features in the
@@ -665,172 +910,255 @@
     to map the lower-resolution embeddings back to the image space. The final output
     is a set of masks, each with a corresponding IoU score indicating the quality
     of the segmentation.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 蒙版解码器主要负责从图像和提示（点、框、文本等）的组合信息中获取信息，并将其解码为一组与图像中的对象或特征相对应的分割蒙版。它使用注意力机制聚焦于相关特征，MLP
+    处理和组合信息，并使用转置卷积将低分辨率嵌入映射回图像空间。最终输出是一组蒙版，每个蒙版都带有相应的 IoU 分数，指示分割的质量。
 - en: Implementing SAM
+  id: totrans-143
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实施 SAM
 - en: Imagine a scenario where you task an annotator with annotating an image as quickly
     as possible, with only one click (point prompt on top of the object of interest)
     as input.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一个情景，您委派一个标注员尽可能快地标注图像，只需一个点击（作为对象感兴趣的顶部点提示）作为输入。
 - en: 'In this section, let us go ahead and use the following code to leverage SAM
     on a sample image and learn how SAM helps fast segmentation given a point prompt:'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，让我们继续使用以下代码，在样本图像上利用 SAM 并了解 SAM 如何在给定点提示的情况下帮助快速分割：
 - en: The below code is available in the `SAM.ipynb` file in the `Chapter16` folder
     in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). Do be
     sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码可在 GitHub 仓库的 `Chapter16` 文件夹中的 `SAM.ipynb` 文件中找到，该仓库位于 [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。确保从笔记本中运行代码，并参考以下解释以了解不同步骤。
 - en: 'Clone the GitHub repository and install the required packages:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 克隆 GitHub 仓库并安装所需的包：
 - en: '[PRE22]'
+  id: totrans-148
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Download the pre-trained vision transformer model:'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载预训练的视觉变换器模型：
 - en: '[PRE23]'
+  id: totrans-150
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Load the SAM model and create the predictor instance:'
+  id: totrans-151
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载 SAM 模型并创建预测器实例：
 - en: '[PRE24]'
+  id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: The predictor will be responsible for the necessary preprocessing of the points/masks/boxes
     followed by the model prediction followed by the necessary post-processing.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 预测器将负责对点/蒙版/框进行必要的预处理，然后进行模型预测，最后进行必要的后处理。
 - en: 'Load the image on which we want to perform prediction:'
+  id: totrans-154
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载我们要进行预测的图像：
 - en: '[PRE25]'
+  id: totrans-155
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Provide the point/points/box/prompt for which we want to extract the corresponding
     mask:'
+  id: totrans-156
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提供我们想要提取相应蒙版的点/点/框/提示：
 - en: '[PRE26]'
+  id: totrans-157
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'Extract the masks that correspond to the provided point:'
+  id: totrans-158
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提取与提供的点对应的蒙版：
 - en: '[PRE27]'
+  id: totrans-159
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: '![A white truck with a green star on the side  Description automatically generated](img/B18457_16_10.png)'
+  id: totrans-160
   prefs: []
   type: TYPE_IMG
+  zh: '![一辆侧面有绿色星星的白色卡车 自动生成的描述](img/B18457_16_10.png)'
 - en: 'Figure 16.9: Masks obtained by providing a point prompt'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.9：通过提供点提示获得的蒙版
 - en: 'Based on the preceding output, we can see that we are able to generate masks
     corresponding to the point that was provided as input. This process can be extended
     to:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据前面的输出，我们可以看到我们能够生成与提供的点对应的蒙版。此过程可以扩展至：
 - en: A box as input
+  id: totrans-163
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 以框作为输入
 - en: Multiple points and boxes as input
+  id: totrans-164
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 多个点和框作为输入
 - en: A text prompt as input
+  id: totrans-165
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 作为输入的文本提示
 - en: We have provided examples for all of the above in the associated GitHub repository.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已在相关的 GitHub 仓库中提供了所有上述示例。
 - en: 'Now that we have learned about extracting masks given a prompt, let us now
     learn about extracting all the possible masks from an image:'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经了解了如何在给定提示的情况下提取蒙版，让我们现在学习如何从图像中提取所有可能的蒙版：
 - en: To extract all the masks, follow steps 1-3 in the previous list of steps in
     this section.
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要提取所有的蒙版，请按照本节前述步骤中步骤 1-3 进行操作。
 - en: 'Load the image:'
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 加载图像：
 - en: '[PRE28]'
+  id: totrans-170
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Generate the masks:'
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 生成蒙版：
 - en: '[PRE29]'
+  id: totrans-172
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Define the function to visualize masks overlaid on top of the original image:'
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义可视化覆盖在原始图像上的蒙版的函数：
 - en: '[PRE30]'
+  id: totrans-174
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Visualize the image:'
+  id: totrans-175
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 可视化图像：
 - en: '[PRE31]'
+  id: totrans-176
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'The output is as follows:'
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出如下所示：
 - en: '![A multi colored truck with a couple of doors  Description automatically generated](img/B18457_16_11.png)'
+  id: totrans-178
   prefs: []
   type: TYPE_IMG
+  zh: '![一辆多色卡车，带有几扇门 自动生成的描述](img/B18457_16_11.png)'
 - en: 'Figure 16.10: All the predicted masks within an image'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.10：图像内所有预测的蒙版
 - en: From the preceding image, we can see that we have masks of different granular
     regions in the original image.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据前述图像，我们可以看到原始图像中不同粒度区域的蒙版。
 - en: So far, we have learned about leveraging the SAM to identify masks in an image.
     However, it took a considerable amount of time (5-20 seconds depending on the
     image resolution and the objects in the image) to fetch the masks for one image,
     making it very difficult to use when leveraging it for real-time segmentation.
     In the next section, we will learn about FastSAM, which helps with the real-time
     generation of masks.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了如何利用SAM来识别图像中的掩膜。然而，获取一张图像的掩膜需要相当长的时间（5-20秒，取决于图像分辨率和图像中的物体），这使得在实时分割中使用它非常困难。在接下来的部分中，我们将学习FastSAM，它有助于实时生成掩膜。
 - en: How FastSAM works
+  id: totrans-182
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: FastSAM的工作原理
 - en: The SAM takes input prompts to calculate corresponding masks. If an input prompt
     is provided, it passes the masks through a second block where prompt encodings
     are done and if input prompts are not provided, the SAM will calculate all the
@@ -838,55 +1166,82 @@
     calculations while decoding. This takes a considerable time (~10 seconds) to process
     an input image and the prompts. How could we reduce the time it takes to generate
     predictions? FastSAM helps in achieving that.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: SAM采用输入提示来计算相应的掩膜。如果提供了输入提示，则将掩膜传递到第二个块，进行提示编码；如果未提供输入提示，则SAM将计算所有可能的掩膜。这一切都利用了转换器来编码图像并在解码时进行注意力计算。处理一张输入图像和提示需要相当长的时间（约10秒）。我们如何减少生成预测所需的时间？FastSAM就是帮助实现这一目标的。
 - en: 'FastSAM breaks down the SAM into two tasks:'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: FastSAM将SAM分解为两个任务：
 - en: Calculating the masks of instances
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算实例的掩膜
 - en: Associating the prompt with one of the instances
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将提示与其中一个实例关联
 - en: 'In addition, FastSAM leverages a CNN backbone, which further reduces the computation
     complexity. FastSAM is trained on only 2% of the data points present in the SAM
     1B dataset and its architecture is as follows:'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，FastSAM利用了CNN主干网络，进一步降低了计算复杂性。FastSAM仅在SAM 1B数据集中存在的2%数据点上进行训练，其架构如下：
 - en: '![A diagram of a cow  Description automatically generated](img/B18457_16_12.png)'
+  id: totrans-188
   prefs: []
   type: TYPE_IMG
+  zh: '![一个牛的图示 由描述自动生成](img/B18457_16_12.png)'
 - en: 'Figure 16.11: FastSAM workflow (source: [https://arxiv.org/pdf/2306.12156](https://arxiv.org/pdf/2306.12156))'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.11：FastSAM工作流程（来源：[https://arxiv.org/pdf/2306.12156](https://arxiv.org/pdf/2306.12156)）
 - en: 'FastSAM involves two steps:'
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: FastSAM包括两个步骤：
 - en: All-instance segmentation
+  id: totrans-191
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 所有实例分割
 - en: Prompt-guided selection
+  id: totrans-192
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 提示引导的选择
 - en: Let’s look at these steps in some detail.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们详细看一下这些步骤。
 - en: All-instance segmentation
+  id: totrans-194
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 所有实例分割
 - en: In *Figure 16.11* (in the top half of the workflow), we pass an input image
     through a CNN backbone (like the ResNet101 architecture). We further pass the
     output through a feature pyramid network that not only extracts features from
     a given image but also ensures that diverse size features are captured. The output
     of FPN has two different branches – detection and segmentation.
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*图16.11*（工作流程的上半部分），我们将输入图像通过CNN主干网络（如ResNet101架构）传递。然后我们将输出通过特征金字塔网络，它不仅从给定图像中提取特征，还确保捕获多样尺寸的特征。FPN的输出具有两个不同的分支
+    - 检测和分割。
 - en: 'The detection branch outputs the category and bounding box, while the segmentation
     branch outputs k prototypes (defaulted to 32 in FastSAM) along with k mask coefficients
     (for more details on prototypes and mask coefficients, refer to the YOLACT++ paper
@@ -894,145 +1249,212 @@
     The segmentation and detection tasks are computed in parallel. The segmentation
     branch inputs a high-resolution feature map, preserves spatial details, and also
     contains semantic information.'
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 检测分支输出类别和边界框，而分割分支输出k个原型（在FastSAM中默认为32个）以及k个掩膜系数（有关原型和掩膜系数的更多细节，请参阅YOLACT++论文：[https://arxiv.org/pdf/1912.06218.pdf](https://arxiv.org/pdf/1912.06218.pdf)）。分割和检测任务并行计算。分割分支接收高分辨率特征图输入，保留空间细节，并包含语义信息。
 - en: Prompt-guided selection
+  id: totrans-197
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 提示引导的选择
 - en: Prompt-guided selection then becomes easier as the point that falls within a
     mask then highlights the instance/mask (in the case of a point prompt) and the
     box that has the highest IoU determines the instance in the case of a box prompt.
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 提示引导的选择变得更加容易，因为在掩膜内部的点会突出显示实例/掩膜（对于点提示），并且具有最高IoU的框确定了盒子提示中的实例。
 - en: Further, in the case of text embedding, we leverage the CLIP model to calculate
     the text embeddings and compare those with the embeddings of each instance in
     the image to identify the mask that is most likely to represent the text.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在文本嵌入的情况下，我们利用CLIP模型计算文本嵌入，并将其与图像中每个实例的嵌入进行比较，以识别最可能表示文本的掩码。
 - en: Now that we understand how FastSAM works at a high level, let us go ahead and
     implement it.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了FastSAM如何在高层次上运行，让我们继续实施它。
 - en: Implementing FastSAM
+  id: totrans-201
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实现FastSAM
 - en: 'To implement FastSam, use the following code:'
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 要实现FastSam，请使用以下代码：
 - en: This code is available in the `FastSAM.ipynb` file in the `Chapter16` folder
     in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e). Do be
     sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: 此代码位于GitHub仓库中`Chapter16`文件夹中的`FastSAM.ipynb`文件中，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。务必从笔记本运行代码，并参考以下解释了解不同步骤。
 - en: 'Clone the Git repository associated with FastSAM:'
+  id: totrans-204
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 克隆与FastSAM相关的Git存储库：
 - en: '[PRE32]'
+  id: totrans-205
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Download the pre-trained model:'
+  id: totrans-206
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下载预训练模型：
 - en: '[PRE33]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Install the required packages and OpenAI clip:'
+  id: totrans-208
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包和OpenAI clip：
 - en: '[PRE34]'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Change the directory:'
+  id: totrans-210
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 切换目录：
 - en: '[PRE35]'
+  id: totrans-211
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Import the required packages:'
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的包：
 - en: '[PRE36]'
+  id: totrans-213
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Instantiate the model and the image on which we want to work:'
+  id: totrans-214
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 实例化我们想要处理的模型和图像：
 - en: '[PRE37]'
+  id: totrans-215
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Pass the image through the model:'
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像通过模型传递：
 - en: '[PRE38]'
+  id: totrans-217
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: The preceding code generates all the possible masks that are detected in the
     image. Note that the execution finishes in 0.5 seconds (which is ~20X faster than
     SAM).
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码生成图像中检测到的所有可能掩码。注意，执行时间为0.5秒（比SAM快约20倍）。
 - en: 'Specify the prompt using which we want to obtain masks:'
+  id: totrans-219
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 指定我们希望获取掩码的提示：
 - en: '[PRE39]'
+  id: totrans-220
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Write the processed image to disk:'
+  id: totrans-221
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将处理后的图像写入磁盘：
 - en: '[PRE40]'
+  id: totrans-222
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: The preceding code saves the picture with the corresponding mask of a cat.
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码保存了带有猫掩码的相应图片。
 - en: So far, we have learned about leveraging SAM to get masks corresponding to an
     image and FastSAM to speed up the generation of predictions. However, in a real-world
     scenario, we might want to keep track of a given instance/object over time across
     all frames present in a video. The paper *Segment & Track Anything* ([https://arxiv.org/pdf/2305.06558.pdf](https://arxiv.org/pdf/2305.06558.pdf))
     gives details on how to do that.
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经了解了如何利用SAM获取与图像对应的掩码，以及如何利用FastSAM加速预测生成。然而，在实际场景中，我们可能希望跟踪给定实例/对象随时间在视频中的所有帧中的变化。论文
+    *Segment & Track Anything*（[https://arxiv.org/pdf/2305.06558.pdf](https://arxiv.org/pdf/2305.06558.pdf)）详细说明了如何实现这一点。
 - en: The code to track anything is provided as `SAMTrack.ipynb` in the associated
     GitHub repository.
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 跟踪任何内容的代码位于相关GitHub存储库中的`SAMTrack.ipynb`文件中。
 - en: Further, ImageBind is another foundation model that binds multiple modalities
     – image, text, audio, video, heatmap, and depth – into one dimension and thus
     could provide an opportunity to translate across modalities. For details regarding
     ImageBind, do go through the associated paper and GitHub repository ([https://github.com/facebookresearch/ImageBind](https://github.com/facebookresearch/ImageBind)).
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 另外，ImageBind 是另一个基础模型，将多种模态（图像、文本、音频、视频、热图和深度）绑定到一个维度中，因此可以提供跨模态的翻译机会。有关ImageBind的详细信息，请查阅相关论文和GitHub存储库（[https://github.com/facebookresearch/ImageBind](https://github.com/facebookresearch/ImageBind)）。
 - en: So far, we’ve learned about zero-shot recognition or zero-shot segmentation
     given an image. In the next section, we will learn about diffusion models, which
     will help with the zero-shot **generation** of an image.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经学习了关于零-shot识别或零-shot分割给定图像的内容。在接下来的部分，我们将学习关于扩散模型，这将有助于图像的零-shot **生成**。
 - en: Introducing diffusion models
+  id: totrans-228
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入扩散模型
 - en: In the previous GAN chapters, we learned about generating images from noise;
     we also learned about generating images from conditional input like the class
     of images that should be generated. However, in that scenario, we were able to
@@ -1042,601 +1464,864 @@
     the image initially and then slowly get the finer details of the image from the
     contours over increasing epochs? Further, what if we could generate an image from
     text input? Diffusion models come in handy in such a scenario.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的 GAN 章节中，我们学习了如何从噪声生成图像；我们还学习了如何从条件输入（例如应生成的图像类别）生成图像。然而，在那种情况下，我们能够直接从随机噪声得到一个脸部图像。这是一个步骤变化。如果我们可以以更渐进的方式从随机噪声生成图像，例如，最初逐渐生成与图像对应的轮廓，然后逐渐从这些轮廓获取图像的更精细细节呢？此外，如果我们可以从文本输入生成图像呢？在这种情况下，扩散模型非常有用。
 - en: A diffusion model mimics the scenario of a diffusion process, which refers to
     the gradual spread or dispersion of a quantity (in this case, pixel values in
     an image) over time.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 扩散模型模仿扩散过程的情景，指的是时间内数量（在本例中为图像中的像素值）的逐渐扩散或分散。
 - en: How diffusion models work
+  id: totrans-231
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 扩散模型的工作原理
 - en: Imagine a scenario where you have a set of images. In the forward process, we
     add a small amount of noise over increasing time steps – i.e., in the first iteration,
     the amount of noise is very low, however, in the 100^(th) iteration, the amount
     of noise is very high.
+  id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 想象一种情景，你有一组图像。在正向过程中，我们在增加的时间步骤中添加了一小部分噪声 - 即，在第一次迭代中，噪声量很低，但是在第100次迭代中，噪声量很高。
 - en: In the reverse process, we take the noisy image (at the 100^(th) timestep) as
     the input and predict the amount of noise present in the image. Next, we remove
     the predicted noise, add a smaller amount of noise (to maintain stability; more
     on this in the next section and the associated GitHub repository) and predict
     the noise present in the 99^(th) timestep and will repeat the above sequence of
     steps until we reach the first timestep.
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 在反向过程中，我们以嘈杂图像（在第100个时间步长）作为输入，并预测图像中存在的噪声量。接下来，我们移除预测的噪声，添加较小量的噪声（以保持稳定性；更多细节请参见下一节和相关的
+    GitHub 存储库），并预测第99个时间步长中存在的噪声，并重复上述步骤，直到达到第一个时间步长。
 - en: 'A diffusion model is a typical U-Net model (modified with attention and resnet
     modules) that works as follows:'
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: 扩散模型是一个典型的 U-Net 模型（配有注意力和 resnet 模块），其工作方式如下：
 - en: The input image is a noisy image with varying noise depending on the timestep
     (t)
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 输入图像是带有根据时间步长（t）变化的噪声的嘈杂图像
 - en: Pass the image along with the time embeddings (corresponding to the timestep)
     through a few convolution and pooling steps to get an encoder vector
+  id: totrans-236
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将图像连同时间嵌入（对应于时间步骤）通过几个卷积和池化步骤传递，以获得编码器向量
 - en: Pass the encoder vector through up-convolutions and add skip connections from
     input just like we did in the segmentation exercise in the U-Net architecture
     in *Chapter 9*
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将编码器向量通过上卷积传递，并像在 U-Net 架构的分割练习中那样，从输入添加跳过连接 *第9章*
 - en: Predict the noise present in the input image
+  id: totrans-238
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 预测输入图像中存在的噪声
 - en: Subtract the predicted noise from the input image
+  id: totrans-239
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从输入图像中减去预测的噪声
 - en: Repeat from step 1 for timestep t-1 with a slight amount of noise added back
     to the image obtained in step 5
+  id: totrans-240
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 以略微添加回图像中噪声的方式从步骤5中获得的图像重新进行时间步骤t-1的重复
 - en: 'In the preceding process, there are a couple of aspects to consider:'
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述过程中，有几个方面需要考虑：
 - en: The amount of noise to add in each time step – the noise curve
+  id: totrans-242
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在每个时间步骤中添加的噪音量 - 噪音曲线
 - en: The amount of noise to be added back after subtracting noise at a given time
     step
+  id: totrans-243
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在给定时间步骤后减去噪声后要添加回的噪声量
 - en: 'In our exercise, we will follow the pattern shown in this graph, where the
     x axis is the timestep and the y axis is the amount of preservation of the original
     (input) image:'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的练习中，我们将遵循此图中显示的模式，其中 x 轴是时间步长，y 轴是对原始（输入）图像保留量：
 - en: '![A blue line graph with numbers  Description automatically generated](img/B18457_16_13.png)'
+  id: totrans-245
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有数字的蓝线图 说明已自动生成](img/B18457_16_13.png)'
 - en: 'Figure 16.12: Extent of noise added to an image over increasing timesteps'
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.12：随时间增加向图像添加的噪声程度
 - en: Initially, we would not modify the input image a lot. However, over increasing
     timesteps, we add considerable noise to the image.
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 最初，我们不会对输入图像进行很多修改。但随着时间步的增加，我们会向图像添加相当大的噪声。
 - en: Such a pattern of noise addition is more helpful than the linear addition of
     noise as this would help the model to take its time in picking the contours and
     details of the image, whereas the linear addition of noise would force the model
     to start learning right from the very first timestep.
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: 与线性添加噪声相比，这种噪声添加模式更有帮助，因为这将帮助模型花费更多时间选择图像的轮廓和细节，而线性添加噪声将迫使模型从第一个时间步开始学习。
 - en: Now that we understand how diffusion models work at a high level, let us understand
     the architecture details of diffusion models in the next section.
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们了解了扩散模型在高层次上的工作原理，让我们在下一节中了解扩散模型的架构细节。
 - en: Diffusion model architecture
+  id: totrans-250
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 扩散模型架构
 - en: To understand the architecture, we will build a diffusion model to generate
     MNIST digits. This requires inputs that are 28x28x1 in shape and generates outputs
     that are of the same shape. But first, let’s look at the architecture in detail.
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 要了解该架构，我们将构建一个扩散模型以生成MNIST数字。这需要输入形状为28x28x1的输入，并生成相同形状的输出。但首先，让我们详细查看架构。
 - en: 'A diffusion model is a UNet model with the following layers/blocks:'
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 扩散模型是一个带有以下层/块的UNet模型：
 - en: Convolution
+  id: totrans-253
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 卷积
 - en: Timestep embedding
+  id: totrans-254
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 时间步嵌入
 - en: Attention blocks
+  id: totrans-255
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 注意力块
 - en: ResNet blocks
+  id: totrans-256
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: ResNet块
 - en: Downsampling
+  id: totrans-257
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 下采样
 - en: A quick overview of the architecture is provided in the `unet_components_from_scratch.ipynb`
     notebook on GitHub at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
+  id: totrans-258
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GitHub上的`unet_components_from_scratch.ipynb`笔记本中提供了该架构的快速概述，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。
 - en: 'The architecture of the diffusion U-Net is as follows:'
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 扩散U-Net的架构如下：
 - en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_14.png)'
+  id: totrans-260
   prefs: []
   type: TYPE_IMG
+  zh: '![A diagram of a diagram  Description automatically generated](img/B18457_16_14.png)'
 - en: 'Figure 16.13: Summary of Diffusion U-Net architecture'
+  id: totrans-261
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.13：扩散U-Net架构摘要
 - en: 'Let us understand the different modules/blocks present in the architecture:'
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们了解架构中存在的不同模块/块：
 - en: The convolution module – `Conv_in` – takes the original image and increases
     the number of channels present in the image.
+  id: totrans-263
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 卷积模块 – `Conv_in` – 接受原始图像并增加图像中存在的通道数。
 - en: The `time_embedding` module takes the current timestep and converts it into
     an embedding.
+  id: totrans-264
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`time_embedding`模块接收当前时间步，并将其转换为嵌入。'
 - en: 'A `down_block` consists of the following modules:'
+  id: totrans-265
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个`down_block`由以下模块组成：
 - en: 'ResNet: A `ResNet` block consists of the following modules:'
+  id: totrans-266
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: ResNet：一个`ResNet`块包含以下模块：
 - en: 'Group normalization: One of the limitations of training models to generate
     images with high resolution is that on a standard GPU, one cannot fit many images
     in one batch. This results in batch normalization being limited to a smaller number,
     resulting in less stable training.'
+  id: totrans-267
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 组归一化：训练生成高分辨率图像模型的一个限制是，在标准GPU上，一个批次中无法容纳许多图像。这导致批次归一化限制在较小的数量上，从而导致训练不太稳定。
 - en: Group normalization comes in handy in such a scenario, as it operates on channels
     within one input and not on a batch of inputs. In essence, group normalization
     does the normalization (a mean of zero and a variance of one) across channels
     within an image. This way, we ensure that a group of channels has a standard data
     distribution and thus ensures more stable training.
+  id: totrans-268
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在这种情况下，组归一化非常方便，因为它在一个输入的通道上操作，而不是在一批输入上操作。本质上，组归一化对图像内的通道进行归一化（均值为零，方差为一）。这样，我们确保一组通道具有标准的数据分布，从而确保更稳定的训练。
 - en: 'Convolution: Once we perform group normalization, we pass the output through
     a convolution layer.'
+  id: totrans-269
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 卷积：一旦我们执行了组归一化，我们将输出通过卷积层。
 - en: 'Time embedding projection: Next, we add the time embedding by projecting time
     embedding to a dimension that is consistent with the output of group normalization.'
+  id: totrans-270
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 时间嵌入投影：接下来，我们通过将时间嵌入投影到与组归一化输出一致的维度来添加时间嵌入。
 - en: 'Non-linearity: The non-linearity used within this module is **Sigmoid Linear
     Unit (SiLU**), which is calculated as follows:'
+  id: totrans-271
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 非线性：此模块中使用的非线性为**Sigmoid Linear Unit (SiLU)**，计算如下：
 - en: '![](img/B18457_16_001.png)'
+  id: totrans-272
   prefs:
   - PREF_IND
   - PREF_IND
   type: TYPE_IMG
+  zh: '![](img/B18457_16_001.png)'
 - en: '`Attention`: The output is then passed to the `attention` block, which does
     the following operations:'
+  id: totrans-273
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`Attention`：然后将输出传递给`attention`块，执行以下操作：'
 - en: We first perform group normalization and increase the number of groups present
     in the input.
+  id: totrans-274
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们首先执行组归一化，并增加输入中存在的组数。
 - en: Next, we perform attention (just like we did using key, query, and value matrices
     in the previous chapter).
+  id: totrans-275
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 接下来，我们执行注意力（就像我们在前一章中使用键、查询和值矩阵一样）。
 - en: Finally, we pass the output through a linear layer.
+  id: totrans-276
   prefs:
   - PREF_IND
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最后，我们通过一个线性层传递输出。
 - en: 'Downsampling: In the `downsampling` block, we take an input and reduce the
     dimensions to half (stride = 2).'
+  id: totrans-277
   prefs:
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 降采样：在`downsampling`块中，我们接受一个输入并将维度减半（步长为2）。
 - en: The exact reverse of the above steps happens in the `upsampling` blocks. Further,
     skip connections from the input are added during upsampling. We will cover each
     and every layer in greater depth in the next section – *Understanding Stable Diffusion*.
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`upsampling`块中发生与上述步骤完全相反的过程。此外，在上采样过程中，还会添加来自输入的跳过连接。我们将在下一节更深入地介绍每一层 - *理解稳定扩散*。
 - en: Now that we understand the architecture of diffusion models, let us go ahead
     and build a diffusion model on the MNIST dataset in the following section.
+  id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了扩散模型的架构，让我们在下一节中继续构建一个基于MNIST数据集的扩散模型。
 - en: Implementing a diffusion model from scratch
+  id: totrans-280
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 从头开始实现扩散模型
 - en: 'To implement a diffusion model, we will leverage the MNIST dataset and perform
     the following steps:'
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 要实现扩散模型，我们将利用MNIST数据集并执行以下步骤：
 - en: The following code is available in the `Diffusion_PyTorch.ipynb` file in the
     `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Do be sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码位于GitHub存储库中`Chapter16`文件夹中的`Diffusion_PyTorch.ipynb`文件中，网址为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。务必从笔记本中运行代码，并参考以下解释了解不同步骤。
 - en: 'Install the required libraries and load the libraries:'
+  id: totrans-283
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需库并加载库：
 - en: '[PRE41]'
+  id: totrans-284
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'Load the dataset:'
+  id: totrans-285
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 载入数据集：
 - en: '[PRE42]'
+  id: totrans-286
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Define the batch size and `train_dataloader`:'
+  id: totrans-287
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义批量大小和`train_dataloader`：
 - en: '[PRE43]'
+  id: totrans-288
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Define the model architecture, where we will leverage the `UNet2DModel` from
     the diffusers library. This consists of all the different blocks in the architecture
     that we mentioned in the previous section:'
+  id: totrans-289
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型架构，我们将从diffusers库中利用`UNet2DModel`。这包括我们在前一节中提到的所有不同块的架构：
 - en: '[PRE44]'
+  id: totrans-290
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'Define the noise scheduler:'
+  id: totrans-291
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义噪声调度程序：
 - en: '[PRE45]'
+  id: totrans-292
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'The `DDPMScheduler` (**DDPM** stands for **Denoising Diffusion Probabilistic
     Models**) is a component that manages the scheduling of this noise addition and
     reversal process. It determines at what rate and in what manner the noise should
     be added and then reversed. The scheduler typically controls aspects such as:'
+  id: totrans-293
   prefs: []
   type: TYPE_NORMAL
+  zh: '`DDPMScheduler`（**DDPM**代表**去噪扩散概率模型**）是管理噪声添加和反转过程调度的组件。它确定噪声应该以什么速率和方式添加，然后再反转。调度程序通常控制诸如以下方面：'
 - en: The number of diffusion steps
+  id: totrans-294
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 扩散步骤的数量
 - en: The variance of noise added at each step
+  id: totrans-295
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每一步添加的噪声的方差
 - en: How the variance changes over the steps during the reverse process
+  id: totrans-296
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 方差在反向过程中每步如何变化
 - en: 'Define a function that takes an input image along with the corresponding timestep
     and corrupts the image:'
+  id: totrans-297
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个函数，它接受一个输入图像以及相应的时间步，并破坏图像：
 - en: '[PRE46]'
+  id: totrans-298
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'Define the model training configuration:'
+  id: totrans-299
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义模型训练配置：
 - en: '[PRE47]'
+  id: totrans-300
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: In the preceding code, `CosineAnnealingLR` adjusts the learning rate following
     a cosine annealing schedule. This means the learning rate keeps decreasing from
     an initial high value to a minimum value, and then increases again. This could
     potentially result in avoiding local minima.
+  id: totrans-301
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前述代码中，`CosineAnnealingLR`按照余弦退火调度调整学习率。这意味着学习率从初始高值逐渐减小到最小值，然后再次增加。这可能有助于避免局部最小值。
 - en: 'The parameters of the scheduler are:'
+  id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: 调度程序的参数是：
 - en: '`opt`: The optimizer for which the scheduler is adjusting the learning rate.'
+  id: totrans-303
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`opt`：调整学习率的优化器。'
 - en: '`T_max`: The number of iterations after which the learning rate will reset.
     In your code, it’s set to the length of `train_dataloader`, meaning the learning
     rate will complete a cosine cycle after each epoch.'
+  id: totrans-304
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`T_max`：学习率将在此迭代数后重置。在您的代码中，它设置为`train_dataloader`的长度，这意味着学习率将在每个epoch后完成余弦周期。'
 - en: 'Train the model:'
+  id: totrans-305
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 训练模型：
 - en: '[PRE48]'
+  id: totrans-306
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: 'The plot of loss value is:'
+  id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: 损失值的绘图如下：
 - en: '![A graph with a blue line  Description automatically generated](img/B18457_16_15.png)'
+  id: totrans-308
   prefs: []
   type: TYPE_IMG
+  zh: '![带有蓝线的图形 自动生成描述](img/B18457_16_15.png)'
 - en: 'Figure 16.14: Loss value over increasing epochs'
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.14：随着epoch增加的损失值
 - en: 'Let’s plot a few data points that are generated in this process:'
+  id: totrans-310
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们绘制在此过程中生成的几个数据点：
 - en: '[PRE49]'
+  id: totrans-311
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'The preceding code results in:'
+  id: totrans-312
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的结果是：
 - en: '![A group of numbers in squares  Description automatically generated](img/B18457_16_16.png)'
+  id: totrans-313
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的描述中带有方块数字的一组数字](img/B18457_16_16.png)'
 - en: 'Figure 16.15: Image generated over increasing time steps'
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.15：随时间步增加生成的图像
 - en: From the above, we can see that we are able to generate MNIST digits from random
     noise.
+  id: totrans-315
   prefs: []
   type: TYPE_NORMAL
+  zh: 从上述内容可以看出，我们能够从随机噪声生成MNIST数字。
 - en: However, while the current model is able to generate images, we are unable to
     specify the label that is of interest to us. In the next section, we will learn
     about how to add additional context (like text prompts) to generate images conditionally.
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，尽管当前模型能够生成图像，但我们无法指定我们感兴趣的标签。在下一节中，我们将学习如何添加额外的上下文（如文本提示）以有条件地生成图像。
 - en: Conditional image generation
+  id: totrans-317
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 条件图像生成
 - en: 'To train a diffusion model with conditional inputs, we modify the following:'
+  id: totrans-318
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了用条件输入训练扩散模型，我们修改以下内容：
 - en: Extend the UNet so that it accepts additional input channels. This way, the
     prompt is appended to the original channels of input.
+  id: totrans-319
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 扩展UNet，以便接受额外的输入通道。这样，提示将附加到输入的原始通道上。
 - en: Pass the label through an embedding layer so that we convert it to an embedding.
+  id: totrans-320
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将标签通过嵌入层传递，以便将其转换为嵌入。
 - en: Modify the image corrupt function to concatenate the embeddings of labels along
     with input images.
+  id: totrans-321
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 修改图像损坏函数，将标签的嵌入与输入图像串联起来。
 - en: 'Once the above changes are done, the rest of the training code remains the
     same. Let us go ahead and code conditional image generation:'
+  id: totrans-322
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦完成上述更改，其余的训练代码保持不变。让我们继续编写条件图像生成的代码：
 - en: The below code is available in the `Conditional_Diffuser_training.ipynb` file
     in the `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Do be sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的代码位于GitHub存储库中的`Chapter16`文件夹中的`Conditional_Diffuser_training.ipynb`文件中，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。确保从笔记本中运行代码，并参考以下解释以理解各个步骤。
 - en: Steps 1-3 remain the same as in the previous section.
+  id: totrans-324
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 步骤1-3与上一节相同。
 - en: 'Next, define the embedding layer:'
+  id: totrans-325
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，定义嵌入层：
 - en: '[PRE50]'
+  id: totrans-326
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: In the preceding code, we are creating an embedding layer that takes any of
     the 10 possible labels and converts it into an embedding of dimension 32.
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们创建了一个嵌入层，该层接受10个可能的标签之一，并将其转换为维度为32的嵌入。
 - en: 'Extend the `UNet` class so that it accepts 32 additional input channels:'
+  id: totrans-328
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 扩展UNet类，使其接受32个额外的输入通道：
 - en: '[PRE51]'
+  id: totrans-329
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'Instantiate the UNet2D model object:'
+  id: totrans-330
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 实例化UNet2D模型对象：
 - en: '[PRE52]'
+  id: totrans-331
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Define the image corrupt function where the image corruption is done in a manner
     similar to what we saw in the *How diffusion models work* section:'
+  id: totrans-332
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义图像损坏函数，其中图像损坏方式类似于我们在“扩散模型如何工作”部分看到的方式：
 - en: '[PRE53]'
+  id: totrans-333
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: In the preceding code, we pass the labels through `embedding_layer` to fetch
     their corresponding embeddings. Finally, we concatenate the noisy image and the
     label embedding.
+  id: totrans-334
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上述代码中，我们通过`embedding_layer`传递标签来获取它们对应的嵌入。最后，我们将噪声图像和标签嵌入串联起来。
 - en: Train the model just like we did in the previous section, in step 8.
+  id: totrans-335
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 像在第8步中一样训练模型。
 - en: 'Perform inference. To do this, we initialize 10 images with zero pixel values
     and specify that the timestamp is 999:'
+  id: totrans-336
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 执行推断。为此，我们将10个图像初始化为零像素值，并指定时间戳为999：
 - en: '[PRE54]'
+  id: totrans-337
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Next, we add noise to the initialized images using `noise_scheduler`:'
+  id: totrans-338
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，使用`noise_scheduler`向初始化图像添加噪声：
 - en: '[PRE55]'
+  id: totrans-339
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: 'Define the labels we want to generate (we want to generate one image corresponding
     to each label):'
+  id: totrans-340
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义我们要生成的标签（我们希望生成与每个标签对应的图像）：
 - en: '[PRE56]'
+  id: totrans-341
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'Fetch embeddings corresponding to the labels:'
+  id: totrans-342
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 获取与标签对应的嵌入：
 - en: '[PRE57]'
+  id: totrans-343
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'Concatenate the noisy image and the label embeddings:'
+  id: totrans-344
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将噪声图像和标签嵌入串联起来：
 - en: '[PRE58]'
+  id: totrans-345
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'Make predictions using the trained model:'
+  id: totrans-346
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用训练模型进行预测：
 - en: '[PRE59]'
+  id: totrans-347
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: 'Visualize the generated images:'
+  id: totrans-348
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 可视化生成的图像：
 - en: '[PRE60]'
+  id: totrans-349
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: '![A number in black squares  Description automatically generated](img/B18457_16_17.png)'
+  id: totrans-350
   prefs: []
   type: TYPE_IMG
+  zh: '![自动生成的描述中带有黑色方块的数字](img/B18457_16_17.png)'
 - en: 'Figure 16.16: Generated images'
+  id: totrans-351
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.16：生成的图像
 - en: From the preceding output, we see that we can conditionally generate images
     by specifying their labels.
+  id: totrans-352
   prefs: []
   type: TYPE_NORMAL
+  zh: 从上述输出中，我们看到可以通过指定它们的标签有条件地生成图像。
 - en: Now that we have learned about generating images using a diffusion model from
     scratch, we will learn about leveraging Stable Diffusion to generate images given
     a text prompt.
+  id: totrans-353
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经学会了如何从头开始使用扩散模型生成图像，接下来将学习如何利用稳定扩散根据文本提示生成图像。
 - en: Understanding Stable Diffusion
+  id: totrans-354
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解稳定扩散
 - en: So far, we’ve learned how diffusion models work. Stable Diffusion improves upon
     the UNet2D model by first leveraging VAE to encode an image to a lower dimension
     and then performing training on the down-scaled/latent space. Once the model training
     is done, we use a VAE decoder to get a high-resolution image. This way, training
     is faster as the model learns features from the latent space than from the pixel
     values.
+  id: totrans-355
   prefs: []
   type: TYPE_NORMAL
 - en: 'The architecture of Stable Diffusion is as follows:'
+  id: totrans-356
   prefs: []
   type: TYPE_NORMAL
 - en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_18.png)'
+  id: totrans-357
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 16.17: Stable Diffusion overview'
+  id: totrans-358
   prefs: []
   type: TYPE_NORMAL
 - en: The VAE encoder is a standard auto-encoder that takes an input image of shape
     768x768 and returns a 96x96 image. The VAE decoder takes a 96x96 image and upscales
     it to 768x768.
+  id: totrans-359
   prefs: []
   type: TYPE_NORMAL
 - en: 'The pre-trained Stable Diffusion U-Net model architecture is:'
+  id: totrans-360
   prefs: []
   type: TYPE_NORMAL
 - en: '![A diagram of a diagram  Description automatically generated](img/B18457_16_19.png)'
+  id: totrans-361
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 16.18: Pre-trained Stable Diffusion U-Net model architecture'
+  id: totrans-362
   prefs: []
   type: TYPE_NORMAL
 - en: In the preceding diagram, noisy input represents the output obtained from the
     VAE encoder. Text prompt represents the CLIP embeddings of text.
+  id: totrans-363
   prefs: []
   type: TYPE_NORMAL
 - en: Building blocks of the Stable Diffusion model
+  id: totrans-364
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1645,67 +2330,85 @@
     Given its complexity, characterized by numerous connections and data flows between
     layers, it is crucial to comprehensively understand each key layer. To achieve
     this, we will examine each layer through three critical components:'
+  id: totrans-365
   prefs: []
   type: TYPE_NORMAL
 - en: 'Inputs to the Layer: What data or tensors are fed into the layer?'
+  id: totrans-366
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Transformation of Inputs: How does the layer process or transform these inputs?'
+  id: totrans-367
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Final Outputs: What is the resulting output after the transformation? By delving
     into these aspects, we aim to provide a clear picture of how tensors flow through
     the model, thereby enabling you to master Stable Diffusion thoroughly.'
+  id: totrans-368
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'Let us understand what is under the hood of the UNet2D model by downloading
     a pretrained Stable Diffusion model and calling its summary, like so:'
+  id: totrans-369
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE61]'
+  id: totrans-370
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'We get the following:'
+  id: totrans-371
   prefs: []
   type: TYPE_NORMAL
 - en: '![A screenshot of a computer  Description automatically generated](img/B18457_16_20.png)'
+  id: totrans-372
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 16.19: UNet2D model architecture'
+  id: totrans-373
   prefs: []
   type: TYPE_NORMAL
 - en: 'Let’s try to uncover each piece in the pipeline for an in-depth understanding
     of the theory behind such a successful network. We have the following high-level
     blocks:'
+  id: totrans-374
   prefs: []
   type: TYPE_NORMAL
 - en: CrossAttnDownBlock2D
+  id: totrans-375
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: CrossAttnUpBlock2D
+  id: totrans-376
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: UNetMidBlock2DCrossAttn
+  id: totrans-377
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: DownBlock2D
+  id: totrans-378
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: UpBlock2D
+  id: totrans-379
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: Let’s look at each of these blocks in detail.
+  id: totrans-380
   prefs: []
   type: TYPE_NORMAL
 - en: CrossAttnDownBlock2D
+  id: totrans-381
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1713,215 +2416,331 @@
     the left part of UNet in *Figure 16.18*). The first three are `CrossAttnDownBlock2D`
     and the last one is `DownBlock2D`. On checking the summary for any of the `CrossAttnDownBlock2D`,
     we get:'
+  id: totrans-382
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE62]'
+  id: totrans-383
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: 'The preceding code results in:'
+  id: totrans-384
   prefs: []
   type: TYPE_NORMAL
 - en: '![A screenshot of a computer  Description automatically generated](img/B18457_16_21.png)'
+  id: totrans-385
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 16.20: Summary of the first down block of the unet'
+  id: totrans-386
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.20：UNet 第一个下采样块的总结
 - en: As you can see in *Figure 16.20*, a module is made of 3 types of blocks – `Transformer2DModel`,
     `ResnetBlock2D`, and `Downsample2D`.
+  id: totrans-387
   prefs: []
   type: TYPE_NORMAL
+  zh: 如您在 *图 16.20* 中所见，模块由 3 种类型的块组成 – `Transformer2DModel`、`ResnetBlock2D` 和 `Downsample2D`。
 - en: 'Inspecting the `forward` method of the `CrossAttnDownBlock2D` class in the
     [github.com/huggingface/diffusers](https://github.com/huggingface/diffusers) GitHub
     repo at `diffusers/models/unet_2d_blocks.py`, we see that the model works with
     three inputs:'
+  id: totrans-388
   prefs: []
   type: TYPE_NORMAL
+  zh: 检查 `CrossAttnDownBlock2D` 类在 [github.com/huggingface/diffusers](https://github.com/huggingface/diffusers)
+    GitHub 仓库中的 `forward` 方法，在 `diffusers/models/unet_2d_blocks.py` 中，我们看到模型使用三个输入：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_22.png)'
+  id: totrans-389
   prefs: []
   type: TYPE_IMG
+  zh: '![计算机屏幕上显示着数字和符号 自动生成的描述](img/B18457_16_22.png)'
 - en: 'Figure 16.21: Inputs for CrossAttnDownBlock2D'
+  id: totrans-390
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.21：CrossAttnDownBlock2D 的输入
 - en: 'As shown in the preceding screenshot, these inputs are:'
+  id: totrans-391
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前面的截图所示，这些输入是：
 - en: '`hidden_states`, which is the embeddings corresponding to the noisy x'
+  id: totrans-392
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`hidden_states`，即对应于嘈杂输入 `x` 的嵌入'
 - en: '`temb`, which corresponds to the embeddings of `timestep`'
+  id: totrans-393
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`temb`，对应于 `timestep` 的嵌入'
 - en: '`encoder_hidden_states`, which corresponds to the embeddings of the input text
     prompt'
+  id: totrans-394
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`encoder_hidden_states`，对应于输入文本提示的嵌入'
 - en: At a high level, the (simplified) order of computations within a `CrossAttnDownBlock2D`
     block (we have modified the code for better explainability) is provided in *Figure
     16.22*.
+  id: totrans-395
   prefs: []
   type: TYPE_NORMAL
+  zh: 在高层次上，`CrossAttnDownBlock2D` 块内计算的（简化的）顺序在 *图 16.22* 中提供。
 - en: '![A computer screen shot of a program  Description automatically generated](img/B18457_16_23.png)'
+  id: totrans-396
   prefs: []
   type: TYPE_IMG
+  zh: '![程序的计算机屏幕截图 自动生成的描述](img/B18457_16_23.png)'
 - en: 'Figure 16.22: Forward method for CrossAttnDownBlock2D'
+  id: totrans-397
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.22：CrossAttnDownBlock2D 的前向方法
 - en: In the architecture diagram in *Figure 16.20*, note that `CrossAttnDownBlock2D`
     has ResNet and Transformer2D blocks repeated twice before performing `DownBlock2D`,
     and that is reflected as a `for` loop in *Figure 16.22*.
+  id: totrans-398
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 *图 16.20* 的架构图中，请注意 `CrossAttnDownBlock2D` 在执行 `DownBlock2D` 之前，将 ResNet 和
+    Transformer2D 块重复两次，这在 *图 16.22* 中体现为一个 `for` 循环。
 - en: The key point to understand in the flow is that the `resnet` block uses `temb`,
     whereas the `attn` module uses `encoder_hidden_states` (which is related to the
     prompt).
+  id: totrans-399
   prefs: []
   type: TYPE_NORMAL
+  zh: 理解流程的关键点是 `resnet` 块使用 `temb`，而 `attn` 模块使用 `encoder_hidden_states`（与提示相关）。
 - en: 'Ultimately, `CrossAttnDownBlock2D` takes the input hidden states and passes
     them through its internal blocks in the following order, along with necessary
     `temb` or `encoder_hidden_states` tensors as inputs to `resnet` and `attn` respectively:'
+  id: totrans-400
   prefs: []
   type: TYPE_NORMAL
+  zh: 最终，`CrossAttnDownBlock2D` 获取输入的隐藏状态，并按以下顺序通过其内部块处理，同时将必要的 `temb` 或 `encoder_hidden_states`
+    张量作为 `resnet` 和 `attn` 的输入：
 - en: '`resnet`->`attn`->`resnet`->`attn`->`downsampler`'
+  id: totrans-401
   prefs: []
   type: TYPE_NORMAL
+  zh: '`resnet`->`attn`->`resnet`->`attn`->`downsampler`'
 - en: 'Finally, the hidden states and intermediate hidden states are returned:'
+  id: totrans-402
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，返回隐藏状态和中间隐藏状态：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_24.png)'
+  id: totrans-403
   prefs: []
   type: TYPE_IMG
+  zh: '![计算机屏幕上显示着数字和符号 自动生成的描述](img/B18457_16_24.png)'
 - en: 'Figure 16.23: Outputs for CrossAttnDownBlock2D'
+  id: totrans-404
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.23：CrossAttnDownBlock2D 的输出
 - en: Note that we obtain 320 channels as `DownBlock2D` gives 320 channels as output.
     The `hidden_states` are used as input for the next block, while output states
     are used for skip connections. This step is repeated 2 more times with an increasing
     number of channels before being fed to the middle block.
+  id: totrans-405
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们获得 320 个通道，因为 `DownBlock2D` 输出 320 个通道。`hidden_states` 用作下一个块的输入，而输出状态用于跳跃连接。这一步在增加通道数后重复两次，然后被馈送到中间块。
 - en: UNetMidBlock2DcrossAttn
+  id: totrans-406
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: UNetMidBlock2DcrossAttn
 - en: This block is the bottleneck of the UNet, acting as the point where the important
     information is distilled as much as possible.
+  id: totrans-407
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个块是UNet的瓶颈，作为尽可能提取重要信息的关键点。
 - en: 'It takes the following inputs:'
+  id: totrans-408
   prefs: []
   type: TYPE_NORMAL
+  zh: 它接收以下输入：
 - en: '![A computer code with numbers and symbols  Description automatically generated](img/B18457_16_25.png)'
+  id: totrans-409
   prefs: []
   type: TYPE_IMG
+  zh: '![计算机代码屏幕上显示着数字和符号 自动生成的描述](img/B18457_16_25.png)'
 - en: 'Figure 16.24: Inputs for UNetMidBlock2DcrossAttn'
+  id: totrans-410
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.24：UNetMidBlock2DcrossAttn 的输入
 - en: 'It also uses the following (simplified) forward method:'
+  id: totrans-411
   prefs: []
   type: TYPE_NORMAL
+  zh: 这还使用了以下（简化的）前向方法：
 - en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_26.png)'
+  id: totrans-412
   prefs: []
   type: TYPE_IMG
+  zh: '![程序代码的计算机屏幕截图 自动生成的描述](img/B18457_16_26.png)'
 - en: 'Figure 16.25: forward method (simplified) for UNetMidBlock2DcrossAttn'
+  id: totrans-413
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.25：UNetMidBlock2DcrossAttn 的前向方法（简化版）
 - en: 'Note that this module has an additional `ResNet`. The output is as follows:'
+  id: totrans-414
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，此模块有一个额外的`ResNet`。输出如下：
 - en: '![A black rectangular object with text  Description automatically generated](img/B18457_16_27.png)'
+  id: totrans-415
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有文本的黑色矩形物体 自动产生的描述](img/B18457_16_27.png)'
 - en: 'Figure 16.26: Output for UNetMidBlock2DcrossAttn'
+  id: totrans-416
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.26：UNetMidBlock2DcrossAttn的输出
 - en: This output is fed as `hidden_states` to the next `CrossAttnUpBlock2D` module.
+  id: totrans-417
   prefs: []
   type: TYPE_NORMAL
+  zh: 此输出被作为`hidden_states`传递给下一个`CrossAttnUpBlock2D`模块。
 - en: CrossAttnUpBlock2D
+  id: totrans-418
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: CrossAttnUpBlock2D
 - en: 'The summary for this module is similar to that of `CrossAttnDownBlock2D`. One
     might think the only difference here is in the names – just `Up` wherever `Down`
     is present. But the important thing to consider is the fact that these blocks
     additionally accept the output states (`res_hidden_states_tuple` in the following
     screenshot) coming from the corresponding level of `CrossAttnDown2D`:'
+  id: totrans-419
   prefs: []
   type: TYPE_NORMAL
+  zh: 此模块的摘要类似于`CrossAttnDownBlock2D`的摘要。有人可能认为这里唯一的区别在于名称——只是在任何`Down`出现的地方换成`Up`。但需要考虑的重要事情是这些块还接受来自相应级别`CrossAttnDown2D`的输出状态（如下屏幕截图中的`res_hidden_states_tuple`）：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_28.png)'
+  id: totrans-420
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有数字和符号的计算机屏幕截图 自动产生的描述](img/B18457_16_28.png)'
 - en: 'Figure 16.27: CrossAttnUpBlock2D'
+  id: totrans-421
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.27：CrossAttnUpBlock2D
 - en: 'The simplified forward method looks like the following:'
+  id: totrans-422
   prefs: []
   type: TYPE_NORMAL
+  zh: 简化的前向方法如下所示：
 - en: '![A computer screen shot of a program  Description automatically generated](img/B18457_16_30.png)'
+  id: totrans-423
   prefs: []
   type: TYPE_IMG
+  zh: '![一个程序的计算机屏幕截图 自动产生的描述](img/B18457_16_30.png)'
 - en: 'Figure 16.28: forward method (simplified) for CrossAttnUpBlock2D'
+  id: totrans-424
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.28：CrossAttnUpBlock2D的前向方法（简化）
 - en: The additional input called `res_hidden_states_tuple` is a collection of three
     tensors (as there are three `output_states` per `down` block). Each tensor is
     concatenated with `hidden_states` and fed to the `resnet`.
+  id: totrans-425
   prefs: []
   type: TYPE_NORMAL
+  zh: 名为`res_hidden_states_tuple`的额外输入是三个张量的集合（每个`down`块有三个`output_states`）。每个张量与`hidden_states`串联并传递给`resnet`。
 - en: 'The output is a single tensor of hidden states:'
+  id: totrans-426
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出是一个隐藏状态的单个张量：
 - en: '![A black rectangular with green and purple text  Description automatically
     generated](img/B18457_16_31.png)'
+  id: totrans-427
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有绿色和紫色文本的黑色矩形 自动产生的描述](img/B18457_16_31.png)'
 - en: 'Figure 16.29: Output for CrossAttnUpBlock2D'
+  id: totrans-428
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.29：CrossAttnUpBlock2D的输出
 - en: Note that we get output of shape 96x96, which is the input image shape.
+  id: totrans-429
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们获得的输出形状为96x96，这是输入图像的形状。
 - en: DownBlock2D, UpBlock2D
+  id: totrans-430
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: DownBlock2D，UpBlock2D
 - en: These two blocks contain only Resnet2D blocks and do not have attention modules.
     The activity to find the inputs, outputs, and forward of these blocks is left
     as an exercise for the reader. You are encouraged to go through [github.com/huggingface/diffusers](https://github.com/huggingface/diffusers)
     and search for the class definitions of `DownBlock2D` and `UpBlock2D`.
+  id: totrans-431
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两个模块仅包含Resnet2D块，没有注意力模块。读者被鼓励浏览[github.com/huggingface/diffusers](https://github.com/huggingface/diffusers)并查找`DownBlock2D`和`UpBlock2D`类定义，以找到这些块的输入、输出和前向方法。
 - en: Transformer2DModel
+  id: totrans-432
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: Transformer2DModel
 - en: This is a standard self-attention-based transformer encoder module that has
     an additional responsibility to convert 2D inputs to 1D during the input phase
     and back to 2D outputs at the end.
+  id: totrans-433
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个标准的基于自注意力的Transformer编码器模块，在输入阶段有一个额外的责任，即将2D输入转换为1D，并在末尾再次转换为2D输出。
 - en: 'Here are the inputs:'
+  id: totrans-434
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是输入：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_32.png)'
+  id: totrans-435
   prefs: []
   type: TYPE_IMG
+  zh: '![一个带有数字和符号的计算机屏幕截图 自动产生的描述](img/B18457_16_32.png)'
 - en: 'Figure 16.30: Input of Transformer2DModel'
+  id: totrans-436
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.30：Transformer2DModel的输入
 - en: 'A (simplified) `forward` method for the module is given below:'
+  id: totrans-437
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是模块的（简化）`forward`方法：
 - en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_33.png)'
+  id: totrans-438
   prefs: []
   type: TYPE_IMG
+  zh: '![一个程序代码的计算机屏幕截图 自动产生的描述](img/B18457_16_33.png)'
 - en: 'Figure 16.31: forward method (simplified) for Transformer2DModel'
+  id: totrans-439
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.31：Transformer2DModel的前向方法（简化）
 - en: 'The input is stored as residual at first and then the `hidden_states` tensor
     is projected through a convolution layer (`self.proj` in in the preceding code,
     resulting in a shape of 2x786x96x96). The height and width dimensions are rearranged
@@ -1929,260 +2748,396 @@
     blocks, the input and output shapes are the same. The output of this step is reshaped
     and permuted to (bs x h x w x channels) and is passed through a convolution to
     get the original dimensions:'
+  id: totrans-440
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先将输入存储为残差，然后通过一个卷积层（在上述代码中的`self.proj`中）投影`hidden_states`张量，结果形状为2x786x96x96。高度和宽度维度在形状`[bs,
+    hxw, channels]`中重新排列。一旦通过变换器块传递，输入和输出的形状相同。这一步的输出被重塑和排列为(bs x h x w x channels)，然后通过卷积层传递以获得原始维度：
 - en: '![A black rectangular with text and numbers  Description automatically generated](img/B18457_16_34.png)'
+  id: totrans-441
   prefs: []
   type: TYPE_IMG
+  zh: '![一张带有文字和数字的黑色矩形  自动生成的描述](img/B18457_16_34.png)'
 - en: 'Figure 16.32: Output of Transformer2DModel'
+  id: totrans-442
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.32：Transformer2DModel的输出
 - en: ResnetBlock2D
+  id: totrans-443
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: ResnetBlock2D
 - en: 'This block is nothing different from a standard resnet, except for the acceptance
     of a new `temb` variable. Here are the inputs:'
+  id: totrans-444
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个块与标准的resnet没有什么不同，除了接受一个新的`temb`变量。以下是输入：
 - en: '![A computer screen with numbers and symbols  Description automatically generated](img/B18457_16_35.png)'
+  id: totrans-445
   prefs: []
   type: TYPE_IMG
+  zh: '![一张带有数字和符号的计算机屏幕  自动生成的描述](img/B18457_16_35.png)'
 - en: 'Figure 16.33: Input for ResnetBlock2D'
+  id: totrans-446
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.33：ResnetBlock2D的输入
 - en: 'Here’s the `forward` method:'
+  id: totrans-447
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是`forward`方法：
 - en: '![A computer screen shot of a program code  Description automatically generated](img/B18457_16_36.png)'
+  id: totrans-448
   prefs: []
   type: TYPE_IMG
+  zh: '![一张程序代码的电脑屏幕截图  自动生成的描述](img/B18457_16_36.png)'
 - en: 'Figure 16.34: forward method for ResnetBlock2D'
+  id: totrans-449
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.34：ResnetBlock2D的前向方法
 - en: Here, `self.time_emb_proj` is a linear layer making sure the channel’s dimension
     for `temb` is the same as `hidden_states`.
+  id: totrans-450
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，`self.time_emb_proj`是一个线性层，确保`temb`的通道维度与`hidden_states`相同。
 - en: 'The output is simply the same shape as `hidden_states`:'
+  id: totrans-451
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出与`hidden_states`的形状相同：
 - en: '![A black rectangular with text and numbers  Description automatically generated](img/B18457_16_37.png)'
+  id: totrans-452
   prefs: []
   type: TYPE_IMG
+  zh: '![一张带有文字和数字的黑色矩形  自动生成的描述](img/B18457_16_37.png)'
 - en: 'Figure 16.35: Output for ResnetBlock2D'
+  id: totrans-453
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.35：ResnetBlock2D的输出
 - en: We now take the 320x96x96 dimensional output and pass it through the VAE decoder
     to fetch the output image.
+  id: totrans-454
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们取得了320x96x96维度的输出，并通过VAE解码器获取输出图像。
 - en: Now that we understand the working details of the Stable Diffusion model, let
     us go ahead and leverage it to take a text prompt and convert it to an image.
+  id: totrans-455
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了Stable Diffusion模型的工作细节，让我们继续利用它来接受文本提示并将其转换为图像。
 - en: Implementing Stable Diffusion
+  id: totrans-456
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 实施稳定扩散
 - en: 'To generate images given a text prompt, we will leverage the diffusers library
     built by the Hugging Face team. We will use the following code to do this:'
+  id: totrans-457
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了根据文本提示生成图像，我们将利用Hugging Face团队构建的diffusers库。我们将使用以下代码来实现：
 - en: This code is available in the `Conditional_Diffuser_training.ipynb` file in
     the `Chapter16` folder in the GitHub repo at [https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e).
     Do be sure to run the code from the notebook and refer to the following explanations
     to understand the different steps.
+  id: totrans-458
   prefs: []
   type: TYPE_NORMAL
+  zh: 此代码可在GitHub存储库的`Chapter16`文件夹中的`Conditional_Diffuser_training.ipynb`文件中找到，链接为[https://bit.ly/mcvp-2e](https://bit.ly/mcvp-2e)。请确保从笔记本中运行代码，并参考以下说明以理解不同步骤。
 - en: 'Log in to Hugging Face and provide the auth token:'
+  id: totrans-459
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 登录到Hugging Face并提供auth令牌：
 - en: '[PRE63]'
+  id: totrans-460
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: 'Install the required packages:'
+  id: totrans-461
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 安装所需的包：
 - en: '[PRE64]'
+  id: totrans-462
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Import the required libraries:'
+  id: totrans-463
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所需的库：
 - en: '[PRE65]'
+  id: totrans-464
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: 'Define the generator and set the seed to ensure reproducibility:'
+  id: totrans-465
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义生成器并设置种子以确保可重复性：
 - en: '[PRE66]'
+  id: totrans-466
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: 'As we have seen in previous chapters, huggingface (and by extension diffusers)
     wraps models in the form of pipelines that are easy to use for the end user. Let’s
     define the Hugging Face pipeline:'
+  id: totrans-467
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 正如我们在之前的章节中所看到的，huggingface（及其扩展的diffusers）将模型包装成易于用户使用的管道形式。让我们定义一下Hugging
+    Face的管道：
 - en: '[PRE67]'
+  id: totrans-468
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: 'Pass a text prompt through the pipeline defined above:'
+  id: totrans-469
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过上述定义的管道传递文本提示：
 - en: '[PRE68]'
+  id: totrans-470
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: 'Visualize the image:'
+  id: totrans-471
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 可视化图像：
 - en: '[PRE69]'
+  id: totrans-472
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: 'This gives the following output:'
+  id: totrans-473
   prefs: []
   type: TYPE_NORMAL
+  zh: 这给出了以下输出：
 - en: '![A group of babies in superhero clothing  Description automatically generated](img/B18457_16_38.png)'
+  id: totrans-474
   prefs: []
   type: TYPE_IMG
+  zh: '![一群穿着超级英雄服装的婴儿  自动生成的描述](img/B18457_16_38.png)'
 - en: 'Figure 16.36: Image generated by Stable Diffusion'
+  id: totrans-475
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 16.36：由Stable Diffusion生成的图像
 - en: Note that the above generated image has multiple issues – multiple babies are
     generated, legs do not seem aligned, etc. Can we do better?
+  id: totrans-476
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，上述生成的图像存在多个问题——生成了多个婴儿，腿部似乎不对齐等。我们能做得更好吗？
 - en: 'Stable Diffusion has an XL variant that has been trained on more data while
     generating higher-resolution images (1024x1024), due to which the chances of such
     mistakes are lower. Let’s replace the base model with the XL version of it, as
     follows:'
+  id: totrans-477
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 稳定扩散有一个 XL 变体，它在更多数据上进行了训练，生成了分辨率更高的图像（1024x1024），因此出错的几率更低。让我们用其 XL 版本替换基础模型，如下所示：
 - en: '[PRE70]'
+  id: totrans-478
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: 'Pass the prompt through the pipeline that we just defined:'
+  id: totrans-479
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过刚刚定义的管道传递提示：
 - en: '[PRE71]'
+  id: totrans-480
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: 'The output is:'
+  id: totrans-481
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出是：
 - en: '![A baby in a garment  Description automatically generated](img/B18457_16_39.png)'
+  id: totrans-482
   prefs: []
   type: TYPE_IMG
+  zh: '![一名穿着服装的婴儿  自动生成的描述](img/B18457_16_39.png)'
 - en: 'Figure 16.37: Output of SDXL'
+  id: totrans-483
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.37：SDXL 的输出
 - en: Note that, the image generated using the XL pipeline is much better than the
     image generated using the base pipeline. However, can we get even better?
+  id: totrans-484
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，使用 XL 管道生成的图像比使用基础管道生成的图像要好得多。但是，我们能否做得更好呢？
 - en: 'Prompt engineering comes to the rescue in this scenario. We can modify our
     prompt as follows:'
+  id: totrans-485
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在这种情况下，提示工程可以拯救我们。我们可以按以下方式修改我们的提示：
 - en: '[PRE72]'
+  id: totrans-486
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: 'The preceding prompt, when passed through the XL pipeline, results in an output
     as follows:'
+  id: totrans-487
   prefs: []
   type: TYPE_NORMAL
+  zh: 前述提示在经过 XL 管道时，生成的输出如下：
 - en: '![A baby in a garment  Description automatically generated](img/B18457_16_40.png)'
+  id: totrans-488
   prefs: []
   type: TYPE_IMG
+  zh: '![一名穿着服装的婴儿  自动生成的描述](img/B18457_16_40.png)'
 - en: 'Figure 16.38: Realistic output of SDXL'
+  id: totrans-489
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.38：SDXL 的逼真输出
 - en: Note that, by adding words like “photorealistic” and “cinematic”, we were able
     to generate an image that looks more dramatic than the plain one generated earlier.
+  id: totrans-490
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，通过添加“逼真”和“电影般”等词语，我们能够生成比之前生成的普通图像更具戏剧性的图像。
 - en: Summary
+  id: totrans-491
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: In this chapter, we learned how CLIP helps in aligning embeddings of both text
     and images. We then gained an understanding of how to leverage the SAM to perform
     segmentation on any image. Next, we learned about speeding up the SAM using FastSAM.
     Finally, we learned about leveraging diffusion models to generate images both
     unconditionally and conditionally given a prompt.
+  id: totrans-492
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一章中，我们学习了 CLIP 如何帮助对齐文本和图像的嵌入。然后，我们了解了如何利用 SAM 对任何图像进行分割。接下来，我们了解了如何使用 FastSAM
+    加速 SAM。最后，我们学习了如何利用扩散模型生成无条件和有条件给定提示的图像。
 - en: We covered sending different modalities of prompts to the segment-anything model,
     tracking objects using the SAM, and combining multiple modalities using `ImageBind`
     in the associated GitHub repository.
+  id: totrans-493
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们讨论了向 segment-anything 模型发送不同模态的提示，使用 SAM 跟踪对象，以及在相关的 GitHub 存储库中使用 `ImageBind`
+    结合多个模态。
 - en: With this knowledge, you can leverage the foundational models on your data/tasks
     with very limited/no training data points, such as training/leveraging models
     for the segmentation/object detection tasks that we learned about in *Chapters
     7* to *9* with minimal/no data.
+  id: totrans-494
   prefs: []
   type: TYPE_NORMAL
+  zh: 有了这些知识，你可以在非常有限或无需训练数据点的情况下，利用基础模型处理你的数据/任务，比如在第7至9章学到的分割/目标检测任务中训练/利用模型。
 - en: In the next chapter, you will learn about tweaking diffusion models further
     to generate images of interest to you.
+  id: totrans-495
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，你将学习如何进一步调整扩散模型，以生成你感兴趣的图像。
 - en: Questions
+  id: totrans-496
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: How are text and images represented in the same domain using CLIP?
+  id: totrans-497
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: CLIP 如何将文本和图像表示为同一域中的内容？
 - en: How are different types of tokens, such as point tokens, bounding box tokens,
     and text tokens, calculated in Segment Anything architecture?
+  id: totrans-498
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如何在 Segment Anything 架构中计算不同类型的令牌，如点令牌、边界框令牌和文本令牌？
 - en: How do diffusion models work?
+  id: totrans-499
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 扩散模型是如何工作的？
 - en: What makes Stable Diffusion different from normal diffusion?
+  id: totrans-500
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 稳定扩散与普通扩散有何不同？
 - en: What is the difference between Stable Diffusion and the SDXL model?
+  id: totrans-501
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 稳定扩散和 SDXL 模型之间有什么区别？
 - en: Learn more on Discord
+  id: totrans-502
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Discord 上了解更多
 - en: 'Join our community’s Discord space for discussions with the authors and other
     readers:'
+  id: totrans-503
   prefs: []
   type: TYPE_NORMAL
+  zh: 加入我们社区的 Discord 空间，与作者和其他读者进行讨论：
 - en: '[https://packt.link/modcv](https://packt.link/modcv)'
+  id: totrans-504
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://packt.link/modcv](https://packt.link/modcv)'
 - en: '![](img/QR_Code237402495622324343.png)'
+  id: totrans-505
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/QR_Code237402495622324343.png)'
