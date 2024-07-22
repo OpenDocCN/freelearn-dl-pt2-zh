@@ -856,12 +856,17 @@
   id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据设计，断开连接的节点永远不会在图卷积的同一接收场中。因此，当通过图卷积反向传播*G*[B]的梯度时，批次中每个图附加的梯度将是独立的。这意味着，如果我们将一组图卷积视为函数*f*，如果*h*[B]
+    = *f*(*X*[B], *A*[B])和*h*[i] = *f*(*X*[i], *A*[i])，那么*h*[B][*s*[i]:*s*[i] + *n*,
+    :] = *h*[i]。如果总和全局池从*h*[B]中提取*h*[i]的各自向量的总和，并通过完全连接的层传递该向量堆栈，则在整个反向传播过程中将保持批次中每个项目的梯度独立。
 - en: 'This is the purpose of `batch_mat` in `global_sum_pool()`—to serve as a graph
     selection mask that keeps the graphs in the batch separate. We can generate this
     mask for graphs of sizes *n*[1], ..., *n*[k] with the following code:'
   id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是`global_sum_pool()`中`batch_mat`的目的——作为一个图选择掩码，用于保持批次中的图分开。我们可以使用以下代码为大小为*n*[1],
+    ..., *n*[k]的图生成此掩码：
 - en: '[PRE8]'
   id: totrans-121
   prefs: []
@@ -874,6 +879,8 @@
   id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，给定批次大小*b*，`batch_mat`是一个*b*×*N*矩阵，其中batch_mat[*i*–1, *s*[i]:*s*[i] + *n*[i]]
+    = 1对于![](img/B17582_18_011.png)，并且在这些索引集之外的元素为0。以下是构建某些*G*[B]表示和相应的批次矩阵的整理函数：
 - en: '[PRE9]'
   id: totrans-123
   prefs: []
@@ -884,6 +891,7 @@
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 准备DataLoader
 - en: In this section, we will see how the code from the previous subsections all
     comes together. First, we will generate some graphs and put them into a PyTorch
     `Dataset`. Then, we will use our `collate` function in a `DataLoader` for our
@@ -891,11 +899,13 @@
   id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将看到前面各小节中的代码如何结合在一起。首先，我们将生成一些图并将它们放入PyTorch `Dataset`中。然后，我们将在我们的GNN中使用`collate`函数在`DataLoader`中使用它。
 - en: 'But before we define the graphs, let’s implement a function that builds a dictionary
     representation that we will use later:'
   id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 但在我们定义图之前，让我们实现一个函数来构建一个字典表示，稍后我们将使用它：
 - en: '[PRE10]'
   id: totrans-127
   prefs: []
@@ -909,11 +919,13 @@
   id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个函数接受一个NetworkX图，并返回一个包含其邻接矩阵`A`，节点特征矩阵`X`和一个二进制标签`y`的字典。由于我们实际上不会在真实任务中训练这个模型，所以我们只是任意设置标签。然后，`nx.adjacency_matrix()`接受一个NetworkX图并返回一个稀疏表示，我们使用`todense()`将其转换为稠密的`np.array`形式。
 - en: 'We’ll now construct graphs and use the `get_graph_dict` function to convert
     NetworkX graphs to a format our network can handle:'
   id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将构造图，并使用`get_graph_dict`函数将NetworkX图转换为我们的网络可以处理的格式：
 - en: '[PRE11]'
   id: totrans-130
   prefs: []
@@ -923,14 +935,17 @@
   id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 此代码生成的图在*Figure 18.11*中可视化：
 - en: '![](img/B17582_18_11.png)'
   id: totrans-132
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B17582_18_11.png)'
 - en: 'Figure 18.11: Four generated graphs'
   id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 图18.11：生成的四个图
 - en: This code block constructs four NetworkX graphs and stores them in a list. Here,
     the constructor of `nx.Graph()` initializes an empty graph, and `add_nodes_from()`
     adds nodes to the empty graph from a list of tuples. The first item in each tuple
@@ -938,12 +953,14 @@
   id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码块构造了四个NetworkX图并将它们存储在一个列表中。在这里，`nx.Graph()`的构造函数初始化了一个空图，而`add_nodes_from()`从一个元组列表中将节点添加到空图中。每个元组中的第一个项目是节点的名称，第二个项目是该节点属性的字典。
 - en: 'The `add_edges_from()` method of a graph takes a list of tuples where each
     tuple defines an edge between its elements (nodes). Now, we can construct a PyTorch
     `Dataset` for these graphs:'
   id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 图的`add_edges_from()`方法接受一个元组列表，其中每个元组定义其元素（节点）之间的边。现在，我们可以为这些图构建一个PyTorch `Dataset`：
 - en: '[PRE12]'
   id: totrans-136
   prefs: []
@@ -954,6 +971,7 @@
   id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管使用自定义`Dataset`可能看起来是不必要的工作，但它允许我们展示如何在`DataLoader`中使用`collate_graphs()`：
 - en: '[PRE13]'
   id: totrans-138
   prefs: []
@@ -964,6 +982,7 @@
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用NodeNetwork进行预测
 - en: 'After we have defined all the necessary functions and set up the `DataLoader`,
     we now initialize a new `NodeNetwork` and apply it to our graph data:'
   id: totrans-140
@@ -1667,6 +1686,9 @@
   id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: '除了上述的图转换器之外，还开发了其他专门用于图形的深度生成模型。例如，图变分自动编码器，如*Kipf*和*Welling*在2016年提出的《变分图自动编码器》([https://arxiv.org/abs/1611.07308](https://arxiv.org/abs/1611.07308))，以及2018年*刘琦*等人提出的《分子设计的约束图变分自动编码器》([https://arxiv.org/abs/1805.09076](https://arxiv.org/abs/1805.09076))，以及*Simonovsky*和*Komodakis*在2018年提出的《GraphVAE:
+    使用变分自动编码器生成小型图形》([https://arxiv.org/abs/1802.03480](https://arxiv.org/abs/1802.03480))。另一个显著的应用于分子生成的图变分自动编码器是*Wengong
+    Jin*和同事在2019年提出的《分子图生成的联结树变分自动编码器》([https://arxiv.org/abs/1802.04364](https://arxiv.org/abs/1802.04364))。'
 - en: 'Some GANs have been designed to generate graph data, though, as of this writing,
     the performance of GANs on graphs is much less convincing than in the image domain.
     Examples include *GraphGAN: Graph Representation Learning with Generative Adversarial
@@ -1676,6 +1698,9 @@
   id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: '一些GAN已被设计用于生成图数据，尽管截至本文撰写时，GAN在图领域的表现远不如在图像领域那般令人信服。例如，*Hongwei Wang*和同事在2017年提出的《GraphGAN:
+    使用生成对抗网络进行图表示学习》([https://arxiv.org/abs/1711.08267](https://arxiv.org/abs/1711.08267))，以及*Cao*和*Kipf*在2018年提出的《MolGAN:
+    用于小分子图的隐式生成模型》([https://arxiv.org/abs/1805.11973](https://arxiv.org/abs/1805.11973))。'
 - en: GNNs have also been incorporated into deep reinforcement learning models—you
     will learn more about reinforcement learning in the next chapter. Examples include
     *Graph Convolutional Policy Network for Goal-Directed Molecular Graph Generation*
@@ -1686,6 +1711,8 @@
   id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: GNNs也已纳入深度强化学习模型中——你将在下一章节详细学习强化学习。例如，*Jiaxuan You*和同事在2018年提出的《用于目标导向分子图生成的图卷积策略网络》([https://arxiv.org/abs/1806.02473](https://arxiv.org/abs/1806.02473))，以及*Zhenpeng
+    Zhou*和同事在2018年提出的《通过深度强化学习优化分子》([https://arxiv.org/abs/1810.08678](https://arxiv.org/abs/1810.08678))，利用了应用于分子生成任务的GNN。
 - en: 'Lastly, while not technically graph data, 3D point clouds are sometimes represented
     as such using distance cutoffs to create edges. Applications of graph networks
     in this space include *Point-GNN: Graph Neural Network for 3D Object Detection
@@ -1698,11 +1725,15 @@
   id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: '最后，虽然技术上不属于图数据，但有时将3D点云表示为图数据，使用距离截断来创建边。图网络在这一领域的应用包括*Weijing Shi*和同事在2020年提出的《Point-GNN:
+    用于LiDAR点云中3D物体检测的图神经网络》([https://arxiv.org/abs/2003.01251](https://arxiv.org/abs/2003.01251))，该网络可以在LiDAR点云中检测3D物体。此外，*Can
+    Chen*和同事在2019年设计的《GAPNet: 基于图注意力的点神经网络，用于利用点云的局部特征》([https://arxiv.org/abs/1905.08705](https://arxiv.org/abs/1905.08705))，旨在解决其他深度架构难以处理的点云局部特征检测问题。'
 - en: Summary
   id: totrans-230
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: As the amount of data we have access to continues to increase, so too will our
     need to understand interrelations within the data. While this will be done in
     numerous ways, graphs function as a distilled representation of these relationships,
