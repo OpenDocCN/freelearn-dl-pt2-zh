@@ -1,15 +1,19 @@
 - en: Scaling Up Learning with Function Approximation
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 通过函数逼近扩展学习
 - en: So far, we have represented the value function in the form of a lookup table
     in the MC and TD methods. The TD method is able to update the Q-function on the
     fly during an episode, which is considered an advancement on the MC method. However,
     the TD method is still not sufficiently scalable for problems with many states
     and/or actions. It will be extremely slow at learning too many values for individual
     pairs of states and actions using the TD method.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，在MC和TD方法中，我们已经以查找表的形式表示了值函数。TD方法能够在一个episode中实时更新Q函数，这被认为是MC方法的进步。然而，TD方法对于具有许多状态和/或动作的问题仍然不够可扩展。使用TD方法学习太多个状态和动作对的值将会非常缓慢。
 - en: This chapter will focus on function approximation, which can overcome the scaling
     issues in the TD method. We will begin by setting up the Mountain Car environment
     playground. After developing the linear function estimator, we will incorporate
@@ -17,214 +21,315 @@
     algorithm using experience replay, and experiment with using neural works as a
     function estimator. Finally, we will cover how to solve the CartPole problem using
     what we have learned in the chapter as a whole.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将重点讲述函数逼近，这可以克服TD方法中的扩展问题。我们将从设置Mountain Car环境开始。在开发线性函数估计器之后，我们将其融入Q-learning和SARSA算法中。然后，我们将利用经验重放改进Q-learning算法，并尝试使用神经网络作为函数估计器。最后，我们将讨论如何利用本章学到的内容解决CartPole问题。
 - en: 'The following recipes will be covered in this chapter:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下示例：
 - en: Setting up the Mountain Car environment playground
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 设置Mountain Car环境的游乐场
 - en: Estimating Q-functions with gradient descent approximation
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用梯度下降逼近估算Q函数
 - en: Developing Q-learning with linear function approximation
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用线性函数逼近开发Q-learning
 - en: Developing SARSA with linear function approximation
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用线性函数逼近开发SARSA
 - en: Incorporating batching using experience replay
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用经验重放进行批处理
 - en: Developing Q-learning with neural net function approximation
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用神经网络函数逼近开发Q-learning
 - en: Solving the CartPole problem with function approximation
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用函数逼近解决CartPole问题
 - en: Setting up the Mountain Car environment playground
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 设置Mountain Car环境的游乐场
 - en: The TD method can learn the Q-function during an episode but is not scalable.
     For example, the number of states in a chess game is around 1,040, and 1,070 in
     a Go game. Moreover, it seems infeasible to learn the values for continuous state
     using the TD method. Hence, we need to solve such problems using **function approximation
     (FA)**, which approximates the state space using a set of features.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: TD方法可以在一个episode中学习Q函数，但不具备可扩展性。例如，国际象棋游戏的状态数约为1,040个，围棋游戏为1,070个。此外，使用TD方法学习连续状态的值似乎是不可行的。因此，我们需要使用**函数逼近（FA）**来解决这类问题，它使用一组特征来逼近状态空间。
 - en: In this first recipe, we will begin by getting familiar with the Mountain Car
     environment, which we will solve with the help of FA methods in upcoming recipes.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个示例中，我们将开始熟悉Mountain Car环境，我们将在接下来的示例中使用FA方法来解决它。
 - en: 'Mountain Car ([https://gym.openai.com/envs/MountainCar-v0/](https://gym.openai.com/envs/MountainCar-v0/))
     is a typical Gym environment with continuous states. As shown in the following
     diagram, its goal is to get the car to the top of the hill:'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: Mountain Car ([https://gym.openai.com/envs/MountainCar-v0/](https://gym.openai.com/envs/MountainCar-v0/))
+    是一个具有连续状态的典型Gym环境。如下图所示，其目标是将车辆驶上山顶：
 - en: '![](img/571d4afc-1d3c-4804-af21-2e400df8171e.png)'
+  id: totrans-15
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/571d4afc-1d3c-4804-af21-2e400df8171e.png)'
 - en: 'On a one-dimensional track, the car is positioned between -1.2 (leftmost) and
     0.6 (rightmost), and the goal (yellow flag) is located at 0.5\. The engine of
     the car is not strong enough to drive it to the top in a single pass, so it has
     to drive back and forth to build up momentum. Hence, there are three discrete
     actions for each step:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一维轨道上，车辆位于-1.2（最左侧）到0.6（最右侧）之间，目标（黄旗）位于0.5处。车辆的引擎不足以使其在单次通过中驱动到顶部，因此它必须来回驾驶以积累动量。因此，每一步有三个离散动作：
 - en: Push left (0)
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向左推（0）
 - en: No push (1)
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 无推力（1）
 - en: Push right (2)
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向右推（2）
 - en: 'And there are two states of the environment:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 环境有两个状态：
 - en: 'Position of the car: this is a continuous variable from -1.2 to 0.6.'
+  id: totrans-21
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 车的位置：这是一个从-1.2到0.6的连续变量。
 - en: 'Velocity of the car: this is a continuous variable from -0.07 to 0.07.'
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 车的速度：这是一个从-0.07到0.07的连续变量。
 - en: The reward associated with each step is -1, until the car reaches the goal (a
     position of 0.5).
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 每一步的奖励为-1，直到汽车达到目标位置（位置为0.5）。
 - en: An episode ends when the car reaches the goal position (obviously), or after
     200 steps.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 一集结束时，汽车到达目标位置（显然），或者经过200步之后。
 - en: Getting ready
+  id: totrans-25
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 准备工作
 - en: To run the Mountain Car environment, let's first search for its name in the
     table of environments – [https://github.com/openai/gym/wiki/Table-of-environments](https://github.com/openai/gym/wiki/Table-of-environments).
     We get `MountainCar-v0` and also know that the observation space is represented
     by two floats and that there are three possible actions (left = 0, no push = 1,
     right = 2).
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 要运行山车环境，让我们首先在环境表中搜索其名称 – [https://github.com/openai/gym/wiki/Table-of-environments](https://github.com/openai/gym/wiki/Table-of-environments)。我们得到了`MountainCar-v0`，还知道观察空间由两个浮点数表示，有三种可能的动作（左=0，无推力=1，右=2）。
 - en: How to do it...
+  id: totrans-27
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何操作...
 - en: 'Let''s simulate the Mountain Car environment in the following steps:'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们按照以下步骤模拟山车环境：
 - en: 'We import the Gym library and create an instance of the Mountain Car environment:'
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们导入Gym库并创建山车环境的一个实例：
 - en: '[PRE0]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Reset the environment:'
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 重置环境：
 - en: '[PRE1]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The car starts with a state `[-0.52354759, 0.]`, which means that the initial
     position is around -0.5 and the velocity is 0\. You may see a different initial
     position as it is randomly generated from -0.6 to -0.4.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 汽车从状态`[-0.52354759, 0.]`开始，这意味着初始位置大约在-0.5，速度为0。由于初始位置是从-0.6到-0.4随机生成的，你可能会看到不同的初始位置。
 - en: 'Let''s take a naive approach now: we just keep pushing the car to the right
     and hope it will reach the top:'
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在让我们采取一种简单的方法：我们只需不断向右推车，希望它能够到达山顶：
 - en: '[PRE2]'
+  id: totrans-35
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Close the environment:'
+  id: totrans-36
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 关闭环境：
 - en: '[PRE3]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: How it works...
+  id: totrans-38
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 工作原理...
 - en: In *Step 3*, the state (position and velocity) keeps changing accordingly and
     the reward is -1 for each step.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*Step 3*中，状态（位置和速度）会相应地改变，每一步的奖励是-1。
 - en: 'You will also see in the video that the car is repeatedly moving to the right
     and back to the left, but doesn''t reach the top in the end:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 你也会在视频中看到，汽车反复向右移动，然后回到左边，但最终未能到达山顶：
 - en: '![](img/fa2a8266-fd65-43eb-9f72-f50f88559d2f.png)'
+  id: totrans-41
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/fa2a8266-fd65-43eb-9f72-f50f88559d2f.png)'
 - en: As you can imagine, the Mountain Car problem is not as easy as you thought.
     We need to drive the car back and forth to build up momentum. And the state variables
     are continuous, which means that a table `lookup`/`update` method (such as the
     TD method) will not work. In the next recipe, we will solve the Mountain Car problem
     with FA methods.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所想象的那样，山车问题并不像你想象的那么简单。我们需要来回驾驶汽车以积累动量。而状态变量是连续的，这意味着表格查找/更新方法（如TD方法）不起作用。在下一个配方中，我们将使用FA方法解决山车问题。
 - en: Estimating Q-functions with gradient descent approximation
+  id: totrans-43
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用梯度下降逼近估计Q函数
 - en: Starting from this recipe, we will develop FA algorithms to solve environments
     with continuous state variables. We will begin by approximating Q-functions using
     linear functions and gradient descent.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这个配方开始，我们将开发FA算法来解决具有连续状态变量的环境。我们将从使用线性函数和梯度下降逼近Q函数开始。
 - en: 'The main idea of **FA** is to use a set of **features** to estimate Q values.
     This is extremely useful for processes with a large state space where the Q table
     becomes huge. There are several ways to map the features to the Q values; for
     example, linear approximations that are linear combinations of features and neural
     networks. With linear approximation, the state-value function for an action is
     expressed by a weighted sum of the features:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: '**FA**的主要思想是使用一组特征来估计Q值。这对于具有大状态空间的过程非常有用，其中Q表格变得非常庞大。有几种方法可以将特征映射到Q值上；例如，线性逼近是特征的线性组合和神经网络。通过线性逼近，动作的状态值函数可以用特征的加权和表示：'
 - en: '![](img/1e5af9c1-6035-4cd7-ab96-4861b09144d0.png)'
+  id: totrans-46
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/1e5af9c1-6035-4cd7-ab96-4861b09144d0.png)'
 - en: Here, F1(s), F2(s), ……, Fn(s) is a set of features given the input state, s;
     θ1, θ2,......, θn are the weights applied to corresponding features. Or we can
     put it as V(s)=θF(s).
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，F1(s)，F2(s)，……，Fn(s)是给定输入状态s的一组特征；θ1，θ2，……，θn是应用于相应特征的权重。或者我们可以将其表示为V(s)=θF(s)。
 - en: 'As we have seen this in the TD method, we have the following formula to compute
     the future states:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在TD方法中所见，我们有以下公式来计算未来的状态：
 - en: '![](img/7aeab8ea-2c14-4ba2-b52f-5433c0cbee50.png)'
+  id: totrans-49
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/7aeab8ea-2c14-4ba2-b52f-5433c0cbee50.png)'
 - en: 'Here, r is the associated reward obtained by transforming from state st to
     st+1, α is the learning rate, and γ is the discount factor. Let''s denote δ as
     the TD error term, and now we have the following:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，r是从状态st转换到st+1获得的相关奖励，α是学习率，γ是折扣因子。让我们将δ表示为TD误差项，现在我们有以下内容：
 - en: '![](img/d457d7de-6de9-4bfe-aca0-562ce9214894.png)'
+  id: totrans-51
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/d457d7de-6de9-4bfe-aca0-562ce9214894.png)'
 - en: This is in the exact form of gradient descent. Hence, the goal of learning is
     to find the optimal weights, θ, to best approximate the state-value function V(s)
     for each possible action. The loss function we are trying to minimize in this
@@ -232,38 +337,56 @@
     between the actual value and the estimated value. After each step in an episode,
     we have a new estimation of the true state value, and we move the weights, θ,
     a step toward their optimal value.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 这与梯度下降的确切形式相同。因此，学习的目标是找到最优权重θ，以最佳方式逼近每个可能动作的状态值函数V(s)。在这种情况下，我们尝试最小化的损失函数类似于回归问题中的损失函数，即实际值和估计值之间的均方误差。在每个episode的每一步之后，我们都有一个真实状态值的新估计，并且我们将权重θ朝向它们的最优值前进一步。
 - en: One more thing to note is the feature set, F(s), given the input state, s. A
     good feature set is one that can capture the dynamics of different inputs. Typically,
     we can generate a set of features with a set of Gaussian functions under various
     parameters, including mean and standard deviation.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 还要注意的一件事是特征集F(s)，给定输入状态s。一个好的特征集能够捕捉不同输入的动态。通常，我们可以在各种参数下使用一组高斯函数生成一组特征，包括均值和标准差。
 - en: How to do it...
+  id: totrans-54
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做到…
 - en: 'We develop the Q-function approximator based on the linear function as follows:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们基于线性函数开发Q函数的逼近器如下：
 - en: 'Import all the necessary packages:'
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所有必要的包：
 - en: '[PRE4]'
+  id: totrans-57
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The variable wraps a tensor and supports backpropagation.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 变量包装了张量并支持反向传播。
 - en: 'Then, start the `__init__method` of the linear function''s `Estimator` class:'
+  id: totrans-59
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，启动线性函数的`Estimator`类的`__init__method`：
 - en: '[PRE5]'
+  id: totrans-60
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'It takes in three parameters: the number of features, `n_feat`; the number
     of states; and the number of actions. It first generates a set of coefficients,
     `w` and `b`, for the feature function F(s) from Gaussian distributions, which
@@ -274,111 +397,165 @@
     The stochastic gradient descent optimizer is also initialized along with each
     linear model. The learning rate for each optimizer is 0.05\. The loss function
     is the mean squared error.'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 它接受三个参数：特征数量`n_feat`，状态数量和动作数量。它首先从高斯分布生成特征函数F(s)的一组系数`w`和`b`，稍后我们将定义。然后初始化`n_action`个线性模型，其中每个模型对应一个动作，并相应地初始化`n_action`个优化器。对于线性模型，我们在此处使用PyTorch的Linear模块。它接受`n_feat`个单元并生成一个输出，即一个动作的预测状态值。随机梯度下降优化器也与每个线性模型一起初始化。每个优化器的学习率为0.05。损失函数是均方误差。
 - en: 'We now continue defining the `get_gaussian_wb` method, which generates a set
     of coefficients, w and b, for the feature function, F(s):'
+  id: totrans-62
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们现在继续定义`get_gaussian_wb`方法，它生成特征函数F(s)的一组系数`w`和`b`：
 - en: '[PRE6]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The coefficient, `w`, is an `n_feat` by `n_state` matrix, with values generated
     from a Gaussian distribution of variance defined by the parameter sigma; the bias,
     b, is a list of `n_feat` values generated from a uniform distribution of [0, 2π].
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 系数`w`是一个`n_feat`乘以`n_state`的矩阵，其值从由参数sigma定义的方差高斯分布生成；偏置`b`是从[0, 2π]均匀分布生成的`n_feat`值的列表。
 - en: Note that it is very important to set a specific random seed (`torch.manual_seed(0)`)
     so that a state can always be mapped to the same feature in different runs.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，设置特定的随机种子（`torch.manual_seed(0)`）非常重要，这样在不同运行中，状态始终可以映射到相同的特征。
 - en: 'Next, we develop the function to map the state space to the feature space based
     on `w` and `b`:'
+  id: totrans-66
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们开发将状态空间映射到特征空间的函数，基于`w`和`b`：
 - en: '[PRE7]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'The feature of a state, s, is generated as follows:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 状态s的特征生成如下：
 - en: '![](img/13daf112-7fdb-41e1-b0b6-86b1eddd9735.png)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/13daf112-7fdb-41e1-b0b6-86b1eddd9735.png)'
 - en: Use cosine transformation to ensure that the feature is in the range of [-1,
     1] despite the value of an input state.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用余弦变换确保特征在[-1, 1]范围内，尽管输入状态的值可能不同。
 - en: 'Since we''ve defined model and feature generation, we now develop the training
     method, which updates the linear models with a data point:'
+  id: totrans-71
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 由于我们已经定义了模型和特征生成，现在我们开发训练方法，用数据点更新线性模型：
 - en: '[PRE8]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: Given a training data point, it first converts the state to feature space with
     the `get_feature` method. The resulting features are then fed into the current
     linear model of the given action, `a`. The predictive result, along with the target
     value, is used to compute the loss and gradients. The weights, θ, are then updated
     via backpropagation.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 给定一个训练数据点，它首先使用`get_feature`方法将状态转换为特征空间。然后将生成的特征馈送到给定动作`a`的当前线性模型中。预测结果连同目标值用于计算损失和梯度。然后通过反向传播更新权重θ。
 - en: 'The next operation involves predicting the state-value for each action given
     a state using the current models:'
+  id: totrans-74
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下一个操作涉及使用当前模型预测每个动作在给定状态下的状态值：
 - en: '[PRE9]'
+  id: totrans-75
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: That's all for the `Estimator` class.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是关于`Estimator`类的全部内容。
 - en: 'Now, let''s play around with some dummy data. First, create an `Estimator`
     object that maps a 2-dimensional state to a 10-dimensional feature and works with
     1 possible action:'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，让我们玩弄一些虚拟数据。首先，创建一个`Estimator`对象，将一个二维状态映射到一个十维特征，并与一个可能的动作配合使用：
 - en: '[PRE10]'
+  id: totrans-78
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Now, generate the feature out of a state [0.5, 0.1]:'
+  id: totrans-79
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，生成状态[0.5, 0.1]的特征。
 - en: '[PRE11]'
+  id: totrans-80
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: As you can see, the resulting feature is a 10-dimensional vector.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您所看到的，生成的特征是一个10维向量。
 - en: 'Train the estimator on a list of states and target state-values (and we only
     have one action in this example):'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对一系列状态和目标状态值（在本例中我们只有一个动作）进行估算器训练：
 - en: '[PRE12]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'And finally, we use the trained linear model to predict the value for new states:'
+  id: totrans-84
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们使用训练好的线性模型来预测新状态的值：
 - en: '[PRE13]'
+  id: totrans-85
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: The predicted value for state [0.5, 0.1] with the action is 0.5847, while for
     [2, 3], it is 0.7969.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于状态[0.5, 0.1]，预测的值与动作为0.5847，而对于[2, 3]，预测的值为0.7969。
 - en: How it works...
+  id: totrans-87
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 工作原理如下……
 - en: The FA method approximates the state values with a more compact model than computing
     the exact values with a Q table in the TD method. FA first maps the state space
     to the feature space and then estimates the Q values using a regression model.
@@ -387,152 +564,224 @@
     on linear regression. It generates features according to coefficients sampled
     from a Gaussian distribution. It updates the weights for the linear model given
     training data via gradient descent and predicts Q values given a state.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: FA方法通过比TD方法中的Q表计算更紧凑的模型来近似状态值。FA首先将状态空间映射到特征空间，然后使用回归模型估算Q值。通过这种方式，学习过程变成了监督学习。类型回归模型包括线性模型和神经网络。在本文中，我们开发了一个基于线性回归的估算器。它根据从高斯分布中采样的系数生成特征。它通过梯度下降更新线性模型的权重，并根据状态预测Q值。
 - en: FA dramatically reduces the number of states to learn, where learning millions
     of states is not feasible in the TD method. More importantly, it is able to generalize
     to unseen states, as the state-values are parameterized by the estimation functions
     given input states.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: FA显著减少了需要学习的状态数量，在TD方法中学习数百万个状态是不可行的。更重要的是，它能够推广到未见的状态，因为状态值是由给定输入状态的估计函数参数化的。
 - en: See also
+  id: totrans-90
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 另请参阅
 - en: 'If you are not familiar with linear regression or gradient descent, please
     check out the following material:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您对线性回归或梯度下降不熟悉，请查看以下资料：
 - en: '[https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843](https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843)'
+  id: totrans-92
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843](https://towardsdatascience.com/step-by-step-tutorial-on-linear-regression-with-stochastic-gradient-descent-1d35b088a843)'
 - en: '[https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/](https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/)'
+  id: totrans-93
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/](https://machinelearningmastery.com/simple-linear-regression-tutorial-for-machine-learning/)'
 - en: Developing Q-learning with linear function approximation
+  id: totrans-94
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 开发具有线性函数逼近的Q-learning
 - en: In the previous recipe, we developed a value estimator based on linear regression.
     We will employ the estimator in Q-learning, as part of our FA journey.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一篇文章中，我们基于线性回归开发了一个值估算器。我们将在Q-learning中使用这个估算器，作为我们FA旅程的一部分。
 - en: 'As we have seen, Q-learning is an off-policy learning algorithm and it updates
     the Q-function based on the following equation:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们所看到的，Q-learning是一种离线学习算法，它基于以下方程更新Q函数：
 - en: '![](img/58103c4f-e34f-48a9-a4f1-c4a48579497e.png)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/58103c4f-e34f-48a9-a4f1-c4a48579497e.png)'
 - en: 'Here, *s''* is the resulting state after taking action, *a*, in state, *s*;
     *r* is the associated reward; α is the learning rate; and γ is the discount factor.
     Also, [![](img/8ab6292e-d9d6-4c1f-87e1-1dde55b4a436.png)] means that the behavior
     policy is greedy, where the highest Q-value among those in state `s''` is selected
     to generate learning data. In Q-learning, actions are taken on the basis of the
     epsilon-greedy policy. Similarly, Q-learning with FA has the following error term:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，*s'*是在状态*s*中采取动作*a*后得到的结果状态；*r*是相关的奖励；α是学习率；γ是折扣因子。此外，[![](img/8ab6292e-d9d6-4c1f-87e1-1dde55b4a436.png)]
+    表示行为策略是贪婪的，即在状态`s'`中选择最高的Q值以生成学习数据。在Q-learning中，根据ε-greedy策略采取行动。同样地，Q-learning与FA具有以下误差项：
 - en: '![](img/267d740e-a951-43f6-8079-6a69484fc3b0.png)'
+  id: totrans-99
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/267d740e-a951-43f6-8079-6a69484fc3b0.png)'
 - en: 'Our learning goal is to minimize the error term to zero, which means the estimated
     V(st) should satisfy the following equation:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的学习目标是将误差项最小化为零，这意味着估算的V(st)应满足以下方程：
 - en: '![](img/be4988c6-4f6c-41e6-8e52-4bcfa14d12c5.png)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/be4988c6-4f6c-41e6-8e52-4bcfa14d12c5.png)'
 - en: Now, the goal becomes finding the optimal weights, θ, as in V(s)=θF(s), to best
     approximate the state-value function V(s) for each possible action. The loss function
     we are trying to minimize in this case is similar to that in a regression problem,
     which is the mean squared error between the actual value and the estimated value.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，目标是找到最优权重θ，例如V(s)=θF(s)，以最佳方式逼近每个可能动作的状态值函数V(s)。在这种情况下，我们试图最小化的损失函数类似于回归问题中的损失函数，即实际值和估算值之间的均方误差。
 - en: How to do it...
+  id: totrans-103
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做到…
 - en: 'Let''s develop Q-learning with FA using the linear estimator, `Estimator`,
     from `linear_estimator.py`, which we developed in the previous recipe, *Estimating
     Q-functions with gradient descent approximation*:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们使用前一篇文章中开发的线性估算器`linear_estimator.py`中的`Estimator`，开发Q-learning与FA：
 - en: 'Import the necessary modules and create a Mountain Car environment:'
+  id: totrans-105
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的模块并创建一个Mountain Car环境：
 - en: '[PRE14]'
+  id: totrans-106
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Then, start defining the epsilon-greedy policy:'
+  id: totrans-107
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，开始定义ε-greedy策略：
 - en: '[PRE15]'
+  id: totrans-108
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: This takes in a parameter, ε, with a value from 0 to 1, |A|, the number of possible
     actions, and the estimator used to predict state-action values. Each action is
     taken with a probability of ε/ |A|, and the action with the highest predicted
     state-action value is chosen with a probability of 1- ε + ε/ |A|.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的参数ε取值从0到1，|A|表示可能的动作数，估算器用于预测状态-动作值。每个动作以ε/ |A|的概率被选中，而具有最高预测状态-动作值的动作则以1-
+    ε + ε/ |A|的概率被选中。
 - en: 'Now, define the function that performs Q-learning with FA:'
+  id: totrans-110
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，定义执行使用线性估算器`Estimator`的Q-learning的函数：
 - en: '[PRE16]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The `q_learning()` function does the following tasks:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: '`q_learning()`函数执行以下任务：'
 - en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
     to 99% (for example, if epsilon in the first episode is 0.1, it will be 0.099
     in the second episode).
+  id: totrans-113
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在每个episode中，创建一个ε-greedy策略，其中ε因子衰减到99%（例如，如果第一个episode中的ε为0.1，则第二个episode中的ε将为0.099）。
 - en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
     policy; computes the *Q* values of the new state using the current estimator;
     then, computes the target value, [![](img/66653f49-f896-43ff-8f55-51a087693f99.png)],
     and uses it to train the estimator.'
+  id: totrans-114
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行一个episode：在每一步中，根据ε-greedy策略采取一个动作*a*；使用当前的估算器计算新状态的*Q*值；然后计算目标值，[![](img/66653f49-f896-43ff-8f55-51a087693f99.png)]，并用它来训练估算器。
 - en: Runs `n_episode` episodes and records the total reward for each episode.
+  id: totrans-115
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行`n_episode`个episode并记录每个episode的总奖励。
 - en: 'We specify the number of features as `200` and the learning rate as `0.03`,
     and create an estimator accordingly:'
+  id: totrans-116
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们指定特征数量为`200`，学习率为`0.03`，并相应地创建一个估算器：
 - en: '[PRE17]'
+  id: totrans-117
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'We perform Q-learning with FA for 300 episodes and also keep track of the total
     rewards for each episode:'
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们使用FA进行300个episode的Q-learning，并且记录每个episode的总奖励：
 - en: '[PRE18]'
+  id: totrans-119
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Then, we display the plot of episode lengths over time:'
+  id: totrans-120
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们显示随时间变化的episode长度的图表：
 - en: '[PRE19]'
+  id: totrans-121
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: How it works...
+  id: totrans-122
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 工作原理是…
 - en: As you can see, in Q-learning with FA, it tries to learn the optimal weights
     for the approximation models so that the Q values are best estimated. It is similar
     to TD Q-learning in the sense that they both generate learning data from another
@@ -541,297 +790,438 @@
     requires exact table lookup to update the Q values. The fact that Q-learning with
     FA updates the regression models after every single step also makes it similar
     to the TD Q-learning method.
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 如您所见，在Q学习中使用函数逼近时，它尝试学习最佳权重以便最佳估计Q值。它与TD Q学习类似，因为它们都从另一个策略生成学习数据。对于具有大状态空间的环境，Q学习使用一组回归模型和潜在特征来近似Q值，而TD
+    Q学习则需要精确的表查找来更新Q值。Q学习使用函数逼近在每一步之后更新回归模型，这也使它类似于TD Q学习方法。
 - en: 'After the Q-learning model is trained, we just need to use the regression models
     to predict the state-action values for all possible actions and pick the action
     with the largest value given a state. In *Step 6*, we import `pyplot` to plot
     all the rewards, which will result in the following plot:'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练Q学习模型后，我们只需使用回归模型预测所有可能动作的状态-动作值，并在给定状态时选择值最大的动作。在*步骤6*中，我们导入`pyplot`以绘制所有奖励，结果如下图所示：
 - en: '![](img/f88a6fcd-3f33-491e-b7e6-b16cc3c53b58.png)'
+  id: totrans-125
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f88a6fcd-3f33-491e-b7e6-b16cc3c53b58.png)'
 - en: You can see that, in most episodes, after the first 25 iterations, the car reaches
     the mountain top in around 130 to 160 steps.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以看到，在大多数情况下，经过前25次迭代后，汽车在约130到160步内到达山顶。
 - en: Developing SARSA with linear function approximation
+  id: totrans-127
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 开发使用线性函数逼近的SARSA
 - en: We've just solved the Mountain Car problem using the off-policy Q-learning algorithm
     in the previous recipe. Now, we will do so with the on-policy **State-Action-Reward-State-Action**
     (**SARSA**) algorithm (the FA version of course).
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在前面的步骤中使用了离策略Q学习算法成功解决了Mountain Car问题。现在，我们将使用**状态-动作-奖励-状态-动作**（**SARSA**）算法（当然是FA版本）来完成此任务。
 - en: 'In general, the SARSA algorithm updates the Q-function based on the following
     equation:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般来说，SARSA算法根据以下方程更新Q函数：
 - en: '![](img/424b8c6a-6aca-499c-87f0-c768dc6c1c76.png)'
+  id: totrans-130
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/424b8c6a-6aca-499c-87f0-c768dc6c1c76.png)'
 - en: 'Here, *s''* is the resulting state after taking action, *a*, in state *s*;
     *r* is the associated reward; α is the learning rate; and γ is the discount factor.
     We simply pick up the next action, a'', by also following an epsilon-greedy policy
     to update the *Q* value. And the action, *a''*, is taken in the next step. Accordingly,
     SARSA with FA has the following error term:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里，*s'*是在状态*s*中采取动作*a*后的结果状态；*r*是相关奖励；α是学习率；γ是折扣因子。我们通过遵循ε-greedy策略来选择下一个动作*a'*来更新*Q*值。然后在下一步中执行动作*a'*。因此，带有函数逼近的SARSA具有以下误差项：
 - en: '![](img/20d1d5b3-d702-4ed1-a200-9452361398c3.png)'
+  id: totrans-132
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/20d1d5b3-d702-4ed1-a200-9452361398c3.png)'
 - en: 'Our learning goal is to minimize the error term to zero, which means that the
     estimated V(st) should satisfy the following equation:'
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的学习目标是将误差项最小化为零，这意味着估计的V(st)应满足以下方程：
 - en: '![](img/bcb89757-ed43-40b1-81fa-83d878dc7627.png)'
+  id: totrans-134
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/bcb89757-ed43-40b1-81fa-83d878dc7627.png)'
 - en: Now, the goal becomes finding the optimal weights, θ, as in V(s)=θF(s), to best
     approximate the state-value function V(s) for each possible action. The loss function
     we are trying to minimize in this case is similar to that in a regression problem,
     which is the mean squared error between the actual value and the estimated value.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，目标是找到最优权重θ，如V(s)=θF(s)，以最佳方式逼近每个可能动作的状态值函数V(s)。在这种情况下，我们试图最小化的损失函数类似于回归问题中的损失函数，即实际值与估计值之间的均方误差。
 - en: How to do it...
+  id: totrans-136
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做…
 - en: 'Let''s develop SARSA with FA using the linear estimator, `Estimator`, from
     `linear_estimator.py`, which we developed in the recipe, *Estimating Q-functions
     with gradient descent approximation*:'
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们使用在*用梯度下降逼近估算Q函数*食谱中开发的线性估计器`linear_estimator.py`中的`Estimator`，来开发使用线性估计的SARSA。
 - en: 'Import the necessary modules and create a Mountain Car environment:'
+  id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的模块并创建一个Mountain Car环境：
 - en: '[PRE20]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: We will reuse the epsilon-greedy policy function developed in the previous recipe,
     *Developing Q-learning with linear function approximation*.
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重用上一步骤中开发的ε-greedy策略函数，*使用线性函数逼近开发Q学习*。
 - en: 'Now, define the function that performs the SARSA algorithm with FA:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，定义执行带有函数逼近的SARSA算法的函数：
 - en: '[PRE21]'
+  id: totrans-142
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'The `sarsa()` function does the following tasks:'
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: '`sarsa()`函数执行以下任务：'
 - en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
     to 99%.
+  id: totrans-144
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在每一集中，创建一个带有衰减至99%的ε-greedy策略。
 - en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
     policy; in the new state, chooses a new action according to the epsilon-greedy
     policy; then, compute the Q values of the new state using the current estimator;
     computes the target value, [![](img/e4ca0b59-d123-49c4-8152-3a4950ae6c7a.png)],
     and uses it to update the estimator.'
+  id: totrans-145
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行一个episode：在每一步中，根据ε-greedy策略选择一个动作*a*；在新状态中，根据ε-greedy策略选择一个新动作；然后，使用当前估算器计算新状态的Q值；计算目标值[![](img/e4ca0b59-d123-49c4-8152-3a4950ae6c7a.png)]，并用它来更新估算器。
 - en: Runs `n_episode` episodes and records the total reward for each episode.
+  id: totrans-146
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行`n_episode`个episode并记录每个episode的总奖励。
 - en: 'We specify the number of features as 200, the learning rate as 0.03, and create
     an estimator accordingly:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将特征数指定为200，学习率为0.03，并相应地创建一个估算器：
 - en: '[PRE22]'
+  id: totrans-148
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'We then perform SARSA with FA for 300 episodes and also keep track of the total
     rewards for each episode:'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后我们对FA执行300个episode的SARSA，并且还跟踪每个episode的总奖励：
 - en: '[PRE23]'
+  id: totrans-150
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Then, we display the plot of episode lengths over time:'
+  id: totrans-151
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们显示随时间变化的episode长度的图表：
 - en: '[PRE24]'
+  id: totrans-152
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: How it works...
+  id: totrans-153
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 工作原理是…
 - en: SARSA with FA tries to learn the optimal weights for the approximation models
     so that the Q values are best estimated. It optimizes the estimation by taking
     actions chosen under the same policy, as opposed to learning the experience from
     another policy in Q-learning.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用FA的SARSA尝试学习最佳权重以估算最佳的Q值。它通过选择在同一策略下选择的动作来优化估算，而不是像Q-learning中那样从另一种策略中学习经验。
 - en: Similarly, after the SARSA model is trained, we just need to use the regression
     models to predict the state-action values for all possible actions and pick the
     action with the largest value given a state.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似地，训练完SARSA模型后，我们只需使用回归模型预测所有可能动作的状态-动作值，并在给定状态时选择具有最大值的动作。
 - en: 'In *Step 6*, we plot the rewards with `pyplot`, which will result in the following
     plot:'
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*第6步*中，我们使用`pyplot`绘制奖励，将得到以下图表：
 - en: '![](img/9ec15b15-d664-426d-8331-4591069de13b.png)'
+  id: totrans-157
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/9ec15b15-d664-426d-8331-4591069de13b.png)'
 - en: You can see that, in most episodes, after the first 100 episodes, the car reaches
     the mountain top in around 130 to 160 steps.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以看到，在大多数episode中，经过前100个episode后，汽车在大约130到160步内到达山顶。
 - en: Incorporating batching using experience replay
+  id: totrans-159
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用经验重放来进行批处理整合
 - en: 'In the previous two recipes, we developed two FA learning algorithms: off-policy
     and on-policy, respectively. In this recipe, we will improve the performance of
     off-policy Q-learning by incorporating experience replay.'
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前两个配方中，我们分别开发了两种FA学习算法：离线策略和在线策略。在本配方中，我们将通过引入经验重放来提高离线Q-learning的性能。
 - en: '**Experience replay** means we store the agent''s experiences during an episode
     instead of running Q-learning. The learning phase with experience replay becomes
     two phases: gaining experience and updating models based on the experience obtained
     after an episode finishes.Specifically, the experience (also called the buffer,
     or memory) includes the past state, the action taken, the reward received, and
     the next state for individual steps in an episode.'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: '**经验重放**意味着我们在一个episode期间存储agent的经验，而不是运行Q-learning。带有经验重放的学习阶段变成了两个阶段：获得经验和在episode完成后根据获得的经验更新模型。具体来说，经验（也称为缓冲区或内存）包括个别步骤中的过去状态、执行的动作、接收的奖励和下一个状态。'
 - en: In the learning phase, a certain number of data points are randomly sampled
     from the experience and are used to train the learning models. Experience replay
     can stabilize training by providing a set of samples with low correlation, which,
     as a result, increases learning efficiency.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 在学习阶段中，从经验中随机采样一定数量的数据点，并用于训练学习模型。经验重放可以通过提供一组低相关性样本来稳定训练，从而提高学习效率。
 - en: How to do it...
+  id: totrans-163
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做…
 - en: 'Let’s apply experience replay to FA Q-learning using the linear estimator,
     `Estimator`, from `linear_estimator.py`, which we developed in the previous recipe,
     *Estimating Q-functions with gradient descent approximation*:'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们将经验重放应用于使用线性估算器`Estimator`的FA Q-learning，该估算器来自我们在上一个配方中开发的*使用梯度下降逼近估算Q函数*：
 - en: 'Import the necessary modules and create a Mountain Car environment:'
+  id: totrans-165
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的模块并创建一个Mountain Car环境：
 - en: '[PRE25]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: We will reuse the epsilon-greedy policy function developed in the previous,
     *Developing Q-learning with linear function approximation* recipe.
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将在前一节*开发带有线性函数近似的Q-learning*中开发的ε-greedy策略函数进行重用。
 - en: 'Then, specify the number of features as `200`, the learning rate as `0.03`,
     and create an estimator accordingly:'
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，将特征数量指定为`200`，学习率指定为`0.03`，并相应地创建估算器：
 - en: '[PRE26]'
+  id: totrans-169
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'Next, define the buffer holding the experience:'
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，定义保存经验的缓冲区：
 - en: '[PRE27]'
+  id: totrans-171
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: New samples will be appended to the queue, and the old ones will be removed
     as long as there are more than 400 samples in the queue.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 将新样本追加到队列中，并在队列中有超过400个样本时移除旧样本。
 - en: 'Now, define the function that performs FA Q-learning with experience replay:'
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，定义执行带有经验重播FA Q-learning的函数：
 - en: '[PRE28]'
+  id: totrans-174
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'The function does the following tasks:'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 该函数执行以下任务：
 - en: In each episode, creates an epsilon-greedy policy with an epsilon factor decayed
     to 99% (for example, if epsilon in the first episode is 0.1, it will be 0.099
     in the second episode).
+  id: totrans-176
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在每个周期中，创建一个epsilon-greedy策略，其中epsilon因子衰减到99%（例如，如果第一个周期的epsilon为0.1，则第二个周期为0.099）。
 - en: 'Runs an episode: in each step, takes an action, *a*, in keeping with the epsilon-greedy
     policy; compute the *Q* values of the new state using the current estimator; then,
     computes the target value, [![](img/239b6d7a-30aa-4996-9aa2-1aa1c44e1726.png)],
     and stores the state, action, and target value tuple in the buffer memory.'
+  id: totrans-177
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行一个周期：在每个步骤中，根据epsilon-greedy策略选择一个动作*a*；使用当前估算器计算新状态的*Q*值；然后计算目标值，[![](img/239b6d7a-30aa-4996-9aa2-1aa1c44e1726.png)]，并将状态、动作和目标值元组存储在缓冲内存中。
 - en: After each episode, randomly selects `replay_size` samples from the buffer memory
     and uses them to train the estimator.
+  id: totrans-178
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个周期结束后，从缓冲内存中随机选择`replay_size`个样本，并使用它们来训练估算器。
 - en: Runs `n_episode` episodes and records the total reward for each episode.
+  id: totrans-179
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 运行`n_episode`个周期，并记录每个周期的总奖励。
 - en: 'We perform Q-learning with experience replay for 1,000 episodes:'
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们执行了1,000个周期的经验重播Q-learning：
 - en: '[PRE29]'
+  id: totrans-181
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: We need more episodes simply because the models are not sufficiently trained,
     so the agent takes random steps in early episodes.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要更多的周期，仅仅因为模型尚未充分训练，所以代理在早期周期中采取随机步骤。
 - en: 'We set 190 as the replay sample size:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将190设置为重播样本大小：
 - en: '[PRE30]'
+  id: totrans-184
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'We also keep track of the total rewards for each episode:'
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还会跟踪每个周期的总奖励：
 - en: '[PRE31]'
+  id: totrans-186
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Now, we display the plot of episode lengths over time:'
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们展示随时间变化的情节长度的图表：
 - en: '[PRE32]'
+  id: totrans-188
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'This will result in the following plot:'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将导致以下图表：
 - en: '![](img/a1ad35c2-f547-4a45-bd2a-78cdb4c37532.png)'
+  id: totrans-190
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/a1ad35c2-f547-4a45-bd2a-78cdb4c37532.png)'
 - en: You can see that the performance of Q-learning with experience replay becomes
     much more stable. The rewards in most episodes after the first 500 episodes stay
     in the range of -160 to -120.
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以看到使用经验重播的Q-learning性能变得更加稳定。在第一个500个周期后，大多数周期的奖励保持在-160至-120的范围内。
 - en: How it works...
+  id: totrans-192
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 运作方式...
 - en: In this recipe, we solved the Mountain Car problem with the help of FA Q-learning,
     along with experience replay. It outperforms pure FA Q-learning because we collect
     less corrected training data with experience replay. Instead of rushing in and
@@ -839,17 +1229,23 @@
     in a buffer, and then we randomly select a batch of samples from the buffer and
     train the estimator. This forms an input dataset where samples are more independent
     of one another, thereby making training more stable and efficient.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们使用FA Q-learning解决了Mountain Car问题，同时使用了经验重播。它比纯FA Q-learning表现更好，因为我们使用经验重播收集了更少的校正训练数据。我们不会急于训练估算器，而是首先将在周期期间观察到的数据点存储在缓冲区中，然后我们从缓冲区中随机选择一个样本批次并训练估算器。这形成了一个输入数据集，其中样本之间更独立，从而使训练更加稳定和高效。
 - en: Developing Q-learning with neural network function approximation
+  id: totrans-194
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 开发带有神经网络函数逼近的Q-learning
 - en: As we mentioned before, we can also use neural networks as the approximating
     function. In this recipe, we will solve theMountain Car environment using Q-learning
     with neural networks for approximation.
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如前文所述，我们还可以使用神经网络作为逼近函数。在这个示例中，我们将使用神经网络对Q-learning进行逼近来解决Mountain Car环境问题。
 - en: The goal of FA is to use a set of features to estimate the Q values via a regression
     model. Using neural networks as the estimation model, we increase the regression
     power by adding flexibility (multiple layers in neural networks) and non-linearity
@@ -859,142 +1255,210 @@
     find the optimal weights of the network to best approximate the state-value function,
     V(s), for each possible action. The loss function we are trying to minimize is
     also the mean squared error between the actual value and the estimated value.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: FA 的目标是使用一组特征通过回归模型估计 Q 值。使用神经网络作为估算模型，通过在隐藏层中引入非线性激活增加回归模型的灵活性（多层神经网络）和非线性。Q-learning
+    模型的其余部分与线性逼近非常相似。我们还使用梯度下降来训练网络。学习的最终目标是找到网络的最优权重，以最佳逼近每个可能动作的状态值函数 V(s)。我们试图最小化的损失函数也是实际值与估计值之间的均方误差。
 - en: How to do it...
+  id: totrans-197
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做到这一点…
 - en: 'Let''s start by implementing the neural network-based estimator. We will reuse
     most parts of the linear estimator we developed in the *Estimating Q-functions
     with gradient descent approximation* recipe. The difference is that we connect
     the input layer and output layer with a hidden layer, followed by an activation
     function, which is a ReLU (rectified linear unit) function in this case. So, we
     only need to modify the `__init__` method as follows:'
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从实现基于神经网络的估计器开始。我们将重用我们在*使用梯度下降逼近估算 Q 函数*一节中开发的线性估计器的大部分部分。不同之处在于，我们将输入层和输出层连接到一个隐藏层，然后是一个激活函数，在这种情况下是一个
+    ReLU（修正线性单元）函数。因此，我们只需要按照以下方式修改`__init__`方法：
 - en: '[PRE33]'
+  id: totrans-199
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: As you can see, the hidden layer has `n_hidden` nodes, and a ReLU activation,
     `torch.nn.ReLU()`, comes after the hidden layer, followed by the output layer
     producing the estimated value.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所见，隐藏层有`n_hidden`个节点，以及一个 ReLU 激活函数`torch.nn.ReLU()`，在隐藏层之后，接着是生成估算值的输出层。
 - en: The other parts of the neural network `Estimator` are the same as the linear
     `Estimator`. You can copy them into the `nn_estimator.py` file.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 神经网络`Estimator`的其他部分与线性`Estimator`相同。你可以将它们复制到`nn_estimator.py`文件中。
 - en: 'Now, we continue with Q-learning using neural networks with experience replay
     as follows:'
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们继续使用经验回放的神经网络进行 Q-learning 如下：
 - en: 'Import the necessary modules, including the neural network estimator, `Estimator`,
     from `nn_estimator.py`, which we just developed, and create a Mountain Car environment:'
+  id: totrans-203
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的模块，包括我们刚刚开发的神经网络估计器`Estimator`，从`nn_estimator.py`中，并创建一个Mountain Car环境：
 - en: '[PRE34]'
+  id: totrans-204
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: We will reuse the epsilon-greedy policy function developed in the *Developing
     Q-learning with linear function approximation* recipe.
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重用在*开发带有线性函数逼近的 Q-learning*一节中开发的 epsilon-贪婪策略函数。
 - en: 'We then specify the number of features as 200, the learning rate as 0.001,
     the size of the hidden layer as 50, and create an estimator accordingly:'
+  id: totrans-206
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接着，我们将特征数设定为 200，学习率设定为 0.001，隐藏层大小设定为 50，并相应地创建一个估计器：
 - en: '[PRE35]'
+  id: totrans-207
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Next, define the buffer holding the experience:'
+  id: totrans-208
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，定义保存经验的缓冲区：
 - en: '[PRE36]'
+  id: totrans-209
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: New samples will be appended to the queue, and the old ones will be removed
     as long as there are more than 300 samples in the queue.
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: 新样本将被附加到队列中，只要队列中有超过 300 个样本，旧样本就会被移除。
 - en: We will reuse the `q_learning` function we developed in the previous recipe,
     *Incorporating batching using experience replay.* It performs FA Q-learning with
     experience replay.
+  id: totrans-211
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重用我们在前一节*使用经验回放进行批处理*中开发的`q_learning`函数。它执行带有经验回放的 FA Q-learning。
 - en: We perform Q-learning with experience replay for 1,000 episodes, and set 200
     as the replay sample size.
+  id: totrans-212
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们进行经验回放的 Q-learning，共 1,000 个 episodes，并将 200 设置为回放样本大小。
 - en: '[PRE37]'
+  id: totrans-213
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'We also keep track of the total rewards for each episode:'
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还会跟踪每个 episode 的总奖励：
 - en: '[PRE38]'
+  id: totrans-215
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Then, we display the plot of episode lengths over time:'
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们显示随时间变化的 episode 长度的图表：
 - en: '[PRE39]'
+  id: totrans-217
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: How it works...
+  id: totrans-218
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 工作原理…
 - en: FA using neural networks is very similar to linear function approximation. Instead
     of using a simple linear function, it uses neural networks to map the features
     to target values. The remaining parts of the algorithm are essentially the same,
     but it has higher flexibility because of the more complex architecture of neural
     networks and non-linear activation, and, hence, more predictive power.
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用神经网络进行FA非常类似于线性函数逼近。它不再使用简单的线性函数，而是使用神经网络将特征映射到目标值。算法的其余部分基本相同，但由于神经网络的更复杂结构和非线性激活，具有更高的灵活性和更强的预测能力。
 - en: 'In *Step 7*, we plot the episode lengths over time, which will result in the
     following plot:'
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*第7步*中，我们绘制随时间变化的情节长度图表，结果如下：
 - en: '![](img/138d1e8c-8d3e-44d9-a69e-ec3349a5facd.png)'
+  id: totrans-221
   prefs: []
   type: TYPE_IMG
+  zh: '![图像](img/138d1e8c-8d3e-44d9-a69e-ec3349a5facd.png)'
 - en: You can see that the performance of Q-learning with neural networks is better
     than using linear functions. The rewards in most episodes after the first 500
     episodes stay in the range of -140 to -85.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以看到，与使用线性函数相比，使用神经网络的Q-learning性能更好。在第一个500个情节之后，大多数情节的奖励保持在-140到-85的范围内。
 - en: See also
+  id: totrans-223
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 参见
 - en: 'If you want to brush up on your knowledge of neural networks, please check
     out the following material:'
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您想了解有关神经网络的知识，请查看以下材料：
 - en: '[https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html](https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html)'
+  id: totrans-225
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html](https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html)'
 - en: '[https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf](https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf)'
+  id: totrans-226
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf](https://www.cs.toronto.edu/~jlucas/teaching/csc411/lectures/tut5_handout.pdf)'
 - en: Solving the CartPole problem with function approximation
+  id: totrans-227
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用函数逼近解决CartPole问题
 - en: This is a bonus recipe in this chapter, where we will solve the CartPole problem
     using FA.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是本章的一个额外配方，在这里我们将使用FA解决CartPole问题。
 - en: As we saw in [Chapter 1](61027c1b-6d3a-4406-b069-7320c1818093.xhtml), *Getting
     started with reinforcement learning and PyTorch*, we simulated the CartPole environment
     in the , *Simulating the CartPole environment* recipe, and solved the environment
@@ -1002,79 +1466,115 @@
     in recipes including *Implementing and evaluating the random search policy*, *Developing
     the hill climbing algorithm*, and *Developing the policy gradient algorithm*.
     Now, let's try to solve CartPole using what we've talked about in this chapter.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在[第1章](61027c1b-6d3a-4406-b069-7320c1818093.xhtml)中看到的，*开始使用强化学习和PyTorch*，我们在*模拟CartPole环境*配方中模拟了CartPole环境，并分别使用随机搜索、爬山和策略梯度算法解决了环境，包括*实施和评估随机搜索策略*、*开发爬山算法*和*开发策略梯度算法*。现在，让我们尝试使用本章讨论的内容解决CartPole问题。
 - en: How to do it...
+  id: totrans-230
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何做到...
 - en: 'We demonstrate the solution for neural network-based FAs without experience
     replay as follows:'
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们演示了基于神经网络的FA解决方案，没有经验重演如下：
 - en: 'Import the necessary modules, including the neural network, `Estimator`, from
     `nn_estimator.py` which we developed in the previous recipe, *Developing Q-learning
     with neural net function approximation*, and create a CartPole environment:'
+  id: totrans-232
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入必要的模块，包括神经网络`Estimator`，从我们在上一个配方中开发的`nn_estimator.py`中创建CartPole环境：
 - en: '[PRE40]'
+  id: totrans-233
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: We will reuse the epsilon-greedy policy function developed in the previous recipe,
     *Developing Q-learning with linear function approximation*.
+  id: totrans-234
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重用在上一个配方中开发的epsilon-greedy策略函数，*使用线性函数逼近开发Q-learning*。
 - en: 'We then specify the number of features as 400 (note that the state space of
     the CartPole environment is 4-dimensional), the learning rate as 0.01, the size
     of the hidden layer as 100, and create a neural network estimator accordingly:'
+  id: totrans-235
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们然后指定特征数量为400（请注意CartPole环境的状态空间是4维），学习率为0.01，隐藏层大小为100，并相应地创建神经网络估计器：
 - en: '[PRE41]'
+  id: totrans-236
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: We will reuse the `q_learning` function we developed in the previous recipe,
     *Developing Q-learning with linear function approximation*. This performs FA Q-learning.
+  id: totrans-237
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将重用在上一个配方中开发的`q_learning`函数，*使用线性函数逼近开发Q-learning*。这执行FA Q-learning。
 - en: 'We perform Q-learning with FA for 1,000 episodes and also keep track of the
     total rewards for each episode:'
+  id: totrans-238
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们进行了1,000个情节的FA Q-learning，并跟踪每个情节的总奖励：
 - en: '[PRE42]'
+  id: totrans-239
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Finally, we display the plot of episode lengths over time:'
+  id: totrans-240
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们展示随时间变化的情节长度的图表：
 - en: '[PRE43]'
+  id: totrans-241
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: How it works...
+  id: totrans-242
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 它的工作原理...
 - en: We have solved the CartPole problem using the FA algorithm with neural networks
     in this recipe. Note that the environment has a four dimensional observation space,
     which is double that of the Mountain Car, so we intuitively double up the number
     of features we use, and the size of the hidden layer accordingly. Feel free to
     experiment with SARSA with neural networks, or Q-learning with experience replay,
     and see whether either of them perform better.
+  id: totrans-243
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用神经网络中的FA算法解决了CartPole问题。请注意，环境具有四维观测空间，是Mountain Car的两倍，因此我们直观地增加了我们使用的特征数和隐藏层的大小。可以自由地尝试使用神经网络的SARSA或经验回放的Q-learning，并查看它们是否表现更好。
 - en: 'In *Step 6*, we plot the episode lengths over time, which will result in the
     following plot:'
+  id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*第6步*中，我们绘制了随时间变化的集数长度，结果如下图所示：
 - en: '![](img/e793c8eb-e2da-463d-9c98-a1792189a1e5.png)'
+  id: totrans-245
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/e793c8eb-e2da-463d-9c98-a1792189a1e5.png)'
 - en: You can see that the total rewards in most episodes after the first 300 episodes
     are the maximum value of +200.
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数情况下，从第300集后的总奖励值为最大值+200。
