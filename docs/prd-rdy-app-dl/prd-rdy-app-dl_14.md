@@ -1,6 +1,4 @@
-# 11
-
-# 移动设备上的深度学习
+# 第十一章：移动设备上的深度学习
 
 本章将介绍如何在移动设备上部署**深度学习**（**DL**）模型，这些模型是使用**TensorFlow**（**TF**）和**PyTorch**开发的，并使用**TensorFlow Lite**（**TF Lite**）和**PyTorch Mobile**分别进行部署。首先，我们将讨论如何将 TF 模型转换为 TF Lite 模型。然后，我们将解释如何将 PyTorch 模型转换为 TorchScript 模型，以便 PyTorch Mobile 可以使用。最后，本章的最后两节将涵盖如何将转换后的模型集成到 Android 和 iOS 应用程序（应用）中。
 

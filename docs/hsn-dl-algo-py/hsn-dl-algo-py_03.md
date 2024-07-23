@@ -1,4 +1,4 @@
-# 认识 TensorFlow
+# 第二章：认识 TensorFlow
 
 在本章中，我们将学习 TensorFlow，这是最流行的深度学习库之一。在本书中，我们将使用 TensorFlow 从头开始构建深度学习模型。因此，在本章中，我们将了解 TensorFlow 及其功能。我们还将学习 TensorFlow 提供的用于模型可视化的工具 TensorBoard。接下来，我们将学习如何使用 TensorFlow 执行手写数字分类，以构建我们的第一个神经网络。随后，我们将了解 TensorFlow 2.0，这是 TensorFlow 的最新版本。我们将学习 TensorFlow 2.0 与其早期版本的区别，以及它如何使用 Keras 作为其高级 API。
 

@@ -1,4 +1,4 @@
-# 2 结合 CNN 和 LSTM
+# 第二章：结合 CNN 和 LSTM
 
 ## 加入我们的书籍社区 Discord
 

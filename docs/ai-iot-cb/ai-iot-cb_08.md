@@ -1,4 +1,4 @@
-使用 Microcontrollers 和 Pipelines 进行优化
+# 第八章：使用 Microcontrollers 和 Pipelines 进行优化
 
 大多数物联网设备运行在**微控制器单元**（**MCUs**）上，而大多数机器学习则发生在 CPU 上。人工智能领域最前沿的创新之一是在受限设备上运行模型。过去，人工智能局限于具有传统操作系统（如 Windows 或 Linux）的大型计算机。现在，小型设备可以使用 ONYX 和 TensorFlow Lite 等技术执行机器学习模型。这些受限设备成本低廉，可以在没有互联网连接的情况下使用机器学习，并且可以大大节省云成本。
 

@@ -1,4 +1,4 @@
-# 6 Deep Convolutional GANs
+# 第六章：Deep Convolutional GANs
 
 ## 加入我们的书籍社区 Discord
 

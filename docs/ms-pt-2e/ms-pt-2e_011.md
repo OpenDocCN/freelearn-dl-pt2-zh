@@ -1,4 +1,4 @@
-# 17 PyTorch 和可解释 AI
+# 第十七章：PyTorch 和可解释 AI
 
 ## 在我们的 Discord 书籍社区中加入我们
 
