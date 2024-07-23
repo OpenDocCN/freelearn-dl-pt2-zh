@@ -1,4 +1,4 @@
-# Zapier 与生成式 AI 的自动化
+# PyTorch 深度学习指南
 
 > 原文：[`zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda`](https://zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda)
 > 
