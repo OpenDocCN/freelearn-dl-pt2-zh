@@ -1,3 +1,4 @@
++   [PyTorch 应用深度学习指南](README.md)
 +   [前言](app-dl-pt_0.md)
 +   [第一章：深度学习和 PyTorch 简介](app-dl-pt_1.md)
 +   [第二章：神经网络的基本构建模块](app-dl-pt_2.md)

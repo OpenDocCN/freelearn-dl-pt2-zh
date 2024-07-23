@@ -1,3 +1,4 @@
++   [生产就绪的应用深度学习指南](README.md)
 +   [前言](prd-rdy-app-dl_00.md)
 +   [第一部分：建立最小可行产品](prd-rdy-app-dl_01.md)
 +   [第一章：有效规划深度学习驱动项目](prd-rdy-app-dl_02.md)

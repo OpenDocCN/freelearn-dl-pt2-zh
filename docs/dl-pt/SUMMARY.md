@@ -1,4 +1,5 @@
-+   [序言](dl-pt_00.md)
++   [PyTorch 深度学习指南](README.md)
++   [前言](dl-pt_00.md)
 +   [第一章：使用 PyTorch 入门深度学习](dl-pt_01.md)
 +   [第二章：神经网络的构建模块](dl-pt_02.md)
 +   [第三章：深入研究神经网络](dl-pt_03.md)

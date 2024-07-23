@@ -1,6 +1,6 @@
-# Zapier 与生成式 AI 的自动化
+# PyTorch 与 Sklearn 机器学习指南
 
-> 原文：[`zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda`](https://zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda)
+> 原文：[`zh.annas-archive.org/md5/2a872f7dd98f6fbe3043a236f689e451`](https://zh.annas-archive.org/md5/2a872f7dd98f6fbe3043a236f689e451)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

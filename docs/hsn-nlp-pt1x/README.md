@@ -1,6 +1,6 @@
-# Zapier 与生成式 AI 的自动化
+# PyTorch 1.x 自然语言处理实用指南
 
-> 原文：[`zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda`](https://zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda)
+> 原文：[`zh.annas-archive.org/md5/da825e03093e3d0e5022fb90bb0f3499`](https://zh.annas-archive.org/md5/da825e03093e3d0e5022fb90bb0f3499)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

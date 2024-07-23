@@ -1,3 +1,4 @@
++   [PyTorch 1.x 强化学习秘籍](README.md)
 +   [前言](pt1x-rl-cb_00.md)
 +   [第一章：开始使用强化学习和 PyTorch](pt1x-rl-cb_01.md)
 +   [第二章：马尔可夫决策过程和动态规划](pt1x-rl-cb_02.md)

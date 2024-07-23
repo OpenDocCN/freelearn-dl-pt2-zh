@@ -1,3 +1,4 @@
++   [PyTorch 深度学习快速启动指南](README.md)
 +   [前言](dl-pt-dkstgd_0.md)
 +   [第一章：PyTorch 介绍](dl-pt-dkstgd_1.md)
 +   [第二章：深度学习基础](dl-pt-dkstgd_2.md)

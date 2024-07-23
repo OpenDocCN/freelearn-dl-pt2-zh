@@ -1,3 +1,4 @@
++   [面向物联网的人工智能秘籍](README.md)
 +   [前言](ai-iot-cb_00.md)
 +   [第一章：设置 IoT 和 AI 环境](ai-iot-cb_01.md)
 +   [第二章：处理数据](ai-iot-cb_02.md)

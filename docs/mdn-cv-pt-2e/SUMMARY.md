@@ -1,3 +1,4 @@
++   [PyTorch 现代计算机视觉第二版](README.md)
 +   [前言](mdn-cv-pt-2e_00.md)
 +   [第一部分：计算机视觉深度学习基础](mdn-cv-pt-2e_01.md)
 +   [第一章：人工神经网络基础知识](mdn-cv-pt-2e_02.md)

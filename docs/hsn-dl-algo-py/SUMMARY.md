@@ -1,3 +1,4 @@
++   [Python 深度学习算法实用指南](README.md)
 +   [前言](hsn-dl-algo-py_00.md)
 +   [第一部分：深度学习入门](hsn-dl-algo-py_01.md)
 +   [第一章：深度学习简介](hsn-dl-algo-py_02.md)

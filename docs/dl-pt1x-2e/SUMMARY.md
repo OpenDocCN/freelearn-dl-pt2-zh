@@ -1,3 +1,4 @@
++   [PyTorch 1.x 深度学习指南第二版](README.md)
 +   [前言](dl-pt1x-2e_00.md)
 +   [第一部分：构建 PyTorch 1.x 深度学习的基础模块](dl-pt1x-2e_01.md)
 +   [第一章：使用 PyTorch 入门深度学习](dl-pt1x-2e_02.md)

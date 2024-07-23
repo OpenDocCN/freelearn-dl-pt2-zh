@@ -1,3 +1,4 @@
++   [Python 人工智能秘籍](README.md)
 +   [前言](ai-py-cb_00.md)
 +   [第一章：Python 中的人工智能入门](ai-py-cb_01.md)
 +   [第二章：监督机器学习中的高级主题](ai-py-cb_02.md)

@@ -1,3 +1,4 @@
++   [PyTorch 1.x 模型训练加速指南](README.md)
 +   [前言](acc-mdl-trn-pt1x_00.md)
 +   [第一部分：Paving the Way](acc-mdl-trn-pt1x_01.md)
 +   [第一章：拆解训练过程](acc-mdl-trn-pt1x_02.md)

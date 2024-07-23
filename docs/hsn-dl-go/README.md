@@ -1,6 +1,6 @@
-# Zapier 与生成式 AI 的自动化
+# Go 深度学习实用指南
 
-> 原文：[`zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda`](https://zh.annas-archive.org/md5/057fe0c351c5365f1188d1f44806abda)
+> 原文：[`zh.annas-archive.org/md5/cea3750df3b2566d662a1ec564d1211d`](https://zh.annas-archive.org/md5/cea3750df3b2566d662a1ec564d1211d)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 
