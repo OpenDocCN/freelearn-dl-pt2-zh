@@ -3,11 +3,13 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '9'
 - en: Scaling a Deep Learning Pipeline
   id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 扩展深度学习管道
 - en: '**Amazon Web Services** (**AWS**) opens many possibilities in **deep learning**
     (**DL**) model deployments. In this chapter, we will introduce the two most popular
     services designed for deploying a DL model as an inference endpoint: **Elastic
@@ -15,6 +17,7 @@
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: '**亚马逊网络服务**（**AWS**）在**深度学习**（**DL**）模型部署方面提供了许多可能性。在本章中，我们将介绍两种最受欢迎的服务，专为将DL模型部署为推理端点而设计：**弹性Kubernetes服务**（**EKS**）和**SageMaker**。'
 - en: In the first half, we will describe the EKS-based approach. First, we will discuss
     how to create inference endpoints for **TensorFlow** (**TF**) and PyTorch models
     and deploy them using EKS. We will also introduce the **Elastic Inference** (**EI**)
@@ -25,6 +28,7 @@
   id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前半部分，我们将描述基于EKS的方法。首先，我们将讨论如何为**TensorFlow**（**TF**）和PyTorch模型创建推理端点，并使用EKS部署它们。我们还将介绍**弹性推理**（**EI**）加速器，它可以提高吞吐量同时降低成本。EKS集群有托管推理端点的pod作为Web服务器。作为基于EKS的部署的最后一个主题，我们将介绍如何根据动态流量扩展这些pod。
 - en: In the second half, we will introduce SageMaker-based deployment. We will discuss
     how to create inference endpoints for TF, PyTorch, and ONNX models. Additionally,
     the endpoints will be optimized using **Amazon SageMaker Neo** and EI accelerators.
@@ -34,35 +38,43 @@
   id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在后半部分，我们将介绍基于SageMaker的部署。我们将讨论如何为TF、PyTorch和ONNX模型创建推理端点。此外，端点将使用**亚马逊SageMaker
+    Neo**和EI加速器进行优化。然后，我们将设置在SageMaker上运行的推理端点的自动扩展。最后，我们将通过描述如何在单个SageMaker推理端点中托管多个模型来结束本章。
 - en: 'In this chapter, we are going to cover the following main topics:'
   id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章节中，我们将涵盖以下主要主题：
 - en: Inferencing using Elastic Kubernetes Service
   id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用弹性Kubernetes服务进行推理
 - en: Inferencing using SageMaker
   id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用SageMaker进行推理
 - en: Technical requirements
   id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: You can download the supplemental material for this chapter from this book’s
     GitHub repository at [https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_9](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_9).
   id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以从本书的GitHub存储库下载本章的补充材料，网址为[https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_9](https://github.com/PacktPublishing/Production-Ready-Applied-Deep-Learning/tree/main/Chapter_9)。
 - en: Inferencing using Elastic Kubernetes Service
   id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用弹性Kubernetes服务进行推理
 - en: EKS is designed to provide Kubernetes clusters for application deployment by
     simplifying the complex cluster management process ([https://aws.amazon.com/eks](https://aws.amazon.com/eks)).
     The detailed steps for creating an EKS cluster can be found at [https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html).
@@ -73,6 +85,7 @@
   id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: EKS旨在通过简化复杂的集群管理过程提供用于应用部署的Kubernetes集群（[https://aws.amazon.com/eks](https://aws.amazon.com/eks)）。有关创建EKS集群的详细步骤，请参阅[https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)。通常情况下，EKS集群用于部署任何Web服务应用程序，并根据需要进行扩展。EKS上的推理端点只是处理模型推理请求的Web服务应用程序。在本节中，您将学习如何在EKS上托管DL模型推理端点。
 - en: A Kubernetes cluster has a control plane and a set of nodes. The control plane
     makes scheduling and scaling decisions based on the volume of incoming traffic.
     With scheduling, the control plane manages which node runs a job at a given point
@@ -83,6 +96,7 @@
   id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: Kubernetes集群有一个控制平面和一组节点。控制平面根据流入流量的大小进行调度和扩展决策。在调度方面，控制平面管理在给定时间点运行作业的节点。在扩展方面，控制平面根据流入端点的流量大小增加或减少pod的大小。EKS在幕后管理这些组件，以便您可以专注于有效和高效地托管您的服务。
 - en: This section begins by describing how to set up an EKS cluster. Then, we will
     describe how to create endpoints using TF and PyTorch to handle model inference
     requests on an EKS cluster. Next, we will discuss the EI accelerator, which improves
